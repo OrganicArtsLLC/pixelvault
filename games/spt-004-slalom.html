@@ -1,0 +1,1205 @@
+<!--
+PROTOTYPE: slalom
+SERIES: spt
+NUMBER: 004
+DATE: 2026-03-22
+MECHANIC: carve downhill through gates, avoid obstacles, beat the clock
+ANCESTRY: Slalom (1987, Rare/Nintendo), Ski Free (1991, Microsoft/Chris Pirih)
+CONTROLS: <- -> — carve/turn | up — tuck for speed | down — brake/snowplow | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — pseudo-3D rendering, physics simulation)
+AI-INSIGHT: Slalom skiing is a sequential decision problem under momentum constraints — each gate approach must account for current velocity and the position of the NEXT gate. The player is solving a look-ahead path optimization where greedy choices (shortest path to current gate) may make the next gate unreachable.
+NOTES: Speed-turn tradeoff is the core tension — faster means wider turns.
+       Gate placement creates a path-planning puzzle at speed.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPT-004 · GATE RACER</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SPT-004 · GATE RACER</h1>
+    <p><span class="tag series">SPT — Sports</span> <span class="tag">Prototype #004</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Ski downhill through 30 gates as fast as possible. Pass between each pair of flags (red on left, blue on right). Missing a gate adds a 5-second penalty. Hitting an obstacle crashes you for 2 seconds plus a time penalty.</p>
+    <ul>
+      <li><kbd>&#8592;</kbd> <kbd>&#8594;</kbd> — Carve left/right (turn rate depends on speed)</li>
+      <li><kbd>&#8593;</kbd> — Tuck position (go faster, wider turns)</li>
+      <li><kbd>&#8595;</kbd> — Snowplow/brake (slow down, tighter turns)</li>
+      <li><kbd>R</kbd> — Restart run</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Plan ahead:</strong> Look at the next gate while passing the current one.</li>
+      <li><strong>Speed vs control:</strong> Tucking is fast but makes turning harder. Brake before tight gates.</li>
+      <li><strong>Clean runs matter:</strong> Missing gates adds 5 seconds each — consistency beats raw speed.</li>
+      <li><strong>Avoid obstacles:</strong> Trees and rocks cause a 2-second crash stun plus 3-second penalty.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Slalom (1987, Rare/Nintendo) &rarr; Ski Free (1991, Microsoft/Chris Pirih) &rarr; SSX (2000, EA)</p>
+    <p>Slalom (1987) for the NES was one of Rare's earliest console games, designed by Tim and Chris Stamper. It used a pseudo-3D perspective to simulate downhill skiing, with the player weaving between gates and dodging obstacles like trees, snowmen, and sledders.</p>
+    <p>Ski Free (1991) by Chris Pirih became a beloved Windows pack-in game. Its overhead perspective and infamous Abominable Snowman made it a cultural touchstone. Both games capture the essential tension of alpine skiing: speed versus control.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 3 — Knowledge Explosion (1978&ndash;1993)</p>
+    <p><strong>Contemporary AI:</strong> Path planning algorithms (A*, Dijkstra) were well-established. Optimal trajectory computation under physics constraints was an active research area in robotics.</p>
+    <p><strong>Hidden Intelligence:</strong> Slalom skiing is a sequential decision problem under momentum constraints. Each gate approach must account for current velocity and the position of the NEXT gate. The player is solving a look-ahead path optimization where greedy choices (shortest path to current gate) may make the next gate unreachable. This is a simplified version of the motion planning problem in robotics — nonholonomic planning with momentum.</p>
+    <p><strong>The Convergence:</strong> Modern ski racing simulation uses the same trajectory optimization that autonomous vehicles employ. Both must plan curved paths through waypoints while respecting velocity-dependent turn constraints. The game mechanic IS the real physics.</p>
+    <p><strong>If AI Had Designed This:</strong> Gate placement would be procedurally optimized to create maximal decision tension — each gate positioned so that the optimal approach depends on the gate after it, creating a chain of coupled decisions.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: SPT — Sports</h3>
+    <p>Games that simulate athletic competition. Slalom distills alpine ski racing to its core mechanic: the speed-turn tradeoff under sequential waypoint constraints.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Carve through gates under momentum.</strong> Speed-dependent turn radius. Tuck for speed, brake for control. Gate sequence creates path-planning puzzle. Time trial with penalties for misses and crashes.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Speed-turn tradeoff — does faster-means-wider feel natural?</li>
+      <li>Gate readability — can you see upcoming gates early enough to plan?</li>
+      <li>Crash penalty — does the 2-second stun feel punishing but fair?</li>
+      <li>Course variety — do the three difficulty levels feel distinct?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Pseudo-3D perspective rendering. Three courses (Easy, Medium, Hard). 30 gates per run. Time trial with penalty system. Best time tracking per course.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+const keys = {};
+window.addEventListener('keydown', e => { if (!infoOpen) keys[e.code] = true; e.preventDefault(); });
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+// --- CONSTANTS ---
+const SKIER_SCREEN_Y = H * 0.72;
+const VIEW_DEPTH = 800;
+const ROAD_WIDTH = 1200;
+
+const COURSE_DEFS = [
+  { name: 'EASY',   gateWidth: 200, obstacles: 15, gateSpread: 280, color: '#4f4' },
+  { name: 'MEDIUM', gateWidth: 140, obstacles: 25, gateSpread: 340, color: '#ff0' },
+  { name: 'HARD',   gateWidth: 90,  obstacles: 40, gateSpread: 400, color: '#f44' }
+];
+
+const TOTAL_GATES = 30;
+const GATE_SPACING = 350;
+const MISS_PENALTY = 5.0;
+const CRASH_PENALTY = 3.0;
+const CRASH_STUN_TIME = 120;
+
+// Speed
+const MIN_SPEED = 1.5;
+const NORMAL_SPEED = 4.0;
+const TUCK_SPEED = 6.5;
+const BRAKE_SPEED = 2.0;
+const SPEED_ACCEL = 0.04;
+const TURN_RATE_BASE = 3.5;
+
+// --- STATE ---
+let courseIdx = 0;
+let phase = 'menu'; // menu, countdown, racing, finished, crashed
+let gates, obstacles, skier, timer, bestTimes, crashTimer, countdownTimer;
+let gatesPassed, gatesMissed, penaltyTime, nextGateIdx;
+let courseLength;
+let particles;
+
+bestTimes = [Infinity, Infinity, Infinity];
+
+function generateCourse(ci) {
+  const def = COURSE_DEFS[ci];
+  const g = [];
+  const obs = [];
+
+  // Generate gates
+  for (let i = 0; i < TOTAL_GATES; i++) {
+    const zPos = 600 + i * GATE_SPACING;
+    const centerX = (Math.random() - 0.5) * def.gateSpread;
+    const halfW = def.gateWidth / 2;
+    g.push({
+      z: zPos,
+      leftX: centerX - halfW,
+      rightX: centerX + halfW,
+      centerX: centerX,
+      passed: false,
+      missed: false
+    });
+  }
+
+  // Generate obstacles (trees and rocks)
+  courseLength = 600 + TOTAL_GATES * GATE_SPACING + 500;
+  for (let i = 0; i < def.obstacles; i++) {
+    const z = 400 + Math.random() * (courseLength - 800);
+    const x = (Math.random() - 0.5) * ROAD_WIDTH * 0.9;
+
+    // Avoid placing obstacles directly in gate gaps
+    let tooClose = false;
+    for (const gate of g) {
+      if (Math.abs(z - gate.z) < 80 && x > gate.leftX - 40 && x < gate.rightX + 40) {
+        tooClose = true;
+        break;
+      }
+    }
+    if (tooClose) { i--; continue; }
+
+    obs.push({
+      z: z,
+      x: x,
+      type: Math.random() < 0.6 ? 'tree' : 'rock',
+      hit: false
+    });
+  }
+
+  return { gates: g, obstacles: obs };
+}
+
+function initRun() {
+  const course = generateCourse(courseIdx);
+  gates = course.gates;
+  obstacles = course.obstacles;
+  courseLength = 600 + TOTAL_GATES * GATE_SPACING + 500;
+
+  skier = {
+    x: 0,
+    z: 0,
+    speed: 0,
+    angle: 0,
+    targetSpeed: NORMAL_SPEED,
+    tucking: false,
+    braking: false
+  };
+
+  timer = 0;
+  penaltyTime = 0;
+  gatesPassed = 0;
+  gatesMissed = 0;
+  nextGateIdx = 0;
+  crashTimer = 0;
+  countdownTimer = 180; // 3 seconds at 60fps
+  phase = 'countdown';
+  particles = [];
+}
+
+function spawnSnowSpray(side) {
+  for (let i = 0; i < 3; i++) {
+    particles.push({
+      x: skier.x + side * (8 + Math.random() * 6),
+      z: skier.z - 5 - Math.random() * 10,
+      vx: side * (1 + Math.random() * 2),
+      vz: -Math.random() * 1,
+      life: 20 + Math.random() * 15,
+      maxLife: 35,
+      size: 2 + Math.random() * 3
+    });
+  }
+}
+
+function spawnCrashParticles() {
+  for (let i = 0; i < 20; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const spd = 1 + Math.random() * 4;
+    particles.push({
+      x: skier.x + Math.cos(a) * 5,
+      z: skier.z + Math.sin(a) * 5,
+      vx: Math.cos(a) * spd,
+      vz: Math.sin(a) * spd,
+      life: 30 + Math.random() * 30,
+      maxLife: 60,
+      size: 2 + Math.random() * 4
+    });
+  }
+}
+
+initRun();
+phase = 'menu';
+
+function update() {
+  if (infoOpen) return;
+
+  if (phase === 'menu') {
+    if (keys['Digit1']) { courseIdx = 0; initRun(); }
+    if (keys['Digit2']) { courseIdx = 1; initRun(); }
+    if (keys['Digit3']) { courseIdx = 2; initRun(); }
+    return;
+  }
+
+  if (phase === 'finished') {
+    if (keys['KeyR']) { initRun(); phase = 'menu'; }
+    return;
+  }
+
+  if (keys['KeyR']) { initRun(); phase = 'menu'; return; }
+
+  // Countdown
+  if (phase === 'countdown') {
+    countdownTimer--;
+    if (countdownTimer <= 0) {
+      phase = 'racing';
+      skier.speed = NORMAL_SPEED;
+    }
+    return;
+  }
+
+  // Racing
+  if (phase !== 'racing') return;
+
+  // Timer
+  timer += 1 / 60;
+
+  // Crash stun
+  if (crashTimer > 0) {
+    crashTimer--;
+    skier.speed *= 0.96;
+    if (skier.speed < 0.3) skier.speed = 0;
+    // Update particles during crash
+    updateParticles();
+    return;
+  }
+
+  // Input
+  skier.tucking = !!keys['ArrowUp'];
+  skier.braking = !!keys['ArrowDown'];
+
+  // Target speed
+  if (skier.tucking) {
+    skier.targetSpeed = TUCK_SPEED;
+  } else if (skier.braking) {
+    skier.targetSpeed = BRAKE_SPEED;
+  } else {
+    skier.targetSpeed = NORMAL_SPEED;
+  }
+
+  // Accelerate/decelerate toward target
+  if (skier.speed < skier.targetSpeed) {
+    skier.speed += SPEED_ACCEL;
+    if (skier.speed > skier.targetSpeed) skier.speed = skier.targetSpeed;
+  } else if (skier.speed > skier.targetSpeed) {
+    skier.speed -= SPEED_ACCEL * (skier.braking ? 2.5 : 1.0);
+    if (skier.speed < skier.targetSpeed) skier.speed = skier.targetSpeed;
+  }
+  if (skier.speed < MIN_SPEED) skier.speed = MIN_SPEED;
+
+  // Turning — turn rate inversely related to speed
+  const turnFactor = TURN_RATE_BASE / (0.5 + skier.speed * 0.4);
+  let turning = 0;
+  if (keys['ArrowLeft']) {
+    skier.angle -= turnFactor * 0.03;
+    turning = -1;
+  }
+  if (keys['ArrowRight']) {
+    skier.angle += turnFactor * 0.03;
+    turning = 1;
+  }
+
+  // Friction on angle (straighten out)
+  if (!keys['ArrowLeft'] && !keys['ArrowRight']) {
+    skier.angle *= 0.92;
+  }
+
+  // Clamp angle
+  const maxAngle = 1.2;
+  if (skier.angle > maxAngle) skier.angle = maxAngle;
+  if (skier.angle < -maxAngle) skier.angle = -maxAngle;
+
+  // Move skier
+  skier.x += Math.sin(skier.angle) * skier.speed;
+  skier.z += Math.cos(skier.angle) * skier.speed;
+
+  // Clamp X to course bounds
+  const halfCourse = ROAD_WIDTH / 2;
+  if (skier.x < -halfCourse) { skier.x = -halfCourse; skier.angle *= 0.5; }
+  if (skier.x > halfCourse) { skier.x = halfCourse; skier.angle *= 0.5; }
+
+  // Snow spray when turning hard
+  if (turning !== 0 && skier.speed > 2.5 && Math.abs(skier.angle) > 0.15) {
+    spawnSnowSpray(turning);
+  }
+
+  // Gate checking
+  while (nextGateIdx < gates.length) {
+    const gate = gates[nextGateIdx];
+    if (skier.z >= gate.z) {
+      // Did we pass through?
+      if (skier.x >= gate.leftX && skier.x <= gate.rightX) {
+        gate.passed = true;
+        gatesPassed++;
+      } else {
+        gate.missed = true;
+        gatesMissed++;
+        penaltyTime += MISS_PENALTY;
+      }
+      nextGateIdx++;
+    } else {
+      break;
+    }
+  }
+
+  // Obstacle collision
+  for (const obs of obstacles) {
+    if (obs.hit) continue;
+    const dz = skier.z - obs.z;
+    const dx = skier.x - obs.x;
+    const hitR = obs.type === 'tree' ? 18 : 14;
+    if (Math.abs(dz) < 20 && Math.abs(dx) < hitR) {
+      obs.hit = true;
+      crashTimer = CRASH_STUN_TIME;
+      penaltyTime += CRASH_PENALTY;
+      spawnCrashParticles();
+    }
+  }
+
+  // Finish line
+  const finishZ = 600 + TOTAL_GATES * GATE_SPACING + 200;
+  if (skier.z >= finishZ) {
+    phase = 'finished';
+    const totalTime = timer + penaltyTime;
+    if (totalTime < bestTimes[courseIdx]) {
+      bestTimes[courseIdx] = totalTime;
+    }
+  }
+
+  updateParticles();
+}
+
+function updateParticles() {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx;
+    p.z += p.vz;
+    p.life--;
+    if (p.life <= 0) { particles.splice(i, 1); }
+  }
+}
+
+// --- PSEUDO-3D PROJECTION ---
+function project(worldX, worldZ) {
+  const relZ = worldZ - skier.z;
+  if (relZ < 1) return null;
+  const scale = VIEW_DEPTH / relZ;
+  const screenX = W / 2 + (worldX - skier.x) * scale;
+  const screenY = SKIER_SCREEN_Y - relZ * scale * 0.15 + 80;
+  return { x: screenX, y: screenY, scale: scale };
+}
+
+function draw() {
+  // Sky gradient
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, H * 0.35);
+  skyGrad.addColorStop(0, '#88bbee');
+  skyGrad.addColorStop(1, '#ccddee');
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, W, H * 0.35);
+
+  // Mountains in background
+  ctx.fillStyle = '#8899aa';
+  ctx.beginPath();
+  ctx.moveTo(0, H * 0.35);
+  for (let mx = 0; mx <= W; mx += 40) {
+    const mh = Math.sin(mx * 0.008 + 1.5) * 50 + Math.sin(mx * 0.013 + 3) * 30;
+    ctx.lineTo(mx, H * 0.35 - 50 - mh);
+  }
+  ctx.lineTo(W, H * 0.35);
+  ctx.closePath();
+  ctx.fill();
+
+  // Snow-capped peaks
+  ctx.fillStyle = '#ddeeff';
+  ctx.beginPath();
+  ctx.moveTo(0, H * 0.35);
+  for (let mx = 0; mx <= W; mx += 40) {
+    const mh = Math.sin(mx * 0.008 + 1.5) * 50 + Math.sin(mx * 0.013 + 3) * 30;
+    const peakH = mh * 0.4;
+    ctx.lineTo(mx, H * 0.35 - 50 - mh + (mh - peakH));
+  }
+  ctx.lineTo(W, H * 0.35);
+  ctx.closePath();
+  ctx.fill();
+
+  // Snow ground
+  ctx.fillStyle = '#eef4f8';
+  ctx.fillRect(0, H * 0.33, W, H * 0.67);
+
+  // Perspective depth lines (snow texture)
+  ctx.strokeStyle = 'rgba(200,210,220,0.4)';
+  ctx.lineWidth = 1;
+  for (let dz = 50; dz < VIEW_DEPTH; dz += 40) {
+    const offsetZ = (dz + (skier.z * 2) % 40) % VIEW_DEPTH;
+    const p = project(skier.x, skier.z + offsetZ);
+    if (!p || p.y < H * 0.33 || p.y > H) continue;
+    ctx.beginPath();
+    ctx.moveTo(0, p.y);
+    ctx.lineTo(W, p.y);
+    ctx.stroke();
+  }
+
+  // Course edge markers
+  ctx.strokeStyle = 'rgba(180,100,100,0.3)';
+  ctx.lineWidth = 1;
+  for (let dz = 30; dz < VIEW_DEPTH; dz += 60) {
+    const zWorld = skier.z + dz;
+    const pL = project(skier.x - ROAD_WIDTH / 2, zWorld);
+    const pR = project(skier.x + ROAD_WIDTH / 2, zWorld);
+    if (pL && pR && pL.y > H * 0.33) {
+      ctx.fillStyle = '#d44';
+      ctx.fillRect(pL.x - 2, pL.y - 2, 4, 4);
+      ctx.fillRect(pR.x - 2, pR.y - 2, 4, 4);
+    }
+  }
+
+  // Collect all renderable objects, sort by Z (far to near)
+  const renderList = [];
+
+  // Gates
+  for (const gate of gates) {
+    const relZ = gate.z - skier.z;
+    if (relZ > 0 && relZ < VIEW_DEPTH) {
+      renderList.push({ type: 'gate', obj: gate, z: relZ });
+    }
+  }
+
+  // Obstacles
+  for (const obs of obstacles) {
+    const relZ = obs.z - skier.z;
+    if (relZ > 0 && relZ < VIEW_DEPTH) {
+      renderList.push({ type: obs.type, obj: obs, z: relZ });
+    }
+  }
+
+  // Particles
+  for (const p of particles) {
+    const relZ = p.z - skier.z;
+    if (relZ > -20 && relZ < VIEW_DEPTH) {
+      renderList.push({ type: 'particle', obj: p, z: Math.max(1, relZ) });
+    }
+  }
+
+  // Finish line
+  const finishZ = 600 + TOTAL_GATES * GATE_SPACING + 200;
+  const finRelZ = finishZ - skier.z;
+  if (finRelZ > 0 && finRelZ < VIEW_DEPTH) {
+    renderList.push({ type: 'finish', obj: { z: finishZ }, z: finRelZ });
+  }
+
+  // Sort far to near
+  renderList.sort((a, b) => b.z - a.z);
+
+  // Render all objects
+  for (const item of renderList) {
+    if (item.type === 'gate') {
+      drawGate(item.obj);
+    } else if (item.type === 'tree') {
+      drawTree(item.obj);
+    } else if (item.type === 'rock') {
+      drawRock(item.obj);
+    } else if (item.type === 'particle') {
+      drawParticle(item.obj);
+    } else if (item.type === 'finish') {
+      drawFinishLine(item.obj);
+    }
+  }
+
+  // Draw skier (always at fixed screen position)
+  drawSkier();
+
+  // HUD
+  drawHUD();
+
+  // Menu
+  if (phase === 'menu') drawMenu();
+  // Countdown
+  if (phase === 'countdown') drawCountdown();
+  // Finished
+  if (phase === 'finished') drawFinished();
+
+  // Title badge
+  ctx.fillStyle = '#1a1a2a';
+  ctx.fillRect(8, 8, 240, 28);
+  ctx.fillStyle = '#667';
+  ctx.font = '13px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('SPT-004 \u00B7 GATE RACER  [?]', 16, 26);
+}
+
+function drawGate(gate) {
+  const pL = project(gate.leftX, gate.z);
+  const pR = project(gate.rightX, gate.z);
+  if (!pL || !pR) return;
+  if (pL.y < H * 0.25 || pL.y > H) return;
+
+  const poleH = Math.max(4, 40 * pL.scale);
+  const flagSize = Math.max(3, 12 * pL.scale);
+  const poleW = Math.max(1, 2.5 * pL.scale);
+
+  // Determine color/state
+  let leftColor = '#dd2222';
+  let rightColor = '#2244dd';
+  let alpha = 1.0;
+
+  if (gate.passed) {
+    leftColor = '#44aa44';
+    rightColor = '#44aa44';
+    alpha = 0.6;
+  } else if (gate.missed) {
+    leftColor = '#aa4444';
+    rightColor = '#aa4444';
+    alpha = 0.5;
+  }
+
+  ctx.globalAlpha = alpha;
+
+  // Left pole
+  ctx.fillStyle = '#ddd';
+  ctx.fillRect(pL.x - poleW / 2, pL.y - poleH, poleW, poleH);
+  // Left flag (triangle)
+  ctx.fillStyle = leftColor;
+  ctx.beginPath();
+  ctx.moveTo(pL.x, pL.y - poleH);
+  ctx.lineTo(pL.x + flagSize, pL.y - poleH + flagSize * 0.5);
+  ctx.lineTo(pL.x, pL.y - poleH + flagSize);
+  ctx.closePath();
+  ctx.fill();
+
+  // Right pole
+  ctx.fillStyle = '#ddd';
+  ctx.fillRect(pR.x - poleW / 2, pR.y - poleH, poleW, poleH);
+  // Right flag (triangle, mirrored)
+  ctx.fillStyle = rightColor;
+  ctx.beginPath();
+  ctx.moveTo(pR.x, pR.y - poleH);
+  ctx.lineTo(pR.x - flagSize, pR.y - poleH + flagSize * 0.5);
+  ctx.lineTo(pR.x, pR.y - poleH + flagSize);
+  ctx.closePath();
+  ctx.fill();
+
+  // Gate number
+  if (pL.scale > 0.6) {
+    const gateNum = gates.indexOf(gate) + 1;
+    ctx.fillStyle = gate.passed ? '#4a4' : gate.missed ? '#a44' : '#fff';
+    ctx.font = Math.max(9, Math.floor(12 * pL.scale)) + 'px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('' + gateNum, (pL.x + pR.x) / 2, pL.y - poleH - 4);
+  }
+
+  ctx.globalAlpha = 1.0;
+}
+
+function drawTree(obs) {
+  const p = project(obs.x, obs.z);
+  if (!p || p.y < H * 0.25 || p.y > H) return;
+
+  const treeH = Math.max(6, 50 * p.scale);
+  const treeW = Math.max(4, 30 * p.scale);
+  const trunkW = Math.max(1, 6 * p.scale);
+  const trunkH = Math.max(2, 12 * p.scale);
+
+  if (obs.hit) ctx.globalAlpha = 0.4;
+
+  // Trunk
+  ctx.fillStyle = '#654321';
+  ctx.fillRect(p.x - trunkW / 2, p.y - trunkH, trunkW, trunkH);
+
+  // Tree crown (two triangles for pine tree look)
+  ctx.fillStyle = '#1a6b1a';
+  ctx.beginPath();
+  ctx.moveTo(p.x, p.y - treeH);
+  ctx.lineTo(p.x - treeW / 2, p.y - trunkH - treeH * 0.15);
+  ctx.lineTo(p.x + treeW / 2, p.y - trunkH - treeH * 0.15);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = '#228b22';
+  ctx.beginPath();
+  ctx.moveTo(p.x, p.y - treeH * 0.7);
+  ctx.lineTo(p.x - treeW * 0.65, p.y - trunkH);
+  ctx.lineTo(p.x + treeW * 0.65, p.y - trunkH);
+  ctx.closePath();
+  ctx.fill();
+
+  // Snow on tree
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.moveTo(p.x, p.y - treeH + 2);
+  ctx.lineTo(p.x - treeW * 0.25, p.y - treeH * 0.8);
+  ctx.lineTo(p.x + treeW * 0.25, p.y - treeH * 0.8);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.globalAlpha = 1.0;
+}
+
+function drawRock(obs) {
+  const p = project(obs.x, obs.z);
+  if (!p || p.y < H * 0.25 || p.y > H) return;
+
+  const rockR = Math.max(3, 15 * p.scale);
+
+  if (obs.hit) ctx.globalAlpha = 0.4;
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.beginPath();
+  ctx.ellipse(p.x + rockR * 0.3, p.y + rockR * 0.1, rockR * 1.1, rockR * 0.4, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Rock body
+  ctx.fillStyle = '#778';
+  ctx.beginPath();
+  ctx.arc(p.x, p.y - rockR * 0.4, rockR, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Highlight
+  ctx.fillStyle = '#99a';
+  ctx.beginPath();
+  ctx.arc(p.x - rockR * 0.2, p.y - rockR * 0.6, rockR * 0.45, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Snow cap
+  ctx.fillStyle = '#eef';
+  ctx.beginPath();
+  ctx.arc(p.x, p.y - rockR * 0.8, rockR * 0.5, Math.PI, Math.PI * 2);
+  ctx.fill();
+
+  ctx.globalAlpha = 1.0;
+}
+
+function drawParticle(part) {
+  const p = project(part.x, part.z);
+  if (!p || p.y < H * 0.25 || p.y > H) return;
+
+  const alpha = part.life / part.maxLife;
+  const sz = Math.max(1, part.size * p.scale);
+  ctx.fillStyle = `rgba(255,255,255,${alpha * 0.8})`;
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, sz, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawFinishLine(obj) {
+  const pL = project(-ROAD_WIDTH / 3, obj.z);
+  const pR = project(ROAD_WIDTH / 3, obj.z);
+  if (!pL || !pR) return;
+  if (pL.y < H * 0.25 || pL.y > H) return;
+
+  const checkerH = Math.max(3, 20 * pL.scale);
+  const segCount = 12;
+  const segW = (pR.x - pL.x) / segCount;
+
+  for (let i = 0; i < segCount; i++) {
+    ctx.fillStyle = i % 2 === 0 ? '#111' : '#fff';
+    ctx.fillRect(pL.x + i * segW, pL.y - checkerH, segW + 1, checkerH / 2);
+    ctx.fillStyle = i % 2 === 0 ? '#fff' : '#111';
+    ctx.fillRect(pL.x + i * segW, pL.y - checkerH / 2, segW + 1, checkerH / 2);
+  }
+
+  if (pL.scale > 0.4) {
+    ctx.fillStyle = '#ff0';
+    ctx.font = Math.max(10, Math.floor(18 * pL.scale)) + 'px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('FINISH', (pL.x + pR.x) / 2, pL.y - checkerH - 6);
+  }
+}
+
+function drawSkier() {
+  const sx = W / 2;
+  const sy = SKIER_SCREEN_Y;
+
+  ctx.save();
+  ctx.translate(sx, sy);
+
+  // Crash state
+  if (crashTimer > 0) {
+    const tumble = crashTimer * 0.15;
+    ctx.rotate(tumble);
+    ctx.globalAlpha = 0.5 + 0.5 * Math.sin(crashTimer * 0.3);
+
+    // Fallen skier
+    ctx.fillStyle = '#335';
+    ctx.fillRect(-10, -3, 20, 6);
+    // Skis scattered
+    ctx.strokeStyle = '#555';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-15, 5); ctx.lineTo(-5, -8);
+    ctx.moveTo(5, -8); ctx.lineTo(15, 5);
+    ctx.stroke();
+
+    ctx.globalAlpha = 1.0;
+    ctx.restore();
+    return;
+  }
+
+  // Rotate based on turning angle
+  const leanAngle = skier.angle * 0.3;
+  ctx.rotate(leanAngle);
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.15)';
+  ctx.beginPath();
+  ctx.ellipse(2, 8, 12, 4, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Skis
+  ctx.strokeStyle = '#445';
+  ctx.lineWidth = 3;
+  const skiSpread = 4 + Math.abs(skier.angle) * 6;
+  const skiLen = skier.tucking ? 16 : 20;
+  // Left ski
+  ctx.beginPath();
+  ctx.moveTo(-skiSpread, -skiLen * 0.4);
+  ctx.lineTo(-skiSpread, skiLen * 0.6);
+  ctx.stroke();
+  // Right ski
+  ctx.beginPath();
+  ctx.moveTo(skiSpread, -skiLen * 0.4);
+  ctx.lineTo(skiSpread, skiLen * 0.6);
+  ctx.stroke();
+
+  // Body
+  const bodyY = skier.tucking ? -4 : -8;
+  const headY = skier.tucking ? -10 : -18;
+
+  // Legs
+  ctx.strokeStyle = '#224';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(-skiSpread, 2);
+  ctx.lineTo(-2, bodyY + 4);
+  ctx.moveTo(skiSpread, 2);
+  ctx.lineTo(2, bodyY + 4);
+  ctx.stroke();
+
+  // Torso
+  ctx.strokeStyle = '#d33';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(0, bodyY + 4);
+  ctx.lineTo(0, headY + 6);
+  ctx.stroke();
+
+  // Arms/poles
+  ctx.strokeStyle = '#224';
+  ctx.lineWidth = 2;
+  if (skier.tucking) {
+    // Arms forward in tuck
+    ctx.beginPath();
+    ctx.moveTo(0, headY + 8);
+    ctx.lineTo(-8, headY + 4);
+    ctx.moveTo(0, headY + 8);
+    ctx.lineTo(8, headY + 4);
+    ctx.stroke();
+  } else {
+    // Arms out with poles
+    ctx.beginPath();
+    ctx.moveTo(0, bodyY);
+    ctx.lineTo(-12, bodyY + 6);
+    ctx.lineTo(-14, 8);
+    ctx.moveTo(0, bodyY);
+    ctx.lineTo(12, bodyY + 6);
+    ctx.lineTo(14, 8);
+    ctx.stroke();
+    // Pole tips
+    ctx.fillStyle = '#888';
+    ctx.fillRect(-15, 7, 3, 3);
+    ctx.fillRect(13, 7, 3, 3);
+  }
+
+  // Head
+  ctx.fillStyle = '#26c';
+  ctx.beginPath();
+  ctx.arc(0, headY + 3, 4, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Goggles
+  ctx.fillStyle = '#ff0';
+  ctx.fillRect(-3, headY + 1, 6, 2);
+
+  // Speed lines when tucking
+  if (skier.tucking && skier.speed > 5) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 3; i++) {
+      const ly = -20 + i * 12;
+      ctx.beginPath();
+      ctx.moveTo(-20 - i * 3, ly);
+      ctx.lineTo(-12, ly + 2);
+      ctx.moveTo(20 + i * 3, ly);
+      ctx.lineTo(12, ly + 2);
+      ctx.stroke();
+    }
+  }
+
+  // Brake indicator (snowplow wedge)
+  if (skier.braking) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-skiSpread - 3, skiLen * 0.6);
+    ctx.lineTo(0, skiLen * 0.3);
+    ctx.lineTo(skiSpread + 3, skiLen * 0.6);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+function drawHUD() {
+  if (phase === 'menu') return;
+
+  const def = COURSE_DEFS[courseIdx];
+
+  // Timer
+  const elapsed = timer;
+  const totalTime = elapsed + penaltyTime;
+  ctx.textAlign = 'right';
+  ctx.font = 'bold 20px monospace';
+  ctx.fillStyle = '#111';
+  ctx.fillText(formatTime(elapsed), W - 12, 30);
+  if (penaltyTime > 0) {
+    ctx.fillStyle = '#c33';
+    ctx.font = '14px monospace';
+    ctx.fillText('+' + penaltyTime.toFixed(1) + 's penalty', W - 12, 48);
+    ctx.fillStyle = '#333';
+    ctx.font = '16px monospace';
+    ctx.fillText('Total: ' + formatTime(totalTime), W - 12, 66);
+  }
+
+  // Speed bar
+  const speedPct = skier.speed / TUCK_SPEED;
+  const barW = 120, barH = 10;
+  const barX = 14, barY = 46;
+  ctx.fillStyle = '#aab';
+  ctx.fillRect(barX, barY, barW, barH);
+  const speedColor = skier.tucking ? '#33aaff' : skier.braking ? '#ffaa33' : '#5a5';
+  ctx.fillStyle = speedColor;
+  ctx.fillRect(barX, barY, barW * speedPct, barH);
+  ctx.strokeStyle = '#556';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(barX, barY, barW, barH);
+  ctx.fillStyle = '#333';
+  ctx.font = '11px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('SPEED', barX, barY - 2);
+  const mode = skier.tucking ? 'TUCK' : skier.braking ? 'BRAKE' : '';
+  if (mode) {
+    ctx.fillStyle = skier.tucking ? '#38f' : '#f80';
+    ctx.fillText(mode, barX + barW + 6, barY + 10);
+  }
+
+  // Gate progress
+  ctx.fillStyle = '#333';
+  ctx.font = '14px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('Gate: ' + Math.min(nextGateIdx, TOTAL_GATES) + '/' + TOTAL_GATES, 14, 80);
+  ctx.fillStyle = '#4a4';
+  ctx.fillText('Passed: ' + gatesPassed, 14, 96);
+  if (gatesMissed > 0) {
+    ctx.fillStyle = '#c33';
+    ctx.fillText('Missed: ' + gatesMissed, 130, 96);
+  }
+
+  // Course name
+  ctx.fillStyle = def.color;
+  ctx.font = 'bold 13px monospace';
+  ctx.textAlign = 'right';
+  ctx.fillText(def.name, W - 12, 86);
+
+  // Best time
+  if (bestTimes[courseIdx] < Infinity) {
+    ctx.fillStyle = '#666';
+    ctx.font = '12px monospace';
+    ctx.fillText('Best: ' + formatTime(bestTimes[courseIdx]), W - 12, 102);
+  }
+
+  // Next gate indicator arrow
+  if (nextGateIdx < gates.length) {
+    const gate = gates[nextGateIdx];
+    const relZ = gate.z - skier.z;
+    if (relZ > 0) {
+      const gateCenter = gate.centerX;
+      const dx = gateCenter - skier.x;
+      // Arrow at top of screen pointing toward next gate
+      const arrowX = W / 2 + Math.max(-350, Math.min(350, dx * 0.8));
+      ctx.fillStyle = gate.missed ? '#a44' : '#fff';
+      ctx.font = '16px monospace';
+      ctx.textAlign = 'center';
+      const dist = Math.floor(relZ);
+      if (dist > 200) {
+        ctx.fillText('\u25BC', arrowX, H * 0.38);
+      }
+    }
+  }
+
+  // Crash indicator
+  if (crashTimer > 0) {
+    ctx.fillStyle = `rgba(255,50,50,${0.3 + 0.2 * Math.sin(crashTimer * 0.2)})`;
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#f55';
+    ctx.font = 'bold 28px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('CRASH!', W / 2, H / 2 - 40);
+    ctx.fillStyle = '#ddd';
+    ctx.font = '14px monospace';
+    ctx.fillText('+' + CRASH_PENALTY.toFixed(0) + 's penalty', W / 2, H / 2 - 14);
+  }
+}
+
+function drawMenu() {
+  ctx.fillStyle = 'rgba(0,0,0,0.75)';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 42px monospace';
+  ctx.fillText('GATE RACER', W / 2, H * 0.22);
+
+  ctx.fillStyle = '#aab';
+  ctx.font = '14px monospace';
+  ctx.fillText('Downhill Ski Racing', W / 2, H * 0.28);
+
+  ctx.font = '16px monospace';
+  ctx.fillStyle = '#bbb';
+  ctx.fillText('Select Course:', W / 2, H * 0.38);
+
+  for (let i = 0; i < 3; i++) {
+    const def = COURSE_DEFS[i];
+    const y = H * 0.45 + i * 50;
+    ctx.fillStyle = def.color;
+    ctx.font = 'bold 22px monospace';
+    ctx.fillText('[' + (i + 1) + '] ' + def.name, W / 2, y);
+    ctx.fillStyle = '#888';
+    ctx.font = '13px monospace';
+    const info = 'Gates: ' + def.gateWidth + 'px wide, ' + def.obstacles + ' obstacles';
+    ctx.fillText(info, W / 2, y + 18);
+    if (bestTimes[i] < Infinity) {
+      ctx.fillStyle = '#aa8';
+      ctx.fillText('Best: ' + formatTime(bestTimes[i]), W / 2, y + 34);
+    }
+  }
+
+  ctx.fillStyle = '#667';
+  ctx.font = '13px monospace';
+  ctx.fillText('\u2190 \u2192 Carve  |  \u2191 Tuck  |  \u2193 Brake  |  R Restart  |  ? Info', W / 2, H * 0.88);
+}
+
+function drawCountdown() {
+  const sec = Math.ceil(countdownTimer / 60);
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 72px monospace';
+  ctx.fillStyle = sec <= 1 ? '#4f4' : '#fff';
+  const label = sec <= 0 ? 'GO!' : '' + sec;
+  ctx.fillText(label, W / 2, H / 2);
+}
+
+function drawFinished() {
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(0, 0, W, H);
+
+  const elapsed = timer;
+  const totalTime = elapsed + penaltyTime;
+  const isNewBest = totalTime <= bestTimes[courseIdx];
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 38px monospace';
+  ctx.fillText('FINISH!', W / 2, H * 0.25);
+
+  if (isNewBest) {
+    ctx.fillStyle = '#ff0';
+    ctx.font = 'bold 20px monospace';
+    ctx.fillText('NEW BEST TIME!', W / 2, H * 0.32);
+  }
+
+  ctx.fillStyle = '#ddd';
+  ctx.font = '20px monospace';
+  ctx.fillText('Course: ' + COURSE_DEFS[courseIdx].name, W / 2, H * 0.40);
+
+  ctx.font = '18px monospace';
+  ctx.fillStyle = '#aaa';
+  ctx.fillText('Run Time: ' + formatTime(elapsed), W / 2, H * 0.48);
+
+  ctx.fillStyle = '#4a4';
+  ctx.fillText('Gates Passed: ' + gatesPassed + '/' + TOTAL_GATES, W / 2, H * 0.54);
+
+  if (gatesMissed > 0) {
+    ctx.fillStyle = '#c44';
+    ctx.fillText('Gates Missed: ' + gatesMissed + ' (+' + (gatesMissed * MISS_PENALTY).toFixed(0) + 's)', W / 2, H * 0.60);
+  }
+
+  if (penaltyTime > 0) {
+    ctx.fillStyle = '#f88';
+    ctx.fillText('Total Penalties: +' + penaltyTime.toFixed(1) + 's', W / 2, H * 0.66);
+  }
+
+  ctx.fillStyle = '#ff0';
+  ctx.font = 'bold 24px monospace';
+  ctx.fillText('TOTAL: ' + formatTime(totalTime), W / 2, H * 0.74);
+
+  ctx.fillStyle = '#888';
+  ctx.font = '14px monospace';
+  ctx.fillText('Press R to return to menu', W / 2, H * 0.84);
+}
+
+function formatTime(t) {
+  const mins = Math.floor(t / 60);
+  const secs = t % 60;
+  if (mins > 0) {
+    return mins + ':' + secs.toFixed(2).padStart(5, '0');
+  }
+  return secs.toFixed(2) + 's';
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

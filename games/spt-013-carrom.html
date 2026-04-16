@@ -1,0 +1,920 @@
+<!--
+PROTOTYPE: carrom
+SERIES: spt
+NUMBER: 013
+DATE: 2026-03-24
+MECHANIC: disc-flicking precision — flick a striker disc to pocket carrom men into corner pockets; sink your 9 pieces + the queen before opponent
+ANCESTRY: Carrom (~18th century, South Asia), Crokinole (1876, Canada), Pitchnut, Novuss (Latvia)
+CONTROLS: Click+Drag — aim and set power | Release — flick striker | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Expert Systems — angle calculation, trajectory prediction)
+AI-INSIGHT: Carrom's physics puzzle is deceptively complex: multi-disc collisions create chaotic outcomes from precise inputs. An expert system can calculate ideal angles and power for single-shot pocketing, but planning multi-bounce combination shots requires search through continuous state spaces.
+NOTES: Traditional South Asian board game dating to ~18th century India.
+       The satisfying click of disc-on-disc collision defines the tactile feel.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPT-013 · CARROM</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SPT-013 · CARROM</h1>
+    <p><span class="tag series">SPT — Sports</span> <span class="tag">Prototype #013</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Flick your striker disc to pocket carrom men of your assigned color (white or black). Pocket all 9 of your pieces plus the queen to win!</p>
+    <ul>
+      <li><kbd>Click + Drag</kbd> — Aim the striker and set power (longer drag = more power)</li>
+      <li>Release mouse to flick the striker</li>
+      <li>Pocket the red <strong>Queen</strong>, then immediately "cover" it by pocketing one of your own pieces on the next shot</li>
+      <li>If you pocket your piece, you get another turn</li>
+      <li>If the striker goes in a pocket, your turn ends and one pocketed piece returns to center</li>
+      <li><kbd>R</kbd> — Restart game</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+
+    <h2>History</h2>
+    <p><em>Carrom</em> (also spelled carom or karrom) is a tabletop game of South Asian origin, believed to date back to 18th-century India. It spread throughout South and Southeast Asia, becoming hugely popular in India, Sri Lanka, Bangladesh, Pakistan, and Nepal. The game is often called "finger billiards" — players flick a heavier striker disc to knock lighter pieces into corner pockets.</p>
+    <p>The International Carrom Federation, founded in 1988 in Chennai, India, standardizes rules and organizes world championships. Carrom boards are a fixture of homes, clubs, and street corners across South Asia, representing one of the most-played tabletop games in the world.</p>
+
+    <h2>AI Archaeology</h2>
+    <h3>Era 3 — Expert Systems</h3>
+    <p>Carrom's AI challenge sits at the intersection of physics simulation and combinatorial planning. An expert system can calculate optimal angles for direct pocketing shots using reflection geometry, but multi-disc collisions introduce chaos that makes long-term planning difficult. The continuous state space (angle, power) combined with discrete outcomes (pocketed or not) creates a hybrid optimization problem.</p>
+    <p>Modern approaches would use Monte Carlo simulation to evaluate shot candidates, but even simple heuristic AI — aim at the nearest piece aligned with a pocket — provides a reasonable opponent.</p>
+
+    <h3>Classification</h3>
+    <p><span class="tag">disc flicking</span> <span class="tag">physics precision</span> <span class="tag">pocket billiards variant</span> <span class="tag">turn-based</span> <span class="tag">South Asian traditional</span></p>
+
+    <h2>Prototype Notes</h2>
+    <ul>
+      <li>Top-down board with 4 corner pockets and realistic disc physics</li>
+      <li>Click-drag aiming with trajectory preview line and power indicator</li>
+      <li>Disc-on-disc elastic collisions with friction deceleration</li>
+      <li>Queen must be "covered" — pocket a piece immediately after pocketing the queen</li>
+      <li>Simple AI calculates angle to pocket nearest piece, with slight randomness for imperfection</li>
+      <li>Web Audio click sounds on disc collisions, thunk on pocket sinks</li>
+    </ul>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+var canvas = document.getElementById('c');
+var ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+canvas.width = 800;
+canvas.height = 600;
+
+// ── Audio ──
+var audioCtx = null;
+function initAudio() {
+  if (!audioCtx) {
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+  }
+}
+function playClick(vol) {
+  if (!audioCtx) return;
+  var osc = audioCtx.createOscillator();
+  var gain = audioCtx.createGain();
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.type = 'square';
+  osc.frequency.value = 800 + Math.random() * 400;
+  gain.gain.value = Math.min(vol || 0.15, 0.3);
+  osc.start();
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.06);
+  osc.stop(audioCtx.currentTime + 0.07);
+}
+function playPocket() {
+  if (!audioCtx) return;
+  var osc = audioCtx.createOscillator();
+  var gain = audioCtx.createGain();
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.type = 'triangle';
+  osc.frequency.value = 200;
+  gain.gain.value = 0.25;
+  osc.start();
+  osc.frequency.exponentialRampToValueAtTime(80, audioCtx.currentTime + 0.15);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+  osc.stop(audioCtx.currentTime + 0.21);
+}
+
+// ── State ──
+var infoOpen = false;
+
+// Board geometry
+var BOARD_SIZE = 480;
+var BX = (800 - BOARD_SIZE) / 2;
+var BY = (600 - BOARD_SIZE) / 2;
+var BORDER = 30;
+var PLAY_X = BX + BORDER;
+var PLAY_Y = BY + BORDER;
+var PLAY_SIZE = BOARD_SIZE - BORDER * 2;
+var POCKET_R = 18;
+var PIECE_R = 10;
+var STRIKER_R = 13;
+var QUEEN_R = 10;
+var FRICTION = 0.985;
+var MIN_VEL = 0.15;
+var MAX_POWER = 18;
+
+// Pocket positions (corners of play area)
+var pockets = [
+  { x: PLAY_X, y: PLAY_Y },
+  { x: PLAY_X + PLAY_SIZE, y: PLAY_Y },
+  { x: PLAY_X, y: PLAY_Y + PLAY_SIZE },
+  { x: PLAY_X + PLAY_SIZE, y: PLAY_Y + PLAY_SIZE }
+];
+
+// Discs
+var discs = [];
+var striker = null;
+var turn = 0; // 0 = player (white), 1 = AI (black)
+var playerColor = 'white';
+var aiColor = 'black';
+var playerPocketed = 0;
+var aiPocketed = 0;
+var playerHasQueen = false;
+var aiHasQueen = false;
+var queenOnBoard = true;
+var needsCover = false; // must cover queen next shot
+var coverBy = -1; // who needs to cover
+var gameState = 'aiming'; // aiming, moving, aiTurn, gameOver
+var winner = '';
+var strikerFouled = false;
+var message = '';
+var messageTimer = 0;
+var aiThinkTimer = 0;
+
+// Drag state
+var dragging = false;
+var dragStartX = 0, dragStartY = 0;
+var dragEndX = 0, dragEndY = 0;
+var strikerPlaceX = 400;
+
+function dist(a, b) { return Math.sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y)); }
+
+function initGame() {
+  discs = [];
+  playerPocketed = 0;
+  aiPocketed = 0;
+  playerHasQueen = false;
+  aiHasQueen = false;
+  queenOnBoard = true;
+  needsCover = false;
+  coverBy = -1;
+  turn = 0;
+  gameState = 'aiming';
+  winner = '';
+  message = '';
+  messageTimer = 0;
+  strikerFouled = false;
+
+  // Center of board
+  var cx = BX + BOARD_SIZE / 2;
+  var cy = BY + BOARD_SIZE / 2;
+
+  // Arrange pieces in the classic carrom pattern:
+  // Inner circle: 6 pieces alternating, queen in center
+  // Outer ring: 12 pieces alternating
+  // Queen (red) at center
+  discs.push({ x: cx, y: cy, vx: 0, vy: 0, r: QUEEN_R, color: 'queen', pocketed: false });
+
+  // Inner ring of 6
+  var innerR = 24;
+  var colors1 = ['white','black','white','black','white','black'];
+  for (var i = 0; i < 6; i++) {
+    var a = i * Math.PI / 3 + Math.PI / 6;
+    discs.push({ x: cx + Math.cos(a) * innerR, y: cy + Math.sin(a) * innerR, vx: 0, vy: 0, r: PIECE_R, color: colors1[i], pocketed: false });
+  }
+
+  // Outer ring of 12
+  var outerR = 48;
+  var colors2 = ['white','black','white','black','white','black','white','black','white','black','white','black'];
+  for (var i = 0; i < 12; i++) {
+    var a = i * Math.PI / 6;
+    discs.push({ x: cx + Math.cos(a) * outerR, y: cy + Math.sin(a) * outerR, vx: 0, vy: 0, r: PIECE_R, color: colors2[i], pocketed: false });
+  }
+
+  // Striker
+  placeStriker();
+}
+
+function placeStriker() {
+  var baseY = turn === 0 ? PLAY_Y + PLAY_SIZE - 40 : PLAY_Y + 40;
+  strikerPlaceX = BX + BOARD_SIZE / 2;
+  striker = { x: strikerPlaceX, y: baseY, vx: 0, vy: 0, r: STRIKER_R, color: 'striker', pocketed: false };
+}
+
+function returnPiece(color) {
+  var cx = BX + BOARD_SIZE / 2;
+  var cy = BY + BOARD_SIZE / 2;
+  // Find a free spot near center
+  for (var r = 0; r < 60; r += 12) {
+    for (var a = 0; a < Math.PI * 2; a += Math.PI / 6) {
+      var px = cx + Math.cos(a) * r;
+      var py = cy + Math.sin(a) * r;
+      var ok = true;
+      for (var j = 0; j < discs.length; j++) {
+        if (!discs[j].pocketed && dist({x:px,y:py}, discs[j]) < discs[j].r + PIECE_R + 2) { ok = false; break; }
+      }
+      if (ok) {
+        for (var j = discs.length - 1; j >= 0; j--) {
+          if (discs[j].pocketed && discs[j].color === color) {
+            discs[j].pocketed = false;
+            discs[j].x = px;
+            discs[j].y = py;
+            discs[j].vx = 0;
+            discs[j].vy = 0;
+            if (color === playerColor) playerPocketed--;
+            else if (color === aiColor) aiPocketed--;
+            return;
+          }
+        }
+        return;
+      }
+    }
+  }
+}
+
+function allMoving() {
+  if (striker && !striker.pocketed && (Math.abs(striker.vx) > MIN_VEL || Math.abs(striker.vy) > MIN_VEL)) return true;
+  for (var i = 0; i < discs.length; i++) {
+    if (!discs[i].pocketed && (Math.abs(discs[i].vx) > MIN_VEL || Math.abs(discs[i].vy) > MIN_VEL)) return true;
+  }
+  return false;
+}
+
+function resolveCollision(a, b) {
+  var dx = b.x - a.x;
+  var dy = b.y - a.y;
+  var d = Math.sqrt(dx * dx + dy * dy);
+  if (d === 0) return;
+  var overlap = a.r + b.r - d;
+  if (overlap <= 0) return;
+  var nx = dx / d;
+  var ny = dy / d;
+  // Separate
+  a.x -= nx * overlap / 2;
+  a.y -= ny * overlap / 2;
+  b.x += nx * overlap / 2;
+  b.y += ny * overlap / 2;
+  // Elastic collision
+  var dvx = a.vx - b.vx;
+  var dvy = a.vy - b.vy;
+  var dvn = dvx * nx + dvy * ny;
+  if (dvn <= 0) return;
+  var massA = a.r * a.r;
+  var massB = b.r * b.r;
+  var j = 2 * dvn / (massA + massB);
+  a.vx -= j * massB * nx;
+  a.vy -= j * massB * ny;
+  b.vx += j * massA * nx;
+  b.vy += j * massA * ny;
+  var impactSpeed = Math.abs(dvn);
+  playClick(Math.min(impactSpeed / 15, 0.3));
+}
+
+function checkPocket(disc) {
+  for (var i = 0; i < pockets.length; i++) {
+    if (dist(disc, pockets[i]) < POCKET_R) {
+      disc.pocketed = true;
+      disc.vx = 0;
+      disc.vy = 0;
+      disc.x = -100;
+      disc.y = -100;
+      playPocket();
+      return true;
+    }
+  }
+  return false;
+}
+
+function wallBounce(disc) {
+  var left = PLAY_X + disc.r;
+  var right = PLAY_X + PLAY_SIZE - disc.r;
+  var top = PLAY_Y + disc.r;
+  var bottom = PLAY_Y + PLAY_SIZE - disc.r;
+  if (disc.x < left) { disc.x = left; disc.vx = -disc.vx * 0.7; }
+  if (disc.x > right) { disc.x = right; disc.vx = -disc.vx * 0.7; }
+  if (disc.y < top) { disc.y = top; disc.vy = -disc.vy * 0.7; }
+  if (disc.y > bottom) { disc.y = bottom; disc.vy = -disc.vy * 0.7; }
+}
+
+function physicsStep() {
+  // Move all discs
+  var allDiscsAndStriker = discs.filter(function(d) { return !d.pocketed; });
+  if (striker && !striker.pocketed) allDiscsAndStriker.push(striker);
+
+  for (var i = 0; i < allDiscsAndStriker.length; i++) {
+    var d = allDiscsAndStriker[i];
+    d.x += d.vx;
+    d.y += d.vy;
+    d.vx *= FRICTION;
+    d.vy *= FRICTION;
+    if (Math.abs(d.vx) < MIN_VEL * 0.5) d.vx = 0;
+    if (Math.abs(d.vy) < MIN_VEL * 0.5) d.vy = 0;
+  }
+
+  // Collisions between all pairs
+  for (var i = 0; i < allDiscsAndStriker.length; i++) {
+    for (var j = i + 1; j < allDiscsAndStriker.length; j++) {
+      var a = allDiscsAndStriker[i];
+      var b = allDiscsAndStriker[j];
+      if (dist(a, b) < a.r + b.r) {
+        resolveCollision(a, b);
+      }
+    }
+  }
+
+  // Wall bounces
+  for (var i = 0; i < allDiscsAndStriker.length; i++) {
+    wallBounce(allDiscsAndStriker[i]);
+  }
+
+  // Check pockets
+  var pocketedThisFrame = [];
+  for (var i = 0; i < discs.length; i++) {
+    if (!discs[i].pocketed && checkPocket(discs[i])) {
+      pocketedThisFrame.push(discs[i]);
+    }
+  }
+  if (striker && !striker.pocketed && checkPocket(striker)) {
+    strikerFouled = true;
+  }
+
+  return pocketedThisFrame;
+}
+
+var shotPocketed = [];
+
+function update() {
+  if (infoOpen) return;
+  if (messageTimer > 0) messageTimer--;
+
+  if (gameState === 'moving') {
+    var justPocketed = physicsStep();
+    for (var i = 0; i < justPocketed.length; i++) {
+      shotPocketed.push(justPocketed[i]);
+    }
+
+    if (!allMoving()) {
+      // Evaluate shot results
+      var pocketedOwn = 0;
+      var pocketedOpponent = 0;
+      var pocketedQueen = false;
+      var currentColor = turn === 0 ? playerColor : aiColor;
+      var otherColor = turn === 0 ? aiColor : playerColor;
+
+      for (var i = 0; i < shotPocketed.length; i++) {
+        var c = shotPocketed[i].color;
+        if (c === 'queen') {
+          pocketedQueen = true;
+        } else if (c === currentColor) {
+          pocketedOwn++;
+          if (turn === 0) playerPocketed++;
+          else aiPocketed++;
+        } else if (c === otherColor) {
+          pocketedOpponent++;
+          if (turn === 0) aiPocketed++;
+          else playerPocketed++;
+        }
+      }
+
+      // Handle queen pocketing
+      if (pocketedQueen) {
+        queenOnBoard = false;
+        if (pocketedOwn > 0) {
+          // Covered! Queen goes to current player
+          if (turn === 0) playerHasQueen = true;
+          else aiHasQueen = true;
+          message = (turn === 0 ? 'Player' : 'AI') + ' pocketed & covered the Queen!';
+          messageTimer = 120;
+        } else {
+          // Need to cover next shot
+          needsCover = true;
+          coverBy = turn;
+          message = 'Queen pocketed! Must cover next shot.';
+          messageTimer = 120;
+        }
+      }
+
+      // Handle cover requirement from previous shot
+      if (!pocketedQueen && needsCover && coverBy === turn) {
+        if (pocketedOwn > 0) {
+          // Covered!
+          if (turn === 0) playerHasQueen = true;
+          else aiHasQueen = true;
+          needsCover = false;
+          message = 'Queen covered!';
+          messageTimer = 90;
+        } else {
+          // Failed to cover — queen returns to center
+          needsCover = false;
+          queenOnBoard = true;
+          // Return queen to center
+          var cx = BX + BOARD_SIZE / 2;
+          var cy = BY + BOARD_SIZE / 2;
+          discs[0].pocketed = false;
+          discs[0].x = cx;
+          discs[0].y = cy;
+          discs[0].vx = 0;
+          discs[0].vy = 0;
+          message = 'Failed to cover! Queen returns.';
+          messageTimer = 90;
+        }
+      }
+
+      // Handle striker foul
+      if (strikerFouled) {
+        strikerFouled = false;
+        // Penalty: return one pocketed piece
+        if (turn === 0 && playerPocketed > 0) {
+          returnPiece(playerColor);
+          message = 'Foul! Striker pocketed. Piece returned.';
+        } else if (turn === 1 && aiPocketed > 0) {
+          returnPiece(aiColor);
+          message = 'AI foul! Striker pocketed.';
+        } else {
+          message = 'Foul! Striker pocketed.';
+        }
+        messageTimer = 90;
+        // Switch turns
+        turn = 1 - turn;
+      } else if (pocketedOwn > 0) {
+        // Keep turn
+        message = (turn === 0 ? 'Player' : 'AI') + ' pocketed ' + pocketedOwn + '!';
+        messageTimer = 60;
+      } else {
+        // Switch turns
+        turn = 1 - turn;
+      }
+
+      // Check win condition
+      if (playerPocketed >= 9 && playerHasQueen) {
+        gameState = 'gameOver';
+        winner = 'Player';
+        return;
+      }
+      if (aiPocketed >= 9 && aiHasQueen) {
+        gameState = 'gameOver';
+        winner = 'AI';
+        return;
+      }
+
+      shotPocketed = [];
+      placeStriker();
+      if (turn === 1) {
+        gameState = 'aiTurn';
+        aiThinkTimer = 60;
+      } else {
+        gameState = 'aiming';
+      }
+    }
+  }
+
+  if (gameState === 'aiTurn') {
+    aiThinkTimer--;
+    if (aiThinkTimer <= 0) {
+      doAiShot();
+      gameState = 'moving';
+    }
+  }
+}
+
+function doAiShot() {
+  initAudio();
+  var bestScore = -Infinity;
+  var bestAngle = 0;
+  var bestPower = 10;
+  var ownColor = aiColor;
+
+  // Try to find a piece aligned with a pocket
+  for (var di = 0; di < discs.length; di++) {
+    var d = discs[di];
+    if (d.pocketed) continue;
+    var isOwn = d.color === ownColor;
+    var isQueen = d.color === 'queen';
+    if (!isOwn && !isQueen) continue;
+    // For queen, only target if we have pocketed at least 5 or need to cover
+    if (isQueen && aiPocketed < 5 && !(needsCover && coverBy === 1)) continue;
+
+    for (var pi = 0; pi < pockets.length; pi++) {
+      var p = pockets[pi];
+      // Angle from piece to pocket
+      var toPocketX = p.x - d.x;
+      var toPocketY = p.y - d.y;
+      var toPocketDist = Math.sqrt(toPocketX * toPocketX + toPocketY * toPocketY);
+      if (toPocketDist < 20) continue;
+      // Point behind the piece (where striker should hit)
+      var hitX = d.x - (toPocketX / toPocketDist) * (d.r + striker.r);
+      var hitY = d.y - (toPocketY / toPocketDist) * (d.r + striker.r);
+      // Angle from striker to hit point
+      var dx = hitX - striker.x;
+      var dy = hitY - striker.y;
+      var shotDist = Math.sqrt(dx * dx + dy * dy);
+      if (shotDist < 20) continue;
+      var angle = Math.atan2(dy, dx);
+      // Score based on alignment and distance
+      var score = 100 / (toPocketDist * 0.01 + 1);
+      if (isQueen) score += 20;
+      // Penalize if path is blocked
+      var blocked = false;
+      for (var bi = 0; bi < discs.length; bi++) {
+        if (bi === di || discs[bi].pocketed) continue;
+        var bx = discs[bi].x - striker.x;
+        var by = discs[bi].y - striker.y;
+        var proj = bx * Math.cos(angle) + by * Math.sin(angle);
+        if (proj > 0 && proj < shotDist) {
+          var perp = Math.abs(-bx * Math.sin(angle) + by * Math.cos(angle));
+          if (perp < discs[bi].r + striker.r + 2) { blocked = true; break; }
+        }
+      }
+      if (blocked) score -= 80;
+      if (score > bestScore) {
+        bestScore = score;
+        bestAngle = angle;
+        bestPower = Math.min(shotDist * 0.06, MAX_POWER * 0.8);
+      }
+    }
+  }
+
+  // Add randomness for imperfection
+  bestAngle += (Math.random() - 0.5) * 0.08;
+  bestPower *= 0.9 + Math.random() * 0.2;
+  bestPower = Math.max(5, Math.min(bestPower, MAX_POWER));
+
+  // If no good shot found, just shoot toward center
+  if (bestScore <= -50) {
+    var cx = BX + BOARD_SIZE / 2;
+    var cy = BY + BOARD_SIZE / 2;
+    bestAngle = Math.atan2(cy - striker.y, cx - striker.x) + (Math.random() - 0.5) * 0.3;
+    bestPower = 8 + Math.random() * 5;
+  }
+
+  striker.vx = Math.cos(bestAngle) * bestPower;
+  striker.vy = Math.sin(bestAngle) * bestPower;
+}
+
+function draw() {
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fillRect(0, 0, 800, 600);
+
+  // Board background (outer frame)
+  ctx.fillStyle = '#5c3a1e';
+  ctx.fillRect(BX, BY, BOARD_SIZE, BOARD_SIZE);
+
+  // Inner frame line
+  ctx.strokeStyle = '#3a2210';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(BX + 10, BY + 10, BOARD_SIZE - 20, BOARD_SIZE - 20);
+
+  // Playing surface
+  ctx.fillStyle = '#e8d5a3';
+  ctx.fillRect(PLAY_X, PLAY_Y, PLAY_SIZE, PLAY_SIZE);
+
+  // Board lines
+  ctx.strokeStyle = '#c4a87a';
+  ctx.lineWidth = 1;
+
+  // Center circle
+  var cx = BX + BOARD_SIZE / 2;
+  var cy = BY + BOARD_SIZE / 2;
+  ctx.beginPath();
+  ctx.arc(cx, cy, 25, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(cx, cy, 60, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Diagonal lines near corners
+  var lineLen = 55;
+  var lineOff = 50;
+  // Top-left
+  ctx.beginPath();
+  ctx.moveTo(PLAY_X + lineOff, PLAY_Y + lineOff - 8);
+  ctx.lineTo(PLAY_X + lineOff - 8, PLAY_Y + lineOff);
+  ctx.stroke();
+  // Top-right
+  ctx.beginPath();
+  ctx.moveTo(PLAY_X + PLAY_SIZE - lineOff, PLAY_Y + lineOff - 8);
+  ctx.lineTo(PLAY_X + PLAY_SIZE - lineOff + 8, PLAY_Y + lineOff);
+  ctx.stroke();
+  // Bottom-left
+  ctx.beginPath();
+  ctx.moveTo(PLAY_X + lineOff, PLAY_Y + PLAY_SIZE - lineOff + 8);
+  ctx.lineTo(PLAY_X + lineOff - 8, PLAY_Y + PLAY_SIZE - lineOff);
+  ctx.stroke();
+  // Bottom-right
+  ctx.beginPath();
+  ctx.moveTo(PLAY_X + PLAY_SIZE - lineOff, PLAY_Y + PLAY_SIZE - lineOff + 8);
+  ctx.lineTo(PLAY_X + PLAY_SIZE - lineOff + 8, PLAY_Y + PLAY_SIZE - lineOff);
+  ctx.stroke();
+
+  // Baseline arrows (player bottom, AI top)
+  ctx.strokeStyle = '#b89a6a';
+  ctx.lineWidth = 1.5;
+  // Player baseline
+  var blY = PLAY_Y + PLAY_SIZE - 40;
+  ctx.beginPath();
+  ctx.moveTo(PLAY_X + 60, blY);
+  ctx.lineTo(PLAY_X + PLAY_SIZE - 60, blY);
+  ctx.stroke();
+  // AI baseline
+  var blYa = PLAY_Y + 40;
+  ctx.beginPath();
+  ctx.moveTo(PLAY_X + 60, blYa);
+  ctx.lineTo(PLAY_X + PLAY_SIZE - 60, blYa);
+  ctx.stroke();
+
+  // Pockets
+  for (var i = 0; i < pockets.length; i++) {
+    ctx.beginPath();
+    ctx.arc(pockets[i].x, pockets[i].y, POCKET_R, 0, Math.PI * 2);
+    ctx.fillStyle = '#1a0a00';
+    ctx.fill();
+    ctx.strokeStyle = '#3a2a1a';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  // Draw discs
+  for (var i = 0; i < discs.length; i++) {
+    var d = discs[i];
+    if (d.pocketed) continue;
+    ctx.beginPath();
+    ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+    if (d.color === 'white') {
+      ctx.fillStyle = '#f5f0e0';
+      ctx.fill();
+      ctx.strokeStyle = '#c0b898';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      // Inner ring
+      ctx.beginPath();
+      ctx.arc(d.x, d.y, d.r * 0.6, 0, Math.PI * 2);
+      ctx.strokeStyle = '#d0c8a8';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    } else if (d.color === 'black') {
+      ctx.fillStyle = '#2a2520';
+      ctx.fill();
+      ctx.strokeStyle = '#4a4038';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(d.x, d.y, d.r * 0.6, 0, Math.PI * 2);
+      ctx.strokeStyle = '#3a3530';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    } else if (d.color === 'queen') {
+      ctx.fillStyle = '#cc2222';
+      ctx.fill();
+      ctx.strokeStyle = '#991111';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(d.x, d.y, d.r * 0.5, 0, Math.PI * 2);
+      ctx.strokeStyle = '#ff4444';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+  }
+
+  // Draw striker
+  if (striker && !striker.pocketed) {
+    ctx.beginPath();
+    ctx.arc(striker.x, striker.y, striker.r, 0, Math.PI * 2);
+    ctx.fillStyle = '#e8e0c8';
+    ctx.fill();
+    ctx.strokeStyle = '#aa9a78';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(striker.x, striker.y, striker.r * 0.4, 0, Math.PI * 2);
+    ctx.fillStyle = '#d0c8a0';
+    ctx.fill();
+  }
+
+  // Draw aiming line
+  if (gameState === 'aiming' && dragging && turn === 0) {
+    var dx = dragStartX - dragEndX;
+    var dy = dragStartY - dragEndY;
+    var power = Math.min(Math.sqrt(dx * dx + dy * dy), MAX_POWER * 10);
+    var angle = Math.atan2(dy, dx);
+    var lineLen = Math.min(power * 0.8, 120);
+
+    ctx.strokeStyle = 'rgba(255, 255, 100, 0.6)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(striker.x, striker.y);
+    ctx.lineTo(striker.x + Math.cos(angle) * lineLen, striker.y + Math.sin(angle) * lineLen);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Power indicator
+    var powerPct = power / (MAX_POWER * 10);
+    var barW = 80;
+    var barH = 8;
+    var barX = striker.x - barW / 2;
+    var barY = striker.y + striker.r + 10;
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(barX, barY, barW, barH);
+    var col = powerPct < 0.5 ? '#4f4' : powerPct < 0.8 ? '#ff0' : '#f44';
+    ctx.fillStyle = col;
+    ctx.fillRect(barX, barY, barW * powerPct, barH);
+  }
+
+  // HUD
+  hudText('CARROM', 10, 10, '#7bf', 18);
+
+  // Scores
+  var pCountW = 0, pCountB = 0;
+  for (var i = 0; i < discs.length; i++) {
+    if (discs[i].color === 'white' && !discs[i].pocketed) pCountW++;
+    if (discs[i].color === 'black' && !discs[i].pocketed) pCountB++;
+  }
+
+  hudText('Player (White): ' + playerPocketed + '/9' + (playerHasQueen ? ' +Q' : ''), 10, 35, '#f5f0e0', 13);
+  hudText('AI (Black): ' + aiPocketed + '/9' + (aiHasQueen ? ' +Q' : ''), 10, 55, '#aaa', 13);
+
+  // Turn indicator
+  var turnLabel = turn === 0 ? 'YOUR TURN' : 'AI THINKING...';
+  var turnColor = turn === 0 ? '#4f4' : '#f80';
+  if (gameState === 'moving') { turnLabel = ''; }
+  if (gameState === 'gameOver') {
+    turnLabel = winner + ' WINS!';
+    turnColor = '#ff0';
+  }
+  hudText(turnLabel, 400, 10, turnColor, 16, 'center');
+
+  // Queen status
+  if (queenOnBoard) {
+    hudText('Queen: on board', 790, 10, '#cc2222', 12, 'right');
+  } else if (needsCover) {
+    hudText('Queen: needs cover!', 790, 10, '#ff0', 12, 'right');
+  } else if (playerHasQueen) {
+    hudText('Queen: Player has it', 790, 10, '#4f4', 12, 'right');
+  } else if (aiHasQueen) {
+    hudText('Queen: AI has it', 790, 10, '#f80', 12, 'right');
+  }
+
+  // Message
+  if (messageTimer > 0 && message) {
+    hudText(message, 400, 580, '#ff0', 14, 'center');
+  }
+
+  // Game over overlay
+  if (gameState === 'gameOver') {
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(0, 250, 800, 100);
+    hudText(winner + ' WINS!', 400, 270, '#ff0', 32, 'center');
+    hudText('Press R to play again', 400, 310, '#aaa', 14, 'center');
+  }
+
+  hudText('? — info', 790, 580, '#555', 11, 'right');
+}
+
+// ── Input ──
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); return; }
+  if (e.key === 'r' || e.key === 'R') { initGame(); return; }
+});
+
+canvas.addEventListener('mousedown', function(e) {
+  if (infoOpen || gameState !== 'aiming' || turn !== 0) return;
+  initAudio();
+  var rect = canvas.getBoundingClientRect();
+  var sx = (e.clientX - rect.left) * (800 / rect.width);
+  var sy = (e.clientY - rect.top) * (600 / rect.height);
+
+  // Allow repositioning striker along baseline
+  var blY = PLAY_Y + PLAY_SIZE - 40;
+  var minX = PLAY_X + 60;
+  var maxX = PLAY_X + PLAY_SIZE - 60;
+  // Check if clicking near striker
+  if (dist({x: sx, y: sy}, striker) < striker.r * 3) {
+    dragging = true;
+    dragStartX = sx;
+    dragStartY = sy;
+    dragEndX = sx;
+    dragEndY = sy;
+  } else {
+    // Reposition striker along baseline
+    var nx = Math.max(minX, Math.min(maxX, sx));
+    striker.x = nx;
+    dragging = true;
+    dragStartX = sx;
+    dragStartY = sy;
+    dragEndX = sx;
+    dragEndY = sy;
+  }
+});
+
+canvas.addEventListener('mousemove', function(e) {
+  if (!dragging) return;
+  var rect = canvas.getBoundingClientRect();
+  dragEndX = (e.clientX - rect.left) * (800 / rect.width);
+  dragEndY = (e.clientY - rect.top) * (600 / rect.height);
+});
+
+canvas.addEventListener('mouseup', function(e) {
+  if (!dragging) return;
+  dragging = false;
+  var rect = canvas.getBoundingClientRect();
+  dragEndX = (e.clientX - rect.left) * (800 / rect.width);
+  dragEndY = (e.clientY - rect.top) * (600 / rect.height);
+
+  var dx = dragStartX - dragEndX;
+  var dy = dragStartY - dragEndY;
+  var power = Math.min(Math.sqrt(dx * dx + dy * dy) / 10, MAX_POWER);
+  if (power < 1) return; // Too weak, ignore
+
+  var angle = Math.atan2(dy, dx);
+  striker.vx = Math.cos(angle) * power;
+  striker.vy = Math.sin(angle) * power;
+  shotPocketed = [];
+  strikerFouled = false;
+  gameState = 'moving';
+});
+
+// Prevent context menu on canvas
+canvas.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+
+// ── Resize ──
+function resize() {
+  var s = Math.min(window.innerWidth / 800, window.innerHeight / 600);
+  canvas.style.width = (800 * s) + 'px';
+  canvas.style.height = (600 * s) + 'px';
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ── Game Loop ──
+initGame();
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

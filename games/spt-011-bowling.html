@@ -1,0 +1,1173 @@
+<!--
+PROTOTYPE: bowling
+SERIES: spt
+NUMBER: 011
+DATE: 2026-03-24
+MECHANIC: lane physics — aim, set power and spin, roll a ball down a lane to knock down 10 pins; spare and strike scoring across 10 frames
+ANCESTRY: Ancient Egypt (~3200 BCE), Nine-pin (~1300s Germany), Ten-pin (~1840s New York)
+CONTROLS: Left/Right — aim | Space — set power (press), release to throw | A/D — add spin | R — new game | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — physics simulation, trajectory optimization)
+AI-INSIGHT: Pin scatter is a chain-reaction physics problem: the ball hits the lead pin, which hits neighboring pins, which hit further pins. A perfect strike requires hitting the 1-3 pocket at the correct angle. The pin action is deterministic physics that feels chaotic — the same seeming randomness that emerges from simple physical rules.
+NOTES: Bowling pins were found in an Egyptian tomb dating to 3200 BCE. The modern 10-pin triangle formation (1841, New York) and standardized lane dimensions create a precision challenge. The scoring system (spares add next throw, strikes add next two) is elegant game design.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPT-011 · BOWLING</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SPT-011 · BOWLING</h1>
+    <p><span class="tag series">SPT — Sports</span> <span class="tag">Prototype #011</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Roll a bowling ball down the lane to knock down all 10 pins!</p>
+    <ul>
+      <li><kbd>&#8592;</kbd> <kbd>&#8594;</kbd> — Aim left / right</li>
+      <li><kbd>Space</kbd> — Hold to set power, release to throw</li>
+      <li><kbd>A</kbd> <kbd>D</kbd> — Add left / right spin before throwing</li>
+      <li><kbd>R</kbd> — Start a new game</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <p>Score spares (all pins in two throws) and strikes (all pins in one throw) for bonus points. A perfect game is 300.</p>
+
+    <h2>History</h2>
+    <p>Bowling artifacts were found in an Egyptian child's tomb dating to approximately 3200 BCE. The sport evolved through medieval European nine-pin games (documented in 1300s Germany) before arriving in America, where the modern 10-pin triangle formation was standardized around 1841 in New York — legend says to circumvent a ban on nine-pin gambling.</p>
+    <p>The American Bowling Congress (1895) standardized lane dimensions: 60 feet from foul line to head pin, 41.5 inches wide. The scoring system — where spares add the next throw and strikes add the next two — creates cascading bonus opportunities that reward consistency.</p>
+
+    <h2>AI Archaeology</h2>
+    <h3>Era 3 — Knowledge Explosion</h3>
+    <p>Pin scatter is a chain-reaction physics problem. The ball strikes the lead pin, which collides with neighboring pins, which hit further pins in a cascade. A perfect strike requires hitting the 1-3 pocket (for right-handers) at approximately 6 degrees. The pin action is deterministic physics that feels chaotic — the same seeming randomness that emerges from simple physical rules.</p>
+    <p>Modern bowling analysis uses computer vision to track ball speed, rev rate, and entry angle. Professional bowlers optimize for a specific ball path that creates maximum pin carry — the physics equivalent of finding the optimal input to a complex dynamical system.</p>
+
+    <h3>Classification</h3>
+    <p><span class="tag">precision sports</span> <span class="tag">physics simulation</span> <span class="tag">chain reaction</span> <span class="tag">scoring optimization</span> <span class="tag">turn-based</span></p>
+
+    <h2>Prototype Notes</h2>
+    <p>This sketch implements simplified 2D pin physics with circle-circle collision response. Pin scatter uses impulse-based resolution with friction and restitution. The perspective foreshortening gives depth to the lane view. Scoring follows official 10-frame rules including the 10th frame bonus throws.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This is a non-commercial educational prototype built to study game mechanics and history. It is not affiliated with any bowling organization or commercial bowling game. Created for research and preservation purposes.</p>
+  </div>
+</div>
+
+<script>
+// --- Info Panel ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// --- Canvas Setup ---
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+
+function resize() {
+  const s = Math.min(innerWidth / W, innerHeight / H);
+  canvas.style.width = (W * s) + 'px';
+  canvas.style.height = (H * s) + 'px';
+}
+resize();
+addEventListener('resize', resize);
+
+// --- HUD Text Helper ---
+function hudText(text, x, y, size, color, align) {
+  ctx.save();
+  ctx.font = size + 'px monospace';
+  ctx.fillStyle = color || '#fff';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+// --- Input ---
+const keys = {};
+addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  keys[e.key] = true;
+  if (e.key === ' ') e.preventDefault();
+});
+addEventListener('keyup', e => {
+  keys[e.key] = false;
+});
+
+// --- Lane Geometry (perspective view) ---
+const LANE = {
+  topY: 60,         // top of pin area
+  botY: 530,        // foul line
+  topW: 160,        // lane width at top
+  botW: 260,        // lane width at bottom
+  cx: 400           // center x
+};
+
+function laneXAtY(y) {
+  // Interpolate lane width based on y position
+  const t = (y - LANE.topY) / (LANE.botY - LANE.topY);
+  const halfW = (LANE.topW + (LANE.botW - LANE.topW) * t) / 2;
+  return { left: LANE.cx - halfW, right: LANE.cx + halfW, halfW };
+}
+
+// Convert lane-local coordinates (lx: -1 to 1, ly: 0 at foul to 1 at pins) to screen
+function laneToScreen(lx, ly) {
+  const y = LANE.botY - ly * (LANE.botY - LANE.topY);
+  const { left, right } = laneXAtY(y);
+  const x = left + (lx + 1) * 0.5 * (right - left);
+  return { x, y };
+}
+
+// Scale factor for objects at a given ly (perspective scaling)
+function perspScale(ly) {
+  return 0.45 + 0.55 * (1 - ly);
+}
+
+// --- Pin Setup ---
+const PIN_RADIUS = 8;
+const PIN_MASS = 1.0;
+const PIN_POSITIONS = []; // lane-local coords
+
+// Standard triangle: row 0 = 1 pin, row 1 = 2, row 2 = 3, row 3 = 4
+// Pin numbering (bowling standard):
+//    7  8  9  10    (row 3, ly ~0.92)
+//      4  5  6      (row 2, ly ~0.88)
+//        2  3       (row 1, ly ~0.84)
+//          1        (row 0, ly ~0.80)
+const PIN_SPACING_X = 0.09;
+const PIN_SPACING_Y = 0.035;
+const PIN_BASE_Y = 0.82;
+
+function initPinPositions() {
+  PIN_POSITIONS.length = 0;
+  const rows = [[0], [-1, 1], [-2, 0, 2], [-3, -1, 1, 3]];
+  for (let r = 0; r < rows.length; r++) {
+    for (const col of rows[r]) {
+      PIN_POSITIONS.push({
+        lx: col * PIN_SPACING_X * 0.5,
+        ly: PIN_BASE_Y + r * PIN_SPACING_Y
+      });
+    }
+  }
+}
+initPinPositions();
+
+// --- Game State ---
+let pins = [];
+let ball = null;
+let gamePhase = 'aim'; // aim, power, rolling, scatter, settle, score, gameover
+let aimX = 0;       // -1 to 1
+let power = 0;
+let powerDir = 1;
+let spin = 0;       // -1 to 1
+let frame = 0;      // current frame (0-9)
+let throwNum = 0;   // 0 or 1 (first or second throw in frame)
+let scores = [];    // array of frames, each frame: { throws: [], score: null }
+let totalScore = 0;
+let settleTimer = 0;
+let pinsDownThisThrow = 0;
+let pinsDownFirstThrow = 0;
+let message = '';
+let messageTimer = 0;
+let ballReturnTimer = 0;
+
+function createPins(onlyStanding) {
+  const newPins = [];
+  for (let i = 0; i < 10; i++) {
+    if (onlyStanding && pins[i] && pins[i].down) {
+      newPins.push(pins[i]); // keep knocked down pins
+      continue;
+    }
+    if (onlyStanding && pins[i] && !pins[i].down) {
+      newPins.push({
+        lx: PIN_POSITIONS[i].lx,
+        ly: PIN_POSITIONS[i].ly,
+        vx: 0, vy: 0,
+        down: false,
+        angle: 0,
+        va: 0
+      });
+      continue;
+    }
+    newPins.push({
+      lx: PIN_POSITIONS[i].lx,
+      ly: PIN_POSITIONS[i].ly,
+      vx: 0, vy: 0,
+      down: false,
+      angle: 0,
+      va: 0
+    });
+  }
+  return newPins;
+}
+
+function resetGame() {
+  frame = 0;
+  throwNum = 0;
+  scores = [];
+  for (let i = 0; i < 10; i++) scores.push({ throws: [], score: null, cumulative: null });
+  totalScore = 0;
+  pins = createPins(false);
+  ball = null;
+  gamePhase = 'aim';
+  aimX = 0;
+  power = 0;
+  spin = 0;
+  message = '';
+  messageTimer = 0;
+}
+resetGame();
+
+// --- Ball Physics ---
+const BALL_RADIUS = 10;
+const BALL_MASS = 3.0;
+
+function throwBall() {
+  const startLy = 0.0;
+  const speed = 0.008 + power * 0.012; // ly per frame
+  ball = {
+    lx: aimX * 0.35,
+    ly: startLy,
+    vlx: spin * 0.001,
+    vly: speed,
+    spin: spin,
+    radius: BALL_RADIUS,
+    active: true
+  };
+  gamePhase = 'rolling';
+}
+
+// --- Pin-Pin and Ball-Pin Collision ---
+function dist2D(a, b) {
+  const dx = a.lx - b.lx;
+  const dy = a.ly - b.ly;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+function resolveCollision(a, b, aMass, bMass, aRadius, bRadius) {
+  const dx = b.lx - a.lx;
+  const dy = b.ly - a.ly;
+  const d = Math.sqrt(dx * dx + dy * dy);
+  const minDist = (aRadius + bRadius) * 0.01; // in lane coords
+  if (d >= minDist || d < 0.0001) return false;
+
+  const nx = dx / d;
+  const ny = dy / d;
+
+  // Relative velocity
+  const dvx = a.vx - b.vx;
+  const dvy = a.vy - b.vy;
+  const dvn = dvx * nx + dvy * ny;
+  if (dvn <= 0) return false; // moving apart
+
+  const restitution = 0.65;
+  const j = -(1 + restitution) * dvn / (1 / aMass + 1 / bMass);
+
+  a.vx += j * nx / aMass;
+  a.vy += j * ny / aMass;
+  b.vx -= j * nx / bMass;
+  b.vy -= j * ny / bMass;
+
+  // Separate
+  const overlap = minDist - d;
+  const totalM = aMass + bMass;
+  a.lx -= overlap * nx * (bMass / totalM);
+  a.ly -= overlap * ny * (bMass / totalM);
+  b.lx += overlap * nx * (aMass / totalM);
+  b.ly += overlap * ny * (aMass / totalM);
+
+  // Add spin to pins
+  b.va += (a.vx * ny - a.vy * nx) * 2;
+
+  return true;
+}
+
+function updatePhysics() {
+  if (!ball || !ball.active) return;
+
+  // Ball movement with spin curve
+  ball.vly *= 0.998; // slight slowdown
+  ball.vlx += ball.spin * 0.00004; // spin curves the ball
+  ball.spin *= 0.995;
+  ball.lx += ball.vlx;
+  ball.ly += ball.vly;
+
+  // Lane boundaries for ball
+  const maxLx = 0.48;
+  if (ball.lx < -maxLx) { ball.lx = -maxLx; ball.vlx = Math.abs(ball.vlx) * 0.3; }
+  if (ball.lx > maxLx) { ball.lx = maxLx; ball.vlx = -Math.abs(ball.vlx) * 0.3; }
+
+  // Gutter detection
+  if (Math.abs(ball.lx) > 0.38) {
+    ball.vlx += (ball.lx > 0 ? 0.0002 : -0.0002); // gutter pull
+    if (Math.abs(ball.lx) > 0.44) {
+      // In gutter - ball rolls past pins
+      ball.inGutter = true;
+    }
+  }
+
+  // Ball-pin collisions
+  const ballObj = { lx: ball.lx, ly: ball.ly, vx: ball.vlx, vy: ball.vly };
+  for (let i = 0; i < pins.length; i++) {
+    const p = pins[i];
+    if (p.down) continue;
+    if (resolveCollision(ballObj, p, BALL_MASS, PIN_MASS, BALL_RADIUS, PIN_RADIUS)) {
+      ball.vlx = ballObj.vx;
+      ball.vly = ballObj.vy;
+    }
+  }
+  ball.lx = ballObj.lx;
+  ball.ly = ballObj.ly;
+  ball.vlx = ballObj.vx;
+  ball.vly = ballObj.vy;
+
+  // Pin-pin collisions
+  for (let i = 0; i < pins.length; i++) {
+    if (pins[i].down) continue;
+    for (let j = i + 1; j < pins.length; j++) {
+      if (pins[j].down) continue;
+      resolveCollision(pins[i], pins[j], PIN_MASS, PIN_MASS, PIN_RADIUS, PIN_RADIUS);
+    }
+  }
+
+  // Update pins
+  for (const p of pins) {
+    if (p.down) continue;
+    p.lx += p.vx;
+    p.ly += p.vy;
+    p.vx *= 0.92;
+    p.vy *= 0.92;
+    p.angle += p.va;
+    p.va *= 0.9;
+
+    // Check if pin is knocked down (moved far enough from original position or off lane)
+    const origIdx = pins.indexOf(p);
+    if (origIdx >= 0) {
+      const orig = PIN_POSITIONS[origIdx];
+      const dx = p.lx - orig.lx;
+      const dy = p.ly - orig.ly;
+      const moved = Math.sqrt(dx * dx + dy * dy);
+      if (moved > 0.025 || Math.abs(p.lx) > 0.5) {
+        p.down = true;
+      }
+    }
+  }
+
+  // Check if ball passed pins
+  if (ball.ly > 0.96) {
+    ball.active = false;
+    gamePhase = 'settle';
+    settleTimer = 40;
+  }
+}
+
+// --- Scoring ---
+function countPinsDown() {
+  let count = 0;
+  for (const p of pins) {
+    if (p.down) count++;
+  }
+  return count;
+}
+
+function calculateScores() {
+  totalScore = 0;
+  for (let f = 0; f < 10; f++) {
+    const fr = scores[f];
+    if (fr.throws.length === 0) { fr.score = null; fr.cumulative = null; continue; }
+
+    if (f < 9) {
+      // Frames 1-9
+      if (fr.throws[0] === 10) {
+        // Strike
+        const next = getNextTwoThrows(f);
+        if (next.length >= 2) {
+          fr.score = 10 + next[0] + next[1];
+        } else {
+          fr.score = null; // waiting
+        }
+      } else if (fr.throws.length >= 2 && fr.throws[0] + fr.throws[1] === 10) {
+        // Spare
+        const next = getNextOneThrow(f);
+        if (next !== null) {
+          fr.score = 10 + next;
+        } else {
+          fr.score = null;
+        }
+      } else if (fr.throws.length >= 2) {
+        fr.score = fr.throws[0] + fr.throws[1];
+      } else {
+        fr.score = null;
+      }
+    } else {
+      // 10th frame: sum all throws (up to 3)
+      let sum = 0;
+      for (const t of fr.throws) sum += t;
+      const maxThrows = (fr.throws[0] === 10 || (fr.throws.length >= 2 && fr.throws[0] + fr.throws[1] === 10)) ? 3 : 2;
+      if (fr.throws.length >= maxThrows) {
+        fr.score = sum;
+      } else {
+        fr.score = null;
+      }
+    }
+
+    if (fr.score !== null) {
+      totalScore += fr.score;
+      fr.cumulative = totalScore;
+    } else {
+      // Partial running total
+      fr.cumulative = null;
+    }
+  }
+  // Recalculate cumulative properly
+  let running = 0;
+  for (let f = 0; f < 10; f++) {
+    if (scores[f].score !== null) {
+      running += scores[f].score;
+      scores[f].cumulative = running;
+    } else {
+      scores[f].cumulative = null;
+    }
+  }
+  totalScore = running;
+}
+
+function getNextTwoThrows(afterFrame) {
+  const result = [];
+  for (let f = afterFrame + 1; f < 10 && result.length < 2; f++) {
+    for (const t of scores[f].throws) {
+      result.push(t);
+      if (result.length >= 2) break;
+    }
+  }
+  return result;
+}
+
+function getNextOneThrow(afterFrame) {
+  for (let f = afterFrame + 1; f < 10; f++) {
+    if (scores[f].throws.length > 0) return scores[f].throws[0];
+  }
+  return null;
+}
+
+function handleThrowResult() {
+  const totalDown = countPinsDown();
+  pinsDownThisThrow = totalDown - (throwNum === 0 ? 0 : pinsDownFirstThrow);
+
+  scores[frame].throws.push(pinsDownThisThrow);
+  calculateScores();
+
+  if (frame < 9) {
+    if (throwNum === 0 && totalDown === 10) {
+      // Strike!
+      message = 'STRIKE!';
+      messageTimer = 90;
+      frame++;
+      throwNum = 0;
+      if (frame >= 10) {
+        gamePhase = 'gameover';
+      } else {
+        gamePhase = 'score';
+        ballReturnTimer = 60;
+      }
+    } else if (throwNum === 1) {
+      if (totalDown === 10) {
+        message = 'SPARE!';
+        messageTimer = 90;
+      }
+      frame++;
+      throwNum = 0;
+      if (frame >= 10) {
+        gamePhase = 'gameover';
+      } else {
+        gamePhase = 'score';
+        ballReturnTimer = 60;
+      }
+    } else {
+      // Second throw coming
+      throwNum = 1;
+      pinsDownFirstThrow = totalDown;
+      gamePhase = 'score';
+      ballReturnTimer = 45;
+    }
+  } else {
+    // 10th frame special rules
+    const fr = scores[9];
+    if (fr.throws.length === 1) {
+      if (fr.throws[0] === 10) {
+        // Strike in 10th, reset pins
+        message = 'STRIKE!';
+        messageTimer = 60;
+        throwNum = 1;
+        pinsDownFirstThrow = 0;
+        gamePhase = 'score';
+        ballReturnTimer = 45;
+        // Reset pins will happen in score phase
+      } else {
+        throwNum = 1;
+        pinsDownFirstThrow = totalDown;
+        gamePhase = 'score';
+        ballReturnTimer = 45;
+      }
+    } else if (fr.throws.length === 2) {
+      if (fr.throws[0] === 10 && fr.throws[1] === 10) {
+        message = 'STRIKE!';
+        messageTimer = 60;
+        throwNum = 2;
+        pinsDownFirstThrow = 0;
+        gamePhase = 'score';
+        ballReturnTimer = 45;
+      } else if (fr.throws[0] === 10) {
+        // Had a strike, second throw
+        if (fr.throws[1] === 10) {
+          // Double in 10th
+        } else {
+          throwNum = 2;
+          pinsDownFirstThrow = fr.throws[1];
+          gamePhase = 'score';
+          ballReturnTimer = 45;
+        }
+        throwNum = 2;
+        gamePhase = 'score';
+        ballReturnTimer = 45;
+      } else if (fr.throws[0] + fr.throws[1] === 10) {
+        // Spare in 10th, one more throw
+        message = 'SPARE!';
+        messageTimer = 60;
+        throwNum = 2;
+        pinsDownFirstThrow = 0;
+        gamePhase = 'score';
+        ballReturnTimer = 45;
+      } else {
+        // No spare, game over
+        gamePhase = 'gameover';
+        calculateScores();
+      }
+    } else if (fr.throws.length === 3) {
+      if (pinsDownThisThrow === 10 || totalDown === 10) {
+        message = (fr.throws[2] === 10) ? 'STRIKE!' : 'SPARE!';
+        messageTimer = 60;
+      }
+      gamePhase = 'gameover';
+      calculateScores();
+    }
+  }
+}
+
+// --- Update ---
+function update() {
+  if (infoOpen) return;
+
+  if (keys['r'] || keys['R']) {
+    keys['r'] = false; keys['R'] = false;
+    resetGame();
+    return;
+  }
+
+  if (messageTimer > 0) messageTimer--;
+
+  switch (gamePhase) {
+    case 'aim':
+      if (keys['ArrowLeft']) aimX = Math.max(-1, aimX - 0.015);
+      if (keys['ArrowRight']) aimX = Math.min(1, aimX + 0.015);
+      if (keys['a'] || keys['A']) spin = Math.max(-1, spin - 0.03);
+      if (keys['d'] || keys['D']) spin = Math.min(1, spin + 0.03);
+      if (keys[' ']) {
+        gamePhase = 'power';
+        power = 0;
+        powerDir = 1;
+        keys[' '] = false;
+      }
+      break;
+
+    case 'power':
+      power += powerDir * 0.02;
+      if (power >= 1) { power = 1; powerDir = -1; }
+      if (power <= 0) { power = 0; powerDir = 1; }
+      if (keys['a'] || keys['A']) spin = Math.max(-1, spin - 0.03);
+      if (keys['d'] || keys['D']) spin = Math.min(1, spin + 0.03);
+      if (!keys[' ']) {
+        throwBall();
+      }
+      break;
+
+    case 'rolling':
+      updatePhysics();
+      break;
+
+    case 'settle':
+      settleTimer--;
+      updatePhysics();
+      if (settleTimer <= 0) {
+        handleThrowResult();
+      }
+      break;
+
+    case 'score':
+      ballReturnTimer--;
+      if (ballReturnTimer <= 0) {
+        ball = null;
+        // Reset pins if needed
+        if (frame < 10) {
+          if (throwNum === 0) {
+            pins = createPins(false); // new frame, all pins
+          }
+          // throwNum === 1 means keep standing pins
+        } else {
+          // 10th frame pin resets
+          const fr = scores[9];
+          if (fr.throws.length === 1 && fr.throws[0] === 10) {
+            pins = createPins(false);
+          } else if (fr.throws.length === 2 && fr.throws[0] === 10 && fr.throws[1] === 10) {
+            pins = createPins(false);
+          } else if (fr.throws.length === 2 && fr.throws[0] + fr.throws[1] === 10) {
+            pins = createPins(false);
+          } else if (fr.throws.length === 2 && fr.throws[0] === 10) {
+            // Keep pins from second throw
+          }
+        }
+        aimX = 0;
+        spin = 0;
+        gamePhase = 'aim';
+      }
+      break;
+  }
+}
+
+// --- Drawing ---
+function drawLane() {
+  // Lane surface
+  const topL = laneXAtY(LANE.topY);
+  const botL = laneXAtY(LANE.botY);
+
+  // Back wall
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fillRect(0, 0, W, LANE.topY + 20);
+
+  // Lane wood
+  const grad = ctx.createLinearGradient(0, LANE.topY, 0, LANE.botY);
+  grad.addColorStop(0, '#8B6914');
+  grad.addColorStop(0.5, '#A0782C');
+  grad.addColorStop(1, '#B8923A');
+
+  ctx.beginPath();
+  ctx.moveTo(topL.left, LANE.topY);
+  ctx.lineTo(botL.left, LANE.botY);
+  ctx.lineTo(botL.right, LANE.botY);
+  ctx.lineTo(topL.right, LANE.topY);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Lane boards (wood grain lines)
+  ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+  ctx.lineWidth = 1;
+  for (let i = -4; i <= 4; i++) {
+    const t = (i + 4) / 8;
+    ctx.beginPath();
+    const tx = topL.left + t * (topL.right - topL.left);
+    const bx = botL.left + t * (botL.right - botL.left);
+    ctx.moveTo(tx, LANE.topY);
+    ctx.lineTo(bx, LANE.botY);
+    ctx.stroke();
+  }
+
+  // Gutters
+  ctx.fillStyle = '#333';
+  // Left gutter
+  ctx.beginPath();
+  ctx.moveTo(topL.left - 12, LANE.topY);
+  ctx.lineTo(botL.left - 18, LANE.botY);
+  ctx.lineTo(botL.left, LANE.botY);
+  ctx.lineTo(topL.left, LANE.topY);
+  ctx.closePath();
+  ctx.fill();
+  // Right gutter
+  ctx.beginPath();
+  ctx.moveTo(topL.right, LANE.topY);
+  ctx.lineTo(botL.right, LANE.botY);
+  ctx.lineTo(botL.right + 18, LANE.botY);
+  ctx.lineTo(topL.right + 12, LANE.topY);
+  ctx.closePath();
+  ctx.fill();
+
+  // Approach area (below foul line)
+  ctx.fillStyle = '#5a4520';
+  ctx.fillRect(botL.left - 30, LANE.botY, botL.right - botL.left + 60, H - LANE.botY);
+
+  // Foul line
+  ctx.strokeStyle = '#c00';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(botL.left - 20, LANE.botY);
+  ctx.lineTo(botL.right + 20, LANE.botY);
+  ctx.stroke();
+
+  // Arrows (targeting dots on lane)
+  ctx.fillStyle = 'rgba(200,180,100,0.4)';
+  for (let i = -3; i <= 3; i += 2) {
+    const pos = laneToScreen(i * 0.1, 0.25);
+    const s = perspScale(0.25);
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y - 6 * s);
+    ctx.lineTo(pos.x - 4 * s, pos.y + 3 * s);
+    ctx.lineTo(pos.x + 4 * s, pos.y + 3 * s);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // Dots
+  ctx.fillStyle = 'rgba(200,180,100,0.3)';
+  for (let i = -3; i <= 3; i++) {
+    const pos = laneToScreen(i * 0.08, 0.12);
+    const s = perspScale(0.12);
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, 2.5 * s, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawPin(p, idx) {
+  const scr = laneToScreen(p.lx, p.ly);
+  const s = perspScale(p.ly);
+  const r = PIN_RADIUS * s;
+
+  if (p.down) {
+    // Draw fallen pin (dimmer, rotated)
+    ctx.save();
+    ctx.translate(scr.x, scr.y);
+    ctx.rotate(p.angle);
+    ctx.globalAlpha = 0.4;
+    // Pin body
+    ctx.fillStyle = '#ddd';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, r * 0.6, r, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.restore();
+    return;
+  }
+
+  ctx.save();
+  ctx.translate(scr.x, scr.y);
+
+  // Pin shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath();
+  ctx.ellipse(2 * s, 3 * s, r * 0.8, r * 0.4, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Pin body (white with red stripes)
+  // Neck (top)
+  ctx.fillStyle = '#f5f5f0';
+  ctx.beginPath();
+  ctx.arc(0, -r * 0.3, r * 0.45, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Body (wider bottom)
+  ctx.beginPath();
+  ctx.arc(0, r * 0.3, r * 0.7, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Connect neck and body
+  ctx.fillStyle = '#f5f5f0';
+  ctx.fillRect(-r * 0.45, -r * 0.3, r * 0.9, r * 0.6);
+
+  // Red stripes
+  ctx.fillStyle = '#c33';
+  ctx.fillRect(-r * 0.5, -r * 0.1, r, r * 0.08);
+  ctx.fillRect(-r * 0.5, r * 0.05, r, r * 0.08);
+
+  // Highlight
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.beginPath();
+  ctx.arc(-r * 0.15, -r * 0.2, r * 0.2, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
+}
+
+function drawBall(b) {
+  if (!b) return;
+  const scr = laneToScreen(b.lx, b.ly);
+  const s = perspScale(b.ly);
+  const r = b.radius * s;
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.beginPath();
+  ctx.ellipse(scr.x + 3 * s, scr.y + 4 * s, r * 0.9, r * 0.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Ball
+  const bgrad = ctx.createRadialGradient(scr.x - r * 0.3, scr.y - r * 0.3, 0, scr.x, scr.y, r);
+  bgrad.addColorStop(0, '#4466cc');
+  bgrad.addColorStop(0.7, '#1a2a66');
+  bgrad.addColorStop(1, '#0a1533');
+  ctx.fillStyle = bgrad;
+  ctx.beginPath();
+  ctx.arc(scr.x, scr.y, r, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Finger holes
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.beginPath();
+  ctx.arc(scr.x - r * 0.15, scr.y - r * 0.2, r * 0.12, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(scr.x + r * 0.15, scr.y - r * 0.2, r * 0.12, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(scr.x, scr.y - r * 0.45, r * 0.1, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawAimGuide() {
+  if (gamePhase !== 'aim' && gamePhase !== 'power') return;
+
+  const startPos = laneToScreen(aimX * 0.35, 0.0);
+
+  // Aim line (dotted, with spin curve preview)
+  ctx.strokeStyle = 'rgba(255,255,100,0.4)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  let px = aimX * 0.35;
+  let py = 0;
+  const startScr = laneToScreen(px, py);
+  ctx.moveTo(startScr.x, startScr.y);
+  for (let i = 0; i < 30; i++) {
+    py += 0.03;
+    px += spin * 0.003;
+    const s = laneToScreen(px, py);
+    ctx.lineTo(s.x, s.y);
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Ball at start position
+  ctx.fillStyle = '#4466cc';
+  const s = perspScale(0);
+  ctx.beginPath();
+  ctx.arc(startPos.x, startPos.y, BALL_RADIUS * s, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Aim arrow
+  ctx.fillStyle = '#ff0';
+  ctx.beginPath();
+  ctx.moveTo(startPos.x, startPos.y - 18);
+  ctx.lineTo(startPos.x - 6, startPos.y - 10);
+  ctx.lineTo(startPos.x + 6, startPos.y - 10);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawPowerMeter() {
+  if (gamePhase !== 'power') return;
+
+  const x = 30, y = 200, w = 20, h = 200;
+  ctx.fillStyle = '#222';
+  ctx.fillRect(x, y, w, h);
+
+  // Power fill
+  const fillH = h * power;
+  const pg = ctx.createLinearGradient(x, y + h, x, y);
+  pg.addColorStop(0, '#0a0');
+  pg.addColorStop(0.5, '#ff0');
+  pg.addColorStop(1, '#f00');
+  ctx.fillStyle = pg;
+  ctx.fillRect(x, y + h - fillH, w, fillH);
+
+  ctx.strokeStyle = '#888';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x, y, w, h);
+
+  hudText('POWER', x + 10, y - 15, 10, '#ff0', 'center');
+}
+
+function drawSpinMeter() {
+  if (gamePhase !== 'aim' && gamePhase !== 'power') return;
+
+  const x = 350, y = H - 30, w = 100, h = 8;
+  ctx.fillStyle = '#222';
+  ctx.fillRect(x, y, w, h);
+
+  // Center mark
+  ctx.fillStyle = '#666';
+  ctx.fillRect(x + w / 2 - 1, y - 2, 2, h + 4);
+
+  // Spin indicator
+  const spinX = x + w / 2 + spin * w / 2;
+  ctx.fillStyle = '#f80';
+  ctx.beginPath();
+  ctx.arc(spinX, y + h / 2, 5, 0, Math.PI * 2);
+  ctx.fill();
+
+  hudText('SPIN', x + w / 2, y - 12, 10, '#f80', 'center');
+  hudText('A', x - 10, y - 2, 10, '#888', 'center');
+  hudText('D', x + w + 10, y - 2, 10, '#888', 'center');
+}
+
+function drawScoreboard() {
+  const sbX = 60, sbY = 4, fW = 62, fH = 50;
+
+  // Background
+  ctx.fillStyle = 'rgba(0,0,20,0.85)';
+  ctx.fillRect(sbX - 2, sbY, fW * 10 + 44, fH + 4);
+  ctx.strokeStyle = '#555';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(sbX - 2, sbY, fW * 10 + 44, fH + 4);
+
+  for (let f = 0; f < 10; f++) {
+    const x = sbX + f * (fW + 2);
+    const fr = scores[f];
+
+    // Frame box
+    ctx.strokeStyle = f === frame && gamePhase !== 'gameover' ? '#ff0' : '#444';
+    ctx.lineWidth = f === frame && gamePhase !== 'gameover' ? 2 : 1;
+    ctx.strokeRect(x, sbY + 2, fW, fH - 2);
+
+    // Frame number
+    hudText(String(f + 1), x + fW / 2, sbY + 3, 9, '#666', 'center');
+
+    // Throw boxes (top right corner)
+    const boxSize = 14;
+    if (fr.throws.length > 0) {
+      // First throw
+      let t1Text = String(fr.throws[0]);
+      if (fr.throws[0] === 10 && f < 9) t1Text = 'X';
+      else if (fr.throws[0] === 10) t1Text = 'X';
+      else if (fr.throws[0] === 0) t1Text = '-';
+
+      if (f < 9 && fr.throws[0] === 10) {
+        // Strike - show X in second box
+        ctx.fillStyle = '#333';
+        ctx.fillRect(x + fW - boxSize * 2 - 2, sbY + 2, boxSize, boxSize);
+        ctx.fillRect(x + fW - boxSize, sbY + 2, boxSize, boxSize);
+        hudText('X', x + fW - boxSize / 2, sbY + 3, 11, '#f44', 'center');
+      } else {
+        ctx.fillStyle = '#333';
+        ctx.fillRect(x + fW - boxSize * 2 - 2, sbY + 2, boxSize, boxSize);
+        hudText(t1Text, x + fW - boxSize * 2 - 2 + boxSize / 2, sbY + 3, 11,
+          fr.throws[0] === 10 ? '#f44' : '#aaa', 'center');
+      }
+    }
+
+    if (fr.throws.length > 1 && !(f < 9 && fr.throws[0] === 10)) {
+      let t2Text;
+      if (f < 9) {
+        if (fr.throws[0] + fr.throws[1] === 10) t2Text = '/';
+        else if (fr.throws[1] === 0) t2Text = '-';
+        else t2Text = String(fr.throws[1]);
+      } else {
+        if (fr.throws[1] === 10) t2Text = 'X';
+        else if (fr.throws[0] !== 10 && fr.throws[0] + fr.throws[1] === 10) t2Text = '/';
+        else if (fr.throws[1] === 0) t2Text = '-';
+        else t2Text = String(fr.throws[1]);
+      }
+      ctx.fillStyle = '#333';
+      ctx.fillRect(x + fW - boxSize, sbY + 2, boxSize, boxSize);
+      const t2Color = (t2Text === '/' || t2Text === 'X') ? '#4f4' : '#aaa';
+      hudText(t2Text, x + fW - boxSize / 2, sbY + 3, 11, t2Color, 'center');
+    }
+
+    // 10th frame third throw
+    if (f === 9 && fr.throws.length > 2) {
+      let t3Text;
+      if (fr.throws[2] === 10) t3Text = 'X';
+      else if (fr.throws[2] === 0) t3Text = '-';
+      else t3Text = String(fr.throws[2]);
+      // Draw extra box
+      ctx.fillStyle = '#333';
+      ctx.fillRect(x + fW, sbY + 2, boxSize, boxSize);
+      hudText(t3Text, x + fW + boxSize / 2, sbY + 3, 11,
+        t3Text === 'X' ? '#f44' : '#aaa', 'center');
+    }
+
+    // Cumulative score
+    if (fr.cumulative !== null) {
+      hudText(String(fr.cumulative), x + fW / 2, sbY + 32, 14, '#fff', 'center');
+    }
+  }
+
+  // Total
+  hudText('TOTAL: ' + totalScore, sbX + fW * 10 + 20, sbY + 22, 12, '#ff0', 'left');
+}
+
+function drawMessage() {
+  if (messageTimer <= 0) return;
+  const alpha = Math.min(1, messageTimer / 20);
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.font = 'bold 48px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#000';
+  ctx.fillText(message, W / 2 + 2, H / 2 + 2);
+  ctx.fillStyle = message === 'STRIKE!' ? '#f44' : '#4f4';
+  ctx.fillText(message, W / 2, H / 2);
+  ctx.restore();
+}
+
+function drawControls() {
+  if (gamePhase === 'gameover') {
+    hudText('GAME OVER', W / 2, H / 2 - 30, 36, '#ff0', 'center');
+    hudText('Final Score: ' + totalScore, W / 2, H / 2 + 20, 24, '#fff', 'center');
+    hudText('Press R for new game', W / 2, H / 2 + 55, 14, '#888', 'center');
+  } else if (gamePhase === 'aim') {
+    hudText('< > AIM   SPACE: THROW   A/D: SPIN', W / 2, H - 12, 11, '#888', 'center');
+  } else if (gamePhase === 'power') {
+    hudText('RELEASE SPACE TO THROW!', W / 2, H - 12, 12, '#ff0', 'center');
+  }
+
+  // Frame info
+  if (gamePhase !== 'gameover') {
+    const frameText = 'Frame ' + (frame + 1) + (throwNum > 0 ? ' - Ball ' + (throwNum + 1) : '');
+    hudText(frameText, W / 2, H - 50, 12, '#aaa', 'center');
+  }
+
+  // ? hint
+  hudText('? = INFO', W - 10, H - 12, 10, '#555', 'right');
+}
+
+// --- Main Loop ---
+function gameLoop() {
+  update();
+
+  // Clear
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0, 0, W, H);
+
+  drawLane();
+
+  // Draw pins (sort by ly for proper overlap - further pins first)
+  const pinOrder = pins.map((p, i) => ({ p, i })).sort((a, b) => b.p.ly - a.p.ly);
+  for (const { p, i } of pinOrder) {
+    drawPin(p, i);
+  }
+
+  if (ball && ball.active) {
+    drawBall(ball);
+  }
+
+  drawAimGuide();
+  drawPowerMeter();
+  drawSpinMeter();
+  drawScoreboard();
+  drawMessage();
+  drawControls();
+
+  requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: dpad2+fire ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("dpad2+fire");
+</script>
+</body>
+</html>

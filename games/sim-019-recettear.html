@@ -1,0 +1,1092 @@
+<!--
+PROTOTYPE: recettear
+SERIES: sim
+NUMBER: 019
+DATE: 2026-03-24
+MECHANIC: item shop economics — buy items from adventurers, set prices, sell to customers; go dungeon-crawling to find rare stock; capitalism ho!
+ANCESTRY: Recettear: An Item Shop's Tale (2007, EasyGameStation, doujin, Japan)
+CONTROLS: Arrow keys — move (dungeon) | Space — attack (dungeon) | Click — select items, adjust prices (shop) | N — next day | D — go to dungeon | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 6 (Foundation Models — shop economics as supply/demand optimization, NPC haggling as negotiation agents)
+AI-INSIGHT: Running a shop inverts the typical RPG perspective — instead of consuming items, you must understand their perceived value to NPCs. The haggling mechanic is a repeated negotiation game where pricing signals encode information about customer budgets and preferences, a microcosm of market dynamics that modern AI explores through multi-agent economic simulations.
+NOTES: Two-phase loop: shop management and dungeon crawling.
+       Debt payments every 5 days create escalating pressure.
+       "Capitalism, ho!" is the iconic catchphrase.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SIM-019 · SHOP KEEPER</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: default; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+#info-panel .notice { background: #1a1a2e; border-left: 3px solid #f80; padding: 10px 14px; margin: 14px 0; font-size: 12px; color: #ccc; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SIM-019 · SHOP KEEPER</h1>
+    <p><span class="tag series">SIM — Simulation</span> <span class="tag">Prototype #019</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Run an item shop in an RPG town. Buy low, sell high, and crawl dungeons for rare loot. You owe 10,000 gold — payments due every 5 days!</p>
+    <ul>
+      <li><strong>Shop Phase:</strong> Customers enter and want to buy items.</li>
+      <li><kbd>Click</kbd> an item on the shelf to select it</li>
+      <li><kbd>+</kbd> / <kbd>-</kbd> — Adjust price of selected item</li>
+      <li><kbd>Enter</kbd> — Confirm sale to current customer</li>
+      <li><kbd>D</kbd> — Go to dungeon (costs one time period)</li>
+      <li><kbd>N</kbd> — End day / next day</li>
+      <li><kbd>W</kbd> — Visit wholesaler to buy stock</li>
+    </ul>
+    <ul>
+      <li><strong>Dungeon Phase:</strong> Explore, fight, collect loot.</li>
+      <li><kbd>Arrow keys</kbd> — Move your character</li>
+      <li><kbd>Space</kbd> — Attack enemies</li>
+      <li><kbd>Esc</kbd> — Flee dungeon (keep collected items)</li>
+    </ul>
+
+    <h2>History</h2>
+    <p>Recettear: An Item Shop's Tale was created by the Japanese doujin circle EasyGameStation in 2007. It inverted the classic RPG formula — instead of being the hero buying items, you're the shopkeeper selling them. The game combined shop management with action-RPG dungeon crawling and became a cult hit after its 2010 English localization by Carpe Fulgur.</p>
+    <p>Its iconic catchphrase "Capitalism, ho!" became a beloved meme. The game demonstrated that niche Japanese indie games could find massive Western audiences, paving the way for similar shop-sim hybrids.</p>
+
+    <h2>AI Archaeology</h2>
+    <p>The shop pricing mechanic is a repeated negotiation game — each customer interaction is a mini auction where the player must infer willingness-to-pay from behavioral cues. Modern AI approaches this through multi-agent reinforcement learning, where pricing agents learn optimal strategies through millions of simulated transactions. The dual shop/dungeon loop mirrors the exploration-exploitation tradeoff fundamental to AI decision-making.</p>
+
+    <h2>Classification</h2>
+    <p><span class="tag">shop simulation</span> <span class="tag">economics</span> <span class="tag">dungeon crawl</span> <span class="tag">haggling</span> <span class="tag">doujin</span> <span class="tag">JRPG adjacent</span></p>
+
+    <h2>Prototype Notes</h2>
+    <p>This sketch captures the two-phase loop: manage your shop shelves and pricing, then dungeon-crawl for new stock. The debt mechanic adds pressure — miss a payment and it's game over. Simplified to core haggling + loot systems.</p>
+
+    <div class="notice"><strong>Educational Notice:</strong> This is an unlicensed prototype built for study and archival purposes. Recettear: An Item Shop's Tale is the property of EasyGameStation. This sketch exists to document game design history, not to replace or compete with the original work.</div>
+  </div>
+</div>
+
+<script>
+// ── Info Panel ──────────────────────────────────────────────
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// ── Canvas Setup ────────────────────────────────────────────
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+
+function resize() {
+  const s = Math.min(innerWidth / W, innerHeight / H);
+  canvas.style.width = (W * s) + 'px';
+  canvas.style.height = (H * s) + 'px';
+}
+resize(); addEventListener('resize', resize);
+
+function hudText(txt, x, y, size, color, align) {
+  ctx.save();
+  ctx.font = size + 'px monospace';
+  ctx.fillStyle = color || '#fff';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(txt, x, y);
+  ctx.restore();
+}
+
+// ── Game Constants ──────────────────────────────────────────
+const ITEM_DEFS = [
+  { name: 'Herb',        base: 8,   icon: '#4a4', cat: 'consumable' },
+  { name: 'Potion',      base: 25,  icon: '#f44', cat: 'consumable' },
+  { name: 'Bread',       base: 5,   icon: '#da4', cat: 'food' },
+  { name: 'Iron Sword',  base: 80,  icon: '#aaa', cat: 'weapon' },
+  { name: 'Wood Shield', base: 50,  icon: '#864', cat: 'armor' },
+  { name: 'Magic Ring',  base: 150, icon: '#f4f', cat: 'accessory' },
+  { name: 'Antidote',    base: 15,  icon: '#4fa', cat: 'consumable' },
+  { name: 'Elixir',      base: 200, icon: '#ff4', cat: 'consumable' },
+  { name: 'Steel Axe',   base: 120, icon: '#ccc', cat: 'weapon' },
+  { name: 'Amulet',      base: 100, icon: '#84f', cat: 'accessory' },
+  { name: 'Apple',       base: 3,   icon: '#f22', cat: 'food' },
+  { name: 'Gem',         base: 250, icon: '#4ff', cat: 'treasure' },
+  { name: 'Old Coin',    base: 40,  icon: '#aa4', cat: 'treasure' },
+  { name: 'Dragon Fang', base: 300, icon: '#f84', cat: 'treasure' },
+];
+
+const CUSTOMER_TYPES = [
+  { name: 'Villager',    color: '#8c8', budget: 60,  patience: 2 },
+  { name: 'Merchant',    color: '#cc8', budget: 200, patience: 3 },
+  { name: 'Adventurer',  color: '#88f', budget: 300, patience: 2 },
+  { name: 'Noble',       color: '#f8f', budget: 500, patience: 1 },
+  { name: 'Child',       color: '#fa8', budget: 20,  patience: 3 },
+];
+
+const ENEMY_TYPES = [
+  { name: 'Slime',   hp: 2, atk: 1, spd: 0.3, color: '#4f4', size: 12, drops: [0, 2, 6, 10] },
+  { name: 'Bat',     hp: 3, atk: 2, spd: 0.6, color: '#a4f', size: 10, drops: [1, 6, 12] },
+  { name: 'Goblin',  hp: 5, atk: 3, spd: 0.4, color: '#4a4', size: 14, drops: [3, 4, 8] },
+  { name: 'Golem',   hp: 8, atk: 4, spd: 0.2, color: '#888', size: 16, drops: [8, 9, 12] },
+  { name: 'Dragon',  hp: 12, atk: 6, spd: 0.3, color: '#f44', size: 20, drops: [7, 11, 13] },
+];
+
+// ── Game State ──────────────────────────────────────────────
+let state = {};
+
+function initGame() {
+  state = {
+    phase: 'shop',       // 'shop', 'dungeon', 'haggle', 'gameover', 'win', 'wholesale'
+    gold: 500,
+    debt: 10000,
+    day: 1,
+    dayTimer: 0,
+    dayLength: 600,      // frames per shop day
+    // Inventory: array of {id, price}
+    inventory: [
+      { id: 0, price: 12 }, { id: 1, price: 35 }, { id: 2, price: 8 },
+      { id: 6, price: 22 }, { id: 10, price: 5 },
+    ],
+    selectedItem: -1,
+    // Customer
+    customer: null,
+    customerTimer: 0,
+    customerWant: -1,
+    haggleState: null,   // {offered, response, timer}
+    salesLog: [],
+    dayProfit: 0,
+    // Dungeon
+    dPlayer: { x: 400, y: 500, hp: 10, maxHp: 10, atk: 3, iframes: 0 },
+    dFloor: 0,
+    dEnemies: [],
+    dLoot: [],
+    dRooms: [],
+    dWalls: [],
+    dStairs: null,
+    dCollected: [],
+    attackCooldown: 0,
+    attackAnim: 0,
+    attackDir: { x: 0, y: 1 },
+    // Debt tracking
+    nextPayment: 5,
+    paymentAmount: 2000,
+    paymentsMade: 0,
+    // Messages
+    msg: 'Welcome to your item shop! Capitalism, ho!',
+    msgTimer: 180,
+    // Wholesale
+    wholesaleItems: [],
+    wholesaleSelected: -1,
+  };
+  generateWholesale();
+}
+
+function generateWholesale() {
+  state.wholesaleItems = [];
+  for (let i = 0; i < 6; i++) {
+    const id = Math.floor(Math.random() * ITEM_DEFS.length);
+    const base = ITEM_DEFS[id].base;
+    const cost = Math.floor(base * (0.6 + Math.random() * 0.4));
+    state.wholesaleItems.push({ id, cost });
+  }
+}
+
+function showMsg(txt, dur) {
+  state.msg = txt;
+  state.msgTimer = dur || 180;
+}
+
+// ── Shop Logic ──────────────────────────────────────────────
+function spawnCustomer() {
+  if (state.customer || state.inventory.length === 0) return;
+  const ct = CUSTOMER_TYPES[Math.floor(Math.random() * CUSTOMER_TYPES.length)];
+  // Pick an item they want
+  const affordable = state.inventory.filter(it => ITEM_DEFS[it.id].base <= ct.budget * 1.5);
+  if (affordable.length === 0) return;
+  const want = affordable[Math.floor(Math.random() * affordable.length)];
+  const wantIdx = state.inventory.indexOf(want);
+  state.customer = { ...ct, x: -30, targetX: 300, leaving: false };
+  state.customerWant = wantIdx;
+  state.haggleState = null;
+}
+
+function startHaggle() {
+  if (!state.customer || state.customerWant < 0) return;
+  const item = state.inventory[state.customerWant];
+  if (!item) return;
+  state.phase = 'haggle';
+  state.haggleState = { offered: item.price, response: '', timer: 0, attempts: 0 };
+}
+
+function resolveHaggle(accepted) {
+  const hs = state.haggleState;
+  const item = state.inventory[state.customerWant];
+  const cust = state.customer;
+  if (!hs || !item || !cust) return;
+  if (accepted) {
+    const baseVal = ITEM_DEFS[item.id].base;
+    const ratio = hs.offered / baseVal;
+    // Customer accepts if price within their budget and not too far above base
+    const maxRatio = 1.3 + (cust.patience * 0.1);
+    if (hs.offered <= cust.budget && ratio <= maxRatio) {
+      state.gold += hs.offered;
+      state.dayProfit += hs.offered;
+      state.salesLog.push({ name: ITEM_DEFS[item.id].name, price: hs.offered });
+      showMsg('Sold ' + ITEM_DEFS[item.id].name + ' for ' + hs.offered + 'g!', 120);
+      state.inventory.splice(state.customerWant, 1);
+      state.customer.leaving = true;
+      state.customer.targetX = 850;
+      state.phase = 'shop';
+      state.haggleState = null;
+      state.customerWant = -1;
+    } else {
+      hs.attempts++;
+      if (hs.attempts >= cust.patience) {
+        hs.response = 'Too expensive! *leaves*';
+        hs.timer = 60;
+        state.customer.leaving = true;
+        state.customer.targetX = 850;
+        setTimeout(() => {
+          state.phase = 'shop';
+          state.haggleState = null;
+          state.customerWant = -1;
+        }, 0);
+      } else {
+        if (hs.offered > cust.budget) {
+          hs.response = "That's over my budget...";
+        } else {
+          hs.response = "Hmm, a bit pricey...";
+        }
+        hs.timer = 90;
+      }
+    }
+  } else {
+    // Player cancelled
+    state.customer.leaving = true;
+    state.customer.targetX = 850;
+    state.phase = 'shop';
+    state.haggleState = null;
+    state.customerWant = -1;
+    showMsg('Customer left.', 90);
+  }
+}
+
+function endDay() {
+  state.day++;
+  state.dayTimer = 0;
+  state.customer = null;
+  state.customerWant = -1;
+  state.haggleState = null;
+  state.dayProfit = 0;
+  state.salesLog = [];
+  generateWholesale();
+  // Debt payment check
+  if (state.day > state.nextPayment) {
+    if (state.gold >= state.paymentAmount) {
+      state.gold -= state.paymentAmount;
+      state.debt -= state.paymentAmount;
+      state.paymentsMade++;
+      state.nextPayment += 5;
+      if (state.debt <= 0) {
+        state.phase = 'win';
+        state.debt = 0;
+        showMsg('DEBT PAID! You own the shop! Capitalism, ho!', 999);
+        return;
+      }
+      state.paymentAmount = Math.min(state.debt, 2000 + state.paymentsMade * 500);
+      showMsg('Payment of ' + (2000 + (state.paymentsMade - 1) * 500) + 'g made! Next: ' + state.paymentAmount + 'g in 5 days.', 180);
+    } else {
+      state.phase = 'gameover';
+      showMsg('You couldn\'t make the payment... GAME OVER', 999);
+      return;
+    }
+  }
+  showMsg('Day ' + state.day + ' begins! Next payment: Day ' + state.nextPayment + ' (' + state.paymentAmount + 'g)', 180);
+}
+
+// ── Dungeon Logic ───────────────────────────────────────────
+function generateDungeon(floor) {
+  state.dFloor = floor;
+  state.dEnemies = [];
+  state.dLoot = [];
+  state.dWalls = [];
+  state.dPlayer.x = 400;
+  state.dPlayer.y = 500;
+  state.dPlayer.iframes = 0;
+  state.attackCooldown = 0;
+  // Generate rooms
+  const numRooms = 4 + floor;
+  const rooms = [];
+  for (let i = 0; i < numRooms; i++) {
+    const rw = 80 + Math.random() * 120;
+    const rh = 80 + Math.random() * 100;
+    const rx = 60 + Math.random() * (W - 120 - rw);
+    const ry = 60 + Math.random() * (H - 140 - rh);
+    rooms.push({ x: rx, y: ry, w: rw, h: rh });
+  }
+  state.dRooms = rooms;
+  // Generate walls (borders of rooms, simplified)
+  // Use rooms as walkable areas, everything else is wall
+  // Enemies per floor
+  const numEnemies = 3 + floor * 2;
+  for (let i = 0; i < numEnemies; i++) {
+    const room = rooms[Math.floor(Math.random() * rooms.length)];
+    const tier = Math.min(floor, ENEMY_TYPES.length - 1);
+    const typeIdx = Math.floor(Math.random() * (tier + 1));
+    const et = ENEMY_TYPES[typeIdx];
+    state.dEnemies.push({
+      ...et,
+      x: room.x + 20 + Math.random() * (room.w - 40),
+      y: room.y + 20 + Math.random() * (room.h - 40),
+      hp: et.hp + floor,
+      maxHp: et.hp + floor,
+      dir: Math.random() * Math.PI * 2,
+      moveTimer: 0,
+    });
+  }
+  // Loot chests
+  const numChests = 2 + floor;
+  for (let i = 0; i < numChests; i++) {
+    const room = rooms[Math.floor(Math.random() * rooms.length)];
+    const itemId = Math.floor(Math.random() * ITEM_DEFS.length);
+    state.dLoot.push({
+      x: room.x + 20 + Math.random() * (room.w - 40),
+      y: room.y + 20 + Math.random() * (room.h - 40),
+      itemId, collected: false,
+    });
+  }
+  // Stairs to next floor
+  if (floor < 2) {
+    const room = rooms[rooms.length - 1];
+    state.dStairs = { x: room.x + room.w / 2, y: room.y + room.h / 2 };
+  } else {
+    state.dStairs = null; // last floor, exit after clearing
+  }
+}
+
+function enterDungeon() {
+  state.phase = 'dungeon';
+  state.dCollected = [];
+  state.dPlayer.hp = state.dPlayer.maxHp;
+  generateDungeon(0);
+  showMsg('Dungeon Floor 1 — find loot and get out alive!', 120);
+}
+
+function leaveDungeon() {
+  // Add collected items to inventory
+  for (const itemId of state.dCollected) {
+    const base = ITEM_DEFS[itemId].base;
+    state.inventory.push({ id: itemId, price: Math.floor(base * 1.2) });
+  }
+  state.phase = 'shop';
+  if (state.dCollected.length > 0) {
+    showMsg('Returned with ' + state.dCollected.length + ' items! Stock your shelves!', 150);
+  } else {
+    showMsg('Returned empty-handed...', 90);
+  }
+  state.dCollected = [];
+}
+
+function isInRoom(x, y) {
+  for (const r of state.dRooms) {
+    if (x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) return true;
+  }
+  return false;
+}
+
+// ── Input ───────────────────────────────────────────────────
+const keys = {};
+addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+  keys[e.key] = true;
+
+  if (infoOpen) return;
+
+  if (state.phase === 'gameover' || state.phase === 'win') {
+    if (e.key === 'r' || e.key === 'R') { initGame(); return; }
+  }
+
+  if (state.phase === 'shop') {
+    if ((e.key === 'n' || e.key === 'N') && !state.customer) { endDay(); e.preventDefault(); }
+    if ((e.key === 'd' || e.key === 'D') && !state.customer) { enterDungeon(); e.preventDefault(); }
+    if ((e.key === 'w' || e.key === 'W') && !state.customer) { state.phase = 'wholesale'; state.wholesaleSelected = -1; e.preventDefault(); }
+    if (e.key === '+' || e.key === '=') {
+      if (state.selectedItem >= 0 && state.selectedItem < state.inventory.length) {
+        state.inventory[state.selectedItem].price += 5;
+      }
+    }
+    if (e.key === '-' || e.key === '_') {
+      if (state.selectedItem >= 0 && state.selectedItem < state.inventory.length) {
+        state.inventory[state.selectedItem].price = Math.max(1, state.inventory[state.selectedItem].price - 5);
+      }
+    }
+    if (e.key === 'Enter' && state.customer && !state.customer.leaving) {
+      startHaggle();
+      e.preventDefault();
+    }
+  }
+
+  if (state.phase === 'haggle') {
+    if (e.key === '+' || e.key === '=') {
+      state.haggleState.offered += 5;
+    }
+    if (e.key === '-' || e.key === '_') {
+      state.haggleState.offered = Math.max(1, state.haggleState.offered - 5);
+    }
+    if (e.key === 'Enter') {
+      resolveHaggle(true);
+      e.preventDefault();
+    }
+    if (e.key === 'Escape') {
+      resolveHaggle(false);
+      e.preventDefault();
+    }
+  }
+
+  if (state.phase === 'wholesale') {
+    if (e.key === 'Escape') { state.phase = 'shop'; e.preventDefault(); }
+    if (e.key === 'Enter' && state.wholesaleSelected >= 0) {
+      const wi = state.wholesaleItems[state.wholesaleSelected];
+      if (wi && state.gold >= wi.cost) {
+        state.gold -= wi.cost;
+        state.inventory.push({ id: wi.id, price: Math.floor(ITEM_DEFS[wi.id].base * 1.3) });
+        showMsg('Bought ' + ITEM_DEFS[wi.id].name + ' for ' + wi.cost + 'g', 90);
+        state.wholesaleItems.splice(state.wholesaleSelected, 1);
+        state.wholesaleSelected = -1;
+      } else {
+        showMsg('Not enough gold!', 60);
+      }
+      e.preventDefault();
+    }
+  }
+
+  if (state.phase === 'dungeon') {
+    if (e.key === 'Escape') { leaveDungeon(); e.preventDefault(); }
+    if (e.key === ' ') { e.preventDefault(); }
+  }
+});
+
+addEventListener('keyup', e => { keys[e.key] = false; });
+
+// ── Mouse / Click ───────────────────────────────────────────
+let mouseX = 0, mouseY = 0;
+canvas.addEventListener('mousemove', e => {
+  const r = canvas.getBoundingClientRect();
+  mouseX = (e.clientX - r.left) * (W / r.width);
+  mouseY = (e.clientY - r.top) * (H / r.height);
+});
+
+canvas.addEventListener('click', e => {
+  if (infoOpen) return;
+  const r = canvas.getBoundingClientRect();
+  const cx = (e.clientX - r.left) * (W / r.width);
+  const cy = (e.clientY - r.top) * (H / r.height);
+
+  if (state.phase === 'shop') {
+    // Click on inventory items (shelf area)
+    for (let i = 0; i < state.inventory.length; i++) {
+      const ix = 30 + (i % 5) * 150;
+      const iy = 260 + Math.floor(i / 5) * 70;
+      if (cx >= ix && cx <= ix + 140 && cy >= iy && cy <= iy + 60) {
+        state.selectedItem = i;
+        return;
+      }
+    }
+  }
+
+  if (state.phase === 'wholesale') {
+    for (let i = 0; i < state.wholesaleItems.length; i++) {
+      const ix = 150;
+      const iy = 180 + i * 55;
+      if (cx >= ix && cx <= ix + 500 && cy >= iy && cy <= iy + 45) {
+        state.wholesaleSelected = i;
+        return;
+      }
+    }
+  }
+});
+
+// ── Update ──────────────────────────────────────────────────
+function update() {
+  if (infoOpen) return;
+  if (state.phase === 'gameover' || state.phase === 'win') return;
+
+  if (state.msgTimer > 0) state.msgTimer--;
+
+  if (state.phase === 'shop') {
+    state.dayTimer++;
+    // Spawn customers periodically
+    state.customerTimer++;
+    if (state.customerTimer > 150 && !state.customer && state.inventory.length > 0) {
+      state.customerTimer = 0;
+      if (Math.random() < 0.5) spawnCustomer();
+    }
+    // Move customer
+    if (state.customer) {
+      const c = state.customer;
+      if (c.x < c.targetX) c.x = Math.min(c.x + 3, c.targetX);
+      if (c.x > c.targetX) c.x = Math.min(c.x + 3, c.targetX);
+      if (c.leaving && c.x >= 850) {
+        state.customer = null;
+        state.customerWant = -1;
+      }
+    }
+    // Auto end day
+    if (state.dayTimer >= state.dayLength) {
+      if (state.customer) {
+        state.customer = null;
+        state.customerWant = -1;
+        state.haggleState = null;
+      }
+      endDay();
+    }
+  }
+
+  if (state.phase === 'haggle') {
+    if (state.haggleState && state.haggleState.timer > 0) {
+      state.haggleState.timer--;
+    }
+  }
+
+  if (state.phase === 'dungeon') {
+    const p = state.dPlayer;
+    const spd = 3;
+    let dx = 0, dy = 0;
+    if (keys['ArrowLeft'] || keys['a']) dx = -spd;
+    if (keys['ArrowRight'] || keys['d']) dx = spd;
+    if (keys['ArrowUp'] || keys['w']) dy = -spd;
+    if (keys['ArrowDown'] || keys['s']) dy = spd;
+
+    if (dx !== 0 || dy !== 0) {
+      state.attackDir = { x: Math.sign(dx) || state.attackDir.x, y: Math.sign(dy) || state.attackDir.y };
+    }
+
+    const nx = p.x + dx, ny = p.y + dy;
+    if (nx > 10 && nx < W - 10 && ny > 50 && ny < H - 10 && isInRoom(nx, ny)) {
+      p.x = nx; p.y = ny;
+    }
+
+    // Attack
+    if (state.attackCooldown > 0) state.attackCooldown--;
+    if (state.attackAnim > 0) state.attackAnim--;
+    if (keys[' '] && state.attackCooldown <= 0) {
+      state.attackCooldown = 20;
+      state.attackAnim = 10;
+      // Hit enemies in range
+      const ax = p.x + state.attackDir.x * 25;
+      const ay = p.y + state.attackDir.y * 25;
+      for (let i = state.dEnemies.length - 1; i >= 0; i--) {
+        const en = state.dEnemies[i];
+        const dist = Math.hypot(en.x - ax, en.y - ay);
+        if (dist < 30) {
+          en.hp -= p.atk;
+          if (en.hp <= 0) {
+            // Drop loot
+            if (en.drops && en.drops.length > 0) {
+              const dropId = en.drops[Math.floor(Math.random() * en.drops.length)];
+              state.dLoot.push({ x: en.x, y: en.y, itemId: dropId, collected: false });
+            }
+            state.dEnemies.splice(i, 1);
+          }
+        }
+      }
+    }
+
+    // Iframes
+    if (p.iframes > 0) p.iframes--;
+
+    // Enemy AI
+    for (const en of state.dEnemies) {
+      en.moveTimer++;
+      if (en.moveTimer > 30) {
+        en.moveTimer = 0;
+        const dist = Math.hypot(p.x - en.x, p.y - en.y);
+        if (dist < 150) {
+          // Chase player
+          const ang = Math.atan2(p.y - en.y, p.x - en.x);
+          en.dir = ang;
+        } else {
+          en.dir += (Math.random() - 0.5) * 1.5;
+        }
+      }
+      const enx = en.x + Math.cos(en.dir) * en.spd;
+      const eny = en.y + Math.sin(en.dir) * en.spd;
+      if (isInRoom(enx, eny) && enx > 10 && enx < W - 10 && eny > 50 && eny < H - 10) {
+        en.x = enx; en.y = eny;
+      } else {
+        en.dir += Math.PI;
+      }
+      // Damage player
+      if (p.iframes <= 0) {
+        const d = Math.hypot(p.x - en.x, p.y - en.y);
+        if (d < 20) {
+          p.hp -= en.atk;
+          p.iframes = 40;
+          showMsg(en.name + ' hits you for ' + en.atk + ' damage!', 60);
+          if (p.hp <= 0) {
+            p.hp = 0;
+            showMsg('You died! Lost half your loot...', 120);
+            state.dCollected = state.dCollected.slice(0, Math.floor(state.dCollected.length / 2));
+            leaveDungeon();
+            return;
+          }
+        }
+      }
+    }
+
+    // Collect loot
+    for (const lt of state.dLoot) {
+      if (!lt.collected && Math.hypot(p.x - lt.x, p.y - lt.y) < 20) {
+        lt.collected = true;
+        state.dCollected.push(lt.itemId);
+        showMsg('Found ' + ITEM_DEFS[lt.itemId].name + '!', 60);
+      }
+    }
+
+    // Stairs
+    if (state.dStairs && Math.hypot(p.x - state.dStairs.x, p.y - state.dStairs.y) < 20) {
+      generateDungeon(state.dFloor + 1);
+      showMsg('Floor ' + (state.dFloor + 1) + '!', 90);
+    }
+
+    // If all enemies dead on last floor, can leave
+    if (state.dFloor >= 2 && state.dEnemies.length === 0 && !state.dStairs) {
+      state.dStairs = { x: state.dRooms[0].x + state.dRooms[0].w / 2, y: state.dRooms[0].y + state.dRooms[0].h / 2 };
+    }
+  }
+}
+
+// ── Draw ────────────────────────────────────────────────────
+function drawShop() {
+  // Background — shop interior
+  ctx.fillStyle = '#2a1a0a';
+  ctx.fillRect(0, 0, W, H);
+  // Floor
+  ctx.fillStyle = '#3a2a1a';
+  ctx.fillRect(0, 200, W, H - 200);
+  // Counter
+  ctx.fillStyle = '#5a3a1a';
+  ctx.fillRect(0, 190, W, 20);
+  // Shelves background
+  ctx.fillStyle = '#1a0f05';
+  ctx.fillRect(0, 0, W, 190);
+  // Wall decoration
+  for (let x = 0; x < W; x += 100) {
+    ctx.fillStyle = '#3a2510';
+    ctx.fillRect(x, 0, 2, 190);
+  }
+
+  // HUD
+  hudText('SHOP KEEPER — Item Shop', 10, 5, 14, '#f8d878');
+  hudText('Day ' + state.day + '/' + state.nextPayment, 300, 5, 12, '#faa');
+  hudText('Gold: ' + state.gold + 'g', 500, 5, 12, '#ff4');
+  hudText('Debt: ' + state.debt + 'g', 650, 5, 12, '#f88');
+
+  // Day timer bar
+  const pct = state.dayTimer / state.dayLength;
+  ctx.fillStyle = '#333';
+  ctx.fillRect(10, 25, 300, 8);
+  ctx.fillStyle = pct > 0.8 ? '#f44' : '#4af';
+  ctx.fillRect(10, 25, 300 * pct, 8);
+  hudText('Time', 315, 22, 10, '#888');
+
+  // Payment info
+  hudText('Next payment: ' + state.paymentAmount + 'g on Day ' + state.nextPayment, 10, 40, 11, '#fa8');
+
+  // Inventory / Shelves
+  hudText('YOUR STOCK:', 10, 60, 12, '#ccc');
+  for (let i = 0; i < state.inventory.length; i++) {
+    const item = state.inventory[i];
+    const def = ITEM_DEFS[item.id];
+    const ix = 30 + (i % 5) * 150;
+    const iy = 260 + Math.floor(i / 5) * 70;
+
+    // Shelf slot
+    ctx.fillStyle = i === state.selectedItem ? '#5a4a2a' : '#3a2a1a';
+    ctx.strokeStyle = i === state.selectedItem ? '#ff0' : '#554422';
+    ctx.lineWidth = i === state.selectedItem ? 2 : 1;
+    ctx.fillRect(ix, iy, 140, 60);
+    ctx.strokeRect(ix, iy, 140, 60);
+
+    // Item icon
+    ctx.fillStyle = def.icon;
+    ctx.fillRect(ix + 5, iy + 5, 20, 20);
+    // Item details
+    hudText(def.name, ix + 30, iy + 5, 11, '#eee');
+    hudText('Base: ' + def.base + 'g', ix + 30, iy + 20, 10, '#888');
+    hudText('Price: ' + item.price + 'g', ix + 5, iy + 38, 11, '#ff4');
+    // Markup indicator
+    const markup = ((item.price / def.base - 1) * 100).toFixed(0);
+    const mc = markup > 50 ? '#f44' : markup > 20 ? '#fa4' : '#4f4';
+    hudText((markup >= 0 ? '+' : '') + markup + '%', ix + 95, iy + 38, 10, mc);
+  }
+
+  if (state.inventory.length === 0) {
+    hudText('No items! Visit [D]ungeon or [W]holesaler', 200, 300, 13, '#f88', 'center');
+  }
+
+  // Controls hint
+  hudText('[+/-] Adjust price  [Enter] Sell  [D] Dungeon  [W] Wholesale  [N] Next day', 10, H - 20, 10, '#666');
+
+  // Customer
+  if (state.customer) {
+    const c = state.customer;
+    // Draw customer sprite
+    ctx.fillStyle = c.color;
+    ctx.beginPath();
+    ctx.arc(c.x, 160, 18, 0, Math.PI * 2);
+    ctx.fill();
+    // Face
+    ctx.fillStyle = '#000';
+    ctx.fillRect(c.x - 5, 154, 3, 3);
+    ctx.fillRect(c.x + 3, 154, 3, 3);
+    // Name
+    hudText(c.name, c.x, 130, 10, c.color, 'center');
+    hudText('Budget: ~' + c.budget + 'g', c.x, 142, 9, '#aaa', 'center');
+
+    if (state.customerWant >= 0 && state.customerWant < state.inventory.length && !c.leaving) {
+      const wantItem = state.inventory[state.customerWant];
+      const wDef = ITEM_DEFS[wantItem.id];
+      // Speech bubble
+      ctx.fillStyle = 'rgba(255,255,255,0.9)';
+      ctx.fillRect(c.x + 25, 120, 180, 35);
+      ctx.fillStyle = '#000';
+      ctx.font = '11px monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText('I want: ' + wDef.name, c.x + 30, 133);
+      ctx.fillText('Press Enter to sell!', c.x + 30, 148);
+    }
+  }
+}
+
+function drawHaggle() {
+  drawShop();
+  // Haggle overlay
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(0, 0, W, H);
+
+  const hs = state.haggleState;
+  const item = state.inventory[state.customerWant];
+  if (!hs || !item) return;
+  const def = ITEM_DEFS[item.id];
+
+  ctx.fillStyle = '#2a2a3a';
+  ctx.strokeStyle = '#668';
+  ctx.lineWidth = 2;
+  ctx.fillRect(200, 150, 400, 250);
+  ctx.strokeRect(200, 150, 400, 250);
+
+  hudText('HAGGLE', 400, 160, 18, '#ff0', 'center');
+  hudText(state.customer.name + ' wants: ' + def.name, 400, 190, 13, '#ccc', 'center');
+  hudText('Base value: ' + def.base + 'g', 400, 210, 12, '#888', 'center');
+
+  hudText('Your offer:', 400, 245, 14, '#aaa', 'center');
+  hudText(hs.offered + ' gold', 400, 265, 22, '#ff4', 'center');
+
+  hudText('[+/-] Adjust  [Enter] Offer  [Esc] Cancel', 400, 310, 11, '#888', 'center');
+
+  // Markup display
+  const mk = ((hs.offered / def.base - 1) * 100).toFixed(0);
+  hudText('(' + (mk >= 0 ? '+' : '') + mk + '% markup)', 400, 295, 10, mk > 40 ? '#f44' : '#4f4', 'center');
+
+  if (hs.response && hs.timer > 0) {
+    hudText(hs.response, 400, 340, 13, '#f88', 'center');
+    hudText('Attempts: ' + hs.attempts + '/' + state.customer.patience, 400, 360, 10, '#aaa', 'center');
+  }
+}
+
+function drawWholesale() {
+  ctx.fillStyle = '#0a0a1a';
+  ctx.fillRect(0, 0, W, H);
+
+  hudText('WHOLESALE MARKET', 400, 20, 18, '#4af', 'center');
+  hudText('Gold: ' + state.gold + 'g', 400, 50, 14, '#ff4', 'center');
+  hudText('Click to select, Enter to buy, Esc to return', 400, 75, 11, '#888', 'center');
+
+  for (let i = 0; i < state.wholesaleItems.length; i++) {
+    const wi = state.wholesaleItems[i];
+    const def = ITEM_DEFS[wi.id];
+    const iy = 110 + i * 55;
+    const sel = i === state.wholesaleSelected;
+
+    ctx.fillStyle = sel ? '#2a2a4a' : '#1a1a2a';
+    ctx.strokeStyle = sel ? '#4af' : '#334';
+    ctx.lineWidth = sel ? 2 : 1;
+    ctx.fillRect(150, iy, 500, 45);
+    ctx.strokeRect(150, iy, 500, 45);
+
+    ctx.fillStyle = def.icon;
+    ctx.fillRect(160, iy + 8, 25, 25);
+
+    hudText(def.name, 200, iy + 5, 13, '#eee');
+    hudText('Category: ' + def.cat, 200, iy + 22, 10, '#888');
+    hudText('Cost: ' + wi.cost + 'g', 450, iy + 5, 13, state.gold >= wi.cost ? '#4f4' : '#f44');
+    hudText('(Base: ' + def.base + 'g)', 450, iy + 22, 10, '#888');
+  }
+
+  if (state.wholesaleItems.length === 0) {
+    hudText('Sold out! Come back tomorrow.', 400, 300, 14, '#888', 'center');
+  }
+}
+
+function drawDungeon() {
+  ctx.fillStyle = '#0a0a0a';
+  ctx.fillRect(0, 0, W, H);
+
+  // HUD
+  hudText('DUNGEON — Floor ' + (state.dFloor + 1), 10, 5, 14, '#f8d878');
+  hudText('HP: ' + state.dPlayer.hp + '/' + state.dPlayer.maxHp, 300, 5, 12, state.dPlayer.hp <= 3 ? '#f44' : '#4f4');
+  hudText('Loot: ' + state.dCollected.length, 500, 5, 12, '#ff4');
+  hudText('[Esc] Flee', 700, 5, 10, '#888');
+
+  // HP bar
+  ctx.fillStyle = '#300';
+  ctx.fillRect(300, 22, 100, 6);
+  ctx.fillStyle = '#4f4';
+  ctx.fillRect(300, 22, 100 * (state.dPlayer.hp / state.dPlayer.maxHp), 6);
+
+  // Rooms
+  for (const r of state.dRooms) {
+    ctx.fillStyle = '#1a1a2a';
+    ctx.fillRect(r.x, r.y, r.w, r.h);
+    ctx.strokeStyle = '#334';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(r.x, r.y, r.w, r.h);
+    // Floor texture
+    for (let tx = r.x + 10; tx < r.x + r.w; tx += 20) {
+      for (let ty = r.y + 10; ty < r.y + r.h; ty += 20) {
+        ctx.fillStyle = '#181828';
+        ctx.fillRect(tx, ty, 2, 2);
+      }
+    }
+  }
+
+  // Connect rooms with corridors (visual)
+  ctx.fillStyle = '#151525';
+  for (let i = 0; i < state.dRooms.length - 1; i++) {
+    const a = state.dRooms[i], b = state.dRooms[i + 1];
+    const ax = a.x + a.w / 2, ay = a.y + a.h / 2;
+    const bx = b.x + b.w / 2, by = b.y + b.h / 2;
+    ctx.fillRect(Math.min(ax, bx) - 8, ay - 8, Math.abs(bx - ax) + 16, 16);
+    ctx.fillRect(bx - 8, Math.min(ay, by) - 8, 16, Math.abs(by - ay) + 16);
+  }
+
+  // Loot
+  for (const lt of state.dLoot) {
+    if (lt.collected) continue;
+    ctx.fillStyle = '#aa8';
+    ctx.fillRect(lt.x - 8, lt.y - 8, 16, 16);
+    ctx.fillStyle = '#ff4';
+    ctx.fillRect(lt.x - 4, lt.y - 4, 8, 8);
+    // Sparkle
+    if (Math.random() > 0.9) {
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(lt.x - 2 + Math.random() * 12 - 6, lt.y - 2 + Math.random() * 12 - 6, 2, 2);
+    }
+  }
+
+  // Stairs
+  if (state.dStairs) {
+    ctx.fillStyle = '#448';
+    ctx.fillRect(state.dStairs.x - 10, state.dStairs.y - 10, 20, 20);
+    hudText(state.dFloor < 2 ? 'v' : '^', state.dStairs.x, state.dStairs.y - 6, 14, '#aaf', 'center');
+  }
+
+  // Enemies
+  for (const en of state.dEnemies) {
+    ctx.fillStyle = en.color;
+    ctx.beginPath();
+    ctx.arc(en.x, en.y, en.size, 0, Math.PI * 2);
+    ctx.fill();
+    // Eyes
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(en.x - 3, en.y - 3, 2, 2);
+    ctx.fillRect(en.x + 2, en.y - 3, 2, 2);
+    // HP bar
+    if (en.hp < en.maxHp) {
+      ctx.fillStyle = '#400';
+      ctx.fillRect(en.x - 12, en.y - en.size - 6, 24, 3);
+      ctx.fillStyle = '#f44';
+      ctx.fillRect(en.x - 12, en.y - en.size - 6, 24 * (en.hp / en.maxHp), 3);
+    }
+  }
+
+  // Player
+  const p = state.dPlayer;
+  if (p.iframes <= 0 || Math.floor(p.iframes / 3) % 2 === 0) {
+    ctx.fillStyle = '#4af';
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 12, 0, Math.PI * 2);
+    ctx.fill();
+    // Face direction indicator
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(p.x + state.attackDir.x * 8 - 2, p.y + state.attackDir.y * 8 - 2, 4, 4);
+  }
+
+  // Attack animation
+  if (state.attackAnim > 0) {
+    const ax = p.x + state.attackDir.x * 25;
+    const ay = p.y + state.attackDir.y * 25;
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(ax, ay, 15 + (10 - state.attackAnim) * 2, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // Dungeon hints
+  hudText('[Arrows/WASD] Move  [Space] Attack  [Esc] Flee', 400, H - 15, 10, '#555', 'center');
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+
+  if (state.phase === 'shop') {
+    drawShop();
+  } else if (state.phase === 'haggle') {
+    drawHaggle();
+  } else if (state.phase === 'dungeon') {
+    drawDungeon();
+  } else if (state.phase === 'wholesale') {
+    drawWholesale();
+  } else if (state.phase === 'gameover') {
+    drawShop();
+    ctx.fillStyle = 'rgba(0,0,0,0.8)';
+    ctx.fillRect(0, 0, W, H);
+    hudText('GAME OVER', 400, 220, 32, '#f44', 'center');
+    hudText('You couldn\'t pay your debt...', 400, 270, 16, '#ccc', 'center');
+    hudText('Final Gold: ' + state.gold + 'g  |  Remaining Debt: ' + state.debt + 'g', 400, 310, 13, '#888', 'center');
+    hudText('Press R to try again', 400, 360, 14, '#ff4', 'center');
+  } else if (state.phase === 'win') {
+    drawShop();
+    ctx.fillStyle = 'rgba(0,0,50,0.8)';
+    ctx.fillRect(0, 0, W, H);
+    hudText('CAPITALISM, HO!', 400, 200, 32, '#ff4', 'center');
+    hudText('You paid off your debt!', 400, 250, 18, '#4f4', 'center');
+    hudText('Days: ' + state.day + '  |  Final Gold: ' + state.gold + 'g', 400, 290, 14, '#ccc', 'center');
+    hudText('Press R to play again', 400, 340, 14, '#aaa', 'center');
+  }
+
+  // Message overlay
+  if (state.msgTimer > 0 && state.phase !== 'gameover' && state.phase !== 'win') {
+    const alpha = Math.min(1, state.msgTimer / 30);
+    ctx.fillStyle = 'rgba(0,0,0,' + (0.7 * alpha) + ')';
+    ctx.fillRect(100, H - 60, W - 200, 30);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    hudText(state.msg, 400, H - 55, 12, '#ff8', 'center');
+    ctx.restore();
+  }
+}
+
+// ── Game Loop ───────────────────────────────────────────────
+initGame();
+
+function gameLoop() {
+  update();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+requestAnimationFrame(gameLoop);
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

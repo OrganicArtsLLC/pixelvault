@@ -1,0 +1,890 @@
+<!--
+PROTOTYPE: morph-platform
+SERIES: plt
+NUMBER: 017
+DATE: 2026-03-24
+MECHANIC: deformable platformer — dash into soft platforms to reshape them; create ramps, indentations, and bridges by physically deforming the world
+ANCESTRY: Semblance (2018, Nyamakop — Ben Myers & Cukia Kimani, Cape Town, South Africa)
+CONTROLS: Arrow keys — move | Space — jump | Z — dash | R — reset deformations | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 6 (Generative AI — deformable worlds as player-authored generative design)
+AI-INSIGHT: Semblance inverts the platformer contract — instead of navigating fixed geometry, the player reshapes it. This mirrors generative AI's shift from consuming content to producing it; the world becomes a canvas for player expression.
+NOTES: Africa's indie breakout on Nintendo Switch. Soft platforms deform on dash impact.
+       6 puzzle levels requiring creative platform manipulation to collect orbs.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PLT-017 · MORPH PLATFORM</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>PLT-017 · MORPH PLATFORM</h1>
+    <p><span class="tag series">PLT — Platformer</span> <span class="tag">Prototype #017</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>You are a squishy blob in a deformable world. Dash into soft platforms to reshape them and reach collectible orbs. The world is your clay.</p>
+    <ul>
+      <li><kbd>&#8592;</kbd> <kbd>&#8594;</kbd> &mdash; Move left/right</li>
+      <li><kbd>&#8593;</kbd> <kbd>&#8595;</kbd> &mdash; Aim dash direction</li>
+      <li><kbd>Space</kbd> &mdash; Jump</li>
+      <li><kbd>Z</kbd> &mdash; Dash (in aimed direction)</li>
+      <li><kbd>R</kbd> &mdash; Reset platform deformations</li>
+      <li><kbd>?</kbd> &mdash; Toggle this info panel</li>
+    </ul>
+    <h3>Deformation Rules</h3>
+    <ul>
+      <li><strong style="color:#5d5">Green platforms:</strong> Soft &mdash; deformable by dashing into them</li>
+      <li><strong style="color:#888">Grey platforms:</strong> Hard &mdash; cannot be deformed</li>
+      <li>Dash up from below a soft platform to push its surface up (create a bump)</li>
+      <li>Dash down from above to create an indentation</li>
+      <li>Dash sideways to push the platform edge</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li>Create ramps to reach high places</li>
+      <li>Make indentations to shelter from hazards or as stepping stones</li>
+      <li>Press <kbd>R</kbd> to reset all deformations if you get stuck</li>
+      <li>Collect all orbs to advance to the next level</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Semblance (2018, Nyamakop) &mdash; a pioneering indie platformer from Cape Town, South Africa</p>
+    <p>Semblance was created by Nyamakop, a two-person studio founded by Ben Myers and Cukia &ldquo;Sugar&rdquo; Kimani in Cape Town, South Africa. Released in 2018 for Nintendo Switch and PC, it became one of the first African-developed games on a major Nintendo platform.</p>
+    <p>The game&rsquo;s central innovation is deformable terrain: instead of the player adapting to the world, the world adapts to the player. Soft, clay-like platforms can be pushed, pulled, and reshaped by the player&rsquo;s dash ability, turning every puzzle into a creative exercise in world-sculpting.</p>
+    <p>Semblance drew praise for its elegant simplicity and its roots in South African indie game culture. Nyamakop emerged from the small but vibrant Cape Town game development scene, and the game&rsquo;s success helped put African indie games on the global map.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 6 &mdash; Generative AI (2020&ndash;present)</p>
+    <p><strong>Contemporary AI:</strong> Large language models, diffusion models, generative design systems.</p>
+    <p><strong>Insight:</strong> Semblance inverts the platformer contract &mdash; instead of navigating fixed geometry, the player reshapes it. This mirrors generative AI&rsquo;s fundamental shift from consuming content to producing it. The deformable world is essentially a player-authored generative design space, where solutions emerge from creative manipulation rather than predetermined paths. Each player&rsquo;s solution is unique, much like how generative models produce varied outputs from the same prompt.</p>
+
+    <h2>Classification</h2>
+    <ul>
+      <li><strong>Primary:</strong> Platformer (deformable puzzle)</li>
+      <li><strong>Secondary:</strong> Puzzle, physics-based</li>
+      <li><strong>Input:</strong> 4-directional + jump + dash</li>
+      <li><strong>Perspective:</strong> Side-on, single screen per level</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This prototype implements the core deformable-platform mechanic across 6 puzzle levels. Soft (green) platforms respond to dash impacts by deforming their surface geometry, while hard (grey) platforms remain fixed. Each level requires creative platform manipulation to collect all orbs and advance.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game&rsquo;s creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+var W = 800, H = 600;
+var canvas = document.getElementById('c');
+var ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+canvas.width = W;
+canvas.height = H;
+
+var infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// ── Constants ──
+var GRAVITY = 0.5;
+var MOVE_SPEED = 3.5;
+var JUMP_FORCE = -9;
+var DASH_SPEED = 12;
+var DASH_DURATION = 8;
+var DEFORM_AMOUNT = 30;
+var DEFORM_MAX = 60;
+var PLAYER_SIZE = 18;
+var ORB_RADIUS = 10;
+
+// ── Input ──
+var keys = {};
+window.addEventListener('keydown', function(e) {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); return; }
+  keys[e.key] = true;
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].indexOf(e.key) >= 0) e.preventDefault();
+});
+window.addEventListener('keyup', function(e) { keys[e.key] = false; });
+
+// ── Player ──
+var player = { x: 0, y: 0, vx: 0, vy: 0, w: PLAYER_SIZE, h: PLAYER_SIZE,
+               onGround: false, dashing: false, dashTimer: 0, dashDx: 0, dashDy: 0,
+               squish: 1, dead: false };
+
+// ── Platform types ──
+// Soft platforms store deformation points along their top surface
+function makeSoftPlatform(x, y, w, h) {
+  var pts = [];
+  var segs = Math.ceil(w / 8);
+  for (var i = 0; i <= segs; i++) {
+    pts.push({ x: x + (w * i / segs), dy: 0 });
+  }
+  return { x: x, y: y, w: w, h: h, soft: true, deformPts: pts, origY: y };
+}
+
+function makeHardPlatform(x, y, w, h) {
+  return { x: x, y: y, w: w, h: h, soft: false };
+}
+
+// ── Deformation ──
+function deformPlatform(plat, hitX, hitY, dx, dy) {
+  if (!plat.soft) return;
+  var pts = plat.deformPts;
+  var radius = 40;
+  // Determine deformation direction based on dash direction
+  var deformDir = 0;
+  if (Math.abs(dy) > Math.abs(dx)) {
+    // Vertical dash
+    if (dy < 0) deformDir = -DEFORM_AMOUNT; // dashing up → push surface up
+    else deformDir = DEFORM_AMOUNT; // dashing down → push surface down (indent)
+  } else {
+    // Horizontal dash — push the platform edge
+    deformDir = dy <= 0 ? -DEFORM_AMOUNT * 0.5 : DEFORM_AMOUNT * 0.5;
+  }
+  for (var i = 0; i < pts.length; i++) {
+    var dist = Math.abs(pts[i].x - hitX);
+    if (dist < radius) {
+      var influence = 1 - dist / radius;
+      influence = influence * influence; // smooth falloff
+      pts[i].dy += deformDir * influence;
+      // Clamp deformation
+      if (pts[i].dy < -DEFORM_MAX) pts[i].dy = -DEFORM_MAX;
+      if (pts[i].dy > DEFORM_MAX) pts[i].dy = DEFORM_MAX;
+    }
+  }
+}
+
+function resetDeformations() {
+  for (var i = 0; i < platforms.length; i++) {
+    if (platforms[i].soft && platforms[i].deformPts) {
+      for (var j = 0; j < platforms[i].deformPts.length; j++) {
+        platforms[i].deformPts[j].dy = 0;
+      }
+    }
+  }
+}
+
+function getSurfaceY(plat, px) {
+  if (!plat.soft) return plat.y;
+  var pts = plat.deformPts;
+  // Find the two points bracketing px
+  for (var i = 0; i < pts.length - 1; i++) {
+    if (px >= pts[i].x && px <= pts[i + 1].x) {
+      var t = (px - pts[i].x) / (pts[i + 1].x - pts[i].x);
+      return plat.y + pts[i].dy * (1 - t) + pts[i + 1].dy * t;
+    }
+  }
+  return plat.y;
+}
+
+// ── Levels ──
+var platforms = [];
+var orbs = [];
+var spikes = [];
+var currentLevel = 0;
+var orbsCollected = 0;
+var totalOrbs = 0;
+var levelComplete = false;
+var levelCompleteTimer = 0;
+var deathTimer = 0;
+var particles = [];
+
+var levels = [
+  // Level 1: Simple intro — bump up a platform to reach the orb
+  function() {
+    return {
+      spawn: { x: 100, y: 400 },
+      platforms: [
+        makeHardPlatform(0, 550, 800, 50),      // floor
+        makeSoftPlatform(250, 400, 200, 25),     // soft platform to bump up
+        makeHardPlatform(550, 280, 150, 20),     // high ledge
+      ],
+      orbs: [{ x: 620, y: 250 }],
+      spikes: []
+    };
+  },
+  // Level 2: Indent to create a step
+  function() {
+    return {
+      spawn: { x: 60, y: 400 },
+      platforms: [
+        makeHardPlatform(0, 550, 800, 50),
+        makeSoftPlatform(200, 350, 250, 25),
+        makeHardPlatform(550, 250, 180, 20),
+        makeSoftPlatform(100, 250, 120, 25),
+      ],
+      orbs: [{ x: 160, y: 210 }, { x: 640, y: 220 }],
+      spikes: []
+    };
+  },
+  // Level 3: Push a platform sideways to bridge a gap
+  function() {
+    return {
+      spawn: { x: 60, y: 460 },
+      platforms: [
+        makeHardPlatform(0, 550, 300, 50),
+        makeHardPlatform(500, 550, 300, 50),
+        makeSoftPlatform(300, 400, 180, 25),     // bump this up to bridge
+        makeHardPlatform(100, 300, 150, 20),
+        makeSoftPlatform(500, 300, 160, 25),
+      ],
+      orbs: [{ x: 390, y: 340 }, { x: 580, y: 260 }],
+      spikes: [{ x: 350, y: 530, w: 100, h: 20 }]
+    };
+  },
+  // Level 4: Multiple deformations needed
+  function() {
+    return {
+      spawn: { x: 60, y: 460 },
+      platforms: [
+        makeHardPlatform(0, 550, 800, 50),
+        makeSoftPlatform(80, 420, 200, 25),
+        makeHardPlatform(350, 450, 100, 20),
+        makeSoftPlatform(500, 380, 200, 25),
+        makeSoftPlatform(200, 280, 180, 25),
+        makeHardPlatform(500, 200, 140, 20),
+      ],
+      orbs: [{ x: 170, y: 240 }, { x: 600, y: 340 }, { x: 570, y: 165 }],
+      spikes: []
+    };
+  },
+  // Level 5: Vertical challenge with spikes
+  function() {
+    return {
+      spawn: { x: 400, y: 480 },
+      platforms: [
+        makeHardPlatform(0, 550, 800, 50),
+        makeSoftPlatform(100, 430, 200, 25),
+        makeHardPlatform(500, 430, 200, 20),
+        makeSoftPlatform(300, 320, 200, 25),
+        makeHardPlatform(50, 230, 180, 20),
+        makeSoftPlatform(550, 230, 180, 25),
+        makeSoftPlatform(250, 140, 200, 25),
+      ],
+      orbs: [{ x: 130, y: 190 }, { x: 640, y: 190 }, { x: 350, y: 100 }],
+      spikes: [{ x: 350, y: 530, w: 100, h: 20 }, { x: 680, y: 410, w: 40, h: 20 }]
+    };
+  },
+  // Level 6: Final challenge — complex deformation puzzle
+  function() {
+    return {
+      spawn: { x: 400, y: 480 },
+      platforms: [
+        makeHardPlatform(0, 550, 250, 50),
+        makeHardPlatform(550, 550, 250, 50),
+        makeSoftPlatform(250, 460, 300, 25),     // bridge the gap
+        makeHardPlatform(50, 370, 150, 20),
+        makeSoftPlatform(300, 330, 200, 25),
+        makeHardPlatform(600, 370, 150, 20),
+        makeSoftPlatform(100, 240, 180, 25),
+        makeSoftPlatform(500, 240, 180, 25),
+        makeHardPlatform(300, 160, 200, 20),
+        makeSoftPlatform(300, 80, 200, 25),
+      ],
+      orbs: [{ x: 130, y: 200 }, { x: 670, y: 330 }, { x: 400, y: 120 }, { x: 400, y: 40 }],
+      spikes: [{ x: 300, y: 530, w: 200, h: 20 }]
+    };
+  }
+];
+
+function loadLevel(n) {
+  if (n >= levels.length) n = 0;
+  currentLevel = n;
+  var lvl = levels[n]();
+  platforms = lvl.platforms;
+  orbs = [];
+  for (var i = 0; i < lvl.orbs.length; i++) {
+    orbs.push({ x: lvl.orbs[i].x, y: lvl.orbs[i].y, collected: false, pulse: Math.random() * Math.PI * 2 });
+  }
+  spikes = lvl.spikes || [];
+  totalOrbs = orbs.length;
+  orbsCollected = 0;
+  levelComplete = false;
+  levelCompleteTimer = 0;
+  player.x = lvl.spawn.x;
+  player.y = lvl.spawn.y;
+  player.vx = 0;
+  player.vy = 0;
+  player.onGround = false;
+  player.dashing = false;
+  player.dashTimer = 0;
+  player.dead = false;
+  deathTimer = 0;
+  particles = [];
+}
+
+// ── Particle system ──
+function spawnParticles(x, y, color, count) {
+  for (var i = 0; i < count; i++) {
+    var angle = Math.random() * Math.PI * 2;
+    var speed = 1 + Math.random() * 3;
+    particles.push({
+      x: x, y: y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed - 1,
+      life: 30 + Math.random() * 20,
+      maxLife: 50,
+      color: color,
+      size: 2 + Math.random() * 3
+    });
+  }
+}
+
+// ── Collision helpers ──
+function rectOverlap(ax, ay, aw, ah, bx, by, bw, bh) {
+  return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
+}
+
+function playerOnPlatform(plat) {
+  var pw = player.w;
+  var px = player.x;
+  if (px + pw <= plat.x || px >= plat.x + plat.w) return false;
+  var midX = px + pw / 2;
+  var surfY = getSurfaceY(plat, Math.max(plat.x, Math.min(plat.x + plat.w, midX)));
+  var feetY = player.y + player.h;
+  var prevFeetY = feetY - player.vy;
+  if (player.vy >= 0 && feetY >= surfY - 4 && prevFeetY <= surfY + 8) {
+    player.y = surfY - player.h;
+    player.vy = 0;
+    return true;
+  }
+  return false;
+}
+
+function playerHitPlatformSide(plat) {
+  var px = player.x, py = player.y, pw = player.w, ph = player.h;
+  // Check side collisions
+  if (py + ph > plat.y + 6 && py < plat.y + plat.h - 2) {
+    // Left side
+    if (px + pw > plat.x && px < plat.x && player.vx > 0) {
+      player.x = plat.x - pw;
+      player.vx = 0;
+      return 'left';
+    }
+    // Right side
+    if (px < plat.x + plat.w && px + pw > plat.x + plat.w && player.vx < 0) {
+      player.x = plat.x + plat.w;
+      player.vx = 0;
+      return 'right';
+    }
+  }
+  // Bottom collision (head bump)
+  if (px + pw > plat.x + 4 && px < plat.x + plat.w - 4) {
+    if (py < plat.y + plat.h && py + ph > plat.y + plat.h && player.vy < 0) {
+      player.y = plat.y + plat.h;
+      player.vy = 0;
+      return 'bottom';
+    }
+  }
+  return null;
+}
+
+// ── Update ──
+function update() {
+  if (infoOpen) return;
+
+  // Handle death
+  if (player.dead) {
+    deathTimer++;
+    if (deathTimer > 60) loadLevel(currentLevel);
+    return;
+  }
+
+  // Handle level complete
+  if (levelComplete) {
+    levelCompleteTimer++;
+    if (levelCompleteTimer > 90) loadLevel(currentLevel + 1);
+    return;
+  }
+
+  // Reset deformations
+  if (keys['r'] || keys['R']) {
+    resetDeformations();
+    keys['r'] = false;
+    keys['R'] = false;
+    spawnParticles(player.x + player.w/2, player.y + player.h/2, '#8f8', 12);
+  }
+
+  // Movement
+  if (!player.dashing) {
+    if (keys['ArrowLeft']) {
+      player.vx = -MOVE_SPEED;
+    } else if (keys['ArrowRight']) {
+      player.vx = MOVE_SPEED;
+    } else {
+      player.vx *= 0.7;
+      if (Math.abs(player.vx) < 0.2) player.vx = 0;
+    }
+
+    // Jump
+    if ((keys[' ']) && player.onGround) {
+      player.vy = JUMP_FORCE;
+      player.onGround = false;
+      player.squish = 0.7;
+      keys[' '] = false;
+    }
+
+    // Gravity
+    player.vy += GRAVITY;
+    if (player.vy > 12) player.vy = 12;
+
+    // Dash
+    if (keys['z'] || keys['Z']) {
+      keys['z'] = false;
+      keys['Z'] = false;
+      player.dashing = true;
+      player.dashTimer = DASH_DURATION;
+      // Determine dash direction
+      var ddx = 0, ddy = 0;
+      if (keys['ArrowUp']) ddy = -1;
+      if (keys['ArrowDown']) ddy = 1;
+      if (keys['ArrowLeft']) ddx = -1;
+      if (keys['ArrowRight']) ddx = 1;
+      if (ddx === 0 && ddy === 0) {
+        // Default: dash in facing direction or right
+        ddx = player.vx < 0 ? -1 : 1;
+      }
+      var len = Math.sqrt(ddx * ddx + ddy * ddy);
+      player.dashDx = (ddx / len) * DASH_SPEED;
+      player.dashDy = (ddy / len) * DASH_SPEED;
+      player.vx = player.dashDx;
+      player.vy = player.dashDy;
+      player.squish = 1.4;
+      spawnParticles(player.x + player.w/2, player.y + player.h/2, '#ff0', 8);
+    }
+  } else {
+    // Dashing
+    player.dashTimer--;
+    player.vx = player.dashDx;
+    player.vy = player.dashDy;
+    if (player.dashTimer <= 0) {
+      player.dashing = false;
+      player.vx *= 0.3;
+      player.vy *= 0.3;
+    }
+  }
+
+  // Apply velocity
+  player.x += player.vx;
+  player.y += player.vy;
+
+  // Platform collision
+  player.onGround = false;
+  for (var i = 0; i < platforms.length; i++) {
+    var plat = platforms[i];
+    // Landing on top
+    if (playerOnPlatform(plat)) {
+      player.onGround = true;
+      if (player.dashing) {
+        // Hit platform while dashing — deform if soft
+        if (plat.soft && player.dashDy > 0) {
+          deformPlatform(plat, player.x + player.w/2, player.y + player.h, player.dashDx, player.dashDy);
+          spawnParticles(player.x + player.w/2, player.y + player.h, '#5d5', 10);
+        }
+        player.dashing = false;
+        player.dashTimer = 0;
+      }
+      player.squish = 0.8;
+    }
+    // Side and bottom collision
+    var side = playerHitPlatformSide(plat);
+    if (side && player.dashing) {
+      if (plat.soft) {
+        deformPlatform(plat, player.x + player.w/2, player.y + player.h/2, player.dashDx, player.dashDy);
+        spawnParticles(player.x + player.w/2, player.y + player.h/2, '#5d5', 10);
+      }
+      player.dashing = false;
+      player.dashTimer = 0;
+    }
+    // Head bump on soft platform from below while dashing up
+    if (side === 'bottom' && plat.soft && player.dashDy < 0) {
+      deformPlatform(plat, player.x + player.w/2, player.y, player.dashDx, player.dashDy);
+      spawnParticles(player.x + player.w/2, player.y, '#5d5', 10);
+    }
+  }
+
+  // World bounds
+  if (player.x < 0) { player.x = 0; player.vx = 0; }
+  if (player.x + player.w > W) { player.x = W - player.w; player.vx = 0; }
+  if (player.y > H + 50) {
+    // Fell off — respawn
+    player.dead = true;
+    deathTimer = 0;
+  }
+
+  // Orb collection
+  for (var i = 0; i < orbs.length; i++) {
+    if (orbs[i].collected) continue;
+    var ox = orbs[i].x, oy = orbs[i].y;
+    var cx = player.x + player.w/2, cy = player.y + player.h/2;
+    var dist = Math.sqrt((cx - ox) * (cx - ox) + (cy - oy) * (cy - oy));
+    if (dist < ORB_RADIUS + PLAYER_SIZE * 0.6) {
+      orbs[i].collected = true;
+      orbsCollected++;
+      spawnParticles(ox, oy, '#ff0', 15);
+      if (orbsCollected >= totalOrbs) {
+        levelComplete = true;
+        levelCompleteTimer = 0;
+        spawnParticles(cx, cy, '#0ff', 25);
+      }
+    }
+  }
+
+  // Spike collision
+  for (var i = 0; i < spikes.length; i++) {
+    var s = spikes[i];
+    if (rectOverlap(player.x, player.y, player.w, player.h, s.x, s.y, s.w, s.h)) {
+      player.dead = true;
+      deathTimer = 0;
+      spawnParticles(player.x + player.w/2, player.y + player.h/2, '#f44', 20);
+    }
+  }
+
+  // Squish recovery
+  player.squish += (1 - player.squish) * 0.15;
+
+  // Update particles
+  for (var i = particles.length - 1; i >= 0; i--) {
+    var p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.05;
+    p.life--;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+}
+
+// ── Draw ──
+function drawPlatform(plat) {
+  if (plat.soft) {
+    // Draw deformable platform with curved surface
+    ctx.fillStyle = '#2a5a2a';
+    ctx.beginPath();
+    var pts = plat.deformPts;
+    ctx.moveTo(plat.x, plat.y + plat.h);
+    ctx.lineTo(pts[0].x, plat.y + pts[0].dy);
+    for (var i = 1; i < pts.length; i++) {
+      ctx.lineTo(pts[i].x, plat.y + pts[i].dy);
+    }
+    ctx.lineTo(plat.x + plat.w, plat.y + plat.h);
+    ctx.closePath();
+    ctx.fill();
+    // Top surface highlight
+    ctx.strokeStyle = '#5d5';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, plat.y + pts[0].dy);
+    for (var i = 1; i < pts.length; i++) {
+      ctx.lineTo(pts[i].x, plat.y + pts[i].dy);
+    }
+    ctx.stroke();
+  } else {
+    // Hard platform
+    ctx.fillStyle = '#555';
+    ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+    ctx.strokeStyle = '#777';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(plat.x + 0.5, plat.y + 0.5, plat.w - 1, plat.h - 1);
+    // Cross-hatch pattern to show hardness
+    ctx.strokeStyle = '#444';
+    ctx.lineWidth = 0.5;
+    for (var i = 0; i < plat.w; i += 12) {
+      ctx.beginPath();
+      ctx.moveTo(plat.x + i, plat.y);
+      ctx.lineTo(plat.x + i + plat.h, plat.y + plat.h);
+      ctx.stroke();
+    }
+  }
+}
+
+function drawSpike(s) {
+  ctx.fillStyle = '#c33';
+  var numSpikes = Math.floor(s.w / 12);
+  for (var i = 0; i < numSpikes; i++) {
+    var sx = s.x + (s.w * i / numSpikes);
+    var sw = s.w / numSpikes;
+    ctx.beginPath();
+    ctx.moveTo(sx, s.y + s.h);
+    ctx.lineTo(sx + sw / 2, s.y);
+    ctx.lineTo(sx + sw, s.y + s.h);
+    ctx.closePath();
+    ctx.fill();
+  }
+}
+
+function draw() {
+  // Background — deep purple/blue gradient
+  var grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#1a0a2e');
+  grad.addColorStop(1, '#0d1b2a');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Background blobs (ambient squishy world)
+  var t = Date.now() * 0.001;
+  ctx.globalAlpha = 0.08;
+  for (var i = 0; i < 5; i++) {
+    var bx = 160 * i + 80 + Math.sin(t + i * 1.3) * 30;
+    var by = 300 + Math.cos(t * 0.7 + i * 0.9) * 100;
+    var br = 60 + Math.sin(t * 0.5 + i) * 20;
+    ctx.fillStyle = i % 2 === 0 ? '#3a6' : '#649';
+    ctx.beginPath();
+    ctx.arc(bx, by, br, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // Draw platforms
+  for (var i = 0; i < platforms.length; i++) {
+    drawPlatform(platforms[i]);
+  }
+
+  // Draw spikes
+  for (var i = 0; i < spikes.length; i++) {
+    drawSpike(spikes[i]);
+  }
+
+  // Draw orbs
+  for (var i = 0; i < orbs.length; i++) {
+    if (orbs[i].collected) continue;
+    orbs[i].pulse += 0.05;
+    var orbScale = 1 + Math.sin(orbs[i].pulse) * 0.15;
+    var or = ORB_RADIUS * orbScale;
+    // Glow
+    ctx.globalAlpha = 0.3;
+    ctx.fillStyle = '#ff0';
+    ctx.beginPath();
+    ctx.arc(orbs[i].x, orbs[i].y, or * 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    // Orb
+    ctx.fillStyle = '#ffd700';
+    ctx.beginPath();
+    ctx.arc(orbs[i].x, orbs[i].y, or, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(orbs[i].x - 3, orbs[i].y - 3, or * 0.3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Draw player (squishy blob)
+  if (!player.dead) {
+    var cx = player.x + player.w / 2;
+    var cy = player.y + player.h / 2;
+    var sw = player.w * (2 - player.squish) * 0.55;
+    var sh = player.h * player.squish * 0.55;
+
+    // Shadow
+    ctx.globalAlpha = 0.3;
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.ellipse(cx, player.y + player.h + 2, sw * 0.8, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // Body
+    ctx.fillStyle = player.dashing ? '#ff6' : '#a47de8';
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, sw, sh, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Eyes
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.ellipse(cx - 5, cy - 3, 4, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(cx + 5, cy - 3, 4, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#222';
+    ctx.beginPath();
+    ctx.arc(cx - 4, cy - 2, 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(cx + 6, cy - 2, 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Draw particles
+  for (var i = 0; i < particles.length; i++) {
+    var p = particles[i];
+    ctx.globalAlpha = p.life / p.maxLife;
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+  }
+  ctx.globalAlpha = 1;
+
+  // HUD
+  hudText('LEVEL ' + (currentLevel + 1) + '/' + levels.length, 10, 10, '#aaa', 14);
+  hudText('ORBS: ' + orbsCollected + '/' + totalOrbs, 10, 30, '#ffd700', 14);
+  hudText('Z=DASH  R=RESET  ?=INFO', W - 10, 10, '#555', 11, 'right');
+
+  // Level complete overlay
+  if (levelComplete) {
+    ctx.globalAlpha = Math.min(levelCompleteTimer / 30, 0.7);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1;
+    hudText('LEVEL COMPLETE!', W / 2, H / 2 - 20, '#0ff', 28, 'center');
+    if (currentLevel + 1 >= levels.length) {
+      hudText('ALL LEVELS CLEARED!', W / 2, H / 2 + 20, '#ff0', 20, 'center');
+    }
+  }
+
+  // Death overlay
+  if (player.dead) {
+    ctx.globalAlpha = Math.min(deathTimer / 30, 0.5);
+    ctx.fillStyle = '#200';
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1;
+    hudText('SQUISHED!', W / 2, H / 2 - 10, '#f44', 24, 'center');
+  }
+}
+
+// ── Resize ──
+function resize() {
+  var scale = Math.min(window.innerWidth / W, window.innerHeight / H);
+  canvas.style.width = (W * scale) + 'px';
+  canvas.style.height = (H * scale) + 'px';
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ── Main loop ──
+loadLevel(0);
+
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

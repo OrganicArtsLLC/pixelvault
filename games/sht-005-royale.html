@@ -1,0 +1,816 @@
+<!--
+PROTOTYPE: royale
+SERIES: sht
+NUMBER: 005
+DATE: 2026-03-23
+MECHANIC: last-standing arena shooter with shrinking safe zone and loot
+ANCESTRY: PlayerUnknown's Battlegrounds (2017, PUBG Corp), Fortnite (2017, Epic), H1Z1 (2015, Daybreak)
+CONTROLS: WASD — move | Mouse — aim | Click — shoot | E — pickup | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 6 (Transformer Era — emergent gameplay from simple rules at scale)
+AI-INSIGHT: Battle royale proved that a shrinking boundary was sufficient to force engagement in a large-scale game. This single spatial constraint — reducing the possibility space over time — solved the camping problem that plagued earlier multiplayer shooters and created guaranteed dramatic convergence.
+NOTES: Battle royale distilled: shrinking zone forces confrontation.
+       Loot scarcity creates risk-reward in positioning decisions.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SHT-005 · ROYALE</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SHT-005 · ROYALE</h1>
+    <p><span class="tag series">SHT — Shooter</span> <span class="tag">Prototype #005</span> <span class="tag">★★★★☆</span></p>
+
+    <h2>How to Play</h2>
+    <p>You are the green triangle. Survive against 20 AI opponents in a shrinking arena. Loot weapons and supplies. Last one standing wins.</p>
+    <ul>
+      <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> — Move</li>
+      <li><kbd>Mouse</kbd> — Aim</li>
+      <li><kbd>Click</kbd> — Shoot</li>
+      <li><kbd>E</kbd> — Pick up nearby item</li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — This info panel</li>
+    </ul>
+
+    <h2>Weapons</h2>
+    <ul>
+      <li><b>Pistol</b> — Starting weapon, moderate damage, unlimited ammo</li>
+      <li><b>Shotgun</b> — Close range, high damage, spread shot</li>
+      <li><b>Rifle</b> — Fast fire rate, medium damage</li>
+      <li><b>Sniper</b> — Long range, high damage, slow fire</li>
+    </ul>
+
+    <h2>Zone</h2>
+    <p>The blue safe zone shrinks in stages. Outside the zone, you take increasing storm damage. Stay inside to survive. A white circle on the minimap shows the next zone.</p>
+
+    <h2>History</h2>
+    <p>Battle royale games exploded in 2017 with PUBG and Fortnite, but the concept traces to H1Z1 (2015) and the ARMA mod that inspired it. The genre took the last-man-standing concept from films like Battle Royale (2000) and turned it into a new competitive format.</p>
+
+    <h2>AI Archaeology</h2>
+    <h3>Transformer Era (ERA 6)</h3>
+    <p>The shrinking zone is a masterclass in emergent gameplay design. A single spatial constraint — reducing available territory over time — solves camping, guarantees dramatic convergence, and creates natural pacing without scripted events. AI opponents here use simple heuristics (seek loot, avoid storm, engage nearby enemies) yet produce believable behavior through environmental pressure.</p>
+
+    <h2>Classification</h2>
+    <p><span class="tag">top-down shooter</span> <span class="tag">battle royale</span> <span class="tag">survival</span> <span class="tag">shrinking zone</span> <span class="tag">loot</span></p>
+
+    <h2>Prototype Notes</h2>
+    <p>Distills the battle royale formula to its essential elements: shrinking zone, scattered loot, and last-standing win condition. The 2000x2000 arena with 21 players captures the genre's tension in miniature. AI opponents fight each other, creating organic drama.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+var C = document.getElementById('c'), X = C.getContext('2d');
+C.width = 800; C.height = 600;
+
+var infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// World
+var W = 2000, H = 2000;
+var TILE = 40;
+
+// Keys & mouse
+var keys = {};
+var mx = 400, my = 300, mDown = false;
+document.addEventListener('keydown', function(e) {
+  keys[e.key.toLowerCase()] = true;
+  if (e.key === '?' || e.key === '/') toggleInfo();
+  if (e.key === 'Escape' && infoOpen) { infoOpen = false; document.getElementById('info-panel').style.display = 'none'; }
+  if (e.key.toLowerCase() === 'r' && !infoOpen) initGame();
+});
+document.addEventListener('keyup', function(e) { keys[e.key.toLowerCase()] = false; });
+C.addEventListener('mousemove', function(e) { var r = C.getBoundingClientRect(); mx = e.clientX - r.left; my = e.clientY - r.top; });
+C.addEventListener('mousedown', function(e) { if (e.button === 0) mDown = true; });
+C.addEventListener('mouseup', function(e) { if (e.button === 0) mDown = false; });
+C.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+
+// Weapons: name, damage, range, fireRate(ms), speed, spread, color, ammoColor
+var WEAPONS = {
+  pistol:  { name:'Pistol',  dmg:12, range:300, rate:400, spd:8, spread:0.05, col:'#fff', acol:'#aaa', ammoUse:0 },
+  shotgun: { name:'Shotgun', dmg:8,  range:150, rate:800, spd:7, spread:0.3,  col:'#f80', acol:'#f80', ammoUse:2, pellets:5 },
+  rifle:   { name:'Rifle',   dmg:10, range:350, rate:200, spd:10,spread:0.08, col:'#0f0', acol:'#0f0', ammoUse:1 },
+  sniper:  { name:'Sniper',  dmg:40, range:500, rate:1200,spd:14,spread:0.02, col:'#f0f', acol:'#f0f', ammoUse:1 }
+};
+
+// Buildings
+var buildings = [];
+function genBuildings() {
+  buildings = [];
+  for (var i = 0; i < 30; i++) {
+    var bw = 60 + Math.random() * 80;
+    var bh = 60 + Math.random() * 80;
+    var bx = 100 + Math.random() * (W - 200 - bw);
+    var by = 100 + Math.random() * (H - 200 - bh);
+    // Check overlap
+    var overlap = false;
+    for (var j = 0; j < buildings.length; j++) {
+      var b = buildings[j];
+      if (bx < b.x + b.w + 20 && bx + bw + 20 > b.x && by < b.y + b.h + 20 && by + bh + 20 > b.y) { overlap = true; break; }
+    }
+    if (!overlap) buildings.push({ x: bx, y: by, w: bw, h: bh, col: '#' + (333 + Math.floor(Math.random() * 222)).toString(16) });
+  }
+}
+
+// Items
+var items = [];
+var ITEM_TYPES = ['shotgun','rifle','sniper','ammo','health','shield'];
+function spawnItems() {
+  items = [];
+  for (var i = 0; i < 60; i++) {
+    var t = ITEM_TYPES[Math.floor(Math.random() * ITEM_TYPES.length)];
+    items.push({ x: 50 + Math.random() * (W - 100), y: 50 + Math.random() * (H - 100), type: t, alive: true });
+  }
+}
+
+// Zone
+var zone = { cx: W/2, cy: H/2, r: 900, targetR: 900, nextCx: W/2, nextCy: H/2, phase: 0, timer: 0, shrinking: false, dmg: 1 };
+var ZONE_PHASES = [
+  { wait: 600, shrinkTime: 300, targetR: 600, dmg: 1 },
+  { wait: 450, shrinkTime: 240, targetR: 400, dmg: 2 },
+  { wait: 360, shrinkTime: 180, targetR: 250, dmg: 3 },
+  { wait: 300, shrinkTime: 150, targetR: 130, dmg: 5 },
+  { wait: 240, shrinkTime: 120, targetR: 50,  dmg: 8 },
+  { wait: 180, shrinkTime: 90,  targetR: 10,  dmg: 15 }
+];
+
+// Entities
+var player, bots, bullets, killFeed, alive, gameOver, won;
+
+function initGame() {
+  genBuildings();
+  spawnItems();
+  zone = { cx: W/2, cy: H/2, r: 900, targetR: 900, nextCx: W/2, nextCy: H/2, phase: 0, timer: 0, shrinking: false, dmg: 1, startR: 900, shrinkTimer: 0, shrinkDur: 1 };
+  advanceZone();
+
+  player = { x: W/2, y: H/2, hp: 100, shield: 0, weapon: 'pistol', ammo: 30, angle: 0, lastShot: 0, alive: true, kills: 0, speed: 2.5 };
+  // Place player randomly not in buildings
+  placeEntity(player);
+
+  bots = [];
+  for (var i = 0; i < 20; i++) {
+    var b = { x: 0, y: 0, hp: 100, shield: 0, weapon: 'pistol', ammo: 20, angle: Math.random() * Math.PI * 2, lastShot: 0, alive: true, kills: 0, speed: 1.8 + Math.random() * 0.7, target: null, moveAngle: Math.random() * Math.PI * 2, moveTimer: 0, id: i + 1 };
+    placeEntity(b);
+    bots.push(b);
+  }
+
+  bullets = [];
+  killFeed = [];
+  alive = 21;
+  gameOver = false;
+  won = false;
+}
+
+function placeEntity(ent) {
+  for (var tries = 0; tries < 100; tries++) {
+    ent.x = 80 + Math.random() * (W - 160);
+    ent.y = 80 + Math.random() * (H - 160);
+    if (!inBuilding(ent.x, ent.y, 8)) return;
+  }
+}
+
+function inBuilding(px, py, r) {
+  for (var i = 0; i < buildings.length; i++) {
+    var b = buildings[i];
+    if (px + r > b.x && px - r < b.x + b.w && py + r > b.y && py - r < b.y + b.h) return true;
+  }
+  return false;
+}
+
+function advanceZone() {
+  if (zone.phase >= ZONE_PHASES.length) return;
+  var p = ZONE_PHASES[zone.phase];
+  zone.timer = p.wait;
+  zone.shrinking = false;
+  zone.targetR = p.targetR;
+  zone.dmg = p.dmg;
+  zone.shrinkDur = p.shrinkTime;
+  // Next center drifts toward center of remaining players
+  var offX = (Math.random() - 0.5) * p.targetR * 0.5;
+  var offY = (Math.random() - 0.5) * p.targetR * 0.5;
+  zone.nextCx = Math.max(p.targetR, Math.min(W - p.targetR, zone.cx + offX));
+  zone.nextCy = Math.max(p.targetR, Math.min(H - p.targetR, zone.cy + offY));
+}
+
+function dist(a, b) { var dx = a.x - b.x, dy = a.y - b.y; return Math.sqrt(dx*dx + dy*dy); }
+function angleTo(a, b) { return Math.atan2(b.y - a.y, b.x - a.x); }
+
+function shoot(ent, isPlayer) {
+  var w = WEAPONS[ent.weapon];
+  var now = Date.now();
+  if (now - ent.lastShot < w.rate) return;
+  if (ent.weapon !== 'pistol' && ent.ammo < (w.ammoUse || 1)) return;
+  ent.lastShot = now;
+  if (ent.weapon !== 'pistol') ent.ammo -= (w.ammoUse || 1);
+
+  var pellets = w.pellets || 1;
+  for (var p = 0; p < pellets; p++) {
+    var spread = (Math.random() - 0.5) * w.spread;
+    var a = ent.angle + spread;
+    bullets.push({ x: ent.x, y: ent.y, vx: Math.cos(a) * w.spd, vy: Math.sin(a) * w.spd, dmg: w.dmg, range: w.range, dist: 0, owner: ent, col: w.col, isPlayer: isPlayer });
+  }
+}
+
+function addKill(killer, victim, isPlayer) {
+  var kn = killer === player ? 'You' : ('Bot ' + (killer.id || '?'));
+  var vn = victim === player ? 'You' : ('Bot ' + (victim.id || '?'));
+  killFeed.unshift({ text: kn + ' eliminated ' + vn, time: 180 });
+  if (killFeed.length > 5) killFeed.pop();
+}
+
+function hitWall(px, py, vx, vy, r) {
+  // Simple collision: push out of buildings
+  for (var i = 0; i < buildings.length; i++) {
+    var b = buildings[i];
+    if (px + r > b.x && px - r < b.x + b.w && py + r > b.y && py - r < b.y + b.h) {
+      // Find nearest edge
+      var dLeft = Math.abs(px - b.x);
+      var dRight = Math.abs(px - (b.x + b.w));
+      var dTop = Math.abs(py - b.y);
+      var dBot = Math.abs(py - (b.y + b.h));
+      var mn = Math.min(dLeft, dRight, dTop, dBot);
+      if (mn === dLeft) px = b.x - r;
+      else if (mn === dRight) px = b.x + b.w + r;
+      else if (mn === dTop) py = b.y - r;
+      else py = b.y + b.h + r;
+    }
+  }
+  return { x: px, y: py };
+}
+
+function tryPickup(ent) {
+  for (var i = 0; i < items.length; i++) {
+    var it = items[i];
+    if (!it.alive) continue;
+    if (dist(ent, it) > 25) continue;
+    if (it.type === 'health') { ent.hp = Math.min(100, ent.hp + 25); it.alive = false; return true; }
+    if (it.type === 'shield') { ent.shield = Math.min(50, ent.shield + 25); it.alive = false; return true; }
+    if (it.type === 'ammo') { ent.ammo += 15; it.alive = false; return true; }
+    // Weapon pickup
+    if (it.type === 'shotgun' || it.type === 'rifle' || it.type === 'sniper') {
+      ent.weapon = it.type; ent.ammo += 10; it.alive = false; return true;
+    }
+  }
+  return false;
+}
+
+function updateZone() {
+  if (zone.phase >= ZONE_PHASES.length) return;
+  if (!zone.shrinking) {
+    zone.timer--;
+    if (zone.timer <= 0) {
+      zone.shrinking = true;
+      zone.startR = zone.r;
+      zone.startCx = zone.cx;
+      zone.startCy = zone.cy;
+      zone.shrinkTimer = 0;
+    }
+  } else {
+    zone.shrinkTimer++;
+    var t = Math.min(1, zone.shrinkTimer / zone.shrinkDur);
+    zone.r = zone.startR + (zone.targetR - zone.startR) * t;
+    zone.cx = zone.startCx + (zone.nextCx - zone.startCx) * t;
+    zone.cy = zone.startCy + (zone.nextCy - zone.startCy) * t;
+    if (t >= 1) {
+      zone.phase++;
+      advanceZone();
+    }
+  }
+}
+
+function inZone(px, py) {
+  var dx = px - zone.cx, dy = py - zone.cy;
+  return dx * dx + dy * dy <= zone.r * zone.r;
+}
+
+function applyStormDmg(ent) {
+  if (!inZone(ent.x, ent.y)) {
+    if (ent.shield > 0) { ent.shield -= zone.dmg * 0.3; if (ent.shield < 0) ent.shield = 0; }
+    else ent.hp -= zone.dmg * 0.3;
+  }
+}
+
+function updateBot(b) {
+  if (!b.alive) return;
+
+  applyStormDmg(b);
+  if (b.hp <= 0) { b.alive = false; alive--; return; }
+
+  // AI: find nearest threat, seek loot, avoid storm
+  b.moveTimer--;
+  var inZ = inZone(b.x, b.y);
+
+  // Find nearest enemy
+  var nearest = null, nd = 9999;
+  if (player.alive) { var d = dist(b, player); if (d < nd) { nd = d; nearest = player; } }
+  for (var i = 0; i < bots.length; i++) {
+    if (bots[i] === b || !bots[i].alive) continue;
+    var d = dist(b, bots[i]);
+    if (d < nd) { nd = d; nearest = bots[i]; }
+  }
+
+  // Priority: 1) escape storm, 2) pick up nearby loot, 3) fight
+  if (!inZ) {
+    // Move toward zone center
+    b.moveAngle = angleTo(b, { x: zone.cx, y: zone.cy });
+  } else if (nd < 200 && nearest) {
+    // Fight
+    b.angle = angleTo(b, nearest);
+    shoot(b, false);
+    // Strafe
+    if (nd < 80) b.moveAngle = b.angle + Math.PI; // back up
+    else if (b.moveTimer <= 0) { b.moveAngle = b.angle + (Math.random() - 0.5) * 1.2; b.moveTimer = 30 + Math.random() * 40; }
+  } else {
+    // Seek loot or wander toward zone
+    var bestItem = null, bid = 200;
+    for (var i = 0; i < items.length; i++) {
+      if (!items[i].alive) continue;
+      var d = dist(b, items[i]);
+      if (d < bid) { bid = d; bestItem = items[i]; }
+    }
+    if (bestItem) {
+      b.moveAngle = angleTo(b, bestItem);
+      if (bid < 25) tryPickup(b);
+    } else if (b.moveTimer <= 0) {
+      b.moveAngle = angleTo(b, { x: zone.cx + (Math.random()-0.5)*zone.r, y: zone.cy + (Math.random()-0.5)*zone.r });
+      b.moveTimer = 60 + Math.random() * 120;
+    }
+  }
+
+  var nx = b.x + Math.cos(b.moveAngle) * b.speed;
+  var ny = b.y + Math.sin(b.moveAngle) * b.speed;
+  nx = Math.max(5, Math.min(W - 5, nx));
+  ny = Math.max(5, Math.min(H - 5, ny));
+  var wc = hitWall(nx, ny, Math.cos(b.moveAngle), Math.sin(b.moveAngle), 6);
+  b.x = wc.x; b.y = wc.y;
+}
+
+function update() {
+  if (infoOpen) return;
+  if (gameOver) return;
+
+  // Player input
+  if (player.alive) {
+    var pdx = 0, pdy = 0;
+    if (keys['w']) pdy = -1;
+    if (keys['s']) pdy = 1;
+    if (keys['a']) pdx = -1;
+    if (keys['d']) pdx = 1;
+    if (pdx || pdy) {
+      var len = Math.sqrt(pdx*pdx + pdy*pdy);
+      var nx = player.x + (pdx/len) * player.speed;
+      var ny = player.y + (pdy/len) * player.speed;
+      nx = Math.max(5, Math.min(W - 5, nx));
+      ny = Math.max(5, Math.min(H - 5, ny));
+      var wc = hitWall(nx, ny, pdx, pdy, 6);
+      player.x = wc.x; player.y = wc.y;
+    }
+
+    // Aim
+    var camX = player.x - 400, camY = player.y - 300;
+    player.angle = Math.atan2(my + camY - player.y, mx + camX - player.x);
+
+    if (mDown) shoot(player, true);
+    if (keys['e']) { keys['e'] = false; tryPickup(player); }
+
+    applyStormDmg(player);
+    if (player.hp <= 0) {
+      player.alive = false;
+      alive--;
+      if (!gameOver) { gameOver = true; won = false; }
+    }
+  }
+
+  // Bots
+  for (var i = 0; i < bots.length; i++) updateBot(bots[i]);
+
+  // Bullets
+  for (var i = bullets.length - 1; i >= 0; i--) {
+    var b = bullets[i];
+    b.x += b.vx; b.y += b.vy; b.dist += Math.sqrt(b.vx*b.vx + b.vy*b.vy);
+    if (b.dist > b.range || b.x < 0 || b.x > W || b.y < 0 || b.y > H) { bullets.splice(i, 1); continue; }
+    // Hit building
+    if (inBuilding(b.x, b.y, 2)) { bullets.splice(i, 1); continue; }
+
+    // Hit entities
+    var hit = false;
+    // Check player
+    if (player.alive && !b.isPlayer && dist(b, player) < 10) {
+      if (player.shield > 0) { player.shield -= b.dmg; if (player.shield < 0) { player.hp += player.shield; player.shield = 0; } }
+      else player.hp -= b.dmg;
+      if (player.hp <= 0) { player.alive = false; alive--; addKill(b.owner, player, false); b.owner.kills++; gameOver = true; won = false; }
+      hit = true;
+    }
+    // Check bots
+    if (!hit) {
+      for (var j = 0; j < bots.length; j++) {
+        if (!bots[j].alive || bots[j] === b.owner) continue;
+        if (dist(b, bots[j]) < 10) {
+          var bot = bots[j];
+          if (bot.shield > 0) { bot.shield -= b.dmg; if (bot.shield < 0) { bot.hp += bot.shield; bot.shield = 0; } }
+          else bot.hp -= b.dmg;
+          if (bot.hp <= 0) { bot.alive = false; alive--; addKill(b.owner, bot, b.isPlayer); b.owner.kills++; }
+          hit = true; break;
+        }
+      }
+    }
+    if (hit) bullets.splice(i, 1);
+  }
+
+  // Kill feed timer
+  for (var i = killFeed.length - 1; i >= 0; i--) {
+    killFeed[i].time--;
+    if (killFeed[i].time <= 0) killFeed.splice(i, 1);
+  }
+
+  updateZone();
+
+  // Win condition
+  if (player.alive && alive <= 1) { gameOver = true; won = true; }
+}
+
+function draw() {
+  X.fillStyle = '#1a1a0e';
+  X.fillRect(0, 0, 800, 600);
+
+  var camX = 0, camY = 0;
+  if (player.alive) { camX = player.x - 400; camY = player.y - 300; }
+  else {
+    // Spectate center of zone
+    camX = zone.cx - 400; camY = zone.cy - 300;
+  }
+
+  X.save();
+  X.translate(-camX, -camY);
+
+  // Ground grid
+  X.strokeStyle = '#2a2a1e';
+  X.lineWidth = 1;
+  var gx0 = Math.floor(camX / TILE) * TILE;
+  var gy0 = Math.floor(camY / TILE) * TILE;
+  for (var gx = gx0; gx < camX + 820; gx += TILE) {
+    X.beginPath(); X.moveTo(gx, camY); X.lineTo(gx, camY + 620); X.stroke();
+  }
+  for (var gy = gy0; gy < camY + 620; gy += TILE) {
+    X.beginPath(); X.moveTo(camX, gy); X.lineTo(camX + 820, gy); X.stroke();
+  }
+
+  // World border
+  X.strokeStyle = '#f00';
+  X.lineWidth = 3;
+  X.strokeRect(0, 0, W, H);
+
+  // Storm overlay outside zone
+  X.save();
+  X.beginPath();
+  X.rect(camX - 10, camY - 10, 820, 620);
+  X.arc(zone.cx, zone.cy, zone.r, 0, Math.PI * 2, true);
+  X.fillStyle = 'rgba(100, 0, 200, 0.25)';
+  X.fill();
+  X.restore();
+
+  // Zone border
+  X.beginPath();
+  X.arc(zone.cx, zone.cy, zone.r, 0, Math.PI * 2);
+  X.strokeStyle = '#44f';
+  X.lineWidth = 2;
+  X.stroke();
+
+  // Next zone indicator (when waiting)
+  if (!zone.shrinking && zone.phase < ZONE_PHASES.length) {
+    X.beginPath();
+    X.arc(zone.nextCx, zone.nextCy, zone.targetR, 0, Math.PI * 2);
+    X.strokeStyle = 'rgba(255,255,255,0.3)';
+    X.lineWidth = 1;
+    X.setLineDash([8, 8]);
+    X.stroke();
+    X.setLineDash([]);
+  }
+
+  // Buildings
+  for (var i = 0; i < buildings.length; i++) {
+    var b = buildings[i];
+    X.fillStyle = b.col;
+    X.fillRect(b.x, b.y, b.w, b.h);
+    X.strokeStyle = '#555';
+    X.lineWidth = 1;
+    X.strokeRect(b.x, b.y, b.w, b.h);
+  }
+
+  // Items
+  for (var i = 0; i < items.length; i++) {
+    var it = items[i];
+    if (!it.alive) continue;
+    var sx = it.x, sy = it.y;
+    if (sx < camX - 20 || sx > camX + 820 || sy < camY - 20 || sy > camY + 620) continue;
+    var c = '#fff';
+    if (it.type === 'shotgun') c = '#f80';
+    else if (it.type === 'rifle') c = '#0f0';
+    else if (it.type === 'sniper') c = '#f0f';
+    else if (it.type === 'ammo') c = '#ff0';
+    else if (it.type === 'health') c = '#0ff';
+    else if (it.type === 'shield') c = '#55f';
+    X.fillStyle = c;
+    X.fillRect(sx - 4, sy - 4, 8, 8);
+    X.strokeStyle = '#000';
+    X.lineWidth = 1;
+    X.strokeRect(sx - 4, sy - 4, 8, 8);
+  }
+
+  // Bullets
+  for (var i = 0; i < bullets.length; i++) {
+    var b = bullets[i];
+    X.fillStyle = b.col;
+    X.beginPath();
+    X.arc(b.x, b.y, 2, 0, Math.PI * 2);
+    X.fill();
+  }
+
+  // Bots
+  for (var i = 0; i < bots.length; i++) {
+    var b = bots[i];
+    if (!b.alive) continue;
+    if (b.x < camX - 20 || b.x > camX + 820 || b.y < camY - 20 || b.y > camY + 620) continue;
+    X.save();
+    X.translate(b.x, b.y);
+    X.rotate(b.angle);
+    X.beginPath();
+    X.moveTo(8, 0);
+    X.lineTo(-6, -5);
+    X.lineTo(-6, 5);
+    X.closePath();
+    X.fillStyle = '#e44';
+    X.fill();
+    X.restore();
+    // HP bar
+    if (b.hp < 100 || b.shield > 0) {
+      X.fillStyle = '#333';
+      X.fillRect(b.x - 10, b.y - 14, 20, 3);
+      X.fillStyle = '#0f0';
+      X.fillRect(b.x - 10, b.y - 14, 20 * (b.hp / 100), 3);
+      if (b.shield > 0) {
+        X.fillStyle = '#55f';
+        X.fillRect(b.x - 10, b.y - 18, 20 * (b.shield / 50), 2);
+      }
+    }
+  }
+
+  // Player
+  if (player.alive) {
+    X.save();
+    X.translate(player.x, player.y);
+    X.rotate(player.angle);
+    X.beginPath();
+    X.moveTo(10, 0);
+    X.lineTo(-7, -6);
+    X.lineTo(-7, 6);
+    X.closePath();
+    X.fillStyle = '#4f4';
+    X.fill();
+    X.strokeStyle = '#fff';
+    X.lineWidth = 1;
+    X.stroke();
+    X.restore();
+  }
+
+  X.restore();
+
+  // HUD
+  X.font = '12px monospace';
+
+  // HP/Shield bar
+  if (player.alive) {
+    X.fillStyle = '#333';
+    X.fillRect(10, 560, 200, 12);
+    X.fillStyle = '#0c0';
+    X.fillRect(10, 560, 200 * Math.max(0, player.hp) / 100, 12);
+    X.fillStyle = '#fff';
+    X.fillText('HP: ' + Math.ceil(Math.max(0, player.hp)), 14, 570);
+
+    if (player.shield > 0) {
+      X.fillStyle = '#223';
+      X.fillRect(10, 546, 200, 10);
+      X.fillStyle = '#44f';
+      X.fillRect(10, 546, 200 * player.shield / 50, 10);
+      X.fillStyle = '#fff';
+      X.fillText('Shield: ' + Math.ceil(player.shield), 14, 554);
+    }
+
+    // Weapon & ammo
+    var wn = WEAPONS[player.weapon].name;
+    X.fillStyle = WEAPONS[player.weapon].col;
+    X.fillText(wn + (player.weapon === 'pistol' ? '' : ' [' + player.ammo + ']'), 10, 540);
+  }
+
+  // Alive count
+  X.fillStyle = '#fff';
+  X.font = '14px monospace';
+  X.fillText('Alive: ' + alive, 700, 20);
+
+  // Kills
+  X.fillText('Kills: ' + player.kills, 700, 38);
+
+  // Zone warning
+  if (!zone.shrinking && zone.timer < 180 && zone.phase < ZONE_PHASES.length) {
+    X.fillStyle = '#ff0';
+    X.font = '13px monospace';
+    X.fillText('Zone shrinks in ' + Math.ceil(zone.timer / 60) + 's', 320, 30);
+  }
+  if (zone.shrinking) {
+    X.fillStyle = '#f44';
+    X.font = '13px monospace';
+    X.fillText('ZONE SHRINKING', 340, 30);
+  }
+
+  // Kill feed
+  for (var i = 0; i < killFeed.length; i++) {
+    var a = Math.min(1, killFeed[i].time / 60);
+    X.fillStyle = 'rgba(255,255,255,' + a + ')';
+    X.font = '11px monospace';
+    X.fillText(killFeed[i].text, 500, 55 + i * 14);
+  }
+
+  // Minimap
+  var mmx = 660, mmy = 440, mms = 130, scale = mms / W;
+  X.fillStyle = 'rgba(0,0,0,0.6)';
+  X.fillRect(mmx, mmy, mms, mms);
+  X.strokeStyle = '#555';
+  X.lineWidth = 1;
+  X.strokeRect(mmx, mmy, mms, mms);
+
+  // Zone on minimap
+  X.beginPath();
+  X.arc(mmx + zone.cx * scale, mmy + zone.cy * scale, zone.r * scale, 0, Math.PI * 2);
+  X.strokeStyle = '#44f';
+  X.lineWidth = 1;
+  X.stroke();
+
+  // Next zone on minimap
+  if (!zone.shrinking && zone.phase < ZONE_PHASES.length) {
+    X.beginPath();
+    X.arc(mmx + zone.nextCx * scale, mmy + zone.nextCy * scale, zone.targetR * scale, 0, Math.PI * 2);
+    X.strokeStyle = 'rgba(255,255,255,0.4)';
+    X.stroke();
+  }
+
+  // Buildings on minimap
+  X.fillStyle = '#555';
+  for (var i = 0; i < buildings.length; i++) {
+    var b = buildings[i];
+    X.fillRect(mmx + b.x * scale, mmy + b.y * scale, Math.max(1, b.w * scale), Math.max(1, b.h * scale));
+  }
+
+  // Bots on minimap (only show nearby ones)
+  for (var i = 0; i < bots.length; i++) {
+    if (!bots[i].alive) continue;
+    X.fillStyle = '#f44';
+    X.fillRect(mmx + bots[i].x * scale - 1, mmy + bots[i].y * scale - 1, 2, 2);
+  }
+
+  // Player on minimap
+  if (player.alive) {
+    X.fillStyle = '#4f4';
+    X.fillRect(mmx + player.x * scale - 2, mmy + player.y * scale - 2, 4, 4);
+  }
+
+  // Game over
+  if (gameOver) {
+    X.fillStyle = 'rgba(0,0,0,0.6)';
+    X.fillRect(0, 230, 800, 140);
+    X.font = '32px monospace';
+    X.fillStyle = won ? '#ff0' : '#f44';
+    X.textAlign = 'center';
+    X.fillText(won ? 'WINNER WINNER!' : 'ELIMINATED', 400, 280);
+    X.font = '16px monospace';
+    X.fillStyle = '#fff';
+    X.fillText('Placement: #' + (won ? 1 : alive) + ' / 21  |  Kills: ' + player.kills, 400, 310);
+    X.fillText('Press R to restart', 400, 340);
+    X.textAlign = 'left';
+  }
+}
+
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+initGame();
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

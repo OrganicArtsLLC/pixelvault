@@ -1,0 +1,1256 @@
+<!--
+PROTOTYPE: iso-shooter
+SERIES: scr
+NUMBER: 006
+DATE: 2026-03-22
+MECHANIC: isometric scrolling with altitude management through fortress
+ANCESTRY: Zaxxon (1982, Ikegami Tsushinki, Sega), Buck Rogers: Planet of Zoom (1982, Sega)
+CONTROLS: Arrow keys — move/altitude | Space — shoot | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — pseudo-3D spatial reasoning)
+AI-INSIGHT: Zaxxon was the first arcade game to use axonometric projection, forcing players to reason about a 2.5D space using a shadow as altitude reference. This spatial-to-visual mapping problem — inferring 3D from 2D cues — is structurally identical to depth estimation challenges in computer vision.
+NOTES: Altitude shadow is the key UI innovation — the only reliable height indicator.
+       Fuel management adds resource constraint to the spatial challenge.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SCR-006 · ISO SHOOTER</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SCR-006 · ISO SHOOTER</h1>
+    <p><span class="tag series">SCR — Scrolling Shooter</span> <span class="tag">Prototype #006</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Fly your ship through an isometric fortress, managing altitude to navigate walls and barriers. Shoot targets and collect fuel to survive.</p>
+    <ul>
+      <li><kbd>&uarr;</kbd> — Increase altitude</li>
+      <li><kbd>&darr;</kbd> — Decrease altitude</li>
+      <li><kbd>&larr;</kbd> — Move left (up-screen)</li>
+      <li><kbd>&rarr;</kbd> — Move right (down-screen)</li>
+      <li><kbd>Space</kbd> — Fire</li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Shadow:</strong> Your shadow on the ground shows your true position — watch it to judge altitude.</li>
+      <li><strong>Walls:</strong> Fortress walls have openings at specific heights — match your altitude to pass through.</li>
+      <li><strong>Fuel:</strong> Depletes constantly. Shoot fuel depots (red tanks) on the ground to refuel.</li>
+      <li><strong>Turrets:</strong> Gun turrets fire at you — shoot them or dodge their shots.</li>
+      <li><strong>Boss:</strong> A robot guards the end of each fortress run.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Zaxxon (1982, Ikegami Tsushinki / Sega) &rarr; Buck Rogers: Planet of Zoom (1982, Sega)</p>
+    <p>Zaxxon (1982) was the first arcade game to use axonometric (isometric) projection, creating a convincing 2.5D perspective at a time when most games were flat 2D. Developed by Ikegami Tsushinki and published by Sega, it became a massive hit — one of the highest-grossing arcade games of 1982.</p>
+    <p>The name "Zaxxon" derives from "axonometric," the projection technique that gave the game its distinctive look. The altitude shadow on the ground was a breakthrough UI innovation — the only reliable way for players to judge their height in the pseudo-3D space.</p>
+    <p>Buck Rogers: Planet of Zoom (1982) used similar pseudo-3D techniques with a behind-the-ship perspective, showing Sega's continued exploration of 2.5D gameplay.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 3 — Knowledge Explosion (1978–1983)</p>
+    <p><strong>Contemporary AI:</strong> Expert systems were dominant. Computer vision was in its infancy — depth estimation from 2D images was an unsolved research problem.</p>
+    <p><strong>Hidden Intelligence:</strong> Zaxxon forces the player to solve the same problem that challenged early computer vision: inferring 3D spatial relationships from a 2D projection. The shadow serves as a depth cue — structurally identical to shadow-based depth estimation in vision research. Players must mentally reconstruct a 3D scene from isometric cues and plan trajectories through 3D obstacle fields.</p>
+    <p><strong>The Convergence:</strong> Modern autonomous drone navigation through indoor environments faces the exact same challenge: estimating altitude relative to obstacles using visual cues, planning 3D trajectories in real-time. The shadow-as-depth-cue is a human-readable version of what LiDAR and stereo vision compute mathematically.</p>
+    <p><strong>If AI Had Designed This:</strong> Procedurally generated fortress layouts with difficulty tuned by 3D trajectory analysis — ensuring each wall gap is reachable but demands precise altitude control, with fuel placement optimized to create tension without impossibility.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: SCR — Scrolling Shooter</h3>
+    <p>Games where the environment moves continuously. Zaxxon adds isometric projection and altitude management to the scrolling formula, creating a 2.5D spatial reasoning challenge.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Isometric scroll with altitude management.</strong> Diagonal auto-scroll through fortress. Altitude controlled by player. Shadow indicates height. Walls demand specific altitude ranges. Fuel depletion as survival pressure.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Isometric readability — can players parse the 2.5D space?</li>
+      <li>Shadow as altitude cue — is it sufficient for precise navigation?</li>
+      <li>Wall gap navigation — does altitude matching feel fair?</li>
+      <li>Fuel anxiety layered on spatial challenge — too much cognitive load?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Isometric fortress with walls at varying heights, fuel depots, turrets, enemy fighters in open sections, and a boss robot. Parallelogram-based isometric rendering with shadow-based altitude indication.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+const keys = {};
+let shootCooldown = 0;
+window.addEventListener('keydown', e => {
+  if (infoOpen) return;
+  keys[e.code] = true;
+  e.preventDefault();
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+// --- ISOMETRIC HELPERS ---
+// Isometric projection: world (wx, wy, wz) -> screen (sx, sy)
+// wx = along fortress (scroll direction), wy = lateral, wz = altitude
+// Iso: screen_x = (wx - wy) * cos30, screen_y = (wx + wy) * sin30 - wz
+const ISO_X = 0.7;  // horizontal scale factor
+const ISO_Y = 0.4;  // vertical scale factor for depth
+const ISO_Z = 1.0;  // vertical scale for altitude
+
+function toScreen(wx, wy, wz) {
+  return {
+    x: 400 + (wx - wy) * ISO_X,
+    y: 200 + (wx + wy) * ISO_Y - wz * ISO_Z
+  };
+}
+
+// Inverse: given lateral pos and altitude, find approximate world coords from screen
+function groundShadow(wx, wy) {
+  return toScreen(wx, wy, 0);
+}
+
+// --- LEVEL GENERATION ---
+const SEGMENT_LEN = 60; // world units per segment
+const FORTRESS_SEGS = 30; // segments per fortress section
+const OPEN_SEGS = 15; // segments between fortress sections
+const NUM_FORTRESSES = 3;
+const TOTAL_LEN = NUM_FORTRESSES * (FORTRESS_SEGS + OPEN_SEGS) * SEGMENT_LEN;
+
+function genLevel() {
+  const walls = [];
+  const objects = [];
+  const turrets = [];
+  const fuelDepots = [];
+  const enemies = [];
+
+  for (let f = 0; f < NUM_FORTRESSES; f++) {
+    const fStart = f * (FORTRESS_SEGS + OPEN_SEGS) * SEGMENT_LEN;
+
+    // Fortress walls — barriers at certain positions with gaps at specific altitudes
+    const numWalls = 5 + f * 2;
+    for (let w = 0; w < numWalls; w++) {
+      const wpos = fStart + (w + 1) * (FORTRESS_SEGS * SEGMENT_LEN / (numWalls + 1));
+      const gapBottom = 20 + Math.random() * 60;
+      const gapHeight = 40 - f * 5; // gaps get smaller
+      walls.push({
+        pos: wpos,
+        gapBottom: gapBottom,
+        gapTop: gapBottom + Math.max(25, gapHeight),
+        height: 120
+      });
+    }
+
+    // Fuel depots on ground in fortress
+    for (let i = 0; i < 4; i++) {
+      const dp = fStart + 100 + Math.random() * (FORTRESS_SEGS * SEGMENT_LEN - 200);
+      const dy = -40 + Math.random() * 80;
+      fuelDepots.push({ pos: dp, lat: dy, alive: true });
+    }
+
+    // Turrets on ground
+    for (let i = 0; i < 3 + f; i++) {
+      const tp = fStart + 150 + Math.random() * (FORTRESS_SEGS * SEGMENT_LEN - 300);
+      const ty = -30 + Math.random() * 60;
+      turrets.push({ pos: tp, lat: ty, alive: true, cooldown: 0 });
+    }
+
+    // Radar towers
+    for (let i = 0; i < 2; i++) {
+      const rp = fStart + 200 + Math.random() * (FORTRESS_SEGS * SEGMENT_LEN - 400);
+      const ry = -20 + Math.random() * 40;
+      objects.push({ pos: rp, lat: ry, type: 'radar', alive: true });
+    }
+
+    // Missiles on launch pads
+    for (let i = 0; i < 2; i++) {
+      const mp = fStart + 100 + Math.random() * (FORTRESS_SEGS * SEGMENT_LEN - 200);
+      const my = -35 + Math.random() * 70;
+      objects.push({ pos: mp, lat: my, type: 'missile', alive: true });
+    }
+
+    // Enemies in open section after fortress
+    const openStart = fStart + FORTRESS_SEGS * SEGMENT_LEN;
+    for (let i = 0; i < 3 + f * 2; i++) {
+      enemies.push({
+        pos: openStart + 100 + Math.random() * (OPEN_SEGS * SEGMENT_LEN - 200),
+        lat: -50 + Math.random() * 100,
+        alt: 30 + Math.random() * 60,
+        alive: true,
+        phase: Math.random() * Math.PI * 2
+      });
+    }
+
+    // Boss at end of fortress run (before open section)
+    if (f < NUM_FORTRESSES) {
+      objects.push({
+        pos: openStart - 80,
+        lat: 0,
+        type: 'boss',
+        alive: true,
+        hp: 5 + f * 3,
+        maxHp: 5 + f * 3,
+        phase: 0
+      });
+    }
+  }
+
+  return { walls, objects, turrets, fuelDepots, enemies };
+}
+
+// --- GAME STATE ---
+let ship, bullets, enemyBullets, fuel, score, lives, gameOver, scrollPos, level, frame, explosions, turretShots;
+
+function initGame() {
+  level = genLevel();
+  ship = { lat: 0, alt: 50, pos: 0 }; // lateral, altitude, along-fortress position
+  bullets = [];
+  enemyBullets = [];
+  turretShots = [];
+  explosions = [];
+  fuel = 100;
+  score = 0;
+  lives = 3;
+  gameOver = false;
+  scrollPos = 0;
+  frame = 0;
+  shootCooldown = 0;
+}
+initGame();
+
+// Check if position is in fortress section
+function inFortress(pos) {
+  for (let f = 0; f < NUM_FORTRESSES; f++) {
+    const fStart = f * (FORTRESS_SEGS + OPEN_SEGS) * SEGMENT_LEN;
+    const fEnd = fStart + FORTRESS_SEGS * SEGMENT_LEN;
+    if (pos >= fStart && pos <= fEnd) return true;
+  }
+  return false;
+}
+
+function update() {
+  if (infoOpen) return;
+  if (gameOver) { if (keys['KeyR']) initGame(); return; }
+  frame++;
+  if (shootCooldown > 0) shootCooldown--;
+
+  // Ship movement
+  const spd = 2.5;
+  const altSpd = 2;
+  if (keys['ArrowLeft']) ship.lat -= spd;
+  if (keys['ArrowRight']) ship.lat += spd;
+  if (keys['ArrowUp']) ship.alt += altSpd;
+  if (keys['ArrowDown']) ship.alt -= altSpd;
+  ship.lat = Math.max(-70, Math.min(70, ship.lat));
+  ship.alt = Math.max(0, Math.min(120, ship.alt));
+
+  // Scroll forward
+  const scrollSpd = 1.5;
+  scrollPos += scrollSpd;
+
+  // Level complete
+  if (scrollPos > TOTAL_LEN) {
+    score += 10000;
+    scrollPos = 0;
+    level = genLevel();
+    fuel = 100;
+    return;
+  }
+
+  // Fuel depletion
+  fuel -= 0.04;
+  if (fuel <= 0) {
+    fuel = 0;
+    die(); return;
+  }
+
+  // Shoot
+  if (keys['Space'] && shootCooldown <= 0) {
+    bullets.push({
+      pos: scrollPos + 20,
+      lat: ship.lat,
+      alt: ship.alt,
+      life: 80
+    });
+    shootCooldown = 8;
+  }
+
+  // Move bullets
+  bullets = bullets.filter(b => {
+    b.pos += 5;
+    b.alt -= 0.3; // slight downward arc
+    b.life--;
+    return b.life > 0 && b.alt > -5;
+  });
+
+  // Move enemy bullets
+  enemyBullets = enemyBullets.filter(b => {
+    b.pos -= 3;
+    b.lat += b.vlat || 0;
+    b.alt += b.valt || 0;
+    b.life--;
+    if (b.life <= 0) return false;
+    // Hit player
+    if (Math.abs(b.pos - scrollPos) < 12 &&
+        Math.abs(b.lat - ship.lat) < 12 &&
+        Math.abs(b.alt - ship.alt) < 12) {
+      die(); return false;
+    }
+    return true;
+  });
+
+  // Move turret shots
+  turretShots = turretShots.filter(b => {
+    b.pos += b.vpos;
+    b.lat += b.vlat;
+    b.alt += b.valt;
+    b.life--;
+    if (b.life <= 0) return false;
+    if (Math.abs(b.pos - scrollPos) < 12 &&
+        Math.abs(b.lat - ship.lat) < 12 &&
+        Math.abs(b.alt - ship.alt) < 15) {
+      die(); return false;
+    }
+    return true;
+  });
+
+  // Wall collision
+  for (const wall of level.walls) {
+    const dist = wall.pos - scrollPos;
+    if (dist > -8 && dist < 8) {
+      // Ship is passing through wall position
+      if (ship.alt < wall.gapBottom || ship.alt > wall.gapTop) {
+        die(); return;
+      }
+    }
+  }
+
+  // Ground collision (altitude 0 means on ground — only lethal in fortress)
+  if (ship.alt <= 0 && inFortress(scrollPos)) {
+    die(); return;
+  }
+
+  // Bullet vs fuel depots
+  for (const b of bullets) {
+    for (const fd of level.fuelDepots) {
+      if (!fd.alive) continue;
+      if (Math.abs(b.pos - fd.pos) < 15 && Math.abs(b.lat - fd.lat) < 15 && b.alt < 15) {
+        fd.alive = false;
+        fuel = Math.min(100, fuel + 20);
+        score += 200;
+        addExplosion(fd.pos, fd.lat, 0);
+        b.life = 0;
+        break;
+      }
+    }
+  }
+
+  // Bullet vs turrets
+  for (const b of bullets) {
+    if (b.life <= 0) continue;
+    for (const t of level.turrets) {
+      if (!t.alive) continue;
+      if (Math.abs(b.pos - t.pos) < 15 && Math.abs(b.lat - t.lat) < 15 && b.alt < 20) {
+        t.alive = false;
+        score += 300;
+        addExplosion(t.pos, t.lat, 5);
+        b.life = 0;
+        break;
+      }
+    }
+  }
+
+  // Bullet vs radar/missile objects
+  for (const b of bullets) {
+    if (b.life <= 0) continue;
+    for (const obj of level.objects) {
+      if (!obj.alive) continue;
+      const hitRange = obj.type === 'boss' ? 25 : 15;
+      const altRange = obj.type === 'boss' ? 40 : 20;
+      const objAlt = obj.type === 'boss' ? 30 : (obj.type === 'radar' ? 10 : 5);
+      if (Math.abs(b.pos - obj.pos) < hitRange &&
+          Math.abs(b.lat - obj.lat) < hitRange &&
+          Math.abs(b.alt - objAlt) < altRange) {
+        if (obj.type === 'boss') {
+          obj.hp--;
+          if (obj.hp <= 0) {
+            obj.alive = false;
+            score += 1000;
+            addExplosion(obj.pos, obj.lat, 30);
+            addExplosion(obj.pos + 10, obj.lat - 10, 20);
+            addExplosion(obj.pos - 10, obj.lat + 10, 25);
+          }
+        } else {
+          obj.alive = false;
+          score += obj.type === 'radar' ? 500 : 400;
+          addExplosion(obj.pos, obj.lat, objAlt);
+        }
+        b.life = 0;
+        break;
+      }
+    }
+  }
+
+  // Bullet vs enemies
+  for (const b of bullets) {
+    if (b.life <= 0) continue;
+    for (const en of level.enemies) {
+      if (!en.alive) continue;
+      if (Math.abs(b.pos - en.pos) < 15 && Math.abs(b.lat - en.lat) < 15 && Math.abs(b.alt - en.alt) < 15) {
+        en.alive = false;
+        score += 200;
+        addExplosion(en.pos, en.lat, en.alt);
+        b.life = 0;
+        break;
+      }
+    }
+  }
+
+  // Turret AI
+  for (const t of level.turrets) {
+    if (!t.alive) continue;
+    const dist = t.pos - scrollPos;
+    if (dist < -100 || dist > 400) continue;
+    t.cooldown--;
+    if (t.cooldown <= 0) {
+      t.cooldown = 60 + Math.random() * 40;
+      const dp = scrollPos - t.pos;
+      const dl = ship.lat - t.lat;
+      const da = ship.alt - 5;
+      const len = Math.sqrt(dp * dp + dl * dl + da * da) || 1;
+      turretShots.push({
+        pos: t.pos, lat: t.lat, alt: 8,
+        vpos: (dp / len) * 2.5,
+        vlat: (dl / len) * 2.5,
+        valt: (da / len) * 2.5,
+        life: 60
+      });
+    }
+  }
+
+  // Enemy fighters movement and shooting
+  for (const en of level.enemies) {
+    if (!en.alive) continue;
+    en.phase += 0.02;
+    en.lat += Math.sin(en.phase) * 0.5;
+    en.alt += Math.cos(en.phase * 0.7) * 0.3;
+    en.alt = Math.max(20, Math.min(100, en.alt));
+
+    const dist = en.pos - scrollPos;
+    if (dist > 50 && dist < 350 && frame % 90 === 0 && Math.random() > 0.5) {
+      enemyBullets.push({
+        pos: en.pos, lat: en.lat, alt: en.alt,
+        vlat: (ship.lat - en.lat) * 0.02,
+        valt: (ship.alt - en.alt) * 0.02,
+        life: 50
+      });
+    }
+
+    // Collision with ship
+    if (Math.abs(en.pos - scrollPos) < 12 &&
+        Math.abs(en.lat - ship.lat) < 12 &&
+        Math.abs(en.alt - ship.alt) < 12) {
+      en.alive = false;
+      addExplosion(en.pos, en.lat, en.alt);
+      die(); return;
+    }
+  }
+
+  // Boss movement
+  for (const obj of level.objects) {
+    if (obj.type !== 'boss' || !obj.alive) continue;
+    obj.phase += 0.015;
+    obj.lat = Math.sin(obj.phase) * 30;
+  }
+
+  // Explosions
+  explosions = explosions.filter(e => { e.t++; return e.t < 25; });
+}
+
+function addExplosion(pos, lat, alt) {
+  explosions.push({ pos, lat, alt, t: 0 });
+}
+
+function die() {
+  lives--;
+  addExplosion(scrollPos, ship.lat, ship.alt);
+  if (lives <= 0) { gameOver = true; return; }
+  ship.lat = 0;
+  ship.alt = 50;
+  fuel = Math.min(100, fuel + 20);
+}
+
+// --- DRAWING ---
+// Isometric parallelogram: floor tile
+function drawIsoFloor(x1, y1, w, d, color, stroke) {
+  const tl = toScreen(x1, y1, 0);
+  const tr = toScreen(x1 + w, y1, 0);
+  const br = toScreen(x1 + w, y1 + d, 0);
+  const bl = toScreen(x1, y1 + d, 0);
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(tl.x, tl.y); ctx.lineTo(tr.x, tr.y);
+  ctx.lineTo(br.x, br.y); ctx.lineTo(bl.x, bl.y);
+  ctx.closePath();
+  ctx.fill();
+  if (stroke) {
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+}
+
+// Isometric wall (vertical face)
+function drawIsoWall(x1, y1, w, h, color, stroke) {
+  const bl = toScreen(x1, y1, 0);
+  const br = toScreen(x1 + w, y1, 0);
+  const tr = toScreen(x1 + w, y1, h);
+  const tl = toScreen(x1, y1, h);
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(bl.x, bl.y); ctx.lineTo(br.x, br.y);
+  ctx.lineTo(tr.x, tr.y); ctx.lineTo(tl.x, tl.y);
+  ctx.closePath();
+  ctx.fill();
+  if (stroke) {
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+}
+
+// Isometric side wall (left-facing vertical face)
+function drawIsoSideWall(x1, y1, d, h, color, stroke) {
+  const bl = toScreen(x1, y1, 0);
+  const br = toScreen(x1, y1 + d, 0);
+  const tr = toScreen(x1, y1 + d, h);
+  const tl = toScreen(x1, y1, h);
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(bl.x, bl.y); ctx.lineTo(br.x, br.y);
+  ctx.lineTo(tr.x, tr.y); ctx.lineTo(tl.x, tl.y);
+  ctx.closePath();
+  ctx.fill();
+  if (stroke) {
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+}
+
+// Top of wall (horizontal face at height)
+function drawIsoTop(x1, y1, w, d, h, color) {
+  const tl = toScreen(x1, y1, h);
+  const tr = toScreen(x1 + w, y1, h);
+  const br = toScreen(x1 + w, y1 + d, h);
+  const bl = toScreen(x1, y1 + d, h);
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(tl.x, tl.y); ctx.lineTo(tr.x, tr.y);
+  ctx.lineTo(br.x, br.y); ctx.lineTo(bl.x, bl.y);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function draw() {
+  ctx.fillStyle = '#0a0a18'; ctx.fillRect(0, 0, W, H);
+
+  // Stars
+  for (let i = 0; i < 60; i++) {
+    const sx = ((i * 137 + 50) % W + frame * 0.1 * ((i % 3) + 1) * 0.3) % W;
+    const sy = (i * 97 + 30) % (H * 0.35);
+    ctx.fillStyle = i % 5 === 0 ? '#557' : '#334';
+    ctx.fillRect(sx, sy, 1, 1);
+  }
+
+  // Camera-relative position
+  const camPos = scrollPos;
+
+  // Determine visible range
+  const viewBehind = -50;
+  const viewAhead = 300;
+
+  // --- Draw fortress floor and borders ---
+  for (let f = 0; f < NUM_FORTRESSES; f++) {
+    const fStart = f * (FORTRESS_SEGS + OPEN_SEGS) * SEGMENT_LEN;
+    const fEnd = fStart + FORTRESS_SEGS * SEGMENT_LEN;
+
+    // Fortress floor tiles
+    const tileSize = 30;
+    const startTile = Math.max(0, Math.floor((camPos + viewBehind - fStart) / tileSize));
+    const endTile = Math.min(FORTRESS_SEGS * SEGMENT_LEN / tileSize, Math.ceil((camPos + viewAhead - fStart) / tileSize));
+
+    for (let tx = endTile - 1; tx >= startTile; tx--) {
+      const worldX = fStart + tx * tileSize;
+      const relX = worldX - camPos;
+      if (relX < viewBehind || relX > viewAhead) continue;
+
+      for (let ty = -3; ty <= 3; ty++) {
+        const latPos = ty * tileSize;
+        const checker = (tx + ty) % 2 === 0;
+        drawIsoFloor(relX, latPos, tileSize, tileSize,
+          checker ? '#1a2a2a' : '#152525', '#2a4040');
+      }
+    }
+
+    // Fortress border walls (left and right edges)
+    const bWallH = 120;
+    const borderLat = -100;
+    const borderLatR = 100;
+    for (let seg = endTile - 1; seg >= startTile; seg--) {
+      const worldX = fStart + seg * tileSize;
+      const relX = worldX - camPos;
+      if (relX < viewBehind || relX > viewAhead) continue;
+
+      // Left border wall (front face)
+      drawIsoWall(relX, borderLat, tileSize, bWallH, '#2a1a3a', '#4a2a5a');
+      drawIsoTop(relX, borderLat, tileSize, 8, bWallH, '#3a2a4a');
+
+      // Right border wall
+      drawIsoWall(relX, borderLatR, tileSize, bWallH, '#2a1a3a', '#4a2a5a');
+      drawIsoTop(relX, borderLatR - 8, tileSize, 8, bWallH, '#3a2a4a');
+    }
+  }
+
+  // --- Draw open space ground (between fortresses) ---
+  for (let f = 0; f < NUM_FORTRESSES; f++) {
+    const openStart = f * (FORTRESS_SEGS + OPEN_SEGS) * SEGMENT_LEN + FORTRESS_SEGS * SEGMENT_LEN;
+    const openEnd = openStart + OPEN_SEGS * SEGMENT_LEN;
+    const tileSize = 40;
+    const startTile = Math.max(0, Math.floor((camPos + viewBehind - openStart) / tileSize));
+    const endTile = Math.ceil((camPos + viewAhead - openStart) / tileSize);
+
+    for (let tx = endTile - 1; tx >= startTile; tx--) {
+      const worldX = openStart + tx * tileSize;
+      if (worldX < openStart || worldX > openEnd) continue;
+      const relX = worldX - camPos;
+      if (relX < viewBehind || relX > viewAhead) continue;
+      for (let ty = -2; ty <= 2; ty++) {
+        drawIsoFloor(relX, ty * tileSize, tileSize, tileSize, '#0e1a0e', '#1a2a1a');
+      }
+    }
+  }
+
+  // --- Draw walls with gaps (sorted back to front) ---
+  const sortedWalls = level.walls.filter(w => {
+    const rel = w.pos - camPos;
+    return rel > viewBehind && rel < viewAhead;
+  }).sort((a, b) => b.pos - a.pos);
+
+  for (const wall of sortedWalls) {
+    const relX = wall.pos - camPos;
+    const wallWidth = 10;
+    const wallLat = -90;
+    const wallLatSpan = 180;
+
+    // Bottom section (below gap)
+    if (wall.gapBottom > 0) {
+      drawIsoWall(relX, wallLat, wallWidth, wall.gapBottom, '#4a2020', '#7a3030');
+      drawIsoSideWall(relX, wallLat, wallLatSpan, wall.gapBottom, '#3a1818', '#5a2828');
+      drawIsoTop(relX, wallLat, wallWidth, wallLatSpan, wall.gapBottom, '#5a2828');
+    }
+
+    // Top section (above gap)
+    if (wall.gapTop < wall.height) {
+      const topH = wall.height - wall.gapTop;
+      // Draw a wall from gapTop to full height
+      // Front face
+      const bl = toScreen(relX, wallLat, wall.gapTop);
+      const br = toScreen(relX + wallWidth, wallLat, wall.gapTop);
+      const tr = toScreen(relX + wallWidth, wallLat, wall.height);
+      const tl = toScreen(relX, wallLat, wall.height);
+      ctx.fillStyle = '#4a2020';
+      ctx.beginPath();
+      ctx.moveTo(bl.x, bl.y); ctx.lineTo(br.x, br.y);
+      ctx.lineTo(tr.x, tr.y); ctx.lineTo(tl.x, tl.y);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#7a3030'; ctx.lineWidth = 1; ctx.stroke();
+
+      // Side face
+      const sbl = toScreen(relX, wallLat, wall.gapTop);
+      const sbr = toScreen(relX, wallLat + wallLatSpan, wall.gapTop);
+      const str = toScreen(relX, wallLat + wallLatSpan, wall.height);
+      const stl = toScreen(relX, wallLat, wall.height);
+      ctx.fillStyle = '#3a1818';
+      ctx.beginPath();
+      ctx.moveTo(sbl.x, sbl.y); ctx.lineTo(sbr.x, sbr.y);
+      ctx.lineTo(str.x, str.y); ctx.lineTo(stl.x, stl.y);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#5a2828'; ctx.lineWidth = 1; ctx.stroke();
+
+      // Top face
+      drawIsoTop(relX, wallLat, wallWidth, wallLatSpan, wall.height, '#5a2828');
+    }
+
+    // Gap indicator — draw colored bars showing the passable opening
+    const gapBL = toScreen(relX - 2, wallLat, wall.gapBottom);
+    const gapTL = toScreen(relX - 2, wallLat, wall.gapTop);
+    ctx.strokeStyle = '#0f0';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(gapBL.x, gapBL.y);
+    ctx.lineTo(gapTL.x, gapTL.y);
+    ctx.stroke();
+    const gapBR = toScreen(relX - 2, wallLat + wallLatSpan, wall.gapBottom);
+    const gapTR = toScreen(relX - 2, wallLat + wallLatSpan, wall.gapTop);
+    ctx.beginPath();
+    ctx.moveTo(gapBR.x, gapBR.y);
+    ctx.lineTo(gapTR.x, gapTR.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // --- Draw fuel depots ---
+  for (const fd of level.fuelDepots) {
+    if (!fd.alive) continue;
+    const relX = fd.pos - camPos;
+    if (relX < viewBehind || relX > viewAhead) continue;
+    const p = toScreen(relX, fd.lat, 0);
+    const pt = toScreen(relX, fd.lat, 14);
+    // Red tank
+    ctx.fillStyle = '#c33';
+    ctx.fillRect(pt.x - 6, pt.y, 12, p.y - pt.y);
+    ctx.fillStyle = '#f44';
+    ctx.fillRect(pt.x - 4, pt.y + 2, 8, 4);
+    ctx.fillStyle = '#ff0';
+    ctx.font = '9px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('F', p.x, pt.y + 12);
+  }
+
+  // --- Draw turrets ---
+  for (const t of level.turrets) {
+    if (!t.alive) continue;
+    const relX = t.pos - camPos;
+    if (relX < viewBehind || relX > viewAhead) continue;
+    const p = toScreen(relX, t.lat, 0);
+    const pt = toScreen(relX, t.lat, 10);
+    // Base
+    ctx.fillStyle = '#666';
+    ctx.fillRect(p.x - 5, pt.y, 10, p.y - pt.y);
+    // Barrel
+    ctx.fillStyle = '#888';
+    ctx.fillRect(p.x - 2, pt.y - 5, 4, 7);
+    // Dome
+    ctx.fillStyle = '#aaa';
+    ctx.beginPath();
+    ctx.arc(p.x, pt.y - 2, 6, Math.PI, 0);
+    ctx.fill();
+  }
+
+  // --- Draw radar towers ---
+  for (const obj of level.objects) {
+    if (!obj.alive || obj.type === 'boss') continue;
+    const relX = obj.pos - camPos;
+    if (relX < viewBehind || relX > viewAhead) continue;
+    const p = toScreen(relX, obj.lat, 0);
+
+    if (obj.type === 'radar') {
+      const pt = toScreen(relX, obj.lat, 25);
+      ctx.strokeStyle = '#4af';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y); ctx.lineTo(pt.x, pt.y);
+      ctx.stroke();
+      // Dish
+      ctx.fillStyle = '#4af';
+      ctx.beginPath();
+      ctx.arc(pt.x, pt.y, 7, 0, Math.PI * 2);
+      ctx.fill();
+      // Rotating line
+      const ang = frame * 0.05;
+      ctx.strokeStyle = '#8cf';
+      ctx.beginPath();
+      ctx.moveTo(pt.x, pt.y);
+      ctx.lineTo(pt.x + Math.cos(ang) * 7, pt.y + Math.sin(ang) * 4);
+      ctx.stroke();
+    } else if (obj.type === 'missile') {
+      const pt = toScreen(relX, obj.lat, 18);
+      // Missile body
+      ctx.fillStyle = '#a86';
+      ctx.fillRect(p.x - 2, pt.y, 4, p.y - pt.y);
+      // Nose cone
+      ctx.fillStyle = '#c44';
+      ctx.beginPath();
+      ctx.moveTo(p.x, pt.y - 5);
+      ctx.lineTo(p.x - 3, pt.y + 2);
+      ctx.lineTo(p.x + 3, pt.y + 2);
+      ctx.closePath(); ctx.fill();
+    }
+  }
+
+  // --- Draw bosses ---
+  for (const obj of level.objects) {
+    if (obj.type !== 'boss' || !obj.alive) continue;
+    const relX = obj.pos - camPos;
+    if (relX < viewBehind - 30 || relX > viewAhead + 30) continue;
+    const p = toScreen(relX, obj.lat, 30);
+    // Robot body
+    ctx.fillStyle = '#8a4';
+    ctx.fillRect(p.x - 15, p.y - 20, 30, 40);
+    // Head
+    ctx.fillStyle = '#ac6';
+    ctx.fillRect(p.x - 8, p.y - 30, 16, 12);
+    // Eyes
+    ctx.fillStyle = '#f00';
+    ctx.fillRect(p.x - 5, p.y - 27, 4, 4);
+    ctx.fillRect(p.x + 1, p.y - 27, 4, 4);
+    // Arms
+    ctx.fillStyle = '#8a4';
+    ctx.fillRect(p.x - 22, p.y - 15, 8, 25);
+    ctx.fillRect(p.x + 14, p.y - 15, 8, 25);
+    // Legs
+    const legOff = Math.sin(frame * 0.05) * 3;
+    ctx.fillRect(p.x - 10, p.y + 18, 7, 15 + legOff);
+    ctx.fillRect(p.x + 3, p.y + 18, 7, 15 - legOff);
+    // HP bar
+    const hpFrac = obj.hp / obj.maxHp;
+    ctx.fillStyle = '#222';
+    ctx.fillRect(p.x - 15, p.y - 36, 30, 4);
+    ctx.fillStyle = hpFrac > 0.5 ? '#0f0' : (hpFrac > 0.25 ? '#ff0' : '#f00');
+    ctx.fillRect(p.x - 15, p.y - 36, 30 * hpFrac, 4);
+  }
+
+  // --- Draw enemy fighters ---
+  for (const en of level.enemies) {
+    if (!en.alive) continue;
+    const relX = en.pos - camPos;
+    if (relX < viewBehind || relX > viewAhead) continue;
+    const p = toScreen(relX, en.lat, en.alt);
+    // Shadow
+    const sh = toScreen(relX, en.lat, 0);
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath();
+    ctx.ellipse(sh.x, sh.y, 8, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Enemy ship
+    ctx.fillStyle = '#f66';
+    ctx.beginPath();
+    ctx.moveTo(p.x - 10, p.y);
+    ctx.lineTo(p.x + 10, p.y);
+    ctx.lineTo(p.x, p.y - 6);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#faa';
+    ctx.fillRect(p.x - 2, p.y - 2, 4, 2);
+  }
+
+  // --- Draw turret shots ---
+  ctx.fillStyle = '#ff8';
+  for (const b of turretShots) {
+    const relX = b.pos - camPos;
+    if (relX < viewBehind || relX > viewAhead) continue;
+    const p = toScreen(relX, b.lat, b.alt);
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // --- Draw enemy bullets ---
+  ctx.fillStyle = '#f8f';
+  for (const b of enemyBullets) {
+    const relX = b.pos - camPos;
+    if (relX < viewBehind || relX > viewAhead) continue;
+    const p = toScreen(relX, b.lat, b.alt);
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // --- Draw player bullets ---
+  ctx.fillStyle = '#ff0';
+  for (const b of bullets) {
+    const relX = b.pos - camPos;
+    if (relX < viewBehind || relX > viewAhead) continue;
+    const p = toScreen(relX, b.lat, b.alt);
+    ctx.fillRect(p.x - 3, p.y - 1, 6, 2);
+  }
+
+  // --- Draw explosions ---
+  for (const e of explosions) {
+    const relX = e.pos - camPos;
+    const p = toScreen(relX, e.lat, e.alt);
+    const t = e.t / 25;
+    const r = 5 + t * 30;
+    ctx.fillStyle = `rgba(255,${Math.floor(180 - t * 180)},0,${1 - t})`;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+    ctx.fill();
+    // Inner bright core
+    if (t < 0.4) {
+      ctx.fillStyle = `rgba(255,255,200,${0.8 - t * 2})`;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r * 0.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // --- Draw player shadow + ship (LAST, on top of all game elements) ---
+  if (!gameOver) {
+    const shadowP = toScreen(0, ship.lat, 0);
+    const shipP = toScreen(0, ship.lat, ship.alt);
+
+    // Ground shadow — bright green crosshair so altitude position is obvious
+    ctx.fillStyle = 'rgba(0,255,0,0.25)';
+    ctx.beginPath();
+    ctx.ellipse(shadowP.x, shadowP.y, 16, 8, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,255,0,0.7)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(shadowP.x, shadowP.y, 16, 8, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    // Cross inside shadow
+    ctx.strokeStyle = 'rgba(0,255,0,0.5)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(shadowP.x - 10, shadowP.y); ctx.lineTo(shadowP.x + 10, shadowP.y);
+    ctx.moveTo(shadowP.x, shadowP.y - 5); ctx.lineTo(shadowP.x, shadowP.y + 5);
+    ctx.stroke();
+
+    // Altitude connection line — dashed, clearly visible
+    ctx.strokeStyle = 'rgba(0,255,100,0.45)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(shadowP.x, shadowP.y);
+    ctx.lineTo(shipP.x, shipP.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Ship glow outline (drawn slightly larger behind ship for visibility)
+    ctx.save();
+    ctx.shadowColor = 'rgba(100,200,255,0.8)';
+    ctx.shadowBlur = 12;
+    ctx.fillStyle = '#4cf';
+    ctx.beginPath();
+    ctx.moveTo(shipP.x + 14, shipP.y + 2);
+    ctx.lineTo(shipP.x - 10, shipP.y - 8);
+    ctx.lineTo(shipP.x - 14, shipP.y);
+    ctx.lineTo(shipP.x - 10, shipP.y + 8);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+
+    // Ship outline for contrast
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(shipP.x + 14, shipP.y + 2);
+    ctx.lineTo(shipP.x - 10, shipP.y - 8);
+    ctx.lineTo(shipP.x - 14, shipP.y);
+    ctx.lineTo(shipP.x - 10, shipP.y + 8);
+    ctx.closePath(); ctx.stroke();
+
+    // Ship fill
+    ctx.fillStyle = '#4cf';
+    ctx.beginPath();
+    ctx.moveTo(shipP.x + 14, shipP.y + 2);
+    ctx.lineTo(shipP.x - 10, shipP.y - 8);
+    ctx.lineTo(shipP.x - 14, shipP.y);
+    ctx.lineTo(shipP.x - 10, shipP.y + 8);
+    ctx.closePath(); ctx.fill();
+    // Wing detail
+    ctx.fillStyle = '#3af';
+    ctx.beginPath();
+    ctx.moveTo(shipP.x - 4, shipP.y - 10);
+    ctx.lineTo(shipP.x + 4, shipP.y - 4);
+    ctx.lineTo(shipP.x - 8, shipP.y - 2);
+    ctx.closePath(); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(shipP.x - 4, shipP.y + 10);
+    ctx.lineTo(shipP.x + 4, shipP.y + 4);
+    ctx.lineTo(shipP.x - 8, shipP.y + 2);
+    ctx.closePath(); ctx.fill();
+    // Cockpit highlight
+    ctx.fillStyle = '#aef';
+    ctx.fillRect(shipP.x + 2, shipP.y - 2, 5, 4);
+    // Engine glow
+    if (frame % 4 < 2) {
+      ctx.fillStyle = '#f80';
+      ctx.beginPath();
+      ctx.moveTo(shipP.x - 14, shipP.y - 2);
+      ctx.lineTo(shipP.x - 20, shipP.y);
+      ctx.lineTo(shipP.x - 14, shipP.y + 2);
+      ctx.closePath(); ctx.fill();
+    }
+  }
+
+  // --- HUD ---
+  // Title badge
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(8, 8, 252, 28);
+  ctx.strokeStyle = '#444';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(8, 8, 252, 28);
+  ctx.fillStyle = '#6cf'; ctx.font = '14px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('SCR-006 \u00b7 ISO SHOOTER  [?]', 16, 27);
+
+  // Score
+  ctx.fillStyle = '#fff'; ctx.font = '16px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('SCORE: ' + score, 10, 56);
+
+  // Lives
+  ctx.textAlign = 'right';
+  ctx.fillText('LIVES: ' + lives, W - 10, 56);
+
+  // Fuel bar
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(W / 2 - 80, 42, 160, 16);
+  ctx.fillStyle = fuel > 25 ? '#4a4' : (fuel > 10 ? '#fa0' : '#f44');
+  ctx.fillRect(W / 2 - 79, 43, 158 * (fuel / 100), 14);
+  ctx.strokeStyle = '#666'; ctx.lineWidth = 1;
+  ctx.strokeRect(W / 2 - 80, 42, 160, 16);
+  ctx.fillStyle = '#fff'; ctx.font = '11px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('FUEL', W / 2, 54);
+
+  // Altitude gauge (right side vertical bar) — large and prominent
+  const gaugeX = W - 40;
+  const gaugeY = 70;
+  const gaugeH = 240;
+  const gaugeW = 32;
+  ctx.fillStyle = 'rgba(0,0,0,0.8)';
+  ctx.fillRect(gaugeX - gaugeW / 2 - 2, gaugeY - 2, gaugeW + 4, gaugeH + 4);
+  ctx.strokeStyle = '#4cf';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(gaugeX - gaugeW / 2 - 2, gaugeY - 2, gaugeW + 4, gaugeH + 4);
+  // Altitude fill
+  const altFrac = ship.alt / 120;
+  const altColor = altFrac > 0.7 ? '#f44' : (altFrac > 0.4 ? '#4cf' : '#4f4');
+  const altBarH = gaugeH * altFrac;
+  ctx.fillStyle = altColor;
+  ctx.globalAlpha = 0.35;
+  ctx.fillRect(gaugeX - gaugeW / 2, gaugeY + gaugeH - altBarH, gaugeW, altBarH);
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = altColor;
+  ctx.fillRect(gaugeX - gaugeW / 2, gaugeY + gaugeH - altBarH, gaugeW, 3);
+  // Tick marks with labels
+  ctx.strokeStyle = '#666';
+  ctx.lineWidth = 1;
+  ctx.font = '9px monospace'; ctx.textAlign = 'right';
+  for (let i = 0; i <= 4; i++) {
+    const ty = gaugeY + (gaugeH / 4) * i;
+    const altVal = 120 - i * 30;
+    ctx.beginPath();
+    ctx.moveTo(gaugeX - gaugeW / 2, ty); ctx.lineTo(gaugeX - gaugeW / 2 + 6, ty);
+    ctx.moveTo(gaugeX + gaugeW / 2 - 6, ty); ctx.lineTo(gaugeX + gaugeW / 2, ty);
+    ctx.stroke();
+    ctx.fillStyle = '#888';
+    ctx.fillText(altVal, gaugeX - gaugeW / 2 - 4, ty + 3);
+  }
+  // Label
+  ctx.fillStyle = '#4cf'; ctx.font = 'bold 12px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('ALT', gaugeX, gaugeY - 8);
+  // Current altitude number — large and bright
+  ctx.fillStyle = altColor; ctx.font = 'bold 16px monospace';
+  ctx.fillText(Math.round(ship.alt), gaugeX, gaugeY + gaugeH + 20);
+
+  // Wall gap indicators on altitude gauge
+  for (const wall of level.walls) {
+    const dist = wall.pos - camPos;
+    if (dist > 0 && dist < 200) {
+      const gapY1 = gaugeY + gaugeH - (gaugeH * wall.gapTop / 120);
+      const gapY2 = gaugeY + gaugeH - (gaugeH * wall.gapBottom / 120);
+      const alpha = Math.max(0.2, 1 - dist / 200);
+      ctx.fillStyle = `rgba(0,255,0,${alpha * 0.4})`;
+      ctx.fillRect(gaugeX - gaugeW / 2, gapY1, gaugeW, gapY2 - gapY1);
+      ctx.strokeStyle = `rgba(0,255,0,${alpha})`;
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(gaugeX - gaugeW / 2, gapY1, gaugeW, gapY2 - gapY1);
+    }
+  }
+
+  // Progress bar
+  const progress = scrollPos / TOTAL_LEN;
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.fillRect(10, H - 18, W - 20, 8);
+  ctx.fillStyle = '#4cf';
+  ctx.fillRect(10, H - 18, (W - 20) * progress, 8);
+  ctx.strokeStyle = '#444';
+  ctx.strokeRect(10, H - 18, W - 20, 8);
+  // Fortress section markers
+  for (let f = 0; f < NUM_FORTRESSES; f++) {
+    const fStart = f * (FORTRESS_SEGS + OPEN_SEGS) * SEGMENT_LEN / TOTAL_LEN;
+    const fEnd = (f * (FORTRESS_SEGS + OPEN_SEGS) * SEGMENT_LEN + FORTRESS_SEGS * SEGMENT_LEN) / TOTAL_LEN;
+    ctx.fillStyle = 'rgba(255,80,80,0.3)';
+    ctx.fillRect(10 + (W - 20) * fStart, H - 18, (W - 20) * (fEnd - fStart), 8);
+  }
+
+  // Minimap label
+  ctx.fillStyle = '#666'; ctx.font = '9px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('FORTRESS', 12, H - 22);
+
+  // Game over screen
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.75)'; ctx.fillRect(0, 0, W, H);
+    ctx.font = 'bold 48px monospace'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#f55';
+    ctx.fillText('GAME OVER', W / 2, H / 2 - 30);
+    ctx.fillStyle = '#aaa'; ctx.font = '18px monospace';
+    ctx.fillText('SCORE: ' + score, W / 2, H / 2 + 10);
+    ctx.fillStyle = '#888'; ctx.font = '16px monospace';
+    ctx.fillText('Press R to restart', W / 2, H / 2 + 40);
+  }
+
+  // Title screen overlay (first few seconds)
+  if (frame < 120 && !gameOver) {
+    const alpha = frame < 60 ? 0.8 : 0.8 * (1 - (frame - 60) / 60);
+    ctx.fillStyle = `rgba(0,0,0,${alpha})`;
+    ctx.fillRect(0, 0, W, H);
+    ctx.font = 'bold 52px monospace'; ctx.textAlign = 'center';
+    ctx.fillStyle = `rgba(100,200,255,${alpha + 0.2})`;
+    ctx.fillText('ISO SHOOTER', W / 2, H / 2 - 40);
+    ctx.font = '16px monospace';
+    ctx.fillStyle = `rgba(200,200,200,${alpha + 0.1})`;
+    ctx.fillText('Arrow keys: move/altitude | Space: shoot', W / 2, H / 2 + 10);
+    ctx.fillText('Fly through fortress walls at the right altitude!', W / 2, H / 2 + 35);
+    ctx.fillStyle = `rgba(150,150,150,${alpha})`;
+    ctx.font = '12px monospace';
+    ctx.fillText('Watch your shadow for altitude reference', W / 2, H / 2 + 60);
+  }
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

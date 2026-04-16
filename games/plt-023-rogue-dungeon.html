@@ -1,0 +1,1031 @@
+<!--
+PROTOTYPE: rogue-dungeon
+SERIES: plt
+NUMBER: 023
+DATE: 2026-03-24
+MECHANIC: roguelite side-scrolling combat — fast-paced action with dash and dual-wield weapons; procedural dungeon rooms; shop between runs; multiple weapon types
+ANCESTRY: Dungreed (2018, Team Horay — Korea), Dead Cells (2018, Motion Twin), Rogue Legacy (2013, Cellar Door Games)
+CONTROLS: ← → — move | ↑ — jump | Z — attack | X — dash | C — secondary weapon | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 7 (Foundation Models — procedural generation with emergent combat synergies)
+AI-INSIGHT: Dungreed's weapon-switching combat creates emergent combo systems from simple rule interactions — each weapon has distinct timing, range, and damage, and the player discovers optimal chains through experimentation. This mirrors how foundation models compose learned primitives into novel outputs.
+NOTES: Korean indie roguelite with fast-paced dash combat.
+       The dash mechanic is the core defensive tool — brief invincibility creates rhythmic combat flow.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PLT-023 · ROGUE DUNGEON</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>PLT-023 &middot; DUNGREED</h1>
+    <p><span class="tag series">PLT &mdash; Platformer</span> <span class="tag">Prototype #023</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Descend through five procedural dungeon rooms. Defeat all enemies in each room to unlock the exit door. Find weapons as drops. Survive the boss in room 5.</p>
+    <ul>
+      <li><kbd>&#8592;</kbd> <kbd>&#8594;</kbd> &mdash; Move left/right</li>
+      <li><kbd>&#8593;</kbd> &mdash; Jump (press again for double jump)</li>
+      <li><kbd>Z</kbd> &mdash; Attack with primary weapon</li>
+      <li><kbd>X</kbd> &mdash; Dash (0.2s invincibility)</li>
+      <li><kbd>C</kbd> &mdash; Use secondary weapon/skill</li>
+      <li><kbd>R</kbd> &mdash; Restart run</li>
+      <li><kbd>?</kbd> &mdash; Toggle this info panel</li>
+    </ul>
+    <h3>Weapons</h3>
+    <ul>
+      <li><strong style="color:#aaf">Sword:</strong> Fast melee, moderate damage</li>
+      <li><strong style="color:#f88">Axe:</strong> Slow but powerful melee</li>
+      <li><strong style="color:#8f8">Bow:</strong> Ranged projectile</li>
+      <li><strong style="color:#f8f">Staff:</strong> Magic projectile, piercing</li>
+    </ul>
+    <h3>Enemies</h3>
+    <ul>
+      <li><strong style="color:#4d4">Slime:</strong> Hops toward you, melee contact</li>
+      <li><strong style="color:#88f">Bat:</strong> Flies erratically, contact damage</li>
+      <li><strong style="color:#fa4">Archer:</strong> Fires arrows from range</li>
+      <li><strong style="color:#f44">Knight:</strong> Shielded, dash behind to hit</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Dash is life:</strong> The brief invincibility frames let you pass through attacks and enemies.</li>
+      <li><strong>Weapon drops:</strong> Defeated enemies may drop weapons &mdash; walk over them to swap your primary.</li>
+      <li><strong>Double jump:</strong> You get one extra jump in the air. Combine with dash for mobility.</li>
+      <li><strong>Boss patterns:</strong> The room 5 boss has telegraphed attacks &mdash; learn the patterns and dash through them.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Dungreed (2018, Team Horay) &larr; Dead Cells (2018, Motion Twin) &larr; Rogue Legacy (2013, Cellar Door Games)</p>
+    <p>Dungreed (&#45912;&#44536;&#47532;&#46300;) was created by Team Horay, a small Korean indie studio, and released in 2018. It combined the side-scrolling action of games like Dead Cells with roguelite progression, fast dash mechanics, and a distinctive anime-influenced art style popular in the Korean indie scene.</p>
+    <p>The game stood out for its responsive combat feel, particularly the dash mechanic that provided brief invincibility frames &mdash; a design choice that turned defense into an aggressive, forward-moving action rather than passive blocking. Players could dual-wield weapons, mixing melee and ranged options for emergent combo potential.</p>
+    <p>Dungreed sits in the rich 2010s wave of roguelite platformers, alongside Dead Cells, Spelunky, and Risk of Rain, but brought a distinctly Korean indie sensibility to the genre with its food-themed healing system and cozy town hub between dungeon runs.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 7 &mdash; Foundation Models (2020&ndash;present)</p>
+    <p><strong>Contemporary AI:</strong> Large language models, diffusion models, emergent capabilities from scale.</p>
+    <p><strong>Insight:</strong> Dungreed&rsquo;s weapon-switching combat creates emergent combo systems from simple rule interactions. Each weapon has distinct timing, range, and damage, and the player discovers optimal chains through experimentation. This mirrors how foundation models compose learned primitives into novel, coherent outputs &mdash; simple building blocks yielding complex emergent behavior.</p>
+
+    <h2>Classification</h2>
+    <ul>
+      <li><strong>Primary:</strong> Platformer (roguelite action)</li>
+      <li><strong>Secondary:</strong> Combat, procedural generation</li>
+      <li><strong>Input:</strong> 4-direction + 3 action buttons</li>
+      <li><strong>Perspective:</strong> Side-scrolling</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This prototype implements the core roguelite loop: 5 procedural rooms with enemies, weapon drops, dash combat, and a boss encounter. The dash i-frames are the central mechanic, turning defense into forward motion. Death resets the run with a new random weapon.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game&rsquo;s creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+var W = 800, H = 600;
+var canvas = document.getElementById('c');
+var ctx = canvas.getContext('2d');
+
+canvas.width = W;
+canvas.height = H;
+
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+var infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// ── Input ──
+var keys = {};
+var keyPressed = {};
+window.addEventListener('keydown', function(e) {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+  keys[e.key] = true;
+  keyPressed[e.key] = true;
+  e.preventDefault();
+});
+window.addEventListener('keyup', function(e) { keys[e.key] = false; });
+
+// ── Constants ──
+var GRAVITY = 0.6;
+var JUMP_FORCE = -12;
+var MOVE_SPEED = 4;
+var DASH_SPEED = 14;
+var DASH_DURATION = 12; // frames
+var DASH_COOLDOWN = 30;
+var DASH_IFRAMES = 12;
+var TILE = 40;
+var ROOM_W = W;
+var ROOM_H = H;
+
+// ── Weapon definitions ──
+var WEAPONS = {
+  sword: { name: 'Sword', color: '#aaf', damage: 2, range: 50, speed: 8, type: 'melee', cooldown: 15 },
+  axe:   { name: 'Axe',   color: '#f88', damage: 5, range: 60, speed: 5, type: 'melee', cooldown: 25 },
+  bow:   { name: 'Bow',   color: '#8f8', damage: 2, range: 300, speed: 12, type: 'ranged', cooldown: 20 },
+  staff: { name: 'Staff', color: '#f8f', damage: 3, range: 250, speed: 10, type: 'ranged', cooldown: 22 }
+};
+var WEAPON_KEYS = ['sword', 'axe', 'bow', 'staff'];
+
+// ── Game State ──
+var player, enemies, projectiles, drops, particles, platforms;
+var room, totalRooms, roomCleared, doorOpen, doorX, doorY;
+var gameState, score, bestScore, bossHP, bossMaxHP;
+var screenShake, shakeTimer;
+var attackTimer, attackDir;
+
+bestScore = 0;
+
+function makeRoom(roomNum) {
+  platforms = [];
+  enemies = [];
+  drops = [];
+  projectiles = [];
+  roomCleared = false;
+  doorOpen = false;
+
+  // Floor
+  platforms.push({ x: 0, y: H - 40, w: W, h: 40 });
+  // Ceiling
+  platforms.push({ x: 0, y: 0, w: W, h: 20 });
+  // Walls
+  platforms.push({ x: 0, y: 0, w: 20, h: H });
+  platforms.push({ x: W - 20, y: 0, w: 20, h: H });
+
+  // Random platforms
+  var numPlats = 3 + Math.floor(Math.random() * 3);
+  for (var i = 0; i < numPlats; i++) {
+    var pw = 80 + Math.random() * 120;
+    var px = 40 + Math.random() * (W - 80 - pw);
+    var py = 150 + Math.random() * (H - 250);
+    platforms.push({ x: px, y: py, w: pw, h: 16 });
+  }
+
+  // Door position (right side)
+  doorX = W - 60;
+  doorY = H - 40 - 50;
+
+  // Spawn enemies based on room number
+  if (roomNum <= 4) {
+    var numEnemies = 2 + roomNum;
+    for (var i = 0; i < numEnemies; i++) {
+      spawnEnemy(roomNum);
+    }
+  } else {
+    // Boss room
+    spawnBoss();
+  }
+}
+
+function spawnEnemy(difficulty) {
+  var types = ['slime', 'bat'];
+  if (difficulty >= 2) types.push('archer');
+  if (difficulty >= 3) types.push('knight');
+  var type = types[Math.floor(Math.random() * types.length)];
+  var ex = 100 + Math.random() * (W - 200);
+  var ey = type === 'bat' ? 100 + Math.random() * 200 : H - 40 - 30;
+  var e = {
+    type: type, x: ex, y: ey, w: 28, h: 28, vx: 0, vy: 0,
+    hp: type === 'knight' ? 6 : (type === 'archer' ? 3 : 2),
+    maxHP: type === 'knight' ? 6 : (type === 'archer' ? 3 : 2),
+    facing: Math.random() < 0.5 ? -1 : 1,
+    timer: 0, shieldFacing: 1, attackCD: 0, hit: 0, alive: true
+  };
+  enemies.push(e);
+}
+
+function spawnBoss() {
+  bossMaxHP = 30;
+  bossHP = bossMaxHP;
+  var boss = {
+    type: 'boss', x: W / 2, y: H - 40 - 60, w: 50, h: 55, vx: 0, vy: 0,
+    hp: bossMaxHP, maxHP: bossMaxHP,
+    facing: -1, timer: 0, phase: 0, attackCD: 60, hit: 0, alive: true,
+    shieldFacing: 0
+  };
+  enemies.push(boss);
+}
+
+function init() {
+  player = {
+    x: 60, y: H - 40 - 40, w: 24, h: 36, vx: 0, vy: 0,
+    facing: 1, hp: 10, maxHP: 10,
+    jumps: 2, maxJumps: 2,
+    weapon: WEAPON_KEYS[Math.floor(Math.random() * WEAPON_KEYS.length)],
+    secondary: null,
+    dashTimer: 0, dashCD: 0, dashDir: 0,
+    iframes: 0, attackCD: 0, hit: 0,
+    grounded: false
+  };
+  // Give secondary weapon different from primary
+  do {
+    player.secondary = WEAPON_KEYS[Math.floor(Math.random() * WEAPON_KEYS.length)];
+  } while (player.secondary === player.weapon);
+
+  enemies = [];
+  projectiles = [];
+  drops = [];
+  particles = [];
+  room = 1;
+  totalRooms = 5;
+  score = 0;
+  screenShake = 0;
+  shakeTimer = 0;
+  attackTimer = 0;
+  attackDir = 0;
+  gameState = 'play';
+  makeRoom(room);
+}
+
+// ── Collision helpers ──
+function rectsOverlap(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+function addParticles(x, y, color, count) {
+  for (var i = 0; i < count; i++) {
+    particles.push({
+      x: x, y: y,
+      vx: (Math.random() - 0.5) * 6,
+      vy: (Math.random() - 0.5) * 6,
+      life: 15 + Math.random() * 15,
+      color: color, size: 2 + Math.random() * 3
+    });
+  }
+}
+
+function shake(amount) {
+  screenShake = amount;
+  shakeTimer = 8;
+}
+
+// ── Attack logic ──
+function doAttack(weaponKey, fromX, fromY, facing) {
+  var w = WEAPONS[weaponKey];
+  if (w.type === 'melee') {
+    attackTimer = w.speed;
+    attackDir = facing;
+    // Check hits on enemies
+    var ax = facing > 0 ? fromX + 12 : fromX - w.range;
+    var ay = fromY - 10;
+    var aBox = { x: ax, y: ay, w: w.range, h: 36 };
+    for (var i = 0; i < enemies.length; i++) {
+      var e = enemies[i];
+      if (!e.alive) continue;
+      if (rectsOverlap(aBox, e)) {
+        // Knight shield check
+        if (e.type === 'knight' && e.shieldFacing === -facing) {
+          addParticles(e.x + e.w / 2, e.y + e.h / 2, '#ff0', 3);
+          continue; // blocked
+        }
+        hitEnemy(e, w.damage);
+      }
+    }
+  } else {
+    // Ranged: spawn projectile
+    projectiles.push({
+      x: fromX + (facing > 0 ? 20 : -8), y: fromY + 8,
+      vx: facing * 8, vy: 0, w: 10, h: 4,
+      damage: w.damage, color: w.color, life: 60,
+      pierce: weaponKey === 'staff', friendly: true
+    });
+  }
+}
+
+function hitEnemy(e, damage) {
+  e.hp -= damage;
+  e.hit = 8;
+  shake(3);
+  addParticles(e.x + e.w / 2, e.y + e.h / 2, '#ff0', 5);
+  if (e.hp <= 0) {
+    e.alive = false;
+    score += e.type === 'boss' ? 500 : 100;
+    addParticles(e.x + e.w / 2, e.y + e.h / 2, '#f80', 12);
+    // Weapon drop chance
+    if (Math.random() < 0.3 && e.type !== 'boss') {
+      drops.push({
+        x: e.x, y: e.y, w: 20, h: 20,
+        weapon: WEAPON_KEYS[Math.floor(Math.random() * WEAPON_KEYS.length)],
+        life: 300
+      });
+    }
+  }
+}
+
+function hitPlayer(damage) {
+  if (player.iframes > 0 || player.dashTimer > 0) return;
+  player.hp -= damage;
+  player.iframes = 30;
+  player.hit = 10;
+  shake(5);
+  addParticles(player.x + player.w / 2, player.y + player.h / 2, '#f00', 8);
+  if (player.hp <= 0) {
+    gameState = 'dead';
+    if (score > bestScore) bestScore = score;
+  }
+}
+
+// ── Update ──
+function update() {
+  if (infoOpen) return;
+
+  if (gameState === 'dead') {
+    if (keyPressed['r'] || keyPressed['R']) init();
+    keyPressed = {};
+    return;
+  }
+
+  if (gameState === 'win') {
+    if (keyPressed['r'] || keyPressed['R']) init();
+    keyPressed = {};
+    return;
+  }
+
+  var p = player;
+
+  // ── Player movement ──
+  var moveDir = 0;
+  if (keys['ArrowLeft']) moveDir = -1;
+  if (keys['ArrowRight']) moveDir = 1;
+
+  if (p.dashTimer > 0) {
+    p.vx = p.dashDir * DASH_SPEED;
+    p.dashTimer--;
+    if (p.dashTimer <= 0) p.dashCD = DASH_COOLDOWN;
+  } else {
+    p.vx = moveDir * MOVE_SPEED;
+    if (moveDir !== 0) p.facing = moveDir;
+  }
+
+  // Jump
+  if (keyPressed['ArrowUp'] && p.jumps > 0) {
+    p.vy = JUMP_FORCE;
+    p.jumps--;
+    addParticles(p.x + p.w / 2, p.y + p.h, '#888', 4);
+  }
+
+  // Dash
+  if ((keyPressed['x'] || keyPressed['X']) && p.dashCD <= 0 && p.dashTimer <= 0) {
+    p.dashTimer = DASH_DURATION;
+    p.dashDir = p.facing;
+    p.iframes = DASH_IFRAMES;
+    addParticles(p.x + p.w / 2, p.y + p.h / 2, '#4df', 6);
+  }
+
+  // Attack
+  if ((keyPressed['z'] || keyPressed['Z']) && p.attackCD <= 0) {
+    doAttack(p.weapon, p.x, p.y, p.facing);
+    p.attackCD = WEAPONS[p.weapon].cooldown;
+  }
+
+  // Secondary attack
+  if ((keyPressed['c'] || keyPressed['C']) && p.secondary && p.attackCD <= 0) {
+    doAttack(p.secondary, p.x, p.y, p.facing);
+    p.attackCD = WEAPONS[p.secondary].cooldown;
+  }
+
+  // Gravity
+  p.vy += GRAVITY;
+  if (p.vy > 15) p.vy = 15;
+
+  // Move X
+  p.x += p.vx;
+  for (var i = 0; i < platforms.length; i++) {
+    var pl = platforms[i];
+    if (rectsOverlap(p, pl)) {
+      if (p.vx > 0) p.x = pl.x - p.w;
+      else if (p.vx < 0) p.x = pl.x + pl.w;
+    }
+  }
+
+  // Move Y
+  p.grounded = false;
+  p.y += p.vy;
+  for (var i = 0; i < platforms.length; i++) {
+    var pl = platforms[i];
+    if (rectsOverlap(p, pl)) {
+      if (p.vy > 0) {
+        p.y = pl.y - p.h;
+        p.vy = 0;
+        p.grounded = true;
+        p.jumps = p.maxJumps;
+      } else if (p.vy < 0) {
+        p.y = pl.y + pl.h;
+        p.vy = 0;
+      }
+    }
+  }
+
+  // Timers
+  if (p.dashCD > 0) p.dashCD--;
+  if (p.attackCD > 0) p.attackCD--;
+  if (p.iframes > 0) p.iframes--;
+  if (p.hit > 0) p.hit--;
+  if (attackTimer > 0) attackTimer--;
+  if (shakeTimer > 0) shakeTimer--;
+
+  // Pickup drops
+  for (var i = drops.length - 1; i >= 0; i--) {
+    var d = drops[i];
+    d.life--;
+    if (d.life <= 0) { drops.splice(i, 1); continue; }
+    if (rectsOverlap(p, d)) {
+      // Swap weapons
+      var old = p.weapon;
+      p.weapon = d.weapon;
+      d.weapon = old;
+      addParticles(d.x + 10, d.y + 10, WEAPONS[p.weapon].color, 6);
+      drops.splice(i, 1);
+    }
+  }
+
+  // ── Enemy AI ──
+  for (var i = 0; i < enemies.length; i++) {
+    var e = enemies[i];
+    if (!e.alive) continue;
+    if (e.hit > 0) e.hit--;
+    e.timer++;
+
+    var dx = p.x - e.x;
+    var dy = p.y - e.y;
+    var dist = Math.sqrt(dx * dx + dy * dy);
+    e.facing = dx > 0 ? 1 : -1;
+
+    if (e.type === 'slime') {
+      // Hop toward player
+      if (e.timer % 40 === 0) {
+        e.vy = -8;
+        e.vx = e.facing * 3;
+      }
+      e.vy += GRAVITY;
+      e.x += e.vx;
+      e.y += e.vy;
+      e.vx *= 0.95;
+      // Floor collision
+      for (var j = 0; j < platforms.length; j++) {
+        if (rectsOverlap(e, platforms[j]) && e.vy > 0) {
+          e.y = platforms[j].y - e.h;
+          e.vy = 0;
+          e.vx = 0;
+        }
+      }
+      if (rectsOverlap(e, p)) hitPlayer(1);
+    }
+
+    else if (e.type === 'bat') {
+      // Fly toward player with wobble
+      var ang = Math.atan2(dy, dx);
+      e.x += Math.cos(ang) * 2 + Math.sin(e.timer * 0.15) * 1.5;
+      e.y += Math.sin(ang) * 2 + Math.cos(e.timer * 0.12) * 1.5;
+      // Clamp to room
+      if (e.x < 25) e.x = 25;
+      if (e.x > W - 25 - e.w) e.x = W - 25 - e.w;
+      if (e.y < 25) e.y = 25;
+      if (e.y > H - 65) e.y = H - 65;
+      if (rectsOverlap(e, p)) hitPlayer(1);
+    }
+
+    else if (e.type === 'archer') {
+      // Stand and shoot
+      if (e.attackCD > 0) e.attackCD--;
+      if (e.attackCD <= 0 && dist < 400) {
+        e.attackCD = 60 + Math.random() * 30;
+        projectiles.push({
+          x: e.x + e.w / 2, y: e.y + 10,
+          vx: e.facing * 5, vy: 0, w: 12, h: 4,
+          damage: 1, color: '#fa4', life: 80,
+          pierce: false, friendly: false
+        });
+      }
+      // Gravity
+      e.vy += GRAVITY;
+      e.y += e.vy;
+      for (var j = 0; j < platforms.length; j++) {
+        if (rectsOverlap(e, platforms[j]) && e.vy > 0) {
+          e.y = platforms[j].y - e.h;
+          e.vy = 0;
+        }
+      }
+    }
+
+    else if (e.type === 'knight') {
+      // Walk toward player, shielded
+      e.shieldFacing = e.facing;
+      e.vx = e.facing * 1.5;
+      e.x += e.vx;
+      e.vy += GRAVITY;
+      e.y += e.vy;
+      for (var j = 0; j < platforms.length; j++) {
+        if (rectsOverlap(e, platforms[j])) {
+          if (e.vy > 0) { e.y = platforms[j].y - e.h; e.vy = 0; }
+          if (Math.abs(e.vx) > 0) {
+            if (e.vx > 0 && e.x + e.w > platforms[j].x && e.x < platforms[j].x) e.x = platforms[j].x - e.w;
+            if (e.vx < 0 && e.x < platforms[j].x + platforms[j].w && e.x + e.w > platforms[j].x + platforms[j].w) e.x = platforms[j].x + platforms[j].w;
+          }
+        }
+      }
+      if (rectsOverlap(e, p)) hitPlayer(2);
+    }
+
+    else if (e.type === 'boss') {
+      if (e.attackCD > 0) e.attackCD--;
+      // Boss movement phases
+      if (e.timer % 120 < 60) {
+        e.vx = e.facing * 2;
+      } else {
+        e.vx = 0;
+      }
+      // Boss attacks
+      if (e.attackCD <= 0) {
+        e.attackCD = 50;
+        var attackType = Math.floor(Math.random() * 3);
+        if (attackType === 0) {
+          // Charge
+          e.vx = e.facing * 8;
+        } else if (attackType === 1) {
+          // Shoot spread
+          for (var s = -1; s <= 1; s++) {
+            projectiles.push({
+              x: e.x + e.w / 2, y: e.y + 20,
+              vx: e.facing * 5, vy: s * 2, w: 10, h: 10,
+              damage: 2, color: '#f44', life: 60,
+              pierce: false, friendly: false
+            });
+          }
+        } else {
+          // Jump slam
+          e.vy = -14;
+        }
+      }
+      e.vy += GRAVITY;
+      e.x += e.vx;
+      e.y += e.vy;
+      e.vx *= 0.96;
+      // Clamp boss
+      if (e.x < 25) { e.x = 25; e.facing = 1; }
+      if (e.x > W - 25 - e.w) { e.x = W - 25 - e.w; e.facing = -1; }
+      for (var j = 0; j < platforms.length; j++) {
+        if (rectsOverlap(e, platforms[j]) && e.vy > 0) {
+          e.y = platforms[j].y - e.h;
+          e.vy = 0;
+          if (e.vx === 0 && Math.abs(e.y - p.y) < 10) shake(4); // slam impact
+        }
+      }
+      bossHP = e.hp;
+      if (rectsOverlap(e, p)) hitPlayer(2);
+    }
+  }
+
+  // ── Projectiles ──
+  for (var i = projectiles.length - 1; i >= 0; i--) {
+    var pr = projectiles[i];
+    pr.x += pr.vx;
+    pr.y += pr.vy;
+    pr.life--;
+    if (pr.life <= 0 || pr.x < 0 || pr.x > W || pr.y < 0 || pr.y > H) {
+      projectiles.splice(i, 1);
+      continue;
+    }
+    // Platform collision for projectiles
+    var hitWall = false;
+    for (var j = 0; j < platforms.length; j++) {
+      if (rectsOverlap(pr, platforms[j])) { hitWall = true; break; }
+    }
+    if (hitWall && !pr.pierce) { projectiles.splice(i, 1); continue; }
+
+    if (pr.friendly) {
+      // Hit enemies
+      var removed = false;
+      for (var j = 0; j < enemies.length; j++) {
+        var e = enemies[j];
+        if (!e.alive) continue;
+        if (rectsOverlap(pr, e)) {
+          if (e.type === 'knight' && e.shieldFacing === (pr.vx > 0 ? -1 : 1)) {
+            addParticles(e.x + e.w / 2, e.y + e.h / 2, '#ff0', 3);
+          } else {
+            hitEnemy(e, pr.damage);
+          }
+          if (!pr.pierce) { projectiles.splice(i, 1); removed = true; }
+          break;
+        }
+      }
+      if (removed) continue;
+    } else {
+      // Hit player
+      if (rectsOverlap(pr, p)) {
+        hitPlayer(pr.damage);
+        projectiles.splice(i, 1);
+        continue;
+      }
+    }
+  }
+
+  // ── Particles ──
+  for (var i = particles.length - 1; i >= 0; i--) {
+    var pt = particles[i];
+    pt.x += pt.vx;
+    pt.y += pt.vy;
+    pt.vx *= 0.94;
+    pt.vy *= 0.94;
+    pt.life--;
+    if (pt.life <= 0) particles.splice(i, 1);
+  }
+
+  // ── Room clear check ──
+  if (!roomCleared) {
+    var allDead = true;
+    for (var i = 0; i < enemies.length; i++) {
+      if (enemies[i].alive) { allDead = false; break; }
+    }
+    if (allDead) {
+      roomCleared = true;
+      doorOpen = true;
+      if (room >= totalRooms) {
+        gameState = 'win';
+        if (score > bestScore) bestScore = score;
+      }
+    }
+  }
+
+  // ── Door transition ──
+  if (doorOpen && gameState === 'play') {
+    var doorBox = { x: doorX, y: doorY, w: 40, h: 50 };
+    if (rectsOverlap(p, doorBox)) {
+      room++;
+      if (room > totalRooms) {
+        gameState = 'win';
+      } else {
+        player.x = 60;
+        player.y = H - 40 - 40;
+        player.vy = 0;
+        player.vx = 0;
+        makeRoom(room);
+      }
+    }
+  }
+
+  keyPressed = {};
+}
+
+// ── Drawing ──
+function drawRect(x, y, w, h, color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(Math.floor(x), Math.floor(y), w, h);
+}
+
+function drawPlayer() {
+  var p = player;
+  if (p.iframes > 0 && Math.floor(p.iframes / 2) % 2 === 0) return; // flash
+  var bodyColor = p.dashTimer > 0 ? '#4df' : (p.hit > 0 ? '#f44' : '#4af');
+  // Body
+  drawRect(p.x, p.y, p.w, p.h, bodyColor);
+  // Eyes
+  var eyeX = p.facing > 0 ? p.x + 16 : p.x + 4;
+  drawRect(eyeX, p.y + 8, 4, 4, '#fff');
+  // Weapon indicator
+  var wep = WEAPONS[p.weapon];
+  drawRect(p.x + (p.facing > 0 ? p.w : -8), p.y + 12, 6, 12, wep.color);
+
+  // Attack swing visual
+  if (attackTimer > 0 && WEAPONS[p.weapon].type === 'melee') {
+    var sw = WEAPONS[p.weapon].range;
+    var sx = attackDir > 0 ? p.x + p.w : p.x - sw;
+    ctx.fillStyle = WEAPONS[p.weapon].color;
+    ctx.globalAlpha = 0.5;
+    ctx.fillRect(sx, p.y - 4, sw, p.h + 8);
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawEnemy(e) {
+  if (!e.alive) return;
+  var color;
+  if (e.hit > 0) { color = '#fff'; }
+  else if (e.type === 'slime') color = '#4d4';
+  else if (e.type === 'bat') color = '#88f';
+  else if (e.type === 'archer') color = '#fa4';
+  else if (e.type === 'knight') color = '#c44';
+  else if (e.type === 'boss') color = '#f22';
+
+  drawRect(e.x, e.y, e.w, e.h, color);
+
+  // Eyes
+  var eyeX = e.facing > 0 ? e.x + e.w - 8 : e.x + 4;
+  drawRect(eyeX, e.y + 6, 4, 4, e.type === 'boss' ? '#ff0' : '#fff');
+
+  // Knight shield
+  if (e.type === 'knight') {
+    var sx = e.shieldFacing > 0 ? e.x + e.w : e.x - 6;
+    drawRect(sx, e.y + 2, 6, e.h - 4, '#888');
+  }
+
+  // Boss extra details
+  if (e.type === 'boss') {
+    drawRect(e.x + 4, e.y - 4, e.w - 8, 4, '#a00');
+    // Crown
+    drawRect(e.x + 10, e.y - 10, 8, 6, '#ff0');
+    drawRect(e.x + 28, e.y - 10, 8, 6, '#ff0');
+    drawRect(e.x + 18, e.y - 14, 10, 6, '#ff0');
+  }
+
+  // HP bar for multi-hit enemies
+  if (e.maxHP > 2) {
+    var barW = e.w;
+    var hpRatio = e.hp / e.maxHP;
+    drawRect(e.x, e.y - 8, barW, 4, '#400');
+    drawRect(e.x, e.y - 8, barW * hpRatio, 4, '#f44');
+  }
+}
+
+function draw() {
+  // Screen shake
+  ctx.save();
+  if (shakeTimer > 0) {
+    ctx.translate(
+      (Math.random() - 0.5) * screenShake * 2,
+      (Math.random() - 0.5) * screenShake * 2
+    );
+  }
+
+  // Background — dungeon gradient
+  var grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#1a1020');
+  grad.addColorStop(1, '#0a0810');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Dungeon ambient — subtle brick pattern
+  ctx.fillStyle = 'rgba(60,40,50,0.15)';
+  for (var bx = 0; bx < W; bx += 40) {
+    for (var by = 0; by < H; by += 20) {
+      var offset = (Math.floor(by / 20) % 2) * 20;
+      ctx.fillRect(bx + offset, by, 38, 18);
+    }
+  }
+
+  // Platforms
+  for (var i = 0; i < platforms.length; i++) {
+    var pl = platforms[i];
+    if (pl.h > 20) {
+      // Walls/floor
+      drawRect(pl.x, pl.y, pl.w, pl.h, '#443');
+      // Border highlight
+      ctx.strokeStyle = '#665';
+      ctx.strokeRect(pl.x, pl.y, pl.w, pl.h);
+    } else {
+      // Thin platforms
+      drawRect(pl.x, pl.y, pl.w, pl.h, '#554');
+      drawRect(pl.x, pl.y, pl.w, 3, '#776');
+    }
+  }
+
+  // Door
+  if (doorOpen) {
+    drawRect(doorX, doorY, 40, 50, '#2a2');
+    drawRect(doorX + 4, doorY + 4, 32, 42, '#040');
+    hudText('EXIT', doorX + 4, doorY + 18, '#4f4', 12);
+  } else {
+    drawRect(doorX, doorY, 40, 50, '#444');
+    drawRect(doorX + 4, doorY + 4, 32, 42, '#222');
+    hudText('LOCKED', doorX - 2, doorY + 18, '#844', 10);
+  }
+
+  // Drops
+  for (var i = 0; i < drops.length; i++) {
+    var d = drops[i];
+    var alpha = d.life < 60 ? d.life / 60 : 1;
+    ctx.globalAlpha = alpha;
+    drawRect(d.x, d.y, d.w, d.h, WEAPONS[d.weapon].color);
+    ctx.globalAlpha = 1;
+    hudText(WEAPONS[d.weapon].name[0], d.x + 5, d.y + 3, '#fff', 12);
+  }
+
+  // Enemies
+  for (var i = 0; i < enemies.length; i++) {
+    drawEnemy(enemies[i]);
+  }
+
+  // Player
+  drawPlayer();
+
+  // Projectiles
+  for (var i = 0; i < projectiles.length; i++) {
+    var pr = projectiles[i];
+    drawRect(pr.x, pr.y, pr.w, pr.h, pr.color);
+  }
+
+  // Particles
+  for (var i = 0; i < particles.length; i++) {
+    var pt = particles[i];
+    ctx.globalAlpha = pt.life / 30;
+    drawRect(pt.x, pt.y, pt.size, pt.size, pt.color);
+    ctx.globalAlpha = 1;
+  }
+
+  ctx.restore(); // shake
+
+  // ── HUD ──
+  // HP bar
+  drawRect(10, 10, 104, 16, '#400');
+  drawRect(12, 12, player.hp / player.maxHP * 100, 12, '#f44');
+  hudText('HP', 120, 10, '#f88', 12);
+
+  // Dash cooldown
+  var dashReady = player.dashCD <= 0 && player.dashTimer <= 0;
+  hudText('DASH', 10, 32, dashReady ? '#4df' : '#445', 12);
+  if (!dashReady) {
+    var cd = player.dashTimer > 0 ? player.dashTimer / DASH_DURATION : player.dashCD / DASH_COOLDOWN;
+    drawRect(60, 34, 50, 8, '#223');
+    drawRect(60, 34, 50 * (1 - cd), 8, '#4df');
+  }
+
+  // Weapons
+  hudText('[Z] ' + WEAPONS[player.weapon].name, 10, 50, WEAPONS[player.weapon].color, 12);
+  if (player.secondary) {
+    hudText('[C] ' + WEAPONS[player.secondary].name, 10, 66, WEAPONS[player.secondary].color, 12);
+  }
+
+  // Room / Score
+  hudText('ROOM ' + room + '/' + totalRooms, W - 10, 10, '#aaa', 14, 'right');
+  hudText('SCORE: ' + score, W - 10, 28, '#ff0', 12, 'right');
+  if (bestScore > 0) hudText('BEST: ' + bestScore, W - 10, 44, '#888', 10, 'right');
+
+  // Enemies remaining
+  var alive = 0;
+  for (var i = 0; i < enemies.length; i++) { if (enemies[i].alive) alive++; }
+  if (!roomCleared) hudText('ENEMIES: ' + alive, W / 2, 10, '#f88', 12, 'center');
+
+  // Boss HP bar
+  if (room >= totalRooms && bossHP !== undefined && !roomCleared) {
+    var bw = 300;
+    drawRect(W / 2 - bw / 2, H - 26, bw + 4, 16, '#400');
+    drawRect(W / 2 - bw / 2 + 2, H - 24, bw * (bossHP / bossMaxHP), 12, '#f22');
+    hudText('DUNGEON BOSS', W / 2, H - 28, '#f88', 10, 'center');
+  }
+
+  // Game over screen
+  if (gameState === 'dead') {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, 0, W, H);
+    hudText('YOU DIED', W / 2, H / 2 - 40, '#f44', 32, 'center');
+    hudText('Room ' + room + ' / Score: ' + score, W / 2, H / 2 + 10, '#aaa', 16, 'center');
+    hudText('Press R to restart', W / 2, H / 2 + 40, '#888', 14, 'center');
+  }
+
+  // Win screen
+  if (gameState === 'win') {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, 0, W, H);
+    hudText('DUNGEON CLEARED!', W / 2, H / 2 - 40, '#4f4', 28, 'center');
+    hudText('Score: ' + score, W / 2, H / 2 + 10, '#ff0', 18, 'center');
+    hudText('Press R to play again', W / 2, H / 2 + 40, '#888', 14, 'center');
+  }
+
+  // Controls hint at start
+  if (room === 1 && enemies.length > 0 && enemies[0].alive && score === 0) {
+    hudText('Arrow keys: Move/Jump  Z: Attack  X: Dash  C: Secondary  ?: Info', W / 2, H - 12, '#666', 10, 'center');
+  }
+}
+
+// ── Resize ──
+function resize() {
+  var s = Math.min(window.innerWidth / W, window.innerHeight / H);
+  canvas.style.width = (W * s) + 'px';
+  canvas.style.height = (H * s) + 'px';
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ── Main loop ──
+init();
+function gameLoop() {
+  update();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+requestAnimationFrame(gameLoop);
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: runner ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("runner");
+</script>
+</body>
+</html>

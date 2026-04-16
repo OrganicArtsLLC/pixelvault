@@ -1,0 +1,636 @@
+<!--
+PROTOTYPE: reversi
+SERIES: anc
+NUMBER: 009
+DATE: 2026-03-24
+MECHANIC: flanking capture — place discs to outflank opponent's pieces in any direction; flanked pieces flip to your color
+ANCESTRY: Reversi (1883 Lewis Waterman), Othello (1971 Goro Hasegawa), Logistello (1997)
+CONTROLS: Click — place disc | R — new game | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 4 (Expert Boom — Logistello defeated world champion 1997; positional evaluation)
+AI-INSIGHT: Corner squares are maximally valuable (can never be flipped), edges are strong, squares adjacent to corners are dangerous. This positional hierarchy maps directly to feature-weighted evaluation functions used in all game AI.
+NOTES: "A minute to learn, a lifetime to master." Four starting pieces in center. Must outflank at least one opponent piece to play. If no legal move, turn passes. Most pieces when board is full wins.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ANC-009 · REVERSI</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #1a1a10; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: pointer; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>ANC-009 · REVERSI</h1>
+    <p><span class="tag series">ANC — Ancient Games</span> <span class="tag">Prototype #009</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Play Reversi (Othello) against an AI opponent. You are Black and move first. Place discs to outflank your opponent's pieces — flanked discs flip to your color.</p>
+    <ul>
+      <li><strong>Place:</strong> Click any highlighted square (semi-transparent dots show legal moves).</li>
+      <li><strong>Flanking:</strong> Your disc must bracket opponent discs in a straight line (horizontal, vertical, or diagonal) with one of your existing pieces on the other end.</li>
+      <li><strong>Passing:</strong> If you have no legal moves, your turn automatically passes.</li>
+      <li><strong>Winning:</strong> The game ends when the board is full or neither player can move. Most discs wins.</li>
+      <li><kbd>R</kbd> — New game</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Reversi (1883, Lewis Waterman &amp; John Mollett) &rarr; Othello (1971, Goro Hasegawa) &rarr; Computer Othello tournaments (1980s&ndash;present)</p>
+    <p>Reversi was invented in England in 1883, with both Lewis Waterman and John Mollett claiming credit — a dispute never fully resolved. The game languished in moderate popularity until Goro Hasegawa, a Japanese salesman, streamlined the rules in 1971, fixed the starting position (the four center pieces), and trademarked it as "Othello" with the tagline "A minute to learn, a lifetime to master."</p>
+    <p>The name "Othello" references Shakespeare's play about the Moor of Venice — a drama of black and white, reversal and betrayal. The green board represents the fields outside Venice.</p>
+    <p><strong>Competitive Play:</strong> The World Othello Championship has been held annually since 1977. Unlike chess, where computers gradually overtook humans, Othello's smaller game tree (roughly 10^28 legal positions) meant computers dominated earlier and more decisively.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 4 — Expert Boom (positional evaluation and endgame solving)</p>
+    <p><strong>Logistello (1997):</strong> Michael Buro's Logistello program defeated the reigning world champion Takeshi Murakami 6-0 in a landmark match. Unlike Deep Blue's brute-force approach to chess that same year, Logistello relied on <em>learned evaluation functions</em> — machine-tuned positional weights derived from hundreds of thousands of expert games.</p>
+    <p><strong>The Positional Hierarchy:</strong> Othello's AI insight is elegant in its clarity:</p>
+    <ul>
+      <li><strong>Corners (A1, A8, H1, H8):</strong> Maximally valuable — once taken, a corner can never be flipped. Corners anchor stable disc chains.</li>
+      <li><strong>Edges:</strong> Strong positions that are hard (but not impossible) to flip.</li>
+      <li><strong>X-squares (B2, B7, G2, G7):</strong> Dangerous — placing here before the adjacent corner is taken gives your opponent corner access.</li>
+      <li><strong>C-squares (A2, B1, etc.):</strong> Also risky early, as they can expose corners.</li>
+    </ul>
+    <p>This positional hierarchy maps directly to <em>feature-weighted evaluation functions</em> — the same technique used in all modern game AI. The board is divided into features (corner control, edge stability, mobility), each assigned a learned weight. The weighted sum becomes the position's score.</p>
+
+    <h2>Classification</h2>
+    <p><strong>Mechanic:</strong> Flanking capture — place discs to outflank opponent's pieces</p>
+    <p><strong>Perfect Information:</strong> Yes — all game state is visible to both players.</p>
+    <p><strong>Solved:</strong> Weakly solved for some board sizes. 8&times;8 is not fully solved but computers play optimally in practice.</p>
+
+    <h2>Prototype Notes</h2>
+    <p>This prototype implements an AI opponent using positional weight tables inspired by Logistello's approach. The AI evaluates corner control, edge stability, mobility (number of legal moves), and disc count. It uses minimax search with alpha-beta pruning to look several moves ahead.</p>
+    <p class="disclaimer" style="margin-top:18px;padding:10px;background:#222;border-left:3px solid #f80;font-size:11px;color:#999;">
+      <strong>Educational Notice:</strong> This is a non-commercial prototype built for studying game history and AI concepts.
+      Othello is a registered trademark of MegaHouse (formerly Tsukuda Original). This implementation is an independent
+      educational reconstruction of the public-domain Reversi ruleset, not affiliated with or endorsed by any trademark holder.
+    </p>
+  </div>
+</div>
+
+<script>
+// --- Info Panel ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// --- Canvas Setup ---
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+
+function resize() {
+  const s = Math.min(innerWidth / W, innerHeight / H);
+  canvas.style.width = (W * s) + 'px';
+  canvas.style.height = (H * s) + 'px';
+}
+resize();
+addEventListener('resize', resize);
+
+// --- HUD Text Helper ---
+function hudText(text, x, y, size, color, align) {
+  ctx.save();
+  ctx.font = size + 'px monospace';
+  ctx.fillStyle = color || '#fff';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+// --- Constants ---
+const EMPTY = 0, BLACK = 1, WHITE = 2;
+const BOARD_SIZE = 8;
+const CELL = 60;
+const BOARD_X = (W - BOARD_SIZE * CELL) / 2;
+const BOARD_Y = (H - BOARD_SIZE * CELL) / 2 + 20;
+const DIRS = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+
+// Positional weight table (classic Othello heuristic)
+const POS_WEIGHTS = [
+  [120, -20,  20,   5,   5,  20, -20, 120],
+  [-20, -40,  -5,  -5,  -5,  -5, -40, -20],
+  [ 20,  -5,  15,   3,   3,  15,  -5,  20],
+  [  5,  -5,   3,   3,   3,   3,  -5,   5],
+  [  5,  -5,   3,   3,   3,   3,  -5,   5],
+  [ 20,  -5,  15,   3,   3,  15,  -5,  20],
+  [-20, -40,  -5,  -5,  -5,  -5, -40, -20],
+  [120, -20,  20,   5,   5,  20, -20, 120]
+];
+
+// --- Game State ---
+let board, turn, gameOver, winner, blackScore, whiteScore;
+let legalMoves, lastMove, passCount;
+let aiThinking, aiTimer;
+let flipAnims; // [{r, c, from, to, progress}]
+let hoverR, hoverC;
+let message, messageTimer;
+
+function initGame() {
+  board = [];
+  for (let r = 0; r < 8; r++) {
+    board[r] = [];
+    for (let c = 0; c < 8; c++) board[r][c] = EMPTY;
+  }
+  // Standard Othello starting position
+  board[3][3] = WHITE; board[3][4] = BLACK;
+  board[4][3] = BLACK; board[4][4] = WHITE;
+  turn = BLACK;
+  gameOver = false;
+  winner = null;
+  passCount = 0;
+  lastMove = null;
+  aiThinking = false;
+  aiTimer = 0;
+  flipAnims = [];
+  hoverR = -1; hoverC = -1;
+  message = ''; messageTimer = 0;
+  updateScores();
+  legalMoves = getLegalMoves(turn);
+}
+
+function opp(player) { return player === BLACK ? WHITE : BLACK; }
+
+function inBounds(r, c) { return r >= 0 && r < 8 && c >= 0 && c < 8; }
+
+function getFlips(r, c, player) {
+  if (board[r][c] !== EMPTY) return [];
+  let allFlips = [];
+  const enemy = opp(player);
+  for (const [dr, dc] of DIRS) {
+    let flips = [];
+    let nr = r + dr, nc = c + dc;
+    while (inBounds(nr, nc) && board[nr][nc] === enemy) {
+      flips.push([nr, nc]);
+      nr += dr; nc += dc;
+    }
+    if (flips.length > 0 && inBounds(nr, nc) && board[nr][nc] === player) {
+      allFlips = allFlips.concat(flips);
+    }
+  }
+  return allFlips;
+}
+
+function getLegalMoves(player) {
+  let moves = [];
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      if (getFlips(r, c, player).length > 0) {
+        moves.push([r, c]);
+      }
+    }
+  }
+  return moves;
+}
+
+function makeMove(r, c, player) {
+  const flips = getFlips(r, c, player);
+  if (flips.length === 0) return false;
+  board[r][c] = player;
+  // Start flip animations
+  for (const [fr, fc] of flips) {
+    flipAnims.push({ r: fr, c: fc, from: opp(player), to: player, progress: 0 });
+    board[fr][fc] = player;
+  }
+  lastMove = [r, c];
+  return true;
+}
+
+function updateScores() {
+  blackScore = 0; whiteScore = 0;
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      if (board[r][c] === BLACK) blackScore++;
+      else if (board[r][c] === WHITE) whiteScore++;
+    }
+  }
+}
+
+function checkGameEnd() {
+  const blackMoves = getLegalMoves(BLACK);
+  const whiteMoves = getLegalMoves(WHITE);
+  if (blackMoves.length === 0 && whiteMoves.length === 0) {
+    gameOver = true;
+    if (blackScore > whiteScore) winner = BLACK;
+    else if (whiteScore > blackScore) winner = WHITE;
+    else winner = 0; // draw
+    return true;
+  }
+  return false;
+}
+
+// --- AI ---
+function evaluate(player) {
+  let score = 0;
+  const enemy = opp(player);
+  // Positional weights
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      if (board[r][c] === player) score += POS_WEIGHTS[r][c];
+      else if (board[r][c] === enemy) score -= POS_WEIGHTS[r][c];
+    }
+  }
+  // Mobility
+  const myMoves = getLegalMoves(player).length;
+  const oppMoves = getLegalMoves(enemy).length;
+  score += (myMoves - oppMoves) * 10;
+  return score;
+}
+
+function applyMove(r, c, player) {
+  // Apply move to board, return list of flipped cells (for undo)
+  const flips = getFlips(r, c, player);
+  board[r][c] = player;
+  for (const [fr, fc] of flips) board[fr][fc] = player;
+  return flips;
+}
+
+function undoMove(r, c, player, flips) {
+  board[r][c] = EMPTY;
+  const enemy = opp(player);
+  for (const [fr, fc] of flips) board[fr][fc] = enemy;
+}
+
+function minimax(depth, alpha, beta, maximizing, aiPlayer) {
+  const current = maximizing ? aiPlayer : opp(aiPlayer);
+  const moves = getLegalMoves(current);
+
+  if (depth === 0 || (moves.length === 0 && getLegalMoves(opp(current)).length === 0)) {
+    return { score: evaluate(aiPlayer), move: null };
+  }
+
+  if (moves.length === 0) {
+    const result = minimax(depth - 1, alpha, beta, !maximizing, aiPlayer);
+    return { score: result.score, move: null };
+  }
+
+  let bestMove = moves[0];
+  if (maximizing) {
+    let maxScore = -Infinity;
+    for (const [r, c] of moves) {
+      const flips = applyMove(r, c, current);
+      const result = minimax(depth - 1, alpha, beta, false, aiPlayer);
+      undoMove(r, c, current, flips);
+      if (result.score > maxScore) {
+        maxScore = result.score;
+        bestMove = [r, c];
+      }
+      alpha = Math.max(alpha, maxScore);
+      if (beta <= alpha) break;
+    }
+    return { score: maxScore, move: bestMove };
+  } else {
+    let minScore = Infinity;
+    for (const [r, c] of moves) {
+      const flips = applyMove(r, c, current);
+      const result = minimax(depth - 1, alpha, beta, true, aiPlayer);
+      undoMove(r, c, current, flips);
+      if (result.score < minScore) {
+        minScore = result.score;
+        bestMove = [r, c];
+      }
+      beta = Math.min(beta, minScore);
+      if (beta <= alpha) break;
+    }
+    return { score: minScore, move: bestMove };
+  }
+}
+
+function aiMove() {
+  const moves = getLegalMoves(WHITE);
+  if (moves.length === 0) return null;
+
+  // Determine search depth based on empty squares remaining
+  let empties = 0;
+  for (let r = 0; r < 8; r++)
+    for (let c = 0; c < 8; c++)
+      if (board[r][c] === EMPTY) empties++;
+
+  let depth = empties <= 10 ? 6 : empties <= 20 ? 4 : 3;
+
+  const result = minimax(depth, -Infinity, Infinity, true, WHITE);
+  return result.move;
+}
+
+// --- Input ---
+canvas.addEventListener('mousemove', function(e) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = W / rect.width, scaleY = H / rect.height;
+  const mx = (e.clientX - rect.left) * scaleX;
+  const my = (e.clientY - rect.top) * scaleY;
+  hoverC = Math.floor((mx - BOARD_X) / CELL);
+  hoverR = Math.floor((my - BOARD_Y) / CELL);
+  if (!inBounds(hoverR, hoverC)) { hoverR = -1; hoverC = -1; }
+});
+
+canvas.addEventListener('click', function(e) {
+  if (infoOpen) return;
+  if (gameOver) { initGame(); return; }
+  if (turn !== BLACK || aiThinking || flipAnims.length > 0) return;
+
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = W / rect.width, scaleY = H / rect.height;
+  const mx = (e.clientX - rect.left) * scaleX;
+  const my = (e.clientY - rect.top) * scaleY;
+  const c = Math.floor((mx - BOARD_X) / CELL);
+  const r = Math.floor((my - BOARD_Y) / CELL);
+
+  if (!inBounds(r, c)) return;
+
+  // Check if legal
+  if (!legalMoves.some(m => m[0] === r && m[1] === c)) return;
+
+  makeMove(r, c, BLACK);
+  updateScores();
+  turn = WHITE;
+  passCount = 0;
+  legalMoves = getLegalMoves(turn);
+
+  if (legalMoves.length === 0) {
+    if (checkGameEnd()) return;
+    message = 'White has no moves — pass!';
+    messageTimer = 90;
+    turn = BLACK;
+    legalMoves = getLegalMoves(turn);
+    if (legalMoves.length === 0) { checkGameEnd(); }
+    return;
+  }
+
+  // Trigger AI
+  aiThinking = true;
+  aiTimer = 30; // brief delay for feel
+});
+
+addEventListener('keydown', function(e) {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); return; }
+  if (infoOpen) return;
+  if (e.key === 'r' || e.key === 'R') { initGame(); }
+});
+
+// --- Drawing ---
+function drawBoard() {
+  // Board background
+  ctx.fillStyle = '#0a6e2e';
+  ctx.fillRect(BOARD_X - 2, BOARD_Y - 2, CELL * 8 + 4, CELL * 8 + 4);
+
+  // Grid lines
+  ctx.strokeStyle = '#054d1e';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 8; i++) {
+    ctx.beginPath();
+    ctx.moveTo(BOARD_X + i * CELL, BOARD_Y);
+    ctx.lineTo(BOARD_X + i * CELL, BOARD_Y + 8 * CELL);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(BOARD_X, BOARD_Y + i * CELL);
+    ctx.lineTo(BOARD_X + 8 * CELL, BOARD_Y + i * CELL);
+    ctx.stroke();
+  }
+
+  // Center dots (guide markers)
+  ctx.fillStyle = '#054d1e';
+  for (const [r, c] of [[2,2],[2,6],[6,2],[6,6]]) {
+    ctx.beginPath();
+    ctx.arc(BOARD_X + c * CELL, BOARD_Y + r * CELL, 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawDisc(cx, cy, color, scaleX) {
+  scaleX = scaleX === undefined ? 1 : scaleX;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(scaleX, 1);
+  const radius = CELL * 0.4;
+
+  // Shadow
+  ctx.beginPath();
+  ctx.arc(2, 2, radius, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.fill();
+
+  // Disc body
+  ctx.beginPath();
+  ctx.arc(0, 0, radius, 0, Math.PI * 2);
+  if (color === BLACK) {
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fill();
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    // Inner highlight
+    ctx.beginPath();
+    ctx.arc(-4, -4, radius * 0.4, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.fill();
+  } else {
+    ctx.fillStyle = '#f0f0f0';
+    ctx.fill();
+    ctx.strokeStyle = '#ccc';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    // Inner highlight
+    ctx.beginPath();
+    ctx.arc(-4, -4, radius * 0.4, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawPieces() {
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      if (board[r][c] === EMPTY) continue;
+      const cx = BOARD_X + c * CELL + CELL / 2;
+      const cy = BOARD_Y + r * CELL + CELL / 2;
+
+      // Check if this cell is being animated
+      const anim = flipAnims.find(a => a.r === r && a.c === c);
+      if (anim) {
+        // Flip animation: scale X from 1 -> 0 (showing 'from'), then 0 -> 1 (showing 'to')
+        const p = anim.progress;
+        if (p < 0.5) {
+          const sx = 1 - p * 2;
+          drawDisc(cx, cy, anim.from, sx);
+        } else {
+          const sx = (p - 0.5) * 2;
+          drawDisc(cx, cy, anim.to, sx);
+        }
+      } else {
+        drawDisc(cx, cy, board[r][c]);
+      }
+    }
+  }
+}
+
+function drawLegalMoves() {
+  if (turn !== BLACK || aiThinking || gameOver || flipAnims.length > 0) return;
+  for (const [r, c] of legalMoves) {
+    const cx = BOARD_X + c * CELL + CELL / 2;
+    const cy = BOARD_Y + r * CELL + CELL / 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, CELL * 0.15, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.fill();
+  }
+  // Hover highlight
+  if (hoverR >= 0 && hoverC >= 0 && legalMoves.some(m => m[0] === hoverR && m[1] === hoverC)) {
+    ctx.fillStyle = 'rgba(255,255,100,0.15)';
+    ctx.fillRect(BOARD_X + hoverC * CELL, BOARD_Y + hoverR * CELL, CELL, CELL);
+  }
+}
+
+function drawLastMove() {
+  if (!lastMove) return;
+  const [r, c] = lastMove;
+  ctx.strokeStyle = 'rgba(255,255,0,0.5)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(BOARD_X + c * CELL + 2, BOARD_Y + r * CELL + 2, CELL - 4, CELL - 4);
+}
+
+function drawHUD() {
+  // Title
+  hudText('REVERSI', W / 2, 22, 18, '#7bf', 'center');
+
+  // Score area
+  const scoreY = BOARD_Y - 16;
+
+  // Black score (left)
+  drawDisc(BOARD_X + 16, scoreY, BLACK);
+  hudText(blackScore.toString(), BOARD_X + 40, scoreY, 20, '#fff', 'left');
+
+  // White score (right)
+  const rx = BOARD_X + 8 * CELL;
+  drawDisc(rx - 16, scoreY, WHITE);
+  hudText(whiteScore.toString(), rx - 40, scoreY, 20, '#fff', 'right');
+
+  // Turn indicator
+  if (!gameOver) {
+    const turnText = turn === BLACK ? 'YOUR TURN' : 'AI THINKING...';
+    const turnColor = turn === BLACK ? '#4f4' : '#fa0';
+    hudText(turnText, W / 2, scoreY, 14, turnColor, 'center');
+  }
+
+  // Message (pass notification)
+  if (messageTimer > 0) {
+    const alpha = Math.min(1, messageTimer / 30);
+    hudText(message, W / 2, BOARD_Y + 8 * CELL + 24, 14, 'rgba(255,200,0,' + alpha + ')', 'center');
+  }
+
+  // Game over
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(W / 2 - 160, H / 2 - 40, 320, 80);
+    let endMsg;
+    if (winner === BLACK) endMsg = 'YOU WIN! ' + blackScore + ' - ' + whiteScore;
+    else if (winner === WHITE) endMsg = 'AI WINS! ' + whiteScore + ' - ' + blackScore;
+    else endMsg = 'DRAW! ' + blackScore + ' - ' + whiteScore;
+    hudText(endMsg, W / 2, H / 2 - 8, 22, '#ff0', 'center');
+    hudText('Click or press R to play again', W / 2, H / 2 + 18, 12, '#aaa', 'center');
+  }
+
+  // Controls hint
+  hudText('? info   R restart', W / 2, H - 12, 11, '#555', 'center');
+}
+
+// --- Update ---
+function update() {
+  if (infoOpen) return;
+
+  // Update flip animations
+  for (let i = flipAnims.length - 1; i >= 0; i--) {
+    flipAnims[i].progress += 0.06;
+    if (flipAnims[i].progress >= 1) {
+      flipAnims.splice(i, 1);
+    }
+  }
+
+  // Message timer
+  if (messageTimer > 0) messageTimer--;
+
+  // AI turn
+  if (aiThinking && flipAnims.length === 0) {
+    aiTimer--;
+    if (aiTimer <= 0) {
+      const move = aiMove();
+      if (move) {
+        makeMove(move[0], move[1], WHITE);
+        updateScores();
+      }
+      turn = BLACK;
+      aiThinking = false;
+      legalMoves = getLegalMoves(turn);
+
+      if (legalMoves.length === 0) {
+        if (checkGameEnd()) return;
+        message = 'No legal moves — pass!';
+        messageTimer = 90;
+        turn = WHITE;
+        legalMoves = getLegalMoves(turn);
+        if (legalMoves.length === 0) {
+          checkGameEnd();
+        } else {
+          aiThinking = true;
+          aiTimer = 30;
+        }
+      }
+    }
+  }
+}
+
+// --- Draw ---
+function draw() {
+  ctx.fillStyle = '#1a1a10';
+  ctx.fillRect(0, 0, W, H);
+
+  drawBoard();
+  drawLegalMoves();
+  drawLastMove();
+  drawPieces();
+  drawHUD();
+}
+
+// --- Main Loop ---
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+initGame();
+loop();
+</script>
+</body>
+</html>

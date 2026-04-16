@@ -1,0 +1,722 @@
+<!--
+PROTOTYPE: feed-match
+SERIES: puz
+NUMBER: 032
+DATE: 2026-03-24
+MECHANIC: animal-food matching — falling pairs of animals and food blocks; animals eat adjacent matching food in cascades; dog eats bones, rabbit eats carrots, panda eats bamboo, monkey eats bananas
+ANCESTRY: Baku Baku Animal (1995, Sega), Puyo Puyo (1991, Compile), Columns (1990, Sega)
+CONTROLS: Left/Right or A/D — move pair | Up or W — rotate pair | Down or S — soft drop | Space — hard drop | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 4 (Statistical Learning — pattern matching and cascade evaluation)
+AI-INSIGHT: Baku Baku adds a predator-prey matching layer atop the falling-block formula. Instead of color matching, the AI must reason about typed relationships — animals eat specific foods. This asymmetric pairing creates a richer search space than simple color alignment, requiring the AI to track which block types enable future cascades.
+NOTES: The animal-food pairing mechanic is a twist on match-3 that adds semantic reasoning.
+       Cascade chains reward strategic food placement near future animal drops.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PUZ-032 · FEED MATCH</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #0a0a1a; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>PUZ-032 · FEED MATCH</h1>
+    <p><span class="tag series">PUZ — Puzzle</span> <span class="tag">Prototype #032</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Pairs of animal and food blocks fall into the well. When an animal lands adjacent to its matching food, it eats all connected matching food blocks — then disappears. Chain reactions score big points!</p>
+    <ul>
+      <li><kbd>&#8592;</kbd> <kbd>&#8594;</kbd> or <kbd>A</kbd> <kbd>D</kbd> — Move pair left/right</li>
+      <li><kbd>&#8593;</kbd> or <kbd>W</kbd> — Rotate pair</li>
+      <li><kbd>&#8595;</kbd> or <kbd>S</kbd> — Soft drop</li>
+      <li><kbd>Space</kbd> — Hard drop</li>
+      <li><kbd>R</kbd> — Restart game</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Animal-Food Pairs</h3>
+    <ul>
+      <li><strong>Dog</strong> (brown) eats <strong>Bones</strong></li>
+      <li><strong>Rabbit</strong> (white) eats <strong>Carrots</strong> (orange)</li>
+      <li><strong>Panda</strong> (black/white) eats <strong>Bamboo</strong> (green)</li>
+      <li><strong>Monkey</strong> (gold) eats <strong>Bananas</strong> (yellow)</li>
+    </ul>
+    <h3>Scoring</h3>
+    <ul>
+      <li>Each food block eaten = 10 points</li>
+      <li>Chain multiplier: x2, x4, x8 for cascades</li>
+      <li>Cleared blocks send garbage to the AI opponent</li>
+      <li>Game speeds up every 500 points</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Baku Baku Animal (1995, Sega) &rarr; Puyo Puyo (1991, Compile) &rarr; Columns (1990, Sega)</p>
+    <p>Baku Baku Animal was developed by Sega for arcades and the Sega Saturn in 1995. The name comes from the Japanese onomatopoeia "baku baku" — the sound of chomping or eating. It distinguished itself from the crowded falling-block puzzle genre by replacing abstract color matching with animal-food relationships, adding a charming semantic layer. The feeding animations gave the game personality that pure abstract puzzlers lacked.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 4 — Statistical Learning</p>
+    <p>The animal-food pairing mechanic transforms the standard falling-block AI problem. Instead of optimizing for color adjacency, the AI must reason about typed relationships — an animal block is useless without its matching food nearby. This creates an asymmetric search space where placement strategy depends on block identity, not just position. Modern puzzle AI would use Monte Carlo tree search to evaluate cascade potential.</p>
+
+    <h2>Classification</h2>
+    <p><strong>Mechanic:</strong> Animal-food matching with falling pairs and cascade clears</p>
+    <p><strong>Genre:</strong> Falling Block Puzzle / Competitive</p>
+
+    <h2>Prototype Notes</h2>
+    <p>6-wide by 12-tall playfield for both player and AI. Pairs fall like Columns/Puyo — two blocks that can be rotated. Animals consume adjacent matching food via flood fill, then disappear. AI opponent uses simple heuristic placement. Garbage blocks rise from the bottom when opponent clears chains.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+const W=800,H=600;
+const cv=document.getElementById('c');cv.width=W;cv.height=H;
+const cx=cv.getContext('2d');
+let infoOpen=false;
+function toggleInfo(){infoOpen=!infoOpen;document.getElementById('info-panel').style.display=infoOpen?'block':'none';}
+
+// Constants
+const COLS=6,ROWS=12,CS=36; // cell size
+const PX=30,PY=50; // player board origin
+const AX=W-COLS*CS-30,AY=50; // AI board origin
+const TYPES=['dog','rabbit','panda','monkey'];
+const FOODS=['bone','carrot','bamboo','banana'];
+// Colors: animals
+const ACOL={dog:'#8B5E3C',rabbit:'#E8E0D0',panda:'#2A2A2A',monkey:'#D4A017'};
+// Colors: food
+const FCOL={bone:'#D4C5A9',carrot:'#FF6B2B',bamboo:'#2E8B57',banana:'#FFE135'};
+// Match: animal index -> food index (same)
+const GARB='#666';
+
+function makeGrid(){
+  let g=[];for(let r=0;r<ROWS;r++){g[r]=[];for(let c=0;c<COLS;c++)g[r][c]=null;}return g;
+}
+
+// Block: {type:'dog'|'rabbit'|..., cat:'animal'|'food'|'garbage'}
+function randBlock(){
+  let i=Math.floor(Math.random()*4);
+  if(Math.random()<0.5) return {type:TYPES[i],cat:'animal'};
+  return {type:FOODS[i],cat:'food'};
+}
+function randPair(){
+  // Always one animal and one food for interesting gameplay
+  let i=Math.floor(Math.random()*4);
+  let j=Math.floor(Math.random()*4);
+  let a={type:TYPES[i],cat:'animal'};
+  let f={type:FOODS[j],cat:'food'};
+  if(Math.random()<0.5) return [a,f];
+  return [f,a];
+}
+
+// State
+let pGrid,aGrid,pPair,aPair,pPos,aPos,pRot,aRot;
+let pNext,aNext,score,aScore,level,gameOver,winner;
+let dropTimer,dropInterval,pClearing,aClearing;
+let chainP,chainA,pGarbage,aGarbage;
+let clearAnimP,clearAnimA,clearTimerP,clearTimerA;
+let aiTimer,aiMove,pLock,aLock;
+let eatAnimP,eatAnimA; // eating animation frames
+
+function init(){
+  pGrid=makeGrid();aGrid=makeGrid();
+  pNext=randPair();aNext=randPair();
+  spawnP();spawnA();
+  score=0;aScore=0;level=1;gameOver=false;winner='';
+  dropTimer=0;dropInterval=800;
+  pClearing=false;aClearing=false;
+  chainP=0;chainA=0;pGarbage=0;aGarbage=0;
+  clearAnimP=[];clearAnimA=[];clearTimerP=0;clearTimerA=0;
+  aiTimer=0;aiMove=null;pLock=false;aLock=false;
+  eatAnimP=[];eatAnimA=[];
+}
+
+function spawnP(){
+  pPair=pNext;pNext=randPair();
+  pPos={x:2,y:0};pRot=0;pLock=false;
+  if(pGrid[0][2]||pGrid[0][3]){gameOver=true;winner='AI';}
+}
+function spawnA(){
+  aPair=aNext;aNext=randPair();
+  aPos={x:2,y:0};aRot=0;aLock=false;
+  if(aGrid[0][2]||aGrid[0][3]){gameOver=true;winner='Player';}
+}
+
+function pairCells(pos,rot){
+  let x=pos.x,y=pos.y;
+  // rot 0: vertical, [0] on top, [1] on bottom
+  // rot 1: horizontal, [0] left, [1] right
+  // rot 2: vertical, [0] bottom, [1] top
+  // rot 3: horizontal, [0] right, [1] left
+  switch(rot%4){
+    case 0:return [{x,y},{x,y:y+1}];
+    case 1:return [{x,y},{x:x+1,y}];
+    case 2:return [{x,y:y+1},{x,y}];
+    case 3:return [{x:x+1,y},{x,y}];
+  }
+}
+
+function inBounds(cx,cy){return cx>=0&&cx<COLS&&cy>=0&&cy<ROWS;}
+
+function canPlace(grid,pos,rot){
+  let cells=pairCells(pos,rot);
+  for(let c of cells){
+    if(!inBounds(c.x,c.y))return false;
+    if(grid[c.y][c.x])return false;
+  }
+  return true;
+}
+
+function lockPair(grid,pair,pos,rot){
+  let cells=pairCells(pos,rot);
+  for(let i=0;i<2;i++){
+    let c=cells[i];
+    if(inBounds(c.x,c.y))grid[c.y][c.x]=pair[i];
+  }
+}
+
+function applyGravity(grid){
+  let fell=false;
+  for(let c=0;c<COLS;c++){
+    let write=ROWS-1;
+    for(let r=ROWS-1;r>=0;r--){
+      if(grid[r][c]){
+        if(write!==r){grid[write][c]=grid[r][c];grid[r][c]=null;fell=true;}
+        write--;
+      }
+    }
+    for(let r=write;r>=0;r--)if(grid[r][c]){grid[r][c]=null;fell=true;}
+  }
+  return fell;
+}
+
+// Find all animal-food eating matches
+function findEats(grid){
+  let eats=[];
+  for(let r=0;r<ROWS;r++){
+    for(let c=0;c<COLS;c++){
+      let b=grid[r][c];
+      if(!b||b.cat!=='animal')continue;
+      let ai=TYPES.indexOf(b.type);
+      if(ai<0)continue;
+      let matchFood=FOODS[ai];
+      // Check 4 neighbors for matching food
+      let dirs=[[0,-1],[0,1],[-1,0],[1,0]];
+      for(let d of dirs){
+        let nr=r+d[1],nc=c+d[0];
+        if(!inBounds(nc,nr))continue;
+        let nb=grid[nr][nc];
+        if(nb&&nb.cat==='food'&&nb.type===matchFood){
+          // Flood fill all connected matching food
+          let foodCells=floodFood(grid,nr,nc,matchFood);
+          if(foodCells.length>0){
+            eats.push({animal:{x:c,y:r},food:foodCells,type:b.type});
+          }
+        }
+      }
+    }
+  }
+  return eats;
+}
+
+function floodFood(grid,sr,sc,foodType){
+  let visited=new Set();
+  let stack=[[sr,sc]];
+  let cells=[];
+  while(stack.length){
+    let[r,c]=stack.pop();
+    let key=r*COLS+c;
+    if(visited.has(key))continue;
+    visited.add(key);
+    if(!inBounds(c,r))continue;
+    let b=grid[r][c];
+    if(!b||b.cat!=='food'||b.type!==foodType)continue;
+    cells.push({x:c,y:r});
+    stack.push([r-1,c],[r+1,c],[r,c-1],[r,c+1]);
+  }
+  return cells;
+}
+
+function processEats(grid,isPlayer){
+  let eats=findEats(grid);
+  if(eats.length===0)return false;
+  let totalCleared=0;
+  let chain=isPlayer?chainP:chainA;
+  // Remove eaten food + animals
+  let cleared=new Set();
+  for(let e of eats){
+    cleared.add(e.animal.y*COLS+e.animal.x);
+    for(let f of e.food)cleared.add(f.y*COLS+f.x);
+  }
+  // Build animation list
+  let anim=[];
+  for(let e of eats){
+    for(let f of e.food)anim.push({x:f.x,y:f.y,type:e.type,t:20});
+    anim.push({x:e.animal.x,y:e.animal.y,type:e.type,t:20,isAnimal:true});
+  }
+  if(isPlayer){eatAnimP=anim;clearTimerP=20;}
+  else{eatAnimA=anim;clearTimerA=20;}
+
+  for(let key of cleared){
+    let r=Math.floor(key/COLS),c=key%COLS;
+    grid[r][c]=null;
+    totalCleared++;
+  }
+  let mult=Math.pow(2,chain);
+  let pts=totalCleared*10*mult;
+  if(isPlayer){score+=pts;chainP++;pGarbage+=Math.floor(totalCleared/3);}
+  else{aScore+=pts;chainA++;aGarbage+=Math.floor(totalCleared/3);}
+  return true;
+}
+
+function addGarbage(grid,count){
+  if(count<=0)return;
+  // Push everything up
+  for(let i=0;i<count&&i<3;i++){
+    // Shift all rows up
+    for(let r=0;r<ROWS-1;r++)for(let c=0;c<COLS;c++)grid[r][c]=grid[r+1][c];
+    // Fill bottom row with garbage (some gaps)
+    for(let c=0;c<COLS;c++){
+      grid[ROWS-1][c]=Math.random()<0.7?{type:'garbage',cat:'garbage'}:null;
+    }
+  }
+}
+
+// AI logic — simple heuristic
+function computeAIMove(){
+  let bestScore=-Infinity,bestX=2,bestRot=0;
+  for(let rot=0;rot<4;rot++){
+    for(let x=-1;x<COLS;x++){
+      let pos={x,y:0};
+      if(!canPlace(aGrid,pos,rot))continue;
+      // Simulate drop
+      let sy=0;
+      while(canPlace(aGrid,{x,y:sy+1},rot))sy++;
+      // Evaluate: prefer placing food near matching animals and vice versa
+      let sc=0;
+      let cells=pairCells({x,y:sy},rot);
+      for(let i=0;i<2;i++){
+        let cx2=cells[i].x,cy2=cells[i].y;
+        if(!inBounds(cx2,cy2))continue;
+        let blk=aPair[i];
+        // Check neighbors in actual grid
+        let dirs=[[0,-1],[0,1],[-1,0],[1,0]];
+        for(let d of dirs){
+          let nr=cy2+d[1],nc=cx2+d[0];
+          if(!inBounds(nc,nr))continue;
+          let nb=aGrid[nr][nc];
+          if(!nb)continue;
+          if(blk.cat==='animal'){
+            let ai2=TYPES.indexOf(blk.type);
+            if(nb.cat==='food'&&nb.type===FOODS[ai2])sc+=10;
+          }else if(blk.cat==='food'){
+            if(nb.cat==='animal'){
+              let ai2=TYPES.indexOf(nb.type);
+              if(FOODS[ai2]===blk.type)sc+=10;
+            }
+            // Prefer placing food near same food (cluster)
+            if(nb.cat==='food'&&nb.type===blk.type)sc+=3;
+          }
+        }
+        // Prefer lower placement
+        sc+=sy*0.5;
+        // Prefer center
+        sc-=Math.abs(cx2-2.5)*0.3;
+      }
+      if(sc>bestScore){bestScore=sc;bestX=x;bestRot=rot;}
+    }
+  }
+  return {x:bestX,rot:bestRot};
+}
+
+// Input
+let keys={};
+window.addEventListener('keydown',e=>{
+  if(e.key==='?'||e.key==='/'){toggleInfo();e.preventDefault();return;}
+  if(e.key==='Escape'&&infoOpen){toggleInfo();e.preventDefault();return;}
+  if(infoOpen)return;
+  if(e.key==='r'||e.key==='R'){init();return;}
+  keys[e.key]=true;
+  if(gameOver)return;
+  if(pLock)return;
+  let k=e.key;
+  if(k==='ArrowLeft'||k==='a'||k==='A'){
+    let np={x:pPos.x-1,y:pPos.y};
+    if(canPlace(pGrid,np,pRot))pPos=np;
+  }
+  if(k==='ArrowRight'||k==='d'||k==='D'){
+    let np={x:pPos.x+1,y:pPos.y};
+    if(canPlace(pGrid,np,pRot))pPos=np;
+  }
+  if(k==='ArrowUp'||k==='w'||k==='W'){
+    let nr=(pRot+1)%4;
+    if(canPlace(pGrid,pPos,nr))pRot=nr;
+    else{
+      // Wall kick
+      let kicks=[{x:pPos.x-1,y:pPos.y},{x:pPos.x+1,y:pPos.y}];
+      for(let kk of kicks){if(canPlace(pGrid,kk,nr)){pPos=kk;pRot=nr;break;}}
+    }
+  }
+  if(k==='ArrowDown'||k==='s'||k==='S'){
+    let np={x:pPos.x,y:pPos.y+1};
+    if(canPlace(pGrid,np,pRot))pPos=np;
+  }
+  if(k===' '){
+    e.preventDefault();
+    while(canPlace(pGrid,{x:pPos.x,y:pPos.y+1},pRot))pPos.y++;
+    lockAndProcess(true);
+  }
+});
+window.addEventListener('keyup',e=>{keys[e.key]=false;});
+
+function lockAndProcess(isPlayer){
+  if(isPlayer){
+    lockPair(pGrid,pPair,pPos,pRot);
+    applyGravity(pGrid);
+    chainP=0;
+    pLock=true;
+    settleCascade(pGrid,true,()=>{
+      if(pGarbage>0){addGarbage(aGrid,pGarbage);pGarbage=0;}
+      pLock=false;
+      if(!gameOver)spawnP();
+    });
+  }else{
+    lockPair(aGrid,aPair,aPos,aRot);
+    applyGravity(aGrid);
+    chainA=0;
+    aLock=true;
+    settleCascade(aGrid,false,()=>{
+      if(aGarbage>0){addGarbage(pGrid,aGarbage);aGarbage=0;}
+      aLock=false;
+      if(!gameOver)spawnA();
+    });
+  }
+}
+
+let cascadeQueue=[];
+function settleCascade(grid,isPlayer,cb){
+  cascadeQueue.push({grid,isPlayer,cb});
+}
+function processCascadeQueue(dt){
+  if(cascadeQueue.length===0)return;
+  let item=cascadeQueue[0];
+  // Wait for eat animation
+  if(item.isPlayer&&clearTimerP>0)return;
+  if(!item.isPlayer&&clearTimerA>0)return;
+
+  applyGravity(item.grid);
+  if(processEats(item.grid,item.isPlayer)){
+    // More cascade coming, wait for anim
+    return;
+  }
+  // Done
+  cascadeQueue.shift();
+  item.cb();
+}
+
+// Drawing
+function drawBlock(x,y,blk,ox,oy,eating){
+  if(!blk)return;
+  let px=ox+x*CS,py=oy+y*CS;
+  let s=CS-2;
+  if(blk.cat==='garbage'){
+    cx.fillStyle=GARB;
+    cx.fillRect(px+1,py+1,s,s);
+    cx.strokeStyle='#444';cx.strokeRect(px+1,py+1,s,s);
+    cx.fillStyle='#888';cx.font='10px monospace';cx.textAlign='center';
+    cx.fillText('X',px+CS/2,py+CS/2+4);
+    return;
+  }
+  let col=blk.cat==='animal'?ACOL[blk.type]:FCOL[blk.type];
+  if(eating){
+    // Chomping animation — flash
+    let flash=Math.sin(Date.now()*0.02)*0.5+0.5;
+    cx.globalAlpha=0.4+flash*0.6;
+  }
+  cx.fillStyle=col;
+  cx.fillRect(px+1,py+1,s,s);
+  cx.strokeStyle='#fff';cx.lineWidth=1;cx.strokeRect(px+1,py+1,s,s);
+  // Icon
+  cx.fillStyle=blk.cat==='animal'?'#fff':'#333';
+  cx.font='bold 16px monospace';cx.textAlign='center';cx.textBaseline='middle';
+  let icon='';
+  if(blk.type==='dog')icon='\u{1F436}';
+  else if(blk.type==='rabbit')icon='\u{1F430}';
+  else if(blk.type==='panda')icon='\u{1F43C}';
+  else if(blk.type==='monkey')icon='\u{1F435}';
+  else if(blk.type==='bone')icon='\u{1F9B4}';
+  else if(blk.type==='carrot')icon='\u{1F955}';
+  else if(blk.type==='bamboo')icon='\u{1F38D}';
+  else if(blk.type==='banana')icon='\u{1F34C}';
+  cx.font='20px serif';
+  cx.fillText(icon,px+CS/2,py+CS/2+1);
+  cx.globalAlpha=1;
+}
+
+function drawBoard(grid,ox,oy,label,sc){
+  // Background
+  cx.fillStyle='#111';
+  cx.fillRect(ox,oy,COLS*CS,ROWS*CS);
+  // Grid lines
+  cx.strokeStyle='#222';cx.lineWidth=1;
+  for(let r=0;r<=ROWS;r++){cx.beginPath();cx.moveTo(ox,oy+r*CS);cx.lineTo(ox+COLS*CS,oy+r*CS);cx.stroke();}
+  for(let c=0;c<=COLS;c++){cx.beginPath();cx.moveTo(ox+c*CS,oy);cx.lineTo(ox+c*CS,oy+ROWS*CS);cx.stroke();}
+  // Blocks
+  let eatSet=new Set();
+  let anims=(ox===PX)?eatAnimP:eatAnimA;
+  for(let a of anims)eatSet.add(a.y*COLS+a.x);
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    if(grid[r][c])drawBlock(c,r,grid[r][c],ox,oy,eatSet.has(r*COLS+c));
+  }
+  // Label
+  cx.fillStyle='#7bf';cx.font='bold 14px monospace';cx.textAlign='center';
+  cx.fillText(label,ox+COLS*CS/2,oy-8);
+  // Score
+  cx.fillStyle='#ff0';cx.font='12px monospace';
+  cx.fillText('Score: '+sc,ox+COLS*CS/2,oy+ROWS*CS+18);
+}
+
+function drawPair(pair,pos,rot,ox,oy){
+  if(!pair)return;
+  let cells=pairCells(pos,rot);
+  for(let i=0;i<2;i++){
+    drawBlock(cells[i].x,cells[i].y,pair[i],ox,oy,false);
+  }
+}
+
+function drawNext(pair,ox,oy,label){
+  cx.fillStyle='#555';cx.font='11px monospace';cx.textAlign='center';
+  cx.fillText(label,ox+CS,oy-5);
+  cx.fillStyle='#0a0a0a';
+  cx.fillRect(ox,oy,CS*2,CS*2);
+  cx.strokeStyle='#333';cx.strokeRect(ox,oy,CS*2,CS*2);
+  if(pair){
+    drawBlock(0,0,pair[0],ox+CS/2-1,oy,false);
+    drawBlock(0,1,pair[1],ox+CS/2-1,oy,false);
+  }
+}
+
+function drawHUD(){
+  // Title
+  cx.fillStyle='#7bf';cx.font='bold 18px monospace';cx.textAlign='center';
+  cx.fillText('FEED MATCH',W/2,28);
+  // Level
+  cx.fillStyle='#aaa';cx.font='12px monospace';
+  cx.fillText('Level '+level,W/2,H-12);
+  // Controls hint
+  cx.fillStyle='#555';cx.font='11px monospace';
+  cx.fillText('\u2190\u2192 Move  \u2191 Rotate  \u2193 Drop  Space Hard Drop  R Restart  ? Info',W/2,H-28);
+  // Chain display
+  if(chainP>1){
+    cx.fillStyle='#f44';cx.font='bold 14px monospace';cx.textAlign='center';
+    cx.fillText(chainP+'x CHAIN!',PX+COLS*CS/2,PY+ROWS*CS+36);
+  }
+  if(chainA>1){
+    cx.fillStyle='#f44';cx.font='bold 14px monospace';cx.textAlign='center';
+    cx.fillText(chainA+'x CHAIN!',AX+COLS*CS/2,AY+ROWS*CS+36);
+  }
+}
+
+function drawGameOver(){
+  cx.fillStyle='rgba(0,0,0,0.7)';cx.fillRect(0,0,W,H);
+  cx.fillStyle='#fff';cx.font='bold 32px monospace';cx.textAlign='center';
+  cx.fillText('GAME OVER',W/2,H/2-30);
+  cx.fillStyle='#ff0';cx.font='bold 24px monospace';
+  cx.fillText(winner+' Wins!',W/2,H/2+10);
+  cx.fillStyle='#aaa';cx.font='14px monospace';
+  cx.fillText('Press R to restart',W/2,H/2+50);
+}
+
+// AI update
+function updateAI(dt){
+  if(aLock||gameOver)return;
+  aiTimer+=dt;
+  if(!aiMove&&aiTimer>200){
+    aiMove=computeAIMove();
+    aiTimer=0;
+  }
+  if(aiMove&&aiTimer>80){
+    aiTimer=0;
+    // Move towards target
+    if(aRot!==aiMove.rot){
+      let nr=(aRot+1)%4;
+      if(canPlace(aGrid,aPos,nr))aRot=nr;
+    }else if(aPos.x<aiMove.x){
+      let np={x:aPos.x+1,y:aPos.y};
+      if(canPlace(aGrid,np,aRot))aPos=np;
+    }else if(aPos.x>aiMove.x){
+      let np={x:aPos.x-1,y:aPos.y};
+      if(canPlace(aGrid,np,aRot))aPos=np;
+    }else{
+      // Drop
+      let np={x:aPos.x,y:aPos.y+1};
+      if(canPlace(aGrid,np,aRot))aPos=np;
+      else{lockAndProcess(false);aiMove=null;}
+    }
+  }
+}
+
+let lastTime=0;
+function update(ts){
+  requestAnimationFrame(update);
+  if(infoOpen)return;
+  let dt=ts-lastTime;lastTime=ts;
+  if(dt>100)dt=100;
+
+  // Update eat animations
+  if(clearTimerP>0){clearTimerP--;if(clearTimerP<=0)eatAnimP=[];}
+  if(clearTimerA>0){clearTimerA--;if(clearTimerA<=0)eatAnimA=[];}
+  processCascadeQueue(dt);
+
+  if(!gameOver){
+    // Player auto-drop
+    if(!pLock){
+      dropTimer+=dt;
+      let di=Math.max(200,dropInterval-level*50);
+      if(keys['ArrowDown']||keys['s']||keys['S'])di=Math.min(di,80);
+      if(dropTimer>=di){
+        dropTimer=0;
+        let np={x:pPos.x,y:pPos.y+1};
+        if(canPlace(pGrid,np,pRot))pPos=np;
+        else lockAndProcess(true);
+      }
+    }
+    // AI
+    updateAI(dt);
+    // AI auto-drop (slower)
+    if(!aLock&&aiMove&&aPos.x===aiMove.x&&aRot===aiMove.rot){
+      // already handled in updateAI
+    }
+    // Level up
+    level=Math.floor(score/500)+1;
+  }
+
+  // Draw
+  cx.fillStyle='#0a0a1a';cx.fillRect(0,0,W,H);
+  drawBoard(pGrid,PX,PY,'PLAYER',score);
+  drawBoard(aGrid,AX,AY,'AI',aScore);
+  if(!pLock)drawPair(pPair,pPos,pRot,PX,PY);
+  if(!aLock)drawPair(aPair,aPos,aRot,AX,AY);
+  // Next pieces
+  drawNext(pNext,PX+COLS*CS+15,PY+10,'NEXT');
+  drawNext(aNext,AX-CS*2-25,AY+10,'NEXT');
+  drawHUD();
+  if(gameOver)drawGameOver();
+}
+
+// Resize
+function resize(){
+  let s=Math.min(window.innerWidth/W,window.innerHeight/H,1);
+  cv.style.width=W*s+'px';cv.style.height=H*s+'px';
+}
+window.addEventListener('resize',resize);resize();
+
+init();
+requestAnimationFrame(update);
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: tetris ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("tetris");
+</script>
+</body>
+</html>

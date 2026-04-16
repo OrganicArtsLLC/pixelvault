@@ -1,0 +1,1171 @@
+<!--
+PROTOTYPE: ice-slide
+SERIES: maz
+NUMBER: 003
+DATE: 2026-03-22
+MECHANIC: push ice blocks to crush enemies in frozen maze
+ANCESTRY: Pengo (1982, Sega)
+CONTROLS: Arrow keys — move | Space — push/kick block | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — pattern recognition, expert systems mature)
+AI-INSIGHT: Pengo's sliding-block crush mechanic is a planning problem where each push has cascading spatial consequences — the player must reason about trajectories through a dynamic obstacle field, anticipating both block physics and enemy pathfinding simultaneously.
+NOTES: Ice block pushing creates emergent strategy from simple rules.
+       Diamond blocks distinguish destructible from special blocks.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MAZ-003 · ICE SLIDE</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>MAZ-003 · ICE SLIDE</h1>
+    <p><span class="tag series">MAZ — Maze</span> <span class="tag">Prototype #003</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Push ice blocks to crush Sno-Bees. Clear all enemies to advance to the next level. Don't let them touch you.</p>
+    <ul>
+      <li><kbd>&#8592;</kbd> <kbd>&#8594;</kbd> <kbd>&#8593;</kbd> <kbd>&#8595;</kbd> — Move (one tile at a time)</li>
+      <li><kbd>Space</kbd> — Push or break ice block in facing direction</li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Sliding blocks:</strong> Pushed blocks slide until they hit a wall or another block. Anything in their path is crushed.</li>
+      <li><strong>Diamond blocks:</strong> Yellow/gold blocks cannot be destroyed. Align all 3 for a bonus.</li>
+      <li><strong>Wall vibration:</strong> Push against an outer wall to stun nearby enemies briefly.</li>
+      <li><strong>Hatching:</strong> Some ice blocks contain eggs — enemies will hatch from them over time.</li>
+      <li><strong>Break blocks:</strong> If there is no room to push (block behind), you break the ice block instead.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Pengo (1982, Sega) &rarr; Adventures of Lolo (1989) &rarr; Kickle Cubicle (1990)</p>
+    <p>Pengo (1982, Sega) was a maze game where the player pushes ice blocks to crush enemies. It introduced the "sliding projectile" mechanic — using the environment as a weapon. The penguin character and colorful ice maze made it visually distinctive. The bonus for aligning diamond blocks added a secondary objective.</p>
+    <p>The game's influence extends to Sokoban-style puzzles and block-pushing mechanics in countless games. The idea that the environment itself is your weapon — rather than bullets or swords — was a conceptual leap that resonated through puzzle-action hybrids for decades.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 3 — Knowledge Explosion (1978–1983)</p>
+    <p><strong>Contemporary AI:</strong> Expert systems and pattern recognition reaching maturity. Early neural network revival stirring. Game AI still purely rule-based.</p>
+    <p><strong>Hidden Intelligence:</strong> The sliding-block crush mechanic is a planning problem where each push has cascading spatial consequences. The player must reason about trajectories through a dynamic obstacle field, anticipating both block physics and enemy pathfinding simultaneously. This is a multi-step lookahead problem embedded in real-time action.</p>
+    <p><strong>The Convergence:</strong> Pengo's block-pushing creates a dynamic graph where each action restructures the maze topology. The enemies must pathfind through a constantly changing environment — a problem that modern AI addresses with replanning algorithms and dynamic navigation meshes.</p>
+    <p><strong>If AI Had Designed This:</strong> Procedurally generated maze layouts optimized for maximum "push opportunity density" — ensuring the player always has tactical options without making any single strategy dominant.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: MAZ — Maze</h3>
+    <p>Games built around navigation of constrained space. In Pengo's case, the maze is not just a constraint but a weapon — the ice blocks are both obstacles and projectiles.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Environmental weapon via sliding blocks.</strong> Grid-based movement. Push ice blocks as sliding projectiles. Diamond block alignment bonus. Enemies pathfind through a dynamically changing maze. Wall vibration stun.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Block sliding physics — does pushing feel satisfying and predictable?</li>
+      <li>Crush feedback — is it clear when an enemy is crushed?</li>
+      <li>Enemy pathfinding in dynamic maze — do enemies feel smart but beatable?</li>
+      <li>Diamond block bonus — does the secondary objective add depth?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. 13x15 grid maze with procedurally placed ice blocks. Simple enemy pathfinding with random wandering. Diamond block alignment detection. Wall vibration stun mechanic.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+const keys = {};
+const justPressed = {};
+window.addEventListener('keydown', e => {
+  if (!infoOpen) {
+    if (!keys[e.code]) justPressed[e.code] = true;
+    keys[e.code] = true;
+  }
+  e.preventDefault();
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+// --- CONSTANTS ---
+const COLS = 13, ROWS = 15;
+const TILE = 36;
+const GRID_W = COLS * TILE;
+const GRID_H = ROWS * TILE;
+const OX = Math.floor((W - GRID_W) / 2);
+const OY = Math.floor((H - GRID_H) / 2) + 14;
+
+// Cell types
+const EMPTY = 0;
+const ICE = 1;
+const DIAMOND = 2;
+const EGG = 3; // ice block that will hatch an enemy
+
+// --- STATE ---
+let grid, player, enemies, score, lives, level, gameOver, won, frame;
+let slidingBlocks, particles, stunTimer, shakeTimer, shakeDir;
+let levelClearTimer, deathTimer, flashMsg, flashTimer;
+
+function initGame() {
+  score = 0; lives = 3; level = 1; gameOver = false; won = false; frame = 0;
+  flashMsg = ''; flashTimer = 0;
+  initLevel();
+}
+
+function initLevel() {
+  grid = [];
+  slidingBlocks = [];
+  particles = [];
+  stunTimer = 0;
+  shakeTimer = 0; shakeDir = 0;
+  levelClearTimer = 0;
+  deathTimer = 0;
+  won = false;
+
+  // Fill grid with ice blocks (~60% density)
+  const rng = seededRand(level * 777 + 42);
+  for (let r = 0; r < ROWS; r++) {
+    grid[r] = [];
+    for (let c = 0; c < COLS; c++) {
+      if (r === 0 || r === ROWS - 1 || c === 0 || c === COLS - 1) {
+        // Outer ring: sparser ice
+        grid[r][c] = rng() < 0.4 ? ICE : EMPTY;
+      } else {
+        grid[r][c] = rng() < 0.6 ? ICE : EMPTY;
+      }
+    }
+  }
+
+  // Place 3 diamond blocks
+  let diamondsPlaced = 0;
+  while (diamondsPlaced < 3) {
+    const r = 1 + Math.floor(rng() * (ROWS - 2));
+    const c = 1 + Math.floor(rng() * (COLS - 2));
+    if (grid[r][c] === ICE) {
+      grid[r][c] = DIAMOND;
+      diamondsPlaced++;
+    }
+  }
+
+  // Place egg blocks (will hatch into enemies)
+  const eggCount = Math.min(2 + level, 5);
+  let eggsPlaced = 0;
+  while (eggsPlaced < eggCount) {
+    const r = 1 + Math.floor(rng() * (ROWS - 2));
+    const c = 1 + Math.floor(rng() * (COLS - 2));
+    if (grid[r][c] === ICE) {
+      grid[r][c] = EGG;
+      eggsPlaced++;
+    }
+  }
+
+  // Clear player start area (bottom center)
+  const pStartC = Math.floor(COLS / 2);
+  const pStartR = ROWS - 2;
+  grid[pStartR][pStartC] = EMPTY;
+  grid[pStartR - 1][pStartC] = EMPTY;
+  grid[pStartR][pStartC - 1] = EMPTY;
+  grid[pStartR][pStartC + 1] = EMPTY;
+
+  player = {
+    col: pStartC, row: pStartR,
+    px: OX + pStartC * TILE + TILE / 2,
+    py: OY + pStartR * TILE + TILE / 2,
+    dir: 0, // 0=up, 1=right, 2=down, 3=left
+    moving: false, moveTimer: 0,
+    fromCol: pStartC, fromRow: pStartR,
+    targetCol: pStartC, targetRow: pStartR,
+    pushCooldown: 0
+  };
+
+  // Place initial enemies in empty spaces away from player
+  enemies = [];
+  const enemyCount = Math.min(3 + level, 6);
+  let placed = 0;
+  while (placed < enemyCount) {
+    const r = 1 + Math.floor(rng() * (ROWS - 2));
+    const c = 1 + Math.floor(rng() * (COLS - 2));
+    if (grid[r][c] === EMPTY && (Math.abs(r - pStartR) + Math.abs(c - pStartC)) > 5) {
+      enemies.push(createEnemy(c, r));
+      placed++;
+    }
+  }
+}
+
+function createEnemy(col, row) {
+  return {
+    col: col, row: row,
+    px: OX + col * TILE + TILE / 2,
+    py: OY + row * TILE + TILE / 2,
+    dir: Math.floor(Math.random() * 4),
+    moving: false, moveTimer: 0,
+    fromCol: col, fromRow: row,
+    targetCol: col, targetRow: row,
+    alive: true, stunned: 0,
+    thinkTimer: 20 + Math.floor(Math.random() * 30),
+    breakTimer: 0, breakCol: -1, breakRow: -1
+  };
+}
+
+function seededRand(seed) {
+  let s = seed;
+  return function() {
+    s = (s * 16807 + 0) % 2147483647;
+    return (s - 1) / 2147483646;
+  };
+}
+
+// Direction vectors: 0=up, 1=right, 2=down, 3=left
+const DX = [0, 1, 0, -1];
+const DY = [-1, 0, 1, 0];
+
+function inBounds(c, r) { return c >= 0 && c < COLS && r >= 0 && r < ROWS; }
+
+function cellBlocked(c, r) {
+  if (!inBounds(c, r)) return true;
+  return grid[r][c] !== EMPTY;
+}
+
+function cellIsBlock(c, r) {
+  if (!inBounds(c, r)) return false;
+  return grid[r][c] === ICE || grid[r][c] === DIAMOND || grid[r][c] === EGG;
+}
+
+function enemyAt(c, r) {
+  for (const e of enemies) {
+    if (!e.alive) continue;
+    if (e.col === c && e.row === r && !e.moving) return e;
+  }
+  return null;
+}
+
+// --- SLIDING BLOCK ---
+function pushBlock(col, row, dir) {
+  const blockType = grid[row][col];
+  if (blockType === EMPTY) return;
+
+  // Diamond blocks can be pushed but not destroyed
+  const dc = DX[dir], dr = DY[dir];
+  const behindCol = col + dc, behindRow = row + dr;
+
+  // If there's a wall or block immediately behind, break the block (unless diamond)
+  if (!inBounds(behindCol, behindRow) || cellIsBlock(behindCol, behindRow)) {
+    if (blockType !== DIAMOND) {
+      // Break the block
+      grid[row][col] = EMPTY;
+      spawnBreakParticles(col, row, blockType === EGG ? '#ff8' : '#8ef');
+      // If it was an egg, the enemy inside is destroyed
+    }
+    return;
+  }
+
+  // Slide the block
+  grid[row][col] = EMPTY;
+  slidingBlocks.push({
+    type: blockType, col: col, row: row,
+    px: OX + col * TILE + TILE / 2,
+    py: OY + row * TILE + TILE / 2,
+    dir: dir, speed: 8
+  });
+}
+
+function spawnBreakParticles(col, row, color) {
+  const cx = OX + col * TILE + TILE / 2;
+  const cy = OY + row * TILE + TILE / 2;
+  for (let i = 0; i < 8; i++) {
+    const angle = (Math.PI * 2 * i) / 8 + Math.random() * 0.3;
+    const spd = 2 + Math.random() * 3;
+    particles.push({
+      x: cx, y: cy,
+      vx: Math.cos(angle) * spd,
+      vy: Math.sin(angle) * spd,
+      life: 20 + Math.floor(Math.random() * 15),
+      color: color,
+      size: 3 + Math.random() * 3
+    });
+  }
+}
+
+function spawnCrushParticles(px, py) {
+  for (let i = 0; i < 12; i++) {
+    const angle = (Math.PI * 2 * i) / 12 + Math.random() * 0.2;
+    const spd = 2 + Math.random() * 4;
+    particles.push({
+      x: px, y: py,
+      vx: Math.cos(angle) * spd,
+      vy: Math.sin(angle) * spd,
+      life: 25 + Math.floor(Math.random() * 15),
+      color: i % 2 === 0 ? '#f55' : '#ff5',
+      size: 3 + Math.random() * 4
+    });
+  }
+}
+
+// --- WALL VIBRATION ---
+function vibrateWall(dir) {
+  shakeTimer = 12;
+  shakeDir = dir;
+  stunTimer = 0;
+
+  // Stun enemies near the wall
+  for (const e of enemies) {
+    if (!e.alive) continue;
+    let nearWall = false;
+    if (dir === 0 && e.row <= 2) nearWall = true;
+    if (dir === 2 && e.row >= ROWS - 3) nearWall = true;
+    if (dir === 3 && e.col <= 2) nearWall = true;
+    if (dir === 1 && e.col >= COLS - 3) nearWall = true;
+    if (nearWall) {
+      e.stunned = 90;
+    }
+  }
+}
+
+// --- CHECK DIAMOND ALIGNMENT ---
+function checkDiamondBonus() {
+  const diamonds = [];
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (grid[r][c] === DIAMOND) diamonds.push({ c, r });
+    }
+  }
+  if (diamonds.length < 3) return false;
+
+  // Check if all 3 are in a row (horizontally or vertically, adjacent)
+  // Sort by row then col
+  diamonds.sort((a, b) => a.r - b.r || a.c - b.c);
+
+  // Horizontal alignment
+  if (diamonds[0].r === diamonds[1].r && diamonds[1].r === diamonds[2].r) {
+    const row = diamonds[0].r;
+    const cols = diamonds.map(d => d.c).sort((a, b) => a - b);
+    if (cols[2] - cols[0] === 2 && cols[1] - cols[0] === 1) return true;
+    // Against wall
+    if ((row === 0 || row === ROWS - 1) && cols[2] - cols[0] === 2) return true;
+  }
+
+  // Vertical alignment
+  if (diamonds[0].c === diamonds[1].c && diamonds[1].c === diamonds[2].c) {
+    const col = diamonds[0].c;
+    const rows = diamonds.map(d => d.r).sort((a, b) => a - b);
+    if (rows[2] - rows[0] === 2 && rows[1] - rows[0] === 1) return true;
+    if ((col === 0 || col === COLS - 1) && rows[2] - rows[0] === 2) return true;
+  }
+
+  return false;
+}
+
+// --- ENEMY AI ---
+function updateEnemy(e) {
+  if (!e.alive || e.stunned > 0) {
+    if (e.stunned > 0) e.stunned--;
+    return;
+  }
+
+  // If breaking a block, continue
+  if (e.breakTimer > 0) {
+    e.breakTimer--;
+    if (e.breakTimer === 0 && inBounds(e.breakCol, e.breakRow)) {
+      const bt = grid[e.breakRow][e.breakCol];
+      if (bt === ICE || bt === EGG) {
+        grid[e.breakRow][e.breakCol] = EMPTY;
+        spawnBreakParticles(e.breakCol, e.breakRow, '#f88');
+        if (bt === EGG) {
+          // Hatch a new enemy
+          enemies.push(createEnemy(e.breakCol, e.breakRow));
+        }
+      }
+    }
+    return;
+  }
+
+  if (e.moving) {
+    e.moveTimer--;
+    const t = 1 - e.moveTimer / 8;
+    e.px = OX + (e.fromCol + (e.targetCol - e.fromCol) * t) * TILE + TILE / 2;
+    e.py = OY + (e.fromRow + (e.targetRow - e.fromRow) * t) * TILE + TILE / 2;
+    if (e.moveTimer <= 0) {
+      e.col = e.targetCol; e.row = e.targetRow;
+      e.px = OX + e.col * TILE + TILE / 2;
+      e.py = OY + e.row * TILE + TILE / 2;
+      e.moving = false;
+    }
+    return;
+  }
+
+  e.thinkTimer--;
+  if (e.thinkTimer > 0) return;
+
+  // Decide next move
+  const speedFactor = Math.max(6, 20 - level * 2);
+  e.thinkTimer = speedFactor + Math.floor(Math.random() * 10);
+
+  // Pathfinding: mix of chasing player and random movement
+  const chaseChance = Math.min(0.7, 0.3 + level * 0.05);
+  let bestDir = -1;
+
+  if (Math.random() < chaseChance) {
+    // Try to move toward player
+    let bestDist = Infinity;
+    for (let d = 0; d < 4; d++) {
+      const nc = e.col + DX[d], nr = e.row + DY[d];
+      if (!inBounds(nc, nr)) continue;
+      if (cellBlocked(nc, nr)) {
+        // Consider breaking an ice block to reach player
+        if ((grid[nr][nc] === ICE || grid[nr][nc] === EGG) && Math.random() < 0.15) {
+          e.breakTimer = 15;
+          e.breakCol = nc; e.breakRow = nr;
+          e.dir = d;
+          return;
+        }
+        continue;
+      }
+      if (enemyAt(nc, nr)) continue;
+      const dist = Math.abs(nc - player.col) + Math.abs(nr - player.row);
+      if (dist < bestDist) { bestDist = dist; bestDir = d; }
+    }
+  }
+
+  if (bestDir === -1) {
+    // Random movement
+    const dirs = [0, 1, 2, 3].sort(() => Math.random() - 0.5);
+    for (const d of dirs) {
+      const nc = e.col + DX[d], nr = e.row + DY[d];
+      if (inBounds(nc, nr) && !cellBlocked(nc, nr) && !enemyAt(nc, nr)) {
+        bestDir = d; break;
+      }
+    }
+  }
+
+  if (bestDir >= 0) {
+    e.dir = bestDir;
+    e.fromCol = e.col; e.fromRow = e.row;
+    e.targetCol = e.col + DX[bestDir];
+    e.targetRow = e.row + DY[bestDir];
+    e.moving = true;
+    e.moveTimer = 8;
+  }
+}
+
+// --- EGG HATCHING ---
+let hatchTimer = 0;
+function updateHatching() {
+  hatchTimer++;
+  const hatchInterval = Math.max(180, 600 - level * 50);
+  if (hatchTimer >= hatchInterval) {
+    hatchTimer = 0;
+    // Find an egg block to hatch
+    const eggs = [];
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        if (grid[r][c] === EGG) eggs.push({ c, r });
+      }
+    }
+    if (eggs.length > 0) {
+      const egg = eggs[Math.floor(Math.random() * eggs.length)];
+      grid[egg.r][egg.c] = EMPTY;
+      spawnBreakParticles(egg.c, egg.r, '#f88');
+      enemies.push(createEnemy(egg.c, egg.r));
+    }
+  }
+}
+
+// --- UPDATE ---
+function update() {
+  if (infoOpen) return;
+  if (gameOver) { if (keys['KeyR']) initGame(); return; }
+  if (levelClearTimer > 0) {
+    levelClearTimer--;
+    if (levelClearTimer === 0) {
+      level++;
+      initLevel();
+    }
+    return;
+  }
+  if (deathTimer > 0) {
+    deathTimer--;
+    if (deathTimer === 0) {
+      if (lives <= 0) { gameOver = true; return; }
+      initLevel();
+    }
+    return;
+  }
+  frame++;
+  if (flashTimer > 0) flashTimer--;
+
+  // --- Player movement ---
+  if (player.pushCooldown > 0) player.pushCooldown--;
+
+  if (!player.moving) {
+    let dirInput = -1;
+    if (keys['ArrowUp']) dirInput = 0;
+    else if (keys['ArrowRight']) dirInput = 1;
+    else if (keys['ArrowDown']) dirInput = 2;
+    else if (keys['ArrowLeft']) dirInput = 3;
+
+    if (dirInput >= 0) {
+      player.dir = dirInput;
+      const nc = player.col + DX[dirInput];
+      const nr = player.row + DY[dirInput];
+      if (inBounds(nc, nr) && !cellBlocked(nc, nr) && !enemyAt(nc, nr)) {
+        player.fromCol = player.col; player.fromRow = player.row;
+        player.targetCol = nc; player.targetRow = nr;
+        player.moving = true;
+        player.moveTimer = 6;
+      }
+    }
+
+    // Push / break action
+    if (justPressed['Space'] && player.pushCooldown <= 0) {
+      const fc = player.col + DX[player.dir];
+      const fr = player.row + DY[player.dir];
+
+      if (!inBounds(fc, fr)) {
+        // Pushing against outer wall — vibrate
+        vibrateWall(player.dir);
+        player.pushCooldown = 15;
+      } else if (cellIsBlock(fc, fr)) {
+        pushBlock(fc, fr, player.dir);
+        player.pushCooldown = 12;
+      } else if (inBounds(fc, fr) && grid[fr][fc] === EMPTY) {
+        // Check if pushing against far outer wall
+        // Walk in direction to find wall
+        let wc = player.col, wr = player.row;
+        while (inBounds(wc + DX[player.dir], wr + DY[player.dir])) {
+          wc += DX[player.dir]; wr += DY[player.dir];
+        }
+        // Only vibrate if player is at the wall edge and facing it
+        if (wc === player.col && wr === player.row) {
+          vibrateWall(player.dir);
+          player.pushCooldown = 15;
+        }
+      }
+    }
+  }
+
+  if (player.moving) {
+    player.moveTimer--;
+    const t = 1 - player.moveTimer / 6;
+    player.px = OX + (player.fromCol + (player.targetCol - player.fromCol) * t) * TILE + TILE / 2;
+    player.py = OY + (player.fromRow + (player.targetRow - player.fromRow) * t) * TILE + TILE / 2;
+    if (player.moveTimer <= 0) {
+      player.col = player.targetCol; player.row = player.targetRow;
+      player.px = OX + player.col * TILE + TILE / 2;
+      player.py = OY + player.row * TILE + TILE / 2;
+      player.moving = false;
+    }
+  }
+
+  // --- Sliding blocks ---
+  slidingBlocks = slidingBlocks.filter(b => {
+    const dc = DX[b.dir], dr = DY[b.dir];
+    b.px += dc * b.speed;
+    b.py += dr * b.speed;
+
+    // Current grid position of sliding block
+    const bc = Math.round((b.px - OX) / TILE - 0.5);
+    const br = Math.round((b.py - OY) / TILE - 0.5);
+
+    // Check for enemy crush
+    for (const e of enemies) {
+      if (!e.alive) continue;
+      const dx = b.px - e.px, dy = b.py - e.py;
+      if (Math.abs(dx) < TILE * 0.7 && Math.abs(dy) < TILE * 0.7) {
+        e.alive = false;
+        score += 400;
+        spawnCrushParticles(e.px, e.py);
+      }
+    }
+
+    // Check next cell
+    const nextC = bc + dc, nextR = br + dr;
+
+    // Hit boundary
+    if (!inBounds(nextC, nextR)) {
+      // Place block at edge
+      const finalC = Math.max(0, Math.min(COLS - 1, bc));
+      const finalR = Math.max(0, Math.min(ROWS - 1, br));
+      if (grid[finalR][finalC] === EMPTY) {
+        grid[finalR][finalC] = b.type;
+      } else {
+        // Block can't land, break it (unless diamond)
+        if (b.type !== DIAMOND) {
+          spawnBreakParticles(bc, br, '#8ef');
+        } else {
+          // Diamond bounces back to last valid position
+          for (let i = 0; i < COLS; i++) {
+            const tc = bc - dc * i, tr = br - dr * i;
+            if (inBounds(tc, tr) && grid[tr][tc] === EMPTY) {
+              grid[tr][tc] = DIAMOND; break;
+            }
+          }
+        }
+      }
+      return false;
+    }
+
+    // Hit another block or boundary (check pixel alignment to grid)
+    const nextPx = OX + nextC * TILE + TILE / 2;
+    const nextPy = OY + nextR * TILE + TILE / 2;
+    const atNextCell = (dc !== 0 && Math.abs(b.px - (OX + bc * TILE + TILE / 2)) < b.speed + 1) ||
+                       (dr !== 0 && Math.abs(b.py - (OY + br * TILE + TILE / 2)) < b.speed + 1);
+
+    if (atNextCell && (cellBlocked(nextC, nextR) || !inBounds(nextC, nextR))) {
+      // Snap to current cell
+      if (inBounds(bc, br) && grid[br][bc] === EMPTY) {
+        grid[br][bc] = b.type;
+      } else if (b.type !== DIAMOND) {
+        spawnBreakParticles(bc, br, '#8ef');
+      }
+      // Check diamond bonus after placement
+      if (b.type === DIAMOND && checkDiamondBonus()) {
+        score += 10000;
+        flashMsg = 'DIAMOND BONUS! +10000';
+        flashTimer = 120;
+      }
+      return false;
+    }
+
+    // Update block grid position
+    b.col = bc; b.row = br;
+    return true;
+  });
+
+  // --- Enemies ---
+  for (const e of enemies) {
+    updateEnemy(e);
+  }
+
+  // --- Player-enemy collision ---
+  for (const e of enemies) {
+    if (!e.alive) continue;
+    const dx = player.px - e.px, dy = player.py - e.py;
+    if (Math.abs(dx) < TILE * 0.6 && Math.abs(dy) < TILE * 0.6) {
+      if (e.stunned > 0) {
+        // Kick stunned enemy for points
+        e.alive = false;
+        score += 100;
+        spawnCrushParticles(e.px, e.py);
+      } else {
+        // Player dies
+        lives--;
+        deathTimer = 60;
+        spawnCrushParticles(player.px, player.py);
+        return;
+      }
+    }
+  }
+
+  // --- Egg hatching ---
+  updateHatching();
+
+  // --- Shake timer ---
+  if (shakeTimer > 0) shakeTimer--;
+
+  // --- Check level clear ---
+  const aliveEnemies = enemies.filter(e => e.alive).length;
+  // Also count eggs that could still hatch
+  let eggCount = 0;
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) if (grid[r][c] === EGG) eggCount++;
+
+  if (aliveEnemies === 0 && eggCount === 0) {
+    levelClearTimer = 90;
+    score += 1000;
+    flashMsg = 'LEVEL CLEAR! +1000';
+    flashTimer = 90;
+  }
+
+  // --- Particles ---
+  particles = particles.filter(p => {
+    p.x += p.vx; p.y += p.vy;
+    p.vy += 0.15;
+    p.life--;
+    return p.life > 0;
+  });
+
+  // Clear justPressed
+  for (const k in justPressed) justPressed[k] = false;
+
+  // Restart
+  if (keys['KeyR']) initGame();
+}
+
+// --- DRAWING ---
+function drawGrid() {
+  // Background
+  ctx.fillStyle = '#0a0a2a';
+  ctx.fillRect(OX, OY, GRID_W, GRID_H);
+
+  // Grid lines (subtle)
+  ctx.strokeStyle = '#151540';
+  ctx.lineWidth = 1;
+  for (let c = 0; c <= COLS; c++) {
+    ctx.beginPath();
+    ctx.moveTo(OX + c * TILE, OY);
+    ctx.lineTo(OX + c * TILE, OY + GRID_H);
+    ctx.stroke();
+  }
+  for (let r = 0; r <= ROWS; r++) {
+    ctx.beginPath();
+    ctx.moveTo(OX, OY + r * TILE);
+    ctx.lineTo(OX + GRID_W, OY + r * TILE);
+    ctx.stroke();
+  }
+
+  // Outer wall
+  ctx.strokeStyle = '#4488ff';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(OX - 2, OY - 2, GRID_W + 4, GRID_H + 4);
+
+  // Blocks
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const x = OX + c * TILE, y = OY + r * TILE;
+      if (grid[r][c] === ICE) {
+        drawIceBlock(x, y, false);
+      } else if (grid[r][c] === DIAMOND) {
+        drawDiamondBlock(x, y);
+      } else if (grid[r][c] === EGG) {
+        drawIceBlock(x, y, true);
+      }
+    }
+  }
+}
+
+function drawIceBlock(x, y, isEgg) {
+  const m = 1;
+  // Main body
+  ctx.fillStyle = isEgg ? '#7ac8d8' : '#88ddff';
+  ctx.fillRect(x + m, y + m, TILE - m * 2, TILE - m * 2);
+  // Highlight
+  ctx.fillStyle = isEgg ? '#9ad8e8' : '#aaeeff';
+  ctx.fillRect(x + m, y + m, TILE - m * 2, 4);
+  ctx.fillRect(x + m, y + m, 4, TILE - m * 2);
+  // Shadow
+  ctx.fillStyle = isEgg ? '#5aa8b8' : '#55aacc';
+  ctx.fillRect(x + TILE - m - 4, y + m + 4, 4, TILE - m * 2 - 4);
+  ctx.fillRect(x + m + 4, y + TILE - m - 4, TILE - m * 2 - 4, 4);
+  // Ice cracks
+  ctx.strokeStyle = isEgg ? '#8abccc' : '#77ccee';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(x + 8, y + 10);
+  ctx.lineTo(x + 18, y + 16);
+  ctx.lineTo(x + 14, y + 24);
+  ctx.stroke();
+  // Egg indicator: subtle pinkish spot
+  if (isEgg) {
+    ctx.fillStyle = 'rgba(255,150,150,0.3)';
+    ctx.beginPath();
+    ctx.arc(x + TILE / 2, y + TILE / 2, 6, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawDiamondBlock(x, y) {
+  const m = 1;
+  const cx = x + TILE / 2, cy = y + TILE / 2;
+  // Gold block
+  ctx.fillStyle = '#ffcc00';
+  ctx.fillRect(x + m, y + m, TILE - m * 2, TILE - m * 2);
+  // Highlight
+  ctx.fillStyle = '#ffe855';
+  ctx.fillRect(x + m, y + m, TILE - m * 2, 4);
+  ctx.fillRect(x + m, y + m, 4, TILE - m * 2);
+  // Shadow
+  ctx.fillStyle = '#cc9900';
+  ctx.fillRect(x + TILE - m - 4, y + m + 4, 4, TILE - m * 2 - 4);
+  ctx.fillRect(x + m + 4, y + TILE - m - 4, TILE - m * 2 - 4, 4);
+  // Diamond shape
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - 8);
+  ctx.lineTo(cx + 8, cy);
+  ctx.lineTo(cx, cy + 8);
+  ctx.lineTo(cx - 8, cy);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#ffee88';
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - 5);
+  ctx.lineTo(cx + 5, cy);
+  ctx.lineTo(cx, cy + 5);
+  ctx.lineTo(cx - 5, cy);
+  ctx.closePath();
+  ctx.fill();
+  // Sparkle
+  if (Math.floor(frame / 20) % 3 === 0) {
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(cx + 6, cy - 10, 2, 6);
+    ctx.fillRect(cx + 4, cy - 8, 6, 2);
+  }
+}
+
+function drawPlayer() {
+  if (deathTimer > 0) return; // Don't draw during death
+  const px = player.px, py = player.py;
+  const dir = player.dir;
+
+  // Body (blue penguin)
+  ctx.fillStyle = '#2266ff';
+  ctx.beginPath();
+  ctx.ellipse(px, py, 12, 14, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // White belly
+  ctx.fillStyle = '#eef';
+  ctx.beginPath();
+  ctx.ellipse(px, py + 2, 7, 9, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Eyes
+  const eyeOffX = DX[dir] * 3;
+  const eyeOffY = DY[dir] * 3;
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(px - 4 + eyeOffX, py - 5 + eyeOffY, 3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(px + 4 + eyeOffX, py - 5 + eyeOffY, 3, 0, Math.PI * 2);
+  ctx.fill();
+  // Pupils
+  ctx.fillStyle = '#111';
+  ctx.beginPath();
+  ctx.arc(px - 4 + eyeOffX * 1.3, py - 5 + eyeOffY * 1.3, 1.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(px + 4 + eyeOffX * 1.3, py - 5 + eyeOffY * 1.3, 1.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Beak
+  ctx.fillStyle = '#ff8800';
+  const beakX = px + DX[dir] * 8;
+  const beakY = py - 2 + DY[dir] * 8;
+  ctx.beginPath();
+  ctx.moveTo(beakX, beakY);
+  if (dir === 0) { ctx.lineTo(beakX - 3, beakY + 5); ctx.lineTo(beakX + 3, beakY + 5); }
+  else if (dir === 2) { ctx.lineTo(beakX - 3, beakY - 5); ctx.lineTo(beakX + 3, beakY - 5); }
+  else if (dir === 1) { ctx.lineTo(beakX - 5, beakY - 3); ctx.lineTo(beakX - 5, beakY + 3); }
+  else { ctx.lineTo(beakX + 5, beakY - 3); ctx.lineTo(beakX + 5, beakY + 3); }
+  ctx.closePath();
+  ctx.fill();
+
+  // Feet
+  ctx.fillStyle = '#ff6600';
+  const walkBob = player.moving ? Math.sin(frame * 0.5) * 2 : 0;
+  ctx.fillRect(px - 6, py + 12 + walkBob, 5, 3);
+  ctx.fillRect(px + 1, py + 12 - walkBob, 5, 3);
+}
+
+function drawEnemy(e) {
+  if (!e.alive) return;
+  const px = e.px, py = e.py;
+
+  // Stunned flash
+  if (e.stunned > 0 && Math.floor(frame / 4) % 2 === 0) {
+    ctx.globalAlpha = 0.5;
+  }
+
+  // Body (red Sno-Bee)
+  ctx.fillStyle = '#ff3333';
+  ctx.beginPath();
+  ctx.ellipse(px, py - 2, 11, 12, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Antenna
+  ctx.strokeStyle = '#ff5555';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(px - 3, py - 13);
+  ctx.lineTo(px - 6, py - 18);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(px + 3, py - 13);
+  ctx.lineTo(px + 6, py - 18);
+  ctx.stroke();
+  // Antenna tips
+  ctx.fillStyle = '#ff8888';
+  ctx.beginPath(); ctx.arc(px - 6, py - 18, 2, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(px + 6, py - 18, 2, 0, Math.PI * 2); ctx.fill();
+
+  // Eyes
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(px - 4, py - 5, 3, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(px + 4, py - 5, 3, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#000';
+  ctx.beginPath(); ctx.arc(px - 3, py - 4, 1.5, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(px + 5, py - 4, 1.5, 0, Math.PI * 2); ctx.fill();
+
+  // Legs/feet (wavy)
+  ctx.fillStyle = '#ff4444';
+  const legWave = Math.sin(frame * 0.2 + e.col) * 2;
+  ctx.fillRect(px - 8, py + 8 + legWave, 4, 5);
+  ctx.fillRect(px - 2, py + 8 - legWave, 4, 5);
+  ctx.fillRect(px + 4, py + 8 + legWave, 4, 5);
+
+  // Breaking indicator
+  if (e.breakTimer > 0) {
+    ctx.fillStyle = '#ff0';
+    ctx.font = 'bold 12px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('!', px, py - 20);
+  }
+
+  ctx.globalAlpha = 1;
+}
+
+function drawSlidingBlocks() {
+  for (const b of slidingBlocks) {
+    const x = b.px - TILE / 2, y = b.py - TILE / 2;
+    if (b.type === DIAMOND) {
+      drawDiamondBlock(x, y);
+    } else {
+      drawIceBlock(x, y, b.type === EGG);
+    }
+    // Motion trail
+    ctx.fillStyle = 'rgba(136, 221, 255, 0.3)';
+    const tx = b.px - DX[b.dir] * TILE * 0.5;
+    const ty = b.py - DY[b.dir] * TILE * 0.5;
+    ctx.fillRect(tx - TILE / 2 + 4, ty - TILE / 2 + 4, TILE - 8, TILE - 8);
+  }
+}
+
+function drawParticles() {
+  for (const p of particles) {
+    ctx.globalAlpha = p.life / 35;
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function draw() {
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+
+  // Screen shake
+  ctx.save();
+  if (shakeTimer > 0) {
+    const intensity = shakeTimer * 0.5;
+    ctx.translate(
+      DX[shakeDir] * Math.sin(shakeTimer * 2) * intensity,
+      DY[shakeDir] * Math.sin(shakeTimer * 2) * intensity
+    );
+  }
+
+  drawGrid();
+  drawSlidingBlocks();
+  for (const e of enemies) drawEnemy(e);
+  drawPlayer();
+  drawParticles();
+
+  ctx.restore();
+
+  // --- HUD ---
+  ctx.fillStyle = '#88ddff'; ctx.font = '16px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('SCORE: ' + score, 10, OY - 10);
+  ctx.textAlign = 'center';
+  ctx.fillText('LEVEL ' + level, W / 2, OY - 10);
+  ctx.textAlign = 'right';
+  // Lives as penguin icons
+  let livesText = 'LIVES: ';
+  for (let i = 0; i < lives; i++) livesText += '\u2665 ';
+  ctx.fillText(livesText, W - 10, OY - 10);
+
+  // Enemy count
+  const aliveCount = enemies.filter(e => e.alive).length;
+  let eggCount = 0;
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) if (grid[r][c] === EGG) eggCount++;
+  ctx.fillStyle = '#ff8888'; ctx.textAlign = 'center'; ctx.font = '13px monospace';
+  ctx.fillText('ENEMIES: ' + aliveCount + (eggCount > 0 ? '  EGGS: ' + eggCount : ''), W / 2, OY + GRID_H + 18);
+
+  // Flash message
+  if (flashTimer > 0) {
+    ctx.fillStyle = flashTimer % 8 < 4 ? '#ffff00' : '#ffaa00';
+    ctx.font = 'bold 22px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(flashMsg, W / 2, OY + GRID_H + 40);
+  }
+
+  // Level clear overlay
+  if (levelClearTimer > 0) {
+    ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#ffff00'; ctx.font = 'bold 36px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('LEVEL ' + level + ' CLEAR!', W / 2, H / 2 - 10);
+    ctx.fillStyle = '#aaa'; ctx.font = '18px monospace';
+    ctx.fillText('Get ready...', W / 2, H / 2 + 24);
+  }
+
+  // Death overlay
+  if (deathTimer > 0) {
+    ctx.fillStyle = 'rgba(255,0,0,0.15)'; ctx.fillRect(0, 0, W, H);
+    if (lives > 0) {
+      ctx.fillStyle = '#ff5555'; ctx.font = 'bold 28px monospace'; ctx.textAlign = 'center';
+      ctx.fillText('CRUSHED!', W / 2, H / 2);
+      ctx.fillStyle = '#aaa'; ctx.font = '16px monospace';
+      ctx.fillText(lives + ' lives remaining', W / 2, H / 2 + 28);
+    }
+  }
+
+  // Game over
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, W, H);
+    ctx.font = 'bold 48px monospace'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#f55';
+    ctx.fillText('GAME OVER', W / 2, H / 2 - 20);
+    ctx.fillStyle = '#aaa'; ctx.font = '18px monospace';
+    ctx.fillText('R to restart   SCORE: ' + score, W / 2, H / 2 + 24);
+  }
+
+  // Title badge
+  ctx.fillStyle = '#1a1a1a'; ctx.fillRect(8, 8, 220, 28);
+  ctx.fillStyle = '#555'; ctx.font = '13px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('MAZ-003 \u00b7 ICE SLIDE  [?]', 16, 26);
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+initGame();
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

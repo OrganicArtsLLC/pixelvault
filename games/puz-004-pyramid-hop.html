@@ -1,0 +1,1026 @@
+<!--
+PROTOTYPE: pyramid-hop
+SERIES: puz
+NUMBER: 004
+DATE: 2026-03-22
+MECHANIC: hop on isometric pyramid, change tile colors to clear levels
+ANCESTRY: Q*bert (1982, Warren Davis/Jeff Lee, Gottlieb), Marble Madness (1984, Atari)
+CONTROLS: Arrow keys — diagonal hop | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — spatial planning under threat)
+AI-INSIGHT: Q*bert's isometric grid creates a spatial coverage problem — visiting all tiles while avoiding enemies — structurally identical to the graph traversal problems that dominated 1980s AI planning research.
+NOTES: Isometric perspective adds visual complexity to simple grid movement.
+       Enemy variety creates different threat patterns on the same topology.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PUZ-004 · PYRAMID HOP</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>PUZ-004 · PYRAMID HOP</h1>
+    <p><span class="tag series">PUZ — Puzzle</span> <span class="tag">Prototype #004</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Hop across the isometric pyramid and change every cube to the target color. Avoid enemies and don't fall off the edges!</p>
+    <ul>
+      <li><kbd>&uarr;</kbd> — Hop up-right (diagonal)</li>
+      <li><kbd>&darr;</kbd> — Hop down-left (diagonal)</li>
+      <li><kbd>&larr;</kbd> — Hop up-left (diagonal)</li>
+      <li><kbd>&rarr;</kbd> — Hop down-right (diagonal)</li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Plan your path:</strong> Try to color cubes in efficient sweeps rather than random hopping.</li>
+      <li><strong>Flying discs:</strong> Jump toward a disc on the edge to teleport back to the top. Coily will follow you off the edge and die.</li>
+      <li><strong>Coily:</strong> The purple snake bounces down the pyramid as an egg, then hatches and chases you. Lure him off the edge or use a disc.</li>
+      <li><strong>Slick &amp; Sam:</strong> Green and blue creatures that revert tile colors. Catch them for bonus points before they undo your work.</li>
+      <li><strong>Red balls:</strong> Bounce down randomly. Just stay out of their way.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Q*bert (1982, Gottlieb) &rarr; Marble Madness (1984, Atari) &rarr; modern isometric puzzlers</p>
+    <p>Q*bert was designed by Warren Davis and Jeff Lee at Gottlieb in 1982. The game's isometric pyramid was revolutionary — it presented a 2D grid as a 3D structure, making simple adjacency movement feel spatial and complex. The character's iconic "@!#?@!" speech balloon became one of gaming's most recognizable visual gags.</p>
+    <p>The game introduced multiple enemy types with distinct behaviors on the same topology: Coily chases, red balls fall randomly, Slick and Sam revert your progress. Each enemy creates a different kind of threat on the identical grid structure — a design insight that wouldn't be formalized until game design theory decades later.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 3 — Knowledge Explosion (1980-1987)</p>
+    <p><strong>Contemporary AI:</strong> Graph search, planning under constraints. The era of A* and spatial reasoning research.</p>
+    <p><strong>Hidden Intelligence:</strong> Q*bert's core challenge is a spatial coverage problem — visit every node in a graph while avoiding mobile threats. This is structurally identical to the graph traversal and Hamiltonian path problems that dominated 1980s AI planning research. The isometric presentation disguises what is essentially a triangular grid coverage task.</p>
+    <p><strong>The Convergence:</strong> Each enemy type transforms the same graph into a different planning problem. Coily makes it adversarial pursuit-evasion. Red balls make it stochastic obstacle avoidance. Slick and Sam make it a progress-preservation problem. The player must solve all three simultaneously on the same topology.</p>
+    <p><strong>If AI Had Designed This:</strong> Adaptive enemy spawn rates calibrated to the player's coverage efficiency. Coily's pathfinding would use the same A* the player implicitly uses, creating a true adversarial search problem on an isometric graph.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: PUZ — Puzzle</h3>
+    <p>Q*bert combines spatial coverage with enemy avoidance on an isometric grid. The puzzle is path planning; the action is timing and evasion.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Isometric tile-coloring with multi-threat avoidance.</strong> Triangular grid as 3D pyramid. Diagonal-only movement. Color every tile. Multiple enemy behaviors on shared topology. Flying discs as escape mechanism.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Isometric rendering — does the pyramid read as 3D?</li>
+      <li>Diagonal controls — does arrow-key-to-diagonal mapping feel intuitive?</li>
+      <li>Coverage pressure — does coloring all tiles feel like a satisfying puzzle?</li>
+      <li>Enemy variety — do different enemy types create distinct threats on the same grid?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Seven-row isometric pyramid with 3D cube rendering. Hop animation between cubes. Coily, red balls, and Slick/Sam enemies. Flying discs on pyramid edges. Level progression increases enemy frequency and may require multiple color changes per tile in later levels.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+const keys = {};
+window.addEventListener('keydown', e => { if (!infoOpen) keys[e.code] = true; e.preventDefault(); });
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+// --- ISOMETRIC PYRAMID CONSTANTS ---
+const ROWS = 7;
+const CUBE_W = 56;
+const CUBE_H = 32;
+const CUBE_DEPTH = 28;
+const PYR_TOP_X = W / 2;
+const PYR_TOP_Y = 80;
+
+// Cube colors per level scheme
+const COLOR_SCHEMES = [
+  { from: '#4444cc', to: '#ffcc00', side1From: '#3333aa', side1To: '#cc9900', side2From: '#222288', side2To: '#997700' },
+  { from: '#44aa44', to: '#ff4444', side1From: '#338833', side1To: '#cc3333', side2From: '#226622', side2To: '#992222' },
+  { from: '#aa44aa', to: '#44ffff', side1From: '#883388', side1To: '#33cccc', side2From: '#662266', side2To: '#229999' },
+  { from: '#888888', to: '#ff8800', side1From: '#666666', side1To: '#cc6600', side2From: '#444444', side2To: '#994400' },
+  { from: '#cc6644', to: '#44ff44', side1From: '#aa5533', side1To: '#33cc33', side2From: '#884422', side2To: '#229922' },
+];
+
+// Convert grid (row, col) to screen (x, y) — top of cube
+function gridToScreen(row, col) {
+  const x = PYR_TOP_X + (col - row / 2) * CUBE_W;
+  const y = PYR_TOP_Y + row * (CUBE_H + CUBE_DEPTH / 2);
+  return { x, y };
+}
+
+// --- STATE ---
+let grid, player, enemies, discs, score, lives, level, gameOver, levelClear, levelClearTimer;
+let hopAnim, fallAnim, discAnim, frame, speechBubble;
+let coilySpawnTimer, ballSpawnTimer, slickSpawnTimer;
+
+function totalCubes() {
+  let n = 0;
+  for (let r = 0; r < ROWS; r++) n += r + 1;
+  return n;
+}
+
+function initGame() {
+  score = 0; lives = 3; level = 1; gameOver = false; frame = 0;
+  initLevel();
+}
+
+function initLevel() {
+  // Grid: 0 = start color, 1 = target color (for levels 1-2)
+  // For level 3+, cubes cycle through intermediate states
+  grid = [];
+  for (let r = 0; r < ROWS; r++) {
+    grid[r] = [];
+    for (let c = 0; c <= r; c++) {
+      grid[r][c] = 0;
+    }
+  }
+
+  player = { row: 0, col: 0, facing: 1 };
+  hopAnim = null;
+  fallAnim = null;
+  discAnim = null;
+  enemies = [];
+  levelClear = false;
+  levelClearTimer = 0;
+  speechBubble = null;
+
+  // Flying discs — 2 per level, positioned at edges
+  discs = [];
+  // Left side disc
+  discs.push({ row: 1 + Math.floor(Math.random() * 3), side: 'left', used: false });
+  // Right side disc
+  discs.push({ row: 1 + Math.floor(Math.random() * 3), side: 'right', used: false });
+
+  coilySpawnTimer = 180 + Math.floor(Math.random() * 120);
+  ballSpawnTimer = 60 + Math.floor(Math.random() * 90);
+  slickSpawnTimer = 400 + Math.floor(Math.random() * 200);
+}
+
+function getMaxColor() {
+  // Levels 1-2: one hop to change. Level 3+: need 2 hops (intermediate color).
+  return level >= 3 ? 2 : 1;
+}
+
+function checkLevelClear() {
+  const maxC = getMaxColor();
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c <= r; c++) {
+      if (grid[r][c] < maxC) return false;
+    }
+  }
+  return true;
+}
+
+initGame();
+
+// --- HOPPING / MOVEMENT ---
+function tryHop(dr, dc) {
+  if (hopAnim || fallAnim || discAnim || levelClear || gameOver) return;
+
+  const nr = player.row + dr;
+  const nc = player.col + dc;
+  player.facing = dc >= 0 ? 1 : -1;
+
+  // Check for disc jump (jumping off the edge toward a disc)
+  if (nr < 0 || nc < 0 || nc > nr || nr >= ROWS) {
+    // Check if there's a disc at this position
+    let usedDisc = false;
+    for (const d of discs) {
+      if (d.used) continue;
+      if (d.side === 'left' && dc < 0 && dr >= 0 && player.row === d.row && player.col === 0) {
+        usedDisc = true; d.used = true;
+        startDiscAnim(d);
+        break;
+      }
+      if (d.side === 'right' && dc > 0 && dr >= 0 && player.row === d.row && player.col === player.row) {
+        usedDisc = true; d.used = true;
+        startDiscAnim(d);
+        break;
+      }
+    }
+    if (!usedDisc) {
+      // Fall off the edge!
+      startFall(dr, dc);
+    }
+    return;
+  }
+
+  // Valid hop
+  const from = gridToScreen(player.row, player.col);
+  const to = gridToScreen(nr, nc);
+  hopAnim = {
+    fromRow: player.row, fromCol: player.col,
+    toRow: nr, toCol: nc,
+    fromX: from.x, fromY: from.y,
+    toX: to.x, toY: to.y,
+    t: 0, dur: 12
+  };
+}
+
+function startFall(dr, dc) {
+  const from = gridToScreen(player.row, player.col);
+  const fx = from.x + dc * CUBE_W;
+  const fy = from.y + dr * (CUBE_H + CUBE_DEPTH / 2);
+  fallAnim = {
+    fromX: from.x, fromY: from.y,
+    toX: fx, toY: fy + 200,
+    t: 0, dur: 40
+  };
+  speechBubble = { x: from.x, y: from.y - 30, t: 0, dur: 40, text: '@!#?@!' };
+}
+
+function startDiscAnim(disc) {
+  const from = gridToScreen(player.row, player.col);
+  const discPos = getDiscScreenPos(disc);
+  const topPos = gridToScreen(0, 0);
+  discAnim = {
+    phase: 0, // 0=jump to disc, 1=ride disc to top
+    fromX: from.x, fromY: from.y,
+    discX: discPos.x, discY: discPos.y,
+    topX: topPos.x, topY: topPos.y,
+    t: 0, dur1: 10, dur2: 30
+  };
+  // Kill Coily if chasing
+  enemies = enemies.filter(e => e.type !== 'coily' || e.state !== 'chase');
+}
+
+function getDiscScreenPos(disc) {
+  const pos = gridToScreen(disc.row, disc.side === 'left' ? 0 : disc.row);
+  const offX = disc.side === 'left' ? -CUBE_W * 0.8 : CUBE_W * 0.8;
+  return { x: pos.x + offX, y: pos.y - 5 };
+}
+
+function finishHop() {
+  player.row = hopAnim.toRow;
+  player.col = hopAnim.toCol;
+  hopAnim = null;
+
+  // Change tile color
+  const maxC = getMaxColor();
+  if (grid[player.row][player.col] < maxC) {
+    grid[player.row][player.col]++;
+    score += 25;
+  }
+
+  // Check for landing on enemy
+  checkEnemyCollision();
+
+  // Check level clear
+  if (checkLevelClear()) {
+    levelClear = true;
+    levelClearTimer = 90;
+    score += 1000 + level * 250;
+    // Bonus for remaining discs
+    for (const d of discs) {
+      if (!d.used) score += 50;
+    }
+  }
+}
+
+function finishFall() {
+  fallAnim = null;
+  speechBubble = null;
+  lives--;
+  if (lives <= 0) {
+    gameOver = true;
+  } else {
+    // Respawn at top
+    player.row = 0; player.col = 0;
+    enemies = [];
+    coilySpawnTimer = 120;
+    ballSpawnTimer = 60;
+  }
+}
+
+function finishDiscRide() {
+  discAnim = null;
+  player.row = 0; player.col = 0;
+  score += 500;
+}
+
+// --- ENEMIES ---
+function spawnEnemy(type) {
+  if (levelClear) return;
+  const startCol = Math.random() < 0.5 ? 0 : 1;
+  if (type === 'ball') {
+    enemies.push({ type: 'ball', row: 0, col: 0, hopTimer: 0, hopDur: 18, animT: 0,
+                    fromX: 0, fromY: 0, toX: 0, toY: 0, hopping: false, startCol });
+    const e = enemies[enemies.length - 1];
+    // Start above the pyramid
+    const p = gridToScreen(0, 0);
+    e.fromX = p.x + (startCol ? CUBE_W / 2 : -CUBE_W / 2);
+    e.fromY = p.y - CUBE_H * 2;
+    e.toX = p.x; e.toY = p.y;
+    e.hopping = true; e.animT = 0;
+    e.row = -1;
+  } else if (type === 'coily') {
+    enemies.push({ type: 'coily', state: 'egg', row: -1, col: 0, hopTimer: 0, hopDur: 20,
+                    animT: 0, fromX: 0, fromY: 0, toX: 0, toY: 0, hopping: false, startCol });
+    const e = enemies[enemies.length - 1];
+    const p = gridToScreen(0, 0);
+    e.fromX = p.x + (startCol ? CUBE_W / 2 : -CUBE_W / 2);
+    e.fromY = p.y - CUBE_H * 2;
+    e.toX = p.x; e.toY = p.y;
+    e.hopping = true; e.animT = 0;
+  } else if (type === 'slick' || type === 'sam') {
+    enemies.push({ type, row: -1, col: 0, hopTimer: 0, hopDur: 22, animT: 0,
+                    fromX: 0, fromY: 0, toX: 0, toY: 0, hopping: false, startCol });
+    const e = enemies[enemies.length - 1];
+    const p = gridToScreen(0, 0);
+    e.fromX = p.x + (startCol ? CUBE_W / 2 : -CUBE_W / 2);
+    e.fromY = p.y - CUBE_H * 2;
+    e.toX = p.x; e.toY = p.y;
+    e.hopping = true; e.animT = 0;
+  }
+}
+
+function enemyHop(e) {
+  if (e.hopping) return;
+
+  let dr, dc;
+  if (e.type === 'coily' && e.state === 'chase') {
+    // Chase Q*bert
+    dr = player.row > e.row ? 1 : (player.row < e.row ? -1 : 0);
+    dc = player.col > e.col ? 1 : (player.col < e.col ? -1 : 0);
+    // Must move diagonally in grid terms
+    if (dr === 0) dr = 1;
+    if (dc === 0 && dr === 1) dc = Math.random() < 0.5 ? 0 : 1;
+    if (dc === 0 && dr === -1) dc = Math.random() < 0.5 ? 0 : -1;
+    // Validate: going up means dr=-1, dc=0 or dc=-1; going down means dr=1, dc=0 or dc=1
+    if (dr === -1) {
+      // Up: dc must be 0 (up-left) or -1... well let's think about this
+      // Actually in Q*bert grid: up-left = (r-1, c-1), up-right = (r-1, c)
+      // down-left = (r+1, c), down-right = (r+1, c+1)
+      if (player.col <= e.col) dc = -1; else dc = 0;
+    } else {
+      if (player.col >= e.col) dc = 1; else dc = 0;
+    }
+  } else {
+    // Random bounce down
+    dr = 1;
+    dc = Math.random() < 0.5 ? 0 : 1;
+  }
+
+  const nr = e.row + dr;
+  const nc = e.col + dc;
+
+  // Fall off?
+  if (nr >= ROWS || nr < 0 || nc < 0 || nc > nr) {
+    // Enemy falls off
+    const from = gridToScreen(e.row, e.col);
+    e.fromX = from.x; e.fromY = from.y;
+    e.toX = from.x + (dc - 0.5) * CUBE_W; e.toY = from.y + 300;
+    e.hopping = true; e.animT = 0; e.falling = true;
+    return;
+  }
+
+  const from = gridToScreen(e.row, e.col);
+  const to = gridToScreen(nr, nc);
+  e.fromX = from.x; e.fromY = from.y;
+  e.toX = to.x; e.toY = to.y;
+  e.hopping = true; e.animT = 0;
+  e.nextRow = nr; e.nextCol = nc;
+}
+
+function checkEnemyCollision() {
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    const e = enemies[i];
+    if (e.hopping) continue;
+    if (e.row === player.row && e.col === player.col) {
+      if (e.type === 'slick' || e.type === 'sam') {
+        // Catch them for points
+        score += 300;
+        enemies.splice(i, 1);
+      } else {
+        // Death
+        startFall(0, player.facing);
+        return;
+      }
+    }
+  }
+}
+
+// --- UPDATE ---
+function update() {
+  if (infoOpen) return;
+  if (gameOver) { if (keys['KeyR']) initGame(); return; }
+  frame++;
+
+  // Level clear animation
+  if (levelClear) {
+    levelClearTimer--;
+    // Flash cubes
+    if (levelClearTimer <= 0) {
+      level++;
+      initLevel();
+    }
+    return;
+  }
+
+  // Hop animation
+  if (hopAnim) {
+    hopAnim.t++;
+    if (hopAnim.t >= hopAnim.dur) {
+      finishHop();
+    }
+  }
+
+  // Fall animation
+  if (fallAnim) {
+    fallAnim.t++;
+    if (fallAnim.t >= fallAnim.dur) {
+      finishFall();
+    }
+    if (speechBubble) speechBubble.t++;
+    return;
+  }
+
+  // Disc animation
+  if (discAnim) {
+    discAnim.t++;
+    if (discAnim.phase === 0 && discAnim.t >= discAnim.dur1) {
+      discAnim.phase = 1; discAnim.t = 0;
+    }
+    if (discAnim.phase === 1 && discAnim.t >= discAnim.dur2) {
+      finishDiscRide();
+    }
+    return;
+  }
+
+  // Player input (only when not hopping)
+  if (!hopAnim) {
+    // Arrow keys map to diagonal hops:
+    // Up = up-right (r-1, c)    Down = down-left (r+1, c)
+    // Left = up-left (r-1, c-1)  Right = down-right (r+1, c+1)
+    if (keys['ArrowUp']) { tryHop(-1, 0); keys['ArrowUp'] = false; }
+    else if (keys['ArrowDown']) { tryHop(1, 0); keys['ArrowDown'] = false; }
+    else if (keys['ArrowLeft']) { tryHop(-1, -1); keys['ArrowLeft'] = false; }
+    else if (keys['ArrowRight']) { tryHop(1, 1); keys['ArrowRight'] = false; }
+
+    if (keys['KeyR']) { initGame(); return; }
+  }
+
+  // Enemy spawning
+  coilySpawnTimer--;
+  ballSpawnTimer--;
+  slickSpawnTimer--;
+
+  if (ballSpawnTimer <= 0) {
+    const ballCount = enemies.filter(e => e.type === 'ball').length;
+    if (ballCount < 2) spawnEnemy('ball');
+    ballSpawnTimer = 100 + Math.floor(Math.random() * 80) - level * 8;
+  }
+  if (coilySpawnTimer <= 0) {
+    const coilyCount = enemies.filter(e => e.type === 'coily').length;
+    if (coilyCount < 1) spawnEnemy('coily');
+    coilySpawnTimer = 300 + Math.floor(Math.random() * 200) - level * 15;
+  }
+  if (slickSpawnTimer <= 0) {
+    const slickCount = enemies.filter(e => e.type === 'slick' || e.type === 'sam').length;
+    if (slickCount < 1 && level >= 2) {
+      spawnEnemy(Math.random() < 0.5 ? 'slick' : 'sam');
+    }
+    slickSpawnTimer = 500 + Math.floor(Math.random() * 300) - level * 20;
+  }
+
+  // Update enemies
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    const e = enemies[i];
+
+    if (e.hopping) {
+      e.animT++;
+      const dur = e.hopDur || 18;
+      if (e.animT >= dur) {
+        e.hopping = false;
+        if (e.falling) {
+          enemies.splice(i, 1);
+          continue;
+        }
+        if (e.row === -1) {
+          e.row = 0; e.col = 0;
+        } else {
+          e.row = e.nextRow; e.col = e.nextCol;
+        }
+
+        // Coily hatches at bottom half
+        if (e.type === 'coily' && e.state === 'egg' && e.row >= Math.floor(ROWS / 2)) {
+          e.state = 'chase';
+        }
+
+        // Slick/Sam revert tile colors
+        if ((e.type === 'slick' || e.type === 'sam') && e.row >= 0 && e.row < ROWS && e.col >= 0 && e.col <= e.row) {
+          if (grid[e.row][e.col] > 0) {
+            grid[e.row][e.col]--;
+          }
+        }
+
+        // Check collision with player
+        if (e.row === player.row && e.col === player.col && !hopAnim) {
+          if (e.type === 'slick' || e.type === 'sam') {
+            score += 300;
+            enemies.splice(i, 1);
+            continue;
+          } else {
+            startFall(0, player.facing);
+            return;
+          }
+        }
+      }
+    } else {
+      e.hopTimer++;
+      const interval = e.type === 'coily' && e.state === 'chase' ? 25 : 35;
+      if (e.hopTimer >= interval) {
+        e.hopTimer = 0;
+        enemyHop(e);
+      }
+    }
+  }
+}
+
+// --- DRAWING ---
+function getScheme() {
+  return COLOR_SCHEMES[(level - 1) % COLOR_SCHEMES.length];
+}
+
+function lerpColor(a, b, t) {
+  const pa = parseInt(a.slice(1), 16);
+  const pb = parseInt(b.slice(1), 16);
+  const r = Math.round(((pa >> 16) & 0xff) * (1 - t) + ((pb >> 16) & 0xff) * t);
+  const g = Math.round(((pa >> 8) & 0xff) * (1 - t) + ((pb >> 8) & 0xff) * t);
+  const bl = Math.round((pa & 0xff) * (1 - t) + (pb & 0xff) * t);
+  return '#' + ((r << 16) | (g << 8) | bl).toString(16).padStart(6, '0');
+}
+
+function drawCube(x, y, topColor, leftColor, rightColor) {
+  const hw = CUBE_W / 2;
+  const hh = CUBE_H / 2;
+  const depth = CUBE_DEPTH;
+
+  // Top face (diamond)
+  ctx.fillStyle = topColor;
+  ctx.beginPath();
+  ctx.moveTo(x, y - hh);
+  ctx.lineTo(x + hw, y);
+  ctx.lineTo(x, y + hh);
+  ctx.lineTo(x - hw, y);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.stroke();
+
+  // Left face
+  ctx.fillStyle = leftColor;
+  ctx.beginPath();
+  ctx.moveTo(x - hw, y);
+  ctx.lineTo(x, y + hh);
+  ctx.lineTo(x, y + hh + depth);
+  ctx.lineTo(x - hw, y + depth);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#000'; ctx.stroke();
+
+  // Right face
+  ctx.fillStyle = rightColor;
+  ctx.beginPath();
+  ctx.moveTo(x + hw, y);
+  ctx.lineTo(x, y + hh);
+  ctx.lineTo(x, y + hh + depth);
+  ctx.lineTo(x + hw, y + depth);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#000'; ctx.stroke();
+}
+
+function drawQbert(x, y, facing) {
+  // Round orange body
+  ctx.fillStyle = '#ff8800';
+  ctx.beginPath();
+  ctx.arc(x, y - 14, 12, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#cc6600'; ctx.lineWidth = 1.5; ctx.stroke();
+
+  // Eyes (white with black pupils)
+  const eyeOff = facing > 0 ? 2 : -2;
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(x - 4 + eyeOff, y - 18, 4, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x + 4 + eyeOff, y - 18, 4, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#000';
+  ctx.beginPath(); ctx.arc(x - 3 + eyeOff, y - 18, 2, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x + 5 + eyeOff, y - 18, 2, 0, Math.PI * 2); ctx.fill();
+
+  // Snout / nose (tube)
+  ctx.fillStyle = '#ff6600';
+  ctx.beginPath();
+  ctx.moveTo(x + facing * 8, y - 13);
+  ctx.lineTo(x + facing * 18, y - 16);
+  ctx.lineTo(x + facing * 18, y - 11);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#cc4400'; ctx.lineWidth = 1; ctx.stroke();
+
+  // Feet
+  ctx.fillStyle = '#ff8800';
+  ctx.beginPath(); ctx.arc(x - 6, y - 2, 5, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x + 6, y - 2, 5, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#cc6600'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(x - 6, y - 2, 5, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(x + 6, y - 2, 5, 0, Math.PI * 2); ctx.stroke();
+}
+
+function drawCoily(x, y, isEgg) {
+  if (isEgg) {
+    // Purple egg
+    ctx.fillStyle = '#9933ff';
+    ctx.beginPath();
+    ctx.ellipse(x, y - 10, 8, 10, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#6622aa'; ctx.lineWidth = 1.5; ctx.stroke();
+    // Spots
+    ctx.fillStyle = '#bb66ff';
+    ctx.beginPath(); ctx.arc(x - 3, y - 13, 2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + 2, y - 8, 2, 0, Math.PI * 2); ctx.fill();
+  } else {
+    // Snake body coil
+    ctx.strokeStyle = '#9933ff'; ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo(x, y - 3);
+    ctx.bezierCurveTo(x - 10, y - 10, x + 10, y - 18, x, y - 22);
+    ctx.stroke();
+    // Snake head
+    ctx.fillStyle = '#bb44ff';
+    ctx.beginPath(); ctx.arc(x, y - 24, 7, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#7722cc'; ctx.lineWidth = 1.5; ctx.stroke();
+    // Eyes
+    ctx.fillStyle = '#ff0';
+    ctx.beginPath(); ctx.arc(x - 3, y - 26, 2.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + 3, y - 26, 2.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.arc(x - 3, y - 26, 1, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + 3, y - 26, 1, 0, Math.PI * 2); ctx.fill();
+    // Tongue
+    ctx.strokeStyle = '#f00'; ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(x, y - 18);
+    ctx.lineTo(x, y - 14);
+    ctx.lineTo(x - 2, y - 12);
+    ctx.moveTo(x, y - 14);
+    ctx.lineTo(x + 2, y - 12);
+    ctx.stroke();
+  }
+}
+
+function drawRedBall(x, y) {
+  ctx.fillStyle = '#ff2222';
+  ctx.beginPath(); ctx.arc(x, y - 10, 9, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#aa0000'; ctx.lineWidth = 1.5; ctx.stroke();
+  // Highlight
+  ctx.fillStyle = '#ff8888';
+  ctx.beginPath(); ctx.arc(x - 3, y - 13, 3, 0, Math.PI * 2); ctx.fill();
+}
+
+function drawSlickSam(x, y, type) {
+  const color = type === 'slick' ? '#44ff44' : '#4488ff';
+  const dark = type === 'slick' ? '#22aa22' : '#2255aa';
+  // Body
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.ellipse(x, y - 12, 8, 10, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = dark; ctx.lineWidth = 1.5; ctx.stroke();
+  // Sunglasses
+  ctx.fillStyle = '#000';
+  ctx.fillRect(x - 7, y - 16, 5, 4);
+  ctx.fillRect(x + 2, y - 16, 5, 4);
+  ctx.strokeStyle = '#000'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(x - 2, y - 14); ctx.lineTo(x + 2, y - 14); ctx.stroke();
+  // Feet
+  ctx.fillStyle = color;
+  ctx.beginPath(); ctx.arc(x - 5, y - 1, 4, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x + 5, y - 1, 4, 0, Math.PI * 2); ctx.fill();
+}
+
+function drawDisc(x, y) {
+  // Spinning disc
+  const wobble = Math.sin(frame * 0.15) * 3;
+  ctx.fillStyle = '#ff44ff';
+  ctx.beginPath();
+  ctx.ellipse(x, y + wobble, 14, 6, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#ff88ff'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.ellipse(x, y + wobble, 14, 6, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  // Inner ring
+  ctx.strokeStyle = '#ffaaff';
+  ctx.beginPath();
+  ctx.ellipse(x, y + wobble, 8, 3, 0, 0, Math.PI * 2);
+  ctx.stroke();
+}
+
+function easeOut(t) { return 1 - (1 - t) * (1 - t); }
+
+function getHopPos(fromX, fromY, toX, toY, t) {
+  const x = fromX + (toX - fromX) * t;
+  const y = fromY + (toY - fromY) * t - Math.sin(t * Math.PI) * 30;
+  return { x, y };
+}
+
+function draw() {
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+
+  const scheme = getScheme();
+  const maxC = getMaxColor();
+
+  // Draw cubes (bottom to top for proper overlap)
+  for (let r = ROWS - 1; r >= 0; r--) {
+    for (let c = r; c >= 0; c--) {
+      const pos = gridToScreen(r, c);
+      const val = grid[r][c];
+      const t = val / maxC;
+
+      let topC, leftC, rightC;
+      if (levelClear && frame % 8 < 4) {
+        topC = '#fff'; leftC = '#ccc'; rightC = '#aaa';
+      } else {
+        topC = lerpColor(scheme.from, scheme.to, t);
+        leftC = lerpColor(scheme.side1From, scheme.side1To, t);
+        rightC = lerpColor(scheme.side2From, scheme.side2To, t);
+      }
+      drawCube(pos.x, pos.y, topC, leftC, rightC);
+    }
+  }
+
+  // Draw flying discs
+  for (const d of discs) {
+    if (d.used) continue;
+    const dp = getDiscScreenPos(d);
+    drawDisc(dp.x, dp.y);
+  }
+
+  // Draw enemies
+  for (const e of enemies) {
+    let ex, ey;
+    if (e.hopping) {
+      const t = easeOut(e.animT / (e.hopDur || 18));
+      const hp = getHopPos(e.fromX, e.fromY, e.toX, e.toY, t);
+      ex = hp.x; ey = hp.y;
+    } else {
+      const p = gridToScreen(e.row, e.col);
+      ex = p.x; ey = p.y;
+    }
+
+    if (e.type === 'ball') {
+      drawRedBall(ex, ey);
+    } else if (e.type === 'coily') {
+      drawCoily(ex, ey, e.state === 'egg');
+    } else {
+      drawSlickSam(ex, ey, e.type);
+    }
+  }
+
+  // Draw player
+  if (!gameOver || fallAnim) {
+    let px, py;
+    if (hopAnim) {
+      const t = easeOut(hopAnim.t / hopAnim.dur);
+      const hp = getHopPos(hopAnim.fromX, hopAnim.fromY, hopAnim.toX, hopAnim.toY, t);
+      px = hp.x; py = hp.y;
+    } else if (fallAnim) {
+      const t = fallAnim.t / fallAnim.dur;
+      px = fallAnim.fromX + (fallAnim.toX - fallAnim.fromX) * t;
+      py = fallAnim.fromY + (fallAnim.toY - fallAnim.fromY) * t + t * t * 100;
+    } else if (discAnim) {
+      if (discAnim.phase === 0) {
+        const t = discAnim.t / discAnim.dur1;
+        px = discAnim.fromX + (discAnim.discX - discAnim.fromX) * t;
+        py = discAnim.fromY + (discAnim.discY - discAnim.fromY) * t - Math.sin(t * Math.PI) * 20;
+      } else {
+        const t = easeOut(discAnim.t / discAnim.dur2);
+        px = discAnim.discX + (discAnim.topX - discAnim.discX) * t;
+        py = discAnim.discY + (discAnim.topY - discAnim.discY) * t - Math.sin(t * Math.PI) * 60;
+      }
+    } else {
+      const p = gridToScreen(player.row, player.col);
+      px = p.x; py = p.y;
+    }
+    drawQbert(px, py, player.facing);
+
+    // Speech bubble on fall
+    if (speechBubble && speechBubble.t < speechBubble.dur) {
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 14px monospace';
+      ctx.textAlign = 'center';
+      const by = speechBubble.y - speechBubble.t * 0.5;
+      ctx.fillText(speechBubble.text, speechBubble.x, by);
+    }
+  }
+
+  // HUD
+  ctx.fillStyle = '#ffcc00'; ctx.font = '16px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('SCORE: ' + score, 10, H - 20);
+  ctx.textAlign = 'center';
+  ctx.fillText('LEVEL ' + level, W / 2, H - 20);
+  ctx.textAlign = 'right';
+
+  // Lives as Q*bert icons
+  let livesStr = 'LIVES: ';
+  for (let i = 0; i < lives; i++) livesStr += '\u2B24 ';
+  ctx.fillStyle = '#ff8800';
+  ctx.fillText(livesStr, W - 10, H - 20);
+
+  // Color target indicator
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#aaa'; ctx.font = '12px monospace';
+  ctx.fillText('CHANGE TO:', W - 140, 52);
+  // Draw mini target cube
+  drawMiniCube(W - 50, 48, scheme.to, scheme.side1To, scheme.side2To);
+  // Cubes remaining
+  let remaining = 0;
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c <= r; c++) if (grid[r][c] < maxC) remaining++;
+  ctx.fillStyle = '#aaa'; ctx.font = '12px monospace'; ctx.textAlign = 'left';
+  ctx.fillText(remaining + '/' + totalCubes() + ' LEFT', W - 140, 74);
+
+  // Level clear text
+  if (levelClear) {
+    ctx.fillStyle = '#ffcc00'; ctx.font = 'bold 36px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('LEVEL CLEAR!', W / 2, H / 2 - 60);
+    ctx.font = '18px monospace'; ctx.fillStyle = '#fff';
+    ctx.fillText('BONUS: ' + (1000 + level * 250), W / 2, H / 2 - 25);
+  }
+
+  // Game over
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, W, H);
+    ctx.font = 'bold 48px monospace'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#f55';
+    ctx.fillText('GAME OVER', W / 2, H / 2 - 20);
+    ctx.fillStyle = '#aaa'; ctx.font = '18px monospace';
+    ctx.fillText('R to restart   SCORE: ' + score, W / 2, H / 2 + 24);
+  }
+
+  // Title badge
+  ctx.fillStyle = '#1a1a1a'; ctx.fillRect(8, 8, 250, 28);
+  ctx.fillStyle = '#555'; ctx.font = '13px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('PUZ-004 \u00B7 Q*BERT  [?]', 16, 26);
+}
+
+function drawMiniCube(x, y, top, left, right) {
+  const s = 10;
+  ctx.fillStyle = top;
+  ctx.beginPath();
+  ctx.moveTo(x, y - s / 2); ctx.lineTo(x + s, y); ctx.lineTo(x, y + s / 2); ctx.lineTo(x - s, y);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = left;
+  ctx.beginPath();
+  ctx.moveTo(x - s, y); ctx.lineTo(x, y + s / 2); ctx.lineTo(x, y + s); ctx.lineTo(x - s, y + s / 2);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = right;
+  ctx.beginPath();
+  ctx.moveTo(x + s, y); ctx.lineTo(x, y + s / 2); ctx.lineTo(x, y + s); ctx.lineTo(x + s, y + s / 2);
+  ctx.closePath(); ctx.fill();
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

@@ -1,0 +1,708 @@
+<!--
+PROTOTYPE: pipedream
+SERIES: puz
+NUMBER: 010
+DATE: 2026-03-23
+MECHANIC: flow connection — place pipe segments before water arrives to create the longest possible path from the source
+ANCESTRY: Pipe Mania (1989), Bioshock hacking (2007), Flow Free (2012)
+CONTROLS: Click — place pipe | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — graph traversal, flow networks)
+AI-INSIGHT: Pipe placement under time pressure is online graph construction — building a path in a partially observable environment before knowing what pieces you'll receive. This is the stochastic planning problem: act now with incomplete future information. The game teaches players to build robust partial plans.
+NOTES: Pipe Mania (1989) by The Assembly Line was later rebranded as Pipe Dream. The mechanic appears in countless games as a hacking/lockpicking minigame. The random piece queue adds a Tetris-like stochastic element.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PUZ-010 · PIPE DREAM</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #0a0a0f; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: pointer; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>PUZ-010 · PIPE DREAM</h1>
+    <p><span class="tag series">PUZ — Puzzle</span> <span class="tag">Prototype #010</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Place pipe segments on the grid to build a path for water flowing from the green source. The longer your path, the higher your score.</p>
+    <ul>
+      <li><strong>Click</strong> a grid cell to place the current pipe piece</li>
+      <li>You can replace pipes that haven't been filled yet</li>
+      <li>Water starts flowing after a countdown — place pipes quickly!</li>
+      <li>Score points for each pipe segment the water fills</li>
+      <li>Game ends when water hits a dead end or the grid edge</li>
+      <li><kbd>R</kbd> — Restart game</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Pipe Types</h3>
+    <ul>
+      <li><strong>Straight</strong> — horizontal or vertical passage</li>
+      <li><strong>Corner</strong> — 90-degree bend (4 rotations)</li>
+      <li><strong>Cross</strong> — intersection allowing flow in all 4 directions</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li>Plan ahead using the piece queue on the right</li>
+      <li>Cross pieces are valuable — they connect in all directions</li>
+      <li>Try to loop the path back near earlier segments for longer routes</li>
+      <li>Each level speeds up the water flow</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Pipe Mania</strong> (1989) was created by The Assembly Line — principally <strong>Teoman Irmak</strong> and <strong>Stephen Grand</strong> — and published by <strong>Empire Interactive</strong> in the UK. LucasArts published it in North America under the name <strong>Pipe Dream</strong>. The concept — connecting segments under time pressure — proved so compelling it became a universal minigame mechanic, appearing as hacking puzzles in <strong>BioShock</strong> (2007), bypass minigames in <strong>Mass Effect</strong> (2007), lockpicking in various RPGs, and flow puzzles in mobile games like <strong>Flow Free</strong> (2012).</p>
+    <p>The random piece queue draws directly from Tetris's design philosophy: you can see what's coming but can't choose the order, creating tension between planning and adaptation.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>Era 3: Knowledge Explosion</strong> — Pipe Dream exemplifies online graph construction under uncertainty. The player builds a directed path in a partially observable environment, making irrevocable placement decisions before knowing future pieces. This is the <em>stochastic planning problem</em>: optimal play requires reasoning about probability distributions of upcoming pieces while maintaining connectivity constraints.</p>
+    <p>From a graph theory perspective, the grid is an implicit graph where pipe placement creates edges. The flowing water performs a depth-first traversal. An AI solver would model this as a Markov decision process, balancing immediate connectivity with future path flexibility.</p>
+
+    <h2>Classification</h2>
+    <p>
+      <span class="tag series">Series: PUZ (Puzzle)</span>
+      <span class="tag">Mechanic: Flow Connection</span>
+      <span class="tag">Input: Point-and-Click</span>
+      <span class="tag">View: Top-Down Grid</span>
+      <span class="tag">Era: 3 (Knowledge Explosion)</span>
+    </p>
+
+    <h2>Prototype Notes</h2>
+    <ul>
+      <li>7x7 grid with randomized source position on left edge</li>
+      <li>Queue of 5 upcoming pieces visible</li>
+      <li>Fluid fill animation using linear interpolation</li>
+      <li>Level progression increases flow speed</li>
+      <li>Industrial aesthetic with metallic pipe rendering</li>
+      <li>Cross pieces act as wildcards connecting all 4 directions</li>
+    </ul>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+canvas.width = 800;
+canvas.height = 600;
+
+// Info panel
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// Constants
+const GRID_SIZE = 7;
+const CELL = 64;
+const GRID_X = 40;
+const GRID_Y = 52;
+const QUEUE_X = 570;
+const QUEUE_Y = 80;
+const QUEUE_CELL = 56;
+
+// Pipe types: each has openings [top, right, bottom, left]
+// 0=closed, 1=open
+const PIPE_TYPES = [
+  { name: 'h-straight', openings: [0,1,0,1] },  // horizontal
+  { name: 'v-straight', openings: [1,0,1,0] },  // vertical
+  { name: 'corner-tr', openings: [1,1,0,0] },   // top-right
+  { name: 'corner-br', openings: [0,1,1,0] },   // bottom-right
+  { name: 'corner-bl', openings: [0,0,1,1] },   // bottom-left
+  { name: 'corner-tl', openings: [1,0,0,1] },   // top-left
+  { name: 'cross', openings: [1,1,1,1] },       // cross
+];
+
+// Direction helpers: [top, right, bottom, left] => [dr, dc]
+const DIR_DELTA = [[-1,0],[0,1],[1,0],[0,-1]];
+const DIR_OPPOSITE = [2,3,0,1];
+
+// Game state
+let grid, queue, score, level, gameOver, flowing, flowTimer;
+let flowCountdown, countdownMax;
+let flowHead, flowDir, flowProgress, flowSpeed;
+let filledCount, minFilled;
+let hoverR, hoverC;
+let lastTime;
+
+function init() {
+  grid = [];
+  for (let r = 0; r < GRID_SIZE; r++) {
+    grid[r] = [];
+    for (let c = 0; c < GRID_SIZE; c++) {
+      grid[r][c] = { pipe: null, filled: false, fillProgress: 0, fillFrom: -1 };
+    }
+  }
+
+  // Place source on left edge at random row
+  let srcRow = Math.floor(Math.random() * (GRID_SIZE - 2)) + 1;
+  grid[srcRow][0].pipe = { name: 'source', openings: [0,1,0,0] };
+  grid[srcRow][0].filled = true;
+  grid[srcRow][0].fillProgress = 1;
+  grid[srcRow][0].fillFrom = 3; // entered from left
+
+  flowHead = { r: srcRow, c: 0 };
+  flowDir = 1; // flowing right
+
+  // Generate queue
+  queue = [];
+  for (let i = 0; i < 20; i++) queue.push(randomPipe());
+
+  score = 0;
+  level = level || 1;
+  gameOver = false;
+  flowing = false;
+  flowProgress = 0;
+  flowSpeed = 0.4 + (level - 1) * 0.08;
+  countdownMax = Math.max(5, 12 - (level - 1) * 1.5);
+  flowCountdown = countdownMax;
+  filledCount = 0;
+  minFilled = 5 + level * 2;
+  hoverR = -1;
+  hoverC = -1;
+  lastTime = performance.now();
+}
+
+function randomPipe() {
+  // Weighted: straights and corners more common than cross
+  let weights = [3, 3, 2, 2, 2, 2, 1];
+  let total = weights.reduce((a,b) => a+b, 0);
+  let r = Math.random() * total;
+  let cum = 0;
+  for (let i = 0; i < weights.length; i++) {
+    cum += weights[i];
+    if (r < cum) return { ...PIPE_TYPES[i] };
+  }
+  return { ...PIPE_TYPES[0] };
+}
+
+function placePipe(r, c) {
+  if (gameOver) return;
+  if (r < 0 || r >= GRID_SIZE || c < 0 || c >= GRID_SIZE) return;
+  let cell = grid[r][c];
+  // Can't place on source
+  if (cell.pipe && cell.pipe.name === 'source') return;
+  // Can't place on filled pipe
+  if (cell.filled) return;
+
+  cell.pipe = { ...queue[0] };
+  cell.filled = false;
+  cell.fillProgress = 0;
+  cell.fillFrom = -1;
+  queue.shift();
+  queue.push(randomPipe());
+}
+
+function advanceFlow(dt) {
+  if (gameOver) return;
+
+  // Move to next cell
+  let nr = flowHead.r + DIR_DELTA[flowDir][0];
+  let nc = flowHead.c + DIR_DELTA[flowDir][1];
+
+  // Check bounds
+  if (nr < 0 || nr >= GRID_SIZE || nc < 0 || nc >= GRID_SIZE) {
+    endGame();
+    return;
+  }
+
+  let cell = grid[nr][nc];
+  // Check if there's a pipe and it accepts flow from the incoming direction
+  let incomingDir = DIR_OPPOSITE[flowDir]; // direction water enters from
+  if (!cell.pipe || !cell.pipe.openings[incomingDir]) {
+    endGame();
+    return;
+  }
+
+  // Start filling this cell
+  if (!cell.filled) {
+    cell.fillFrom = incomingDir;
+    cell.fillProgress += flowSpeed * dt;
+
+    if (cell.fillProgress >= 1) {
+      cell.fillProgress = 1;
+      cell.filled = true;
+      filledCount++;
+      score += 100;
+
+      // Find exit direction
+      let exitDir = -1;
+      for (let d = 0; d < 4; d++) {
+        if (d !== incomingDir && cell.pipe.openings[d]) {
+          exitDir = d;
+          break;
+        }
+      }
+
+      if (exitDir === -1) {
+        // Dead end (shouldn't happen with valid pipes but just in case)
+        endGame();
+        return;
+      }
+
+      flowHead = { r: nr, c: nc };
+      flowDir = exitDir;
+    }
+  }
+}
+
+function endGame() {
+  gameOver = true;
+}
+
+function restart() {
+  level = 1;
+  score = 0;
+  init();
+}
+
+function nextLevel() {
+  level++;
+  init();
+}
+
+// Drawing functions
+function drawPipe(x, y, size, pipe, fillProgress, fillFrom, filled) {
+  let cx = x + size / 2;
+  let cy = y + size / 2;
+  let pw = size * 0.3; // pipe width
+  let hw = pw / 2;
+
+  // Background
+  ctx.fillStyle = '#1a1a2a';
+  ctx.fillRect(x + 2, y + 2, size - 4, size - 4);
+
+  if (!pipe) return;
+
+  if (pipe.name === 'source') {
+    // Green source block
+    ctx.fillStyle = '#0a3a0a';
+    ctx.fillRect(x + 4, y + 4, size - 8, size - 8);
+    ctx.fillStyle = filled ? '#22dd44' : '#11aa22';
+    ctx.fillRect(x + 8, y + 8, size - 16, size - 16);
+
+    // Arrow pointing right
+    ctx.fillStyle = '#fff';
+    ctx.font = (size * 0.4) + 'px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('>', cx + 4, cy);
+    return;
+  }
+
+  let openings = pipe.openings;
+
+  // Draw pipe segments (silver/grey)
+  ctx.strokeStyle = '#667';
+  ctx.lineWidth = pw;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  // Draw each open direction as a line from center to edge
+  // For a nicer look, draw the pipe body
+  function drawPipeBody() {
+    ctx.beginPath();
+    if (pipe.name === 'cross') {
+      // Horizontal
+      ctx.moveTo(x + 2, cy);
+      ctx.lineTo(x + size - 2, cy);
+      // Vertical
+      ctx.moveTo(cx, y + 2);
+      ctx.lineTo(cx, y + size - 2);
+    } else if (pipe.name === 'h-straight') {
+      ctx.moveTo(x + 2, cy);
+      ctx.lineTo(x + size - 2, cy);
+    } else if (pipe.name === 'v-straight') {
+      ctx.moveTo(cx, y + 2);
+      ctx.lineTo(cx, y + size - 2);
+    } else {
+      // Corner pieces — draw two segments from center to open edges
+      for (let d = 0; d < 4; d++) {
+        if (openings[d]) {
+          ctx.moveTo(cx, cy);
+          if (d === 0) ctx.lineTo(cx, y + 2);       // top
+          if (d === 1) ctx.lineTo(x + size - 2, cy); // right
+          if (d === 2) ctx.lineTo(cx, y + size - 2); // bottom
+          if (d === 3) ctx.lineTo(x + 2, cy);        // left
+        }
+      }
+    }
+    ctx.stroke();
+  }
+
+  // Pipe outline (dark)
+  ctx.strokeStyle = '#445';
+  ctx.lineWidth = pw + 4;
+  drawPipeBody();
+
+  // Pipe body (silver)
+  ctx.strokeStyle = '#99a';
+  ctx.lineWidth = pw;
+  drawPipeBody();
+
+  // Pipe highlight (lighter center line)
+  ctx.strokeStyle = '#bbc';
+  ctx.lineWidth = pw * 0.3;
+  drawPipeBody();
+
+  // Draw fluid fill
+  if (fillProgress > 0 || filled) {
+    let fp = filled ? 1 : fillProgress;
+    ctx.strokeStyle = '#2288ff';
+    ctx.lineWidth = pw * 0.5;
+    ctx.lineCap = 'round';
+
+    // Determine fill path: from fillFrom direction to exit
+    let entryDir = fillFrom;
+    let exitDir = -1;
+    for (let d = 0; d < 4; d++) {
+      if (d !== entryDir && openings[d]) { exitDir = d; break; }
+    }
+
+    // Get entry point and exit point
+    function dirPoint(d) {
+      if (d === 0) return [cx, y + 2];
+      if (d === 1) return [x + size - 2, cy];
+      if (d === 2) return [cx, y + size - 2];
+      if (d === 3) return [x + 2, cy];
+      return [cx, cy];
+    }
+
+    if (entryDir >= 0) {
+      let ep = dirPoint(entryDir);
+      let mp = [cx, cy];
+      let xp = exitDir >= 0 ? dirPoint(exitDir) : mp;
+
+      ctx.beginPath();
+      // Fill from entry to center, then center to exit based on progress
+      if (fp <= 0.5) {
+        let t = fp * 2;
+        let tx = ep[0] + (mp[0] - ep[0]) * t;
+        let ty = ep[1] + (mp[1] - ep[1]) * t;
+        ctx.moveTo(ep[0], ep[1]);
+        ctx.lineTo(tx, ty);
+      } else {
+        let t = (fp - 0.5) * 2;
+        ctx.moveTo(ep[0], ep[1]);
+        ctx.lineTo(mp[0], mp[1]);
+        let tx = mp[0] + (xp[0] - mp[0]) * t;
+        let ty = mp[1] + (xp[1] - mp[1]) * t;
+        ctx.lineTo(tx, ty);
+      }
+      ctx.stroke();
+
+      // For cross pieces, also draw the perpendicular passage if filled
+      if (pipe.name === 'cross' && filled) {
+        // Find other two openings
+        for (let d = 0; d < 4; d++) {
+          if (d !== entryDir && d !== exitDir && openings[d]) {
+            let op = dirPoint(d);
+            ctx.beginPath();
+            ctx.moveTo(mp[0], mp[1]);
+            ctx.lineTo(op[0], op[1]);
+            ctx.stroke();
+          }
+        }
+      }
+    }
+  }
+
+  // Draw connection dots at openings
+  for (let d = 0; d < 4; d++) {
+    if (openings[d]) {
+      ctx.fillStyle = (fillProgress > 0 || filled) ? '#2288ff' : '#667';
+      let dx = cx, dy = cy;
+      if (d === 0) dy = y + 4;
+      if (d === 1) dx = x + size - 4;
+      if (d === 2) dy = y + size - 4;
+      if (d === 3) dx = x + 4;
+      ctx.beginPath();
+      ctx.arc(dx, dy, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+function drawGrid() {
+  // Grid background
+  ctx.fillStyle = '#0d0d18';
+  ctx.fillRect(GRID_X - 4, GRID_Y - 4, GRID_SIZE * CELL + 8, GRID_SIZE * CELL + 8);
+
+  // Grid border
+  ctx.strokeStyle = '#334';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(GRID_X - 4, GRID_Y - 4, GRID_SIZE * CELL + 8, GRID_SIZE * CELL + 8);
+
+  // Draw cells
+  for (let r = 0; r < GRID_SIZE; r++) {
+    for (let c = 0; c < GRID_SIZE; c++) {
+      let x = GRID_X + c * CELL;
+      let y = GRID_Y + r * CELL;
+      let cell = grid[r][c];
+
+      // Cell border
+      ctx.strokeStyle = '#223';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x, y, CELL, CELL);
+
+      // Hover highlight
+      if (r === hoverR && c === hoverC && !cell.filled && !(cell.pipe && cell.pipe.name === 'source') && !gameOver) {
+        ctx.fillStyle = 'rgba(50, 80, 120, 0.3)';
+        ctx.fillRect(x + 1, y + 1, CELL - 2, CELL - 2);
+      }
+
+      drawPipe(x, y, CELL, cell.pipe, cell.fillProgress, cell.fillFrom, cell.filled);
+    }
+  }
+}
+
+function drawQueue() {
+  ctx.fillStyle = '#aab';
+  ctx.font = '14px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('NEXT PIECES', QUEUE_X + QUEUE_CELL / 2, QUEUE_Y - 10);
+
+  // Arrow pointing to first piece
+  ctx.fillStyle = '#ff0';
+  ctx.font = '16px monospace';
+  ctx.fillText('▶', QUEUE_X - 14, QUEUE_Y + QUEUE_CELL / 2 + 2);
+
+  for (let i = 0; i < Math.min(5, queue.length); i++) {
+    let x = QUEUE_X;
+    let y = QUEUE_Y + i * (QUEUE_CELL + 8);
+
+    // Background
+    ctx.fillStyle = i === 0 ? '#1a2a3a' : '#111118';
+    ctx.fillRect(x, y, QUEUE_CELL, QUEUE_CELL);
+    ctx.strokeStyle = i === 0 ? '#4488aa' : '#334';
+    ctx.lineWidth = i === 0 ? 2 : 1;
+    ctx.strokeRect(x, y, QUEUE_CELL, QUEUE_CELL);
+
+    drawPipe(x, y, QUEUE_CELL, queue[i], 0, -1, false);
+  }
+}
+
+function drawHUD() {
+  // Title
+  ctx.fillStyle = '#7bf';
+  ctx.font = '18px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('PUZ-010 · PIPE DREAM', GRID_X, 30);
+
+  // Score
+  ctx.fillStyle = '#ddd';
+  ctx.font = '14px monospace';
+  ctx.textAlign = 'right';
+  ctx.fillText('SCORE: ' + score, 780, 24);
+
+  // Level
+  ctx.fillText('LEVEL: ' + level, 780, 42);
+
+  // Countdown or flowing status
+  ctx.textAlign = 'center';
+  if (!flowing && !gameOver) {
+    let secs = Math.ceil(flowCountdown);
+    ctx.fillStyle = secs <= 3 ? '#f44' : '#ff0';
+    ctx.font = '16px monospace';
+    ctx.fillText('WATER IN: ' + secs + 's', QUEUE_X + QUEUE_CELL / 2, QUEUE_Y + 5 * (QUEUE_CELL + 8) + 30);
+  } else if (flowing && !gameOver) {
+    ctx.fillStyle = '#2288ff';
+    ctx.font = '14px monospace';
+    ctx.fillText('FLOWING!', QUEUE_X + QUEUE_CELL / 2, QUEUE_Y + 5 * (QUEUE_CELL + 8) + 30);
+  }
+
+  // Filled count / target
+  ctx.fillStyle = filledCount >= minFilled ? '#4f4' : '#f84';
+  ctx.font = '12px monospace';
+  ctx.fillText('FILLED: ' + filledCount + '/' + minFilled, QUEUE_X + QUEUE_CELL / 2, QUEUE_Y + 5 * (QUEUE_CELL + 8) + 52);
+
+  // Controls hint
+  ctx.fillStyle = '#556';
+  ctx.font = '11px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('[R] Restart  [?] Info', GRID_X, GRID_Y + GRID_SIZE * CELL + 24);
+
+  // Game over overlay
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(0, 0, 800, 600);
+
+    ctx.textAlign = 'center';
+    if (filledCount >= minFilled) {
+      ctx.fillStyle = '#4f4';
+      ctx.font = '36px monospace';
+      ctx.fillText('LEVEL COMPLETE!', 400, 260);
+      ctx.fillStyle = '#ddd';
+      ctx.font = '16px monospace';
+      ctx.fillText('Filled ' + filledCount + ' pipes — Score: ' + score, 400, 300);
+      ctx.fillStyle = '#ff0';
+      ctx.font = '14px monospace';
+      ctx.fillText('Click or press any key for Level ' + (level + 1), 400, 340);
+    } else {
+      ctx.fillStyle = '#f44';
+      ctx.font = '36px monospace';
+      ctx.fillText('GAME OVER', 400, 260);
+      ctx.fillStyle = '#ddd';
+      ctx.font = '16px monospace';
+      ctx.fillText('Filled ' + filledCount + '/' + minFilled + ' pipes — Score: ' + score, 400, 300);
+      ctx.fillStyle = '#ff0';
+      ctx.font = '14px monospace';
+      ctx.fillText('Press R to restart', 400, 340);
+    }
+  }
+}
+
+function update(now) {
+  if (infoOpen) return;
+
+  let dt = (now - lastTime) / 1000;
+  lastTime = now;
+  if (dt > 0.1) dt = 0.1; // clamp
+
+  if (!gameOver) {
+    if (!flowing) {
+      flowCountdown -= dt;
+      if (flowCountdown <= 0) {
+        flowing = true;
+      }
+    } else {
+      advanceFlow(dt);
+    }
+  }
+}
+
+function draw() {
+  ctx.fillStyle = '#0a0a0f';
+  ctx.fillRect(0, 0, 800, 600);
+
+  drawGrid();
+  drawQueue();
+  drawHUD();
+}
+
+function loop(now) {
+  update(now);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+// Input
+canvas.addEventListener('mousemove', (e) => {
+  let rect = canvas.getBoundingClientRect();
+  let sx = canvas.width / rect.width;
+  let sy = canvas.height / rect.height;
+  let mx = (e.clientX - rect.left) * sx;
+  let my = (e.clientY - rect.top) * sy;
+
+  hoverC = Math.floor((mx - GRID_X) / CELL);
+  hoverR = Math.floor((my - GRID_Y) / CELL);
+  if (hoverR < 0 || hoverR >= GRID_SIZE || hoverC < 0 || hoverC >= GRID_SIZE) {
+    hoverR = -1;
+    hoverC = -1;
+  }
+});
+
+canvas.addEventListener('click', (e) => {
+  if (infoOpen) return;
+
+  if (gameOver) {
+    if (filledCount >= minFilled) {
+      nextLevel();
+    }
+    return;
+  }
+
+  let rect = canvas.getBoundingClientRect();
+  let sx = canvas.width / rect.width;
+  let sy = canvas.height / rect.height;
+  let mx = (e.clientX - rect.left) * sx;
+  let my = (e.clientY - rect.top) * sy;
+
+  let c = Math.floor((mx - GRID_X) / CELL);
+  let r = Math.floor((my - GRID_Y) / CELL);
+
+  if (r >= 0 && r < GRID_SIZE && c >= 0 && c < GRID_SIZE) {
+    placePipe(r, c);
+  }
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
+    toggleInfo();
+    e.preventDefault();
+    return;
+  }
+  if (e.key === 'Escape' && infoOpen) {
+    toggleInfo();
+    e.preventDefault();
+    return;
+  }
+  if (infoOpen) return;
+
+  if (e.key === 'r' || e.key === 'R') {
+    restart();
+    e.preventDefault();
+    return;
+  }
+
+  // Any key advances level on game over
+  if (gameOver && filledCount >= minFilled) {
+    nextLevel();
+  }
+  if ([' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault();
+});
+
+// Start
+init();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

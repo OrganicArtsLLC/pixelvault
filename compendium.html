@@ -1,0 +1,2803 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy"
+  content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https:; frame-src 'self';">
+<title>Pixel Vault — Compendium</title>
+<style>
+/* ══════════════════════════════════════════════════════════════
+   PIXEL VAULT COMPENDIUM — Design Tokens
+   ══════════════════════════════════════════════════════════════ */
+:root {
+  --bg:          #0d0e1c;
+  --bg-header:   #0a0b16;
+  --bg-card:     #13152a;
+  --bg-hover:    #1c2044;
+  --bg-select:   #162038;
+  --bg-badge:    #1a1e3a;
+  --border:      #2c3060;
+  --border-dim:  #1a1e38;
+  --text:        #c8ccec;
+  --text-dim:    #8890c8;
+  --text-muted:  #52588a;
+  --text-bright: #e8ecff;
+  --accent:      #5ab8ff;
+  --accent-dim:  #7aaae0;
+  --gold:        #ffd060;
+  --green:       #4de87a;
+  --orange:      #ff9040;
+  --red:         #ff5050;
+  --font:        'Courier New', monospace;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   RESET & BASE
+   ══════════════════════════════════════════════════════════════ */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  min-height: 100vh;
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { color: var(--text-bright); text-decoration: underline; }
+button { cursor: pointer; font-family: var(--font); }
+input { font-family: var(--font); }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ══════════════════════════════════════════════════════════════
+   SECTION 1: INTRO — Full-Screen Opening
+   ══════════════════════════════════════════════════════════════ */
+#intro {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  transition: opacity 0.8s ease, visibility 0.8s;
+}
+#intro.dismissed {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+#intro-canvas {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+}
+#intro .intro-content {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  padding: 20px;
+}
+#intro .intro-title {
+  font-size: clamp(32px, 8vw, 80px);
+  color: var(--accent);
+  letter-spacing: clamp(4px, 1.5vw, 16px);
+  text-transform: uppercase;
+  animation: glow 3s ease-in-out infinite;
+  margin-bottom: 16px;
+}
+@keyframes glow {
+  0%, 100% { text-shadow: 0 0 10px rgba(90,184,255,0.4), 0 0 30px rgba(90,184,255,0.2), 0 0 60px rgba(90,184,255,0.1); }
+  50% { text-shadow: 0 0 20px rgba(90,184,255,0.7), 0 0 50px rgba(90,184,255,0.4), 0 0 100px rgba(90,184,255,0.2); }
+}
+#intro .intro-tagline {
+  font-size: clamp(12px, 2vw, 18px);
+  color: var(--gold);
+  letter-spacing: 2px;
+  margin-bottom: 12px;
+}
+#intro .intro-subtitle {
+  font-size: clamp(11px, 1.5vw, 15px);
+  color: var(--text-dim);
+  max-width: 600px;
+  margin: 0 auto;
+  line-height: 1.7;
+}
+#intro .scroll-arrow {
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  width: 30px; height: 30px;
+  border-right: 2px solid var(--accent);
+  border-bottom: 2px solid var(--accent);
+  transform: translateX(-50%) rotate(45deg);
+  animation: bounce 2s ease-in-out infinite;
+  opacity: 0.6;
+  cursor: pointer;
+}
+@keyframes bounce {
+  0%, 100% { bottom: 40px; opacity: 0.6; }
+  50% { bottom: 30px; opacity: 1; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SECTION 2: STICKY NAV
+   ══════════════════════════════════════════════════════════════ */
+#sticky-nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 1000;
+  background: var(--bg-header);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  height: 48px;
+  transform: translateY(-100%);
+  transition: transform 0.3s ease;
+}
+#sticky-nav.visible { transform: translateY(0); }
+#sticky-nav .nav-links {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  flex-shrink: 1;
+  min-width: 0;
+}
+#sticky-nav .nav-links::-webkit-scrollbar { display: none; }
+#sticky-nav .nav-link {
+  padding: 8px 12px;
+  color: var(--text-dim);
+  font-size: 12px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  border: none;
+  background: none;
+  transition: color 0.2s;
+}
+#sticky-nav .nav-link:hover,
+#sticky-nav .nav-link.active {
+  color: var(--accent);
+}
+.lens-group {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.lens-btn {
+  padding: 5px 10px;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  transition: all 0.2s;
+}
+.lens-btn:first-child { border-radius: 3px 0 0 3px; }
+.lens-btn:last-child { border-radius: 0 3px 3px 0; }
+.lens-btn.active {
+  background: var(--bg-select);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.lens-btn:hover:not(.active) {
+  color: var(--text-dim);
+  border-color: var(--text-muted);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SHARED: Section Styling
+   ══════════════════════════════════════════════════════════════ */
+.comp-section {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 80px 20px 60px;
+}
+.section-header {
+  text-align: center;
+  margin-bottom: 48px;
+}
+.section-header h2 {
+  font-size: clamp(20px, 3vw, 32px);
+  color: var(--text-bright);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.section-header .section-sub {
+  font-size: clamp(11px, 1.5vw, 14px);
+  color: var(--text-dim);
+}
+.section-divider {
+  border: none;
+  border-top: 1px solid var(--border-dim);
+  margin: 0;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SECTION 3: DEMO REEL
+   ══════════════════════════════════════════════════════════════ */
+#demo-reel { padding-top: 60px; }
+.reel-track-label {
+  font-size: 12px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding: 8px 16px;
+  margin-bottom: 8px;
+  font-weight: bold;
+}
+.reel-track-label.archetype { color: var(--accent); }
+.reel-track-label.ai-archaeology { color: var(--orange); }
+.reel-track-label.ai-evolution { color: var(--green); }
+
+.reel-lane {
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+.reel-strip {
+  display: flex;
+  gap: 12px;
+  padding: 4px 16px 12px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x mandatory;
+}
+.reel-strip::-webkit-scrollbar { height: 4px; }
+.reel-strip::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.reel-card {
+  flex: 0 0 200px;
+  scroll-snap-align: start;
+  background: var(--bg-card);
+  border: 1px solid var(--border-dim);
+  border-radius: 4px;
+  padding: 14px;
+  transition: all 0.2s;
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+.reel-card:hover {
+  background: var(--bg-hover);
+  border-color: var(--border);
+  text-decoration: none;
+  transform: translateY(-2px);
+}
+.reel-card .rc-id {
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.reel-card .rc-name {
+  font-size: 15px;
+  color: var(--text-bright);
+  margin: 4px 0;
+  text-transform: capitalize;
+}
+.reel-card .rc-mechanic {
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.reel-card .rc-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+}
+.reel-card .rc-stars {
+  color: var(--gold);
+  font-size: 12px;
+  letter-spacing: 1px;
+}
+.reel-card .rc-badge {
+  font-size: 9px;
+  padding: 2px 6px;
+  border-radius: 2px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.rc-badge.archetype { background: rgba(90,184,255,0.15); color: var(--accent); }
+.rc-badge.ai-archaeology { background: rgba(255,144,64,0.15); color: var(--orange); }
+.rc-badge.ai-evolution { background: rgba(77,232,122,0.15); color: var(--green); }
+
+/* ══════════════════════════════════════════════════════════════
+   SECTION 4: TIMELINE
+   ══════════════════════════════════════════════════════════════ */
+.timeline-container {
+  position: relative;
+  overflow-x: auto;
+  overflow-y: visible;
+  padding: 20px 0 40px;
+  -webkit-overflow-scrolling: touch;
+}
+.timeline-track {
+  position: relative;
+  min-width: 2400px;
+  height: 420px;
+  padding: 0 40px;
+}
+.timeline-axis {
+  position: absolute;
+  top: 50%;
+  left: 40px; right: 40px;
+  height: 2px;
+  background: var(--border);
+  transform: translateY(-50%);
+}
+.timeline-year {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+  padding: 4px 8px;
+  background: var(--bg);
+  z-index: 2;
+}
+.timeline-node {
+  position: absolute;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  border: 2px solid;
+  background: var(--bg);
+  cursor: pointer;
+  transition: all 0.2s;
+  z-index: 3;
+}
+.timeline-node:hover { transform: scale(1.4); z-index: 4; }
+.timeline-node.game { border-color: var(--accent); top: 30%; transform: translateY(-50%); }
+.timeline-node.game:hover { top: 30%; transform: translateY(-50%) scale(1.4); }
+.timeline-node.ai { border-color: var(--orange); top: 70%; transform: translateY(-50%); }
+.timeline-node.ai:hover { top: 70%; transform: translateY(-50%) scale(1.4); }
+.timeline-node.active {
+  background: var(--accent);
+}
+.timeline-node.ai.active { background: var(--orange); }
+
+.timeline-tooltip {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  padding: 12px 16px;
+  border-radius: 4px;
+  width: 260px;
+  font-size: 11px;
+  color: var(--text);
+  line-height: 1.5;
+  z-index: 10;
+  pointer-events: none;
+}
+.timeline-node.ai .timeline-tooltip {
+  bottom: auto;
+  top: calc(100% + 12px);
+}
+.timeline-node.active .timeline-tooltip { display: block; }
+.timeline-tooltip .tt-year {
+  color: var(--gold);
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+.timeline-tooltip .tt-title {
+  color: var(--text-bright);
+  font-size: 13px;
+  margin: 4px 0;
+}
+.timeline-tooltip .tt-desc {
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+.convergence-line {
+  position: absolute;
+  width: 0;
+  border-left: 2px dashed var(--gold);
+  opacity: 0.3;
+  z-index: 1;
+}
+
+/* Mobile timeline: vertical */
+@media (max-width: 768px) {
+  .timeline-track {
+    min-width: unset;
+    width: 100%;
+    height: auto;
+    padding: 0 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .timeline-axis { display: none; }
+  .timeline-year {
+    position: relative;
+    top: auto;
+    transform: none;
+    padding: 12px 0 4px;
+    font-size: 12px;
+    color: var(--gold);
+    background: transparent;
+  }
+  .timeline-node {
+    position: relative;
+    top: auto !important;
+    transform: none !important;
+    width: auto; height: auto;
+    border-radius: 4px;
+    border: 1px solid var(--border-dim);
+    background: var(--bg-card);
+    padding: 10px 14px;
+    margin: 4px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .timeline-node::before {
+    content: '';
+    display: block;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .timeline-node.game::before { background: var(--accent); }
+  .timeline-node.ai::before { background: var(--orange); }
+  .timeline-node:hover { transform: none !important; background: var(--bg-hover); }
+  .timeline-node .mobile-label {
+    font-size: 12px;
+    color: var(--text);
+    line-height: 1.4;
+  }
+  .timeline-tooltip {
+    display: none !important;
+  }
+  .timeline-node.active .timeline-tooltip { display: none !important; }
+  .timeline-node.active .mobile-detail {
+    display: block;
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 6px;
+    line-height: 1.5;
+  }
+  .mobile-detail { display: none; }
+  .convergence-line { display: none; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SECTION 5: ANCESTRY
+   ══════════════════════════════════════════════════════════════ */
+.ancestry-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+.ancestry-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-dim);
+  border-radius: 4px;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+.ancestry-card:hover { border-color: var(--border); }
+.ancestry-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+  user-select: none;
+}
+.ancestry-header:focus { outline: 2px solid var(--accent); outline-offset: -2px; }
+.ancestry-badge {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 2px;
+  letter-spacing: 1px;
+  background: var(--bg-badge);
+  color: var(--accent);
+  font-weight: bold;
+  flex-shrink: 0;
+}
+.ancestry-header .ah-name {
+  font-size: 14px;
+  color: var(--text-bright);
+  flex: 1;
+}
+.ancestry-header .ah-mechanic {
+  font-size: 11px;
+  color: var(--text-muted);
+  display: none;
+}
+.ancestry-header .ah-toggle {
+  color: var(--text-muted);
+  font-size: 14px;
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+.ancestry-card.open .ah-toggle { transform: rotate(90deg); }
+.ancestry-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.4s ease;
+}
+.ancestry-card.open .ancestry-body {
+  max-height: 600px;
+}
+.ancestry-tree {
+  padding: 0 16px 16px;
+}
+.tree-mechanic {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  background: var(--bg);
+  border-radius: 3px;
+}
+.tree-chain {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+.tree-node {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 10px;
+  border: 1px solid var(--border-dim);
+  border-radius: 3px;
+  background: var(--bg);
+  font-size: 11px;
+  min-width: 80px;
+  text-align: center;
+}
+.tree-node .tn-name { color: var(--text-bright); font-size: 11px; }
+.tree-node .tn-year { color: var(--text-muted); font-size: 10px; }
+.tree-node.pv-proto {
+  border-color: var(--accent);
+  box-shadow: 0 0 8px rgba(90,184,255,0.2);
+}
+.tree-node.pv-proto .tn-name { color: var(--accent); }
+.tree-node.ai-variant {
+  border-color: var(--orange);
+}
+.tree-node.ai-variant .tn-name { color: var(--orange); }
+.tree-node.evo-variant {
+  border-color: var(--green);
+}
+.tree-node.evo-variant .tn-name { color: var(--green); }
+.tree-arrow {
+  color: var(--text-muted);
+  font-size: 16px;
+  padding: 0 2px;
+}
+.tree-play-link {
+  font-size: 9px;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-top: 2px;
+}
+
+@media (min-width: 768px) {
+  .ancestry-header .ah-mechanic { display: block; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SECTION 6: CREATORS
+   ══════════════════════════════════════════════════════════════ */
+.creators-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 24px;
+  align-items: center;
+}
+.creators-search {
+  flex: 1;
+  min-width: 200px;
+  padding: 8px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 13px;
+  border-radius: 3px;
+  outline: none;
+}
+.creators-search:focus { border-color: var(--accent); }
+.creators-search::placeholder { color: var(--text-muted); }
+.era-filters {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.era-btn {
+  padding: 6px 12px;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-dim);
+  border-radius: 3px;
+  transition: all 0.2s;
+}
+.era-btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--bg-select);
+}
+.era-btn:hover:not(.active) {
+  border-color: var(--text-muted);
+  color: var(--text);
+}
+.creators-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+.creator-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-dim);
+  border-radius: 4px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+.creator-card.hidden {
+  display: none;
+}
+.creator-card:hover {
+  border-color: var(--border);
+  background: var(--bg-hover);
+}
+.creator-card .cc-name {
+  font-size: 16px;
+  color: var(--text-bright);
+  margin-bottom: 4px;
+}
+.creator-card .cc-game {
+  font-size: 12px;
+  color: var(--accent-dim);
+}
+.creator-card .cc-org {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.creator-card .cc-innovation {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 8px;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.creator-card.expanded .cc-innovation {
+  -webkit-line-clamp: unset;
+  display: block;
+}
+.creator-card .cc-era {
+  display: inline-block;
+  font-size: 10px;
+  padding: 2px 8px;
+  background: var(--bg-badge);
+  color: var(--text-dim);
+  border-radius: 2px;
+  margin-top: 8px;
+  letter-spacing: 0.5px;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SECTION 7: AI CONVERGENCE
+   ══════════════════════════════════════════════════════════════ */
+.gap-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 48px;
+}
+.gap-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-dim);
+  border-radius: 4px;
+  font-size: 12px;
+  transition: border-color 0.2s;
+}
+.gap-bar:hover { border-color: var(--border); }
+.gap-left {
+  flex: 1;
+  text-align: right;
+  color: var(--accent);
+  min-width: 0;
+}
+.gap-left .gl-game { color: var(--text-bright); font-size: 12px; }
+.gap-left .gl-year { color: var(--accent); font-size: 11px; }
+.gap-badge {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  background: linear-gradient(135deg, rgba(90,184,255,0.2), rgba(255,144,64,0.2));
+  border: 1px solid var(--gold);
+  color: var(--gold);
+  font-size: 12px;
+  font-weight: bold;
+  border-radius: 3px;
+  min-width: 60px;
+  text-align: center;
+}
+.gap-right {
+  flex: 1;
+  color: var(--orange);
+  min-width: 0;
+}
+.gap-right .gr-ai { color: var(--text-bright); font-size: 12px; }
+.gap-right .gr-year { color: var(--orange); font-size: 11px; }
+
+/* Eras accordion */
+.eras-accordion { display: flex; flex-direction: column; gap: 8px; }
+.era-item {
+  background: var(--bg-card);
+  border: 1px solid var(--border-dim);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.era-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.2s;
+}
+.era-head:hover { background: var(--bg-hover); }
+.era-head:focus { outline: 2px solid var(--accent); outline-offset: -2px; }
+.era-num {
+  font-size: 16px;
+  color: var(--gold);
+  font-weight: bold;
+  flex-shrink: 0;
+  width: 24px;
+}
+.era-name-years {
+  flex: 1;
+}
+.era-name-years .en-name { color: var(--text-bright); font-size: 13px; }
+.era-name-years .en-years { color: var(--text-muted); font-size: 11px; }
+.era-chevron {
+  color: var(--text-muted);
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+.era-item.open .era-chevron { transform: rotate(90deg); }
+.era-detail {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+.era-item.open .era-detail { max-height: 300px; }
+.era-detail-inner {
+  padding: 0 16px 16px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.era-detail-inner p { margin-bottom: 6px; }
+.era-detail-inner .ed-label { color: var(--text-muted); }
+.era-detail-inner .ed-value { color: var(--text-dim); }
+
+/* ══════════════════════════════════════════════════════════════
+   SECTION 8: EXPLORER
+   ══════════════════════════════════════════════════════════════ */
+.explorer-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 24px;
+  align-items: center;
+}
+.filter-chip {
+  padding: 5px 12px;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-dim);
+  border-radius: 3px;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+.filter-chip.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--bg-select);
+}
+.filter-chip:hover:not(.active) {
+  border-color: var(--text-muted);
+  color: var(--text);
+}
+.filter-sep {
+  width: 1px;
+  height: 20px;
+  background: var(--border-dim);
+  flex-shrink: 0;
+}
+.explorer-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 14px;
+}
+.explorer-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-dim);
+  border-radius: 4px;
+  padding: 16px;
+  transition: all 0.2s;
+}
+/* Skeleton placeholder — shown before IntersectionObserver hydrates the card.
+   Fixed height prevents scroll-bar jump as cards render in. */
+.explorer-card--placeholder {
+  min-height: 110px;
+  background: linear-gradient(90deg,
+    var(--bg-card) 25%, rgba(44,48,96,0.3) 50%, var(--bg-card) 75%);
+  background-size: 200% 100%;
+  animation: pv-skeleton 1.6s ease infinite;
+  border-color: var(--border-dim);
+}
+.explorer-card--placeholder:hover { border-color: var(--border-dim); background: unset; animation: pv-skeleton 1.6s ease infinite; }
+@keyframes pv-skeleton {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.explorer-card:hover {
+  border-color: var(--border);
+  background: var(--bg-hover);
+}
+.explorer-card.hidden { display: none; }
+.explorer-card .ec-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.explorer-card .ec-id {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 2px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.ec-id.archetype { background: rgba(90,184,255,0.12); color: var(--accent); }
+.ec-id.ai-archaeology { background: rgba(255,144,64,0.12); color: var(--orange); }
+.ec-id.ai-evolution { background: rgba(77,232,122,0.12); color: var(--green); }
+.explorer-card .ec-name {
+  font-size: 16px;
+  color: var(--text-bright);
+  text-transform: capitalize;
+  flex: 1;
+}
+.explorer-card .ec-stars {
+  color: var(--gold);
+  font-size: 12px;
+  letter-spacing: 1px;
+  flex-shrink: 0;
+}
+.explorer-card .ec-mechanic {
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.5;
+  margin-bottom: 6px;
+}
+.explorer-card .ec-ancestry {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+.explorer-card .ec-insight {
+  font-size: 11px;
+  color: var(--orange);
+  opacity: 0.8;
+  line-height: 1.5;
+  margin-bottom: 10px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.explorer-card .ec-play {
+  display: inline-block;
+  padding: 6px 16px;
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  background: transparent;
+  border-radius: 3px;
+  transition: all 0.2s;
+  text-decoration: none;
+}
+.explorer-card .ec-play:hover {
+  background: var(--accent);
+  color: var(--bg);
+  text-decoration: none;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SECTION 9: SCIENCE OF PLAY
+   ══════════════════════════════════════════════════════════════ */
+.drives-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+  margin-bottom: 48px;
+}
+.drive-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-dim);
+  border-radius: 4px;
+  padding: 18px;
+  text-align: center;
+  transition: border-color 0.2s;
+}
+.drive-card:hover { border-color: var(--border); }
+.drive-card .dc-name {
+  font-size: 16px;
+  color: var(--gold);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.drive-card .dc-desc {
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.5;
+  margin-bottom: 10px;
+}
+.drive-card .dc-ancient,
+.drive-card .dc-digital {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+.drive-card .dc-ancient span,
+.drive-card .dc-digital span {
+  color: var(--text-dim);
+}
+
+/* Tech ladder */
+.tech-ladder {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 48px;
+}
+.ladder-rung {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-dim);
+  border-radius: 4px;
+  font-size: 12px;
+}
+.ladder-rung .lr-era {
+  color: var(--gold);
+  font-weight: bold;
+  min-width: 40px;
+  flex-shrink: 0;
+}
+.ladder-rung .lr-tech {
+  color: var(--text-bright);
+  flex: 1;
+  min-width: 120px;
+}
+.ladder-rung .lr-genre {
+  color: var(--text-dim);
+  flex: 2;
+}
+
+/* Novel verbs */
+.verbs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+.verb-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-dim);
+  border-radius: 4px;
+  padding: 16px;
+  text-align: center;
+  transition: all 0.2s;
+}
+.verb-card:hover {
+  border-color: var(--green);
+  background: var(--bg-hover);
+}
+.verb-card .vc-name {
+  font-size: 15px;
+  color: var(--green);
+  letter-spacing: 2px;
+  margin-bottom: 8px;
+}
+.verb-card .vc-desc {
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+
+/* Sub-section headers */
+.sub-header {
+  font-size: clamp(14px, 2vw, 18px);
+  color: var(--text-bright);
+  letter-spacing: 1px;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-dim);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SECTION 10: FOOTER
+   ══════════════════════════════════════════════════════════════ */
+#comp-footer {
+  text-align: center;
+  padding: 40px 20px;
+  border-top: 1px solid var(--border-dim);
+  background: var(--bg-header);
+}
+#comp-footer p {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 4px 0;
+}
+#comp-footer a { color: var(--accent-dim); }
+
+/* ══════════════════════════════════════════════════════════════
+   RESPONSIVE
+   ══════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  .comp-section { padding: 60px 12px 40px; }
+  .section-header { margin-bottom: 32px; }
+  .gap-bar { flex-direction: column; text-align: center; gap: 6px; }
+  .gap-left, .gap-right { text-align: center; }
+  .creators-controls { flex-direction: column; }
+  .creators-search { min-width: unset; width: 100%; }
+  .ladder-rung { flex-direction: column; align-items: flex-start; gap: 4px; }
+  .explorer-grid { grid-template-columns: 1fr; }
+  #sticky-nav { padding: 0 8px; }
+  .lens-group { gap: 1px; }
+  .lens-btn { padding: 4px 6px; font-size: 10px; }
+}
+
+@media (min-width: 1200px) {
+  .comp-section { max-width: 1400px; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   LENS VISIBILITY
+   ══════════════════════════════════════════════════════════════ */
+[data-track] { transition: opacity 0.3s, max-height 0.3s; }
+.lens-hidden {
+  display: none !important;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SECTION: THE BOOK
+   ══════════════════════════════════════════════════════════════ */
+.book-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.book-chapter {
+  background: var(--bg-card);
+  border: 1px solid var(--border-dim);
+  border-radius: 4px;
+  overflow: hidden;
+  transition: border-color 0.3s;
+}
+.book-chapter:hover { border-color: var(--border); }
+.book-chapter.open { border-color: var(--accent); }
+.chapter-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px 18px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.2s;
+}
+.chapter-header:hover { background: var(--bg-hover); }
+.chapter-number {
+  font-size: 11px;
+  font-variant: small-caps;
+  letter-spacing: 2px;
+  color: var(--gold);
+  flex-shrink: 0;
+  padding-top: 2px;
+  min-width: 70px;
+}
+.chapter-title-group { flex: 1; min-width: 0; }
+.chapter-title {
+  font-size: 15px;
+  color: var(--text-bright);
+  margin-bottom: 4px;
+}
+.chapter-teaser {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-style: italic;
+  line-height: 1.5;
+}
+.chapter-toggle {
+  color: var(--text-muted);
+  font-size: 14px;
+  transition: transform 0.3s;
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+.book-chapter.open .chapter-toggle { transform: rotate(90deg); }
+.chapter-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.5s ease;
+}
+.book-chapter.open .chapter-body { max-height: 4000px; }
+.chapter-body-inner {
+  padding: 0 18px 20px 102px;
+  font-size: 12px;
+  line-height: 1.75;
+  color: var(--text);
+}
+.chapter-body-inner p {
+  margin-bottom: 12px;
+}
+.chapter-body-inner blockquote {
+  border-left: 3px solid var(--gold);
+  margin: 16px 0;
+  padding: 10px 16px;
+  background: rgba(255,208,96,0.04);
+  color: var(--text-bright);
+  font-style: italic;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.chapter-body-inner .chapter-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 14px 0;
+  font-size: 11px;
+}
+.chapter-body-inner .chapter-table th {
+  text-align: left;
+  padding: 6px 10px;
+  color: var(--gold);
+  border-bottom: 1px solid var(--border);
+  font-weight: normal;
+  letter-spacing: 0.5px;
+}
+.chapter-body-inner .chapter-table td {
+  padding: 5px 10px;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border-dim);
+}
+.chapter-body-inner .chapter-highlight {
+  color: var(--accent);
+  font-weight: bold;
+}
+.chapter-body-inner strong {
+  color: var(--text-bright);
+}
+@media (max-width: 768px) {
+  .chapter-body-inner { padding: 0 14px 16px 14px; }
+  .chapter-number { min-width: 56px; font-size: 10px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════════════
+     SECTION 1: INTRO
+     ════════════════════════════════════════════════════════════ -->
+<div id="intro" role="dialog" aria-label="Pixel Vault Compendium introduction">
+  <canvas id="intro-canvas"></canvas>
+  <div class="intro-content">
+    <h1 class="intro-title">Pixel Vault</h1>
+    <p class="intro-tagline">Every mechanic. One file. No dependencies.</p>
+    <p class="intro-subtitle">An interactive history of games, genres, and the science of play</p>
+  </div>
+  <div class="scroll-arrow" role="button" aria-label="Scroll down to begin" tabindex="0"></div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     SECTION 2: STICKY NAV
+     ════════════════════════════════════════════════════════════ -->
+<nav id="sticky-nav" role="navigation" aria-label="Compendium navigation">
+  <div class="nav-links">
+    <button class="nav-link" data-section="demo-reel">Collection</button>
+    <button class="nav-link" data-section="book">Mini Book</button>
+    <button class="nav-link" data-section="timeline">Timeline</button>
+    <button class="nav-link" data-section="ancestry">Ancestry</button>
+    <button class="nav-link" data-section="creators">Creators</button>
+    <button class="nav-link" data-section="ai-convergence">AI</button>
+    <button class="nav-link" data-section="explorer">Explorer</button>
+    <button class="nav-link" data-section="science">Science</button>
+    <a href="index.html" class="nav-link" style="color:var(--gold);border-color:var(--gold)">Arcade</a>
+  </div>
+  <div class="lens-group" role="group" aria-label="Content lens">
+    <button class="lens-btn" data-lens="purist">Purist</button>
+    <button class="lens-btn" data-lens="ai">AI</button>
+    <button class="lens-btn active" data-lens="full">Full</button>
+  </div>
+</nav>
+
+<!-- ════════════════════════════════════════════════════════════
+     SECTION 3: DEMO REEL
+     ════════════════════════════════════════════════════════════ -->
+<section id="demo-reel" class="comp-section">
+  <div class="section-header">
+    <h2>The Collection</h2>
+    <p class="section-sub">72 playable prototypes across 3 tracks</p>
+  </div>
+  <div id="reel-container">
+    <!-- Rendered by JS -->
+  </div>
+</section>
+
+<hr class="section-divider">
+
+<!-- ════════════════════════════════════════════════════════════
+     SECTION: THE BOOK
+     ════════════════════════════════════════════════════════════ -->
+<section id="book" class="comp-section">
+  <div class="section-header">
+    <h2>The Mini Book &mdash; A Short History of Play</h2>
+    <p class="section-sub">Ten chapters drawn from the research behind every prototype</p>
+  </div>
+  <div class="book-section" id="book-chapters">
+
+    <!-- CHAPTER 1 -->
+    <div class="book-chapter">
+      <div class="chapter-header" tabindex="0" role="button" aria-expanded="false">
+        <span class="chapter-number">Chapter I</span>
+        <div class="chapter-title-group">
+          <div class="chapter-title">The Museum Method</div>
+          <div class="chapter-teaser">Why reconstruct games? Not preservation &mdash; discovery.</div>
+        </div>
+        <span class="chapter-toggle">&#9654;</span>
+      </div>
+      <div class="chapter-body">
+        <div class="chapter-body-inner">
+          <p>This project began with a deceptively simple question: <strong>what does a human being want when they sit down to play?</strong> Not what video game should we make. Not what genre is trending. The deeper question &mdash; the one that stretches back past Pong, past Chess, past carved stone boards in ancient Mesopotamia &mdash; is about a drive so fundamental it appears to be wired into the species.</p>
+          <p>Most game projects start in the middle of the story. They ask &ldquo;what can we remix?&rdquo; before asking &ldquo;where did all of this come from?&rdquo; Pixel Vault starts at the beginning. We are archaeologists digging through the sediment layers of play itself, reconstructing each era hands-on, looking for something that hasn&rsquo;t been found yet.</p>
+          <p>The method is deliberately constrained. Every prototype is a single HTML file, under 50&nbsp;KB, zero external dependencies. Vanilla JavaScript, Canvas API, Web Audio. No frameworks, no build steps, no CDNs. This is not a limitation &mdash; it is the design philosophy. When you strip away everything that doesn&rsquo;t matter, you are left with the mechanic in its purest form. The irreducible loop. The thing that makes a game <em>matter</em>.</p>
+          <blockquote>&ldquo;Find something the world has never seen. Not something merely novel &mdash; something amazing.&rdquo;</blockquote>
+          <p>And here is the part that makes this laboratory different from any that came before: the work is done by a <strong>human-AI creative partnership</strong>. A human describes a mechanic. An AI writes code. The human plays and rates. Both iterate. This is not AI replacing the designer. It is two different kinds of intelligence searching the same possibility space from different angles, converging on discoveries neither would find alone. The method shifted from &ldquo;design a novel mechanic&rdquo; to &ldquo;reconstruct the lineage, find the gaps.&rdquo; The output is not a finished product. It is hundreds of indexed prototypes with the best ones refined forward. You find gems by digging, not by imagining.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- CHAPTER 2 -->
+    <div class="book-chapter">
+      <div class="chapter-header" tabindex="0" role="button" aria-expanded="false">
+        <span class="chapter-number">Chapter II</span>
+        <div class="chapter-title-group">
+          <div class="chapter-title">Five Drives That Never Change</div>
+          <div class="chapter-teaser">Contest, Chance, Strategy, Dexterity, Pattern &mdash; from Senet to Elden Ring.</div>
+        </div>
+        <span class="chapter-toggle">&#9654;</span>
+      </div>
+      <div class="chapter-body">
+        <div class="chapter-body-inner">
+          <p>Every game ever created satisfies one or more of five drives that appear to be hardwired into human cognition: <strong>Contest</strong> (test my skill against yours), <strong>Chance</strong> (submit to fate, read the signs), <strong>Strategy</strong> (outthink an opponent in abstract space), <strong>Dexterity</strong> (master physical control), and <strong>Pattern</strong> (perceive hidden order in chaos). No game survives that doesn&rsquo;t tap at least one. The greatest games blend two or three.</p>
+          <p>The Royal Game of Ur, carved into stone around 2600&nbsp;BCE in Mesopotamia, combined race, chance, and blocking on a shared track. Its genius was simple: shared space creates conflict. You aren&rsquo;t playing solitaire side by side &mdash; you are actively interfering with your opponent&rsquo;s plans. Senet, older still (~3100&nbsp;BCE, Egypt), taught a different lesson: meaning elevates mechanics. Players competed for passage to the afterlife. The game was popular for two thousand years partly because it <em>meant</em> something beyond the board.</p>
+          <p>Go (~2500&nbsp;BCE, China) remains perhaps the most strategically deep game ever made. Two actions &mdash; place and pass &mdash; on a blank 19&times;19 grid create more possible board states than atoms in the observable universe. Maximum emergence from minimum rules. The constraint <em>is</em> the design space. Mancala (formalized ~700&nbsp;CE, Africa) uses a single verb &mdash; sow &mdash; where you pick up a pile of seeds and drop one per pit around a circuit. That one action, with positional consequences, creates astonishing strategic depth. The pieces are the scoring system and the movement system simultaneously.</p>
+          <p>Chess (~600&nbsp;CE, India) proved that characters with distinct movement powers create emergent tactical combinations. The Knight exists because someone asked &ldquo;what if one piece could bypass the blockade?&rdquo; Playing cards (~1370s, Europe) delivered an even deeper lesson: a generative component system beats a fixed game. The 52-card deck is not a game &mdash; it is a <em>platform</em> that enabled thousands of distinct games from a single artifact. Backgammon (~3000&nbsp;BCE) demonstrated layered decision types: tactical, strategic, and meta-strategic, each sustaining engagement because the player is never solving just one problem.</p>
+          <blockquote>&ldquo;Complexity is easy. Depth is hard. Depth comes from interactions between simple rules, not from the accumulation of complicated ones.&rdquo;</blockquote>
+        </div>
+      </div>
+    </div>
+
+    <!-- CHAPTER 3 -->
+    <div class="book-chapter">
+      <div class="chapter-header" tabindex="0" role="button" aria-expanded="false">
+        <span class="chapter-number">Chapter III</span>
+        <div class="chapter-title-group">
+          <div class="chapter-title">The Technology Ladder</div>
+          <div class="chapter-teaser">Games don&rsquo;t evolve by imagination alone. They evolve when technology removes a constraint.</div>
+        </div>
+        <span class="chapter-toggle">&#9654;</span>
+      </div>
+      <div class="chapter-body">
+        <div class="chapter-body-inner">
+          <p><strong>Era 0: Pre-Electronic</strong> &mdash; Physical materials gave us all five ancient drives fully expressed: board games, card games, dice games, dexterity contests. What was missing? Reflex, dynamic systems, visual spectacle, single-player depth. The entire video game industry exists because physical games couldn&rsquo;t provide these four things.</p>
+          <p><strong>Era 1: Oscilloscope &amp; Mainframe (1950&ndash;1971)</strong> &mdash; Electron beams drawing dots on screens. Tennis for Two (1958) was the first real-time physics game: a parabolic ball arc with gravity, two paddles, an oscilloscope. Spacewar! (1962) gave us the first game with Newtonian physics as a mechanic &mdash; momentum, inertia, gravity wells. The very first video games immediately did two things board games couldn&rsquo;t: continuous motion and real-time physics.</p>
+          <p><strong>Era 2: Arcade Dawn (1972&ndash;1977)</strong> &mdash; Dedicated game hardware, coin-operated cabinets, monochrome displays. Pong (1972) proved a game this simple could earn four times its cost in a week. Breakout (1976) added destructible environment. With no ability to draw complex shapes, designers were forced to make movement itself communicate meaning. A paddle&rsquo;s position IS the entire game state of Pong. <em>When you can&rsquo;t decorate, you must design.</em></p>
+          <p><strong>Era 3: The 8-Bit Explosion (1978&ndash;1983)</strong> &mdash; Microprocessors, bitmapped sprites, tile backgrounds, multi-voice sound. This is the Cambrian Explosion of video games. More genres born in six years than any period before or since. Sprites enabled character identity; hardware scrolling enabled worlds larger than one screen. Each new capability unlocked a new genre.</p>
+          <p><strong>Era 4: 16-Bit Refinement (1985&ndash;1992)</strong> &mdash; Larger palettes, parallax scrolling, Mode 7 rotation, battery saves. This era didn&rsquo;t create many new genres &mdash; it deepened existing ones. Street Fighter II&rsquo;s combos were discovered by players, not designed by developers. <em>Refinement creates as much value as invention.</em></p>
+          <p><strong>Era 5: The 3D Rupture (1992&ndash;2001)</strong> &mdash; Polygon rendering, Z-buffers, texture mapping, analog controls. This was not incremental. It was a dimensional shift. Every single genre had to be reinvented. FPS, stealth, survival horror, open world &mdash; <em>adding a dimension creates an entirely new genre.</em></p>
+          <p><strong>Era 6: Network &amp; Infinite Canvas (2002&ndash;2015)</strong> &mdash; Broadband, digital distribution, mobile touchscreens, physics middleware. The biggest genre innovation came not from technology but from distribution. When shipping a weird experiment cost nothing, the experimenters flooded in.</p>
+          <p><strong>Era 7: The Browser as Console (2010&ndash;present)</strong> &mdash; Canvas 2D, WebGL, Web Audio, Gamepad API, WASM. A single HTML file with vanilla JavaScript can now do what required a $50,000 arcade cabinet in 1982. The canvas is unlimited. The only constraint is imagination &mdash; and the discipline to keep prototypes small enough to learn from.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- CHAPTER 4 -->
+    <div class="book-chapter">
+      <div class="chapter-header" tabindex="0" role="button" aria-expanded="false">
+        <span class="chapter-number">Chapter IV</span>
+        <div class="chapter-title-group">
+          <div class="chapter-title">The Twelve Pillars</div>
+          <div class="chapter-teaser">Twelve foundational mechanics, twelve creators, the DNA of everything that followed.</div>
+        </div>
+        <span class="chapter-toggle">&#9654;</span>
+      </div>
+      <div class="chapter-body">
+        <div class="chapter-body-inner">
+          <p><strong class="chapter-highlight">Deflection</strong> &mdash; Allan Alcorn, Pong (1972). A ball bounces between two paddles. Angle physics, Y-tracking opponent. The origin of commercial gaming. Every sports game, every ball-bounce mechanic descends from this moment at Atari when Alcorn&rsquo;s training exercise became an industry.</p>
+          <p><strong class="chapter-highlight">Fixed Shooter</strong> &mdash; Tomohiro Nishikado, Space Invaders (1978). A marching formation of aliens descends as you hold your position. The speedup-as-aliens-die was a CPU optimization bug that became the most imitated design pattern in gaming history. Nishikado built the hardware, wrote the software, and drew the sprites &mdash; one person created an entire genre.</p>
+          <p><strong class="chapter-highlight">Physics/Inertia</strong> &mdash; Ed Logg &amp; Lyle Rains, Asteroids (1979). Newtonian physics on a wraparound plane. Thrust, rotate, shoot, drift. Your ship doesn&rsquo;t stop when you release the key. Asteroids split into smaller pieces &mdash; the game punishes you with the consequences of your own success.</p>
+          <p><strong class="chapter-highlight">Maze Chase</strong> &mdash; Toru Iwatani, Pac-Man (1980). Four ghosts, each with a distinct AI personality: Blinky chases directly, Pinky ambushes, Inky flanks, Clyde wanders. One of the first games where enemies had <em>personality</em>. The power pellet inverts the entire game state in an instant.</p>
+          <p><strong class="chapter-highlight">Scrolling Shooter</strong> &mdash; Eugene Jarvis, Defender (1981). The world extends beyond the screen. The minimap was an act of genius: dimensionality reduction, showing what you can&rsquo;t see. Jarvis solved the partial observability problem intuitively, a decade before the math was formalized.</p>
+          <p><strong class="chapter-highlight">Platformer</strong> &mdash; Shigeru Miyamoto, Donkey Kong (1981). Ladders, platforms, gaps, barrels. Jump is the verb. Gravity is the threat. Also the first game with a narrative setup &mdash; a kidnapped girlfriend, an angry ape. Miyamoto gave games <em>characters</em>.</p>
+          <p><strong class="chapter-highlight">Trap/Terrain</strong> &mdash; Randy &amp; Sandy Pfeiffer, Qix (1981). Draw lines to claim territory while a lethal, unpredictable entity bounces across the playfield. Bigger claims score more but take longer to complete, exposing you to danger. A multi-armed bandit problem turned into entertainment.</p>
+          <p><strong class="chapter-highlight">Fighting</strong> &mdash; John Newcomer, Joust (1982). Flap-to-fly physics with lance combat &mdash; whoever is higher wins the collision. A deceptively simple elevation mechanic that produced beautiful emergent moments. Co-op and competition on the same screen.</p>
+          <p><strong class="chapter-highlight">Racing</strong> &mdash; Toru Iwatani (supervised), Pole Position (1982). Pseudo-3D perspective road with scaling sprites. Qualifying lap, named circuit, speed/steering tradeoff. The template for every racing game that followed.</p>
+          <p><strong class="chapter-highlight">Twin-Stick</strong> &mdash; Eugene Jarvis, Robotron: 2084 (1982). Move with one stick, shoot with the other. Jarvis decoupled movement from attack for the first time. Overwhelming enemy counts, a rescue mechanic, and the feeling that you are always one second from oblivion.</p>
+          <p><strong class="chapter-highlight">Puzzle</strong> &mdash; Alexey Pajitnov, Tetris (1984). Falling tetrominoes, real-time spatial packing, an NP-hard optimization problem disguised as the most addictive toy ever made. Tetris arrived with no ancestry &mdash; no prior game resembles it. Pajitnov created it at the Soviet Academy of Sciences on an Electronika 60 with no graphics card.</p>
+          <p><strong class="chapter-highlight">Service/Dispatch</strong> &mdash; Larry DeMar &amp; Steve Ritchie, Tapper (1983). Slide beers down four bar lanes, catch empties on the return. Multi-queue scheduling as entertainment. The mechanic is structurally identical to Erlang M/M/N queueing theory (1909) and CPU earliest-deadline-first scheduling &mdash; nobody noticed the connection for decades.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- CHAPTER 5 -->
+    <div class="book-chapter">
+      <div class="chapter-header" tabindex="0" role="button" aria-expanded="false">
+        <span class="chapter-number">Chapter V</span>
+        <div class="chapter-title-group">
+          <div class="chapter-title">The Cambrian Explosion</div>
+          <div class="chapter-teaser">1978&ndash;1983: more genres invented in six years than any period before or since.</div>
+        </div>
+        <span class="chapter-toggle">&#9654;</span>
+      </div>
+      <div class="chapter-body">
+        <div class="chapter-body-inner">
+          <p>Between 1978 and 1983, the video game industry experienced its Big Bang. In just six years, an eruption of new technology &mdash; microprocessors, bitmapped sprites, tile-based backgrounds, hardware scrolling, multi-voice sound &mdash; unlocked more new genres than the entire rest of gaming history combined. Every foundational mechanic we still play today was invented in this window.</p>
+          <p>The catalyst was the sprite. Before 1978, games drew shapes with dedicated circuits &mdash; paddles were rectangles, balls were squares. When bitmapped sprites arrived, game entities could have <em>faces</em>. Space Invaders&rsquo; aliens were distinct per row. Pac-Man had a mouth that opened and closed. Donkey Kong was a character with an expression. Sprites enabled identity, and identity enabled empathy, and empathy enabled narrative. The player stopped being an abstract force and started being <em>someone</em>.</p>
+          <p>Hardware scrolling was equally transformative. Before Defender (1981), every game took place on a single screen. When the camera could follow the player, the world suddenly extended beyond the viewport. Defender&rsquo;s planet was far wider than what you could see. The minimap &mdash; a tiny radar strip at the top of the screen &mdash; was Jarvis&rsquo;s solution to the problem of partial observability. It was dimensionality reduction, a concept AI researchers wouldn&rsquo;t formalize for another decade.</p>
+          <p>Look at what appeared, year by year. 1978: fixed-position shooter (Space Invaders). 1979: physics/inertia combat (Asteroids). 1980: maze chase (Pac-Man), area defense (Missile Command), first-person 3D (Battlezone), procedural generation (Rogue). 1981: scrolling shooter (Defender), platformer (Donkey Kong), territory control (Qix). 1982: fighting (Joust), twin-stick survival (Robotron), racing (Pole Position). 1983: service dispatch (Tapper), arena co-op (Mario Bros.). 1984: spatial puzzle (Tetris).</p>
+          <p>Thirteen new genres in six years. Each one invented because a specific technological constraint had just fallen away. Each one so fundamental that it still defines how millions of people play today. The era ended with the North American crash of 1983 &mdash; a flood of low-quality software that destroyed consumer trust. But the mechanical DNA survived. Every genre born in the Cambrian Explosion is still being refined, remixed, and reinvented four decades later.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- CHAPTER 6 -->
+    <div class="book-chapter">
+      <div class="chapter-header" tabindex="0" role="button" aria-expanded="false">
+        <span class="chapter-number">Chapter VI</span>
+        <div class="chapter-title-group">
+          <div class="chapter-title">The Time-Slip Miracle</div>
+          <div class="chapter-teaser">Games that solved problems AI hadn&rsquo;t named yet.</div>
+        </div>
+        <span class="chapter-toggle">&#9654;</span>
+      </div>
+      <div class="chapter-body">
+        <div class="chapter-body-inner">
+          <p>Here is something nobody expected: arcade game designers in the late 1970s and early 1980s, working under brutal constraints with no formal training in artificial intelligence, independently solved problems that AI researchers would not name or formalize for decades. This is not metaphor. The mechanical structures are identical. The gap between intuitive game solution and formal AI theory ranges from four years to &ldquo;still unsolved.&rdquo;</p>
+          <table class="chapter-table">
+            <tr><th>Game</th><th>Year</th><th>AI Concept</th><th>Formalized</th><th>Gap</th></tr>
+            <tr><td>Space Invaders</td><td>1978</td><td>Curriculum Learning</td><td>~2015</td><td><strong>37 years</strong></td></tr>
+            <tr><td>Pac-Man</td><td>1980</td><td>Multi-Agent RL</td><td>~2000</td><td><strong>20 years</strong></td></tr>
+            <tr><td>Defender</td><td>1981</td><td>POMDPs + Dim. Reduction</td><td>~1990s</td><td><strong>~9 years</strong></td></tr>
+            <tr><td>Tetris</td><td>1984</td><td>NP-hard Spatial Heuristics</td><td>ongoing</td><td><strong>41+ years</strong></td></tr>
+          </table>
+          <p>Space Invaders is the most dramatic case. Tomohiro Nishikado&rsquo;s CPU couldn&rsquo;t draw all the aliens fast enough, so as the player destroyed them, the remaining ones moved faster. A hardware limitation became the most copied difficulty curve in gaming &mdash; and it is structurally identical to curriculum learning, the technique where an AI trainer starts with easy examples and gradually increases difficulty. AI researchers formalized this in 2015. Nishikado did it by accident in 1978.</p>
+          <p>Pac-Man&rsquo;s four ghost personalities &mdash; Blinky chasing directly, Pinky targeting ahead, Inky flanking, Clyde wandering randomly &mdash; are multi-agent behavioral policies. Toru Iwatani hand-tuned these behaviors by feel, creating emergent pursuit patterns that players still study. The formal theory of multi-agent reinforcement learning didn&rsquo;t arrive until around 2000, twenty years later.</p>
+          <p>Eugene Jarvis built Defender&rsquo;s minimap as a practical solution: the world was wider than the screen, and the player needed to see abductors carrying humans away. That minimap is dimensionality reduction &mdash; compressing a large, partially observable state space into a small, glanceable representation. POMDPs were formalized in the 1990s. Jarvis solved it by intuition in 1981.</p>
+          <p>Then there is Tetris, which remains one of the hardest problems in computer science. Optimal Tetris play has been proven NP-hard. AI researchers are still working on it. Pajitnov built it as a toy in 1984, and forty-one years later the machines still can&rsquo;t reliably beat the best human players.</p>
+          <p>And then the strangest case of all: Tapper. Larry DeMar and Steve Ritchie built a bar-service game in 1983 where you slide beers down four lanes and catch the empties returning. The algorithm is structurally identical to Erlang&rsquo;s M/M/N queueing theory from 1909 and to the earliest-deadline-first CPU scheduling algorithms of the 1960s. Seventy-four years, three entirely separate domains &mdash; telecommunications, computer science, and arcade games &mdash; and nobody connected them until this project.</p>
+          <blockquote>&ldquo;How did intuition beat mathematical rigor? Because the designers weren&rsquo;t solving equations. They were solving for fun. And fun, it turns out, is a remarkably good objective function.&rdquo;</blockquote>
+        </div>
+      </div>
+    </div>
+
+    <!-- CHAPTER 7 -->
+    <div class="book-chapter">
+      <div class="chapter-header" tabindex="0" role="button" aria-expanded="false">
+        <span class="chapter-number">Chapter VII</span>
+        <div class="chapter-title-group">
+          <div class="chapter-title">The Ten Commandments of Arcade Design</div>
+          <div class="chapter-teaser">After studying 15+ golden-age games, ten patterns separate &ldquo;played once&rdquo; from &ldquo;played forever.&rdquo;</div>
+        </div>
+        <span class="chapter-toggle">&#9654;</span>
+      </div>
+      <div class="chapter-body">
+        <div class="chapter-body-inner">
+          <p><strong>I. Escalating Tension.</strong> Every great arcade game gets harder. Space Invaders speeds up as you kill. Centipede gets denser. The player must constantly adapt. A flat difficulty curve is a death sentence &mdash; the player has no reason to come back.</p>
+          <p><strong>II. Player Actions Reshape the Battlefield.</strong> In Centipede, every shot creates a mushroom obstacle. In Lode Runner, you dig the terrain. The arena is never the same twice because the player changed it. The best games make you the author of your own problems.</p>
+          <p><strong>III. Multi-Threat Management.</strong> Moon Patrol has ground hazards AND aerial enemies. Defender has abductors AND landers AND bombers. The brain must split focus. A single threat type produces a single strategy. Multiple simultaneous threats produce improvisation.</p>
+          <p><strong>IV. Satisfying Physics.</strong> Joust&rsquo;s flap-and-drift. Asteroids&rsquo; momentum. The way a Centipede segment splits. The game FEELS good in your hands before you understand the rules. If the physics don&rsquo;t feel right, nothing else matters.</p>
+          <p><strong>V. Risk/Reward Tension.</strong> Top rows in Space Invaders score higher but are harder to hit. Joust eggs must be collected before they hatch into deadlier enemies. Pac-Man&rsquo;s fruit in the center is a greed test. The game constantly asks: how brave are you?</p>
+          <p><strong>VI. One More Try.</strong> Death is quick. Restart is instant. The player always feels like they were ONE decision away from surviving. This is the addiction loop &mdash; the near-miss that pulls you back. If the gap between &ldquo;what happened&rdquo; and &ldquo;what almost happened&rdquo; is visible, the player will try again.</p>
+          <p><strong>VII. Emergent Complexity.</strong> Simple rules create surprising situations. Two enemies collide. A chain reaction clears the screen. A trap catches three instead of one. The player discovers tactics the designer never planned. Emergence is what gives a game infinite replay value.</p>
+          <p><strong>VIII. Audio as Game State.</strong> Space Invaders&rsquo; heartbeat IS the tempo. Pac-Man&rsquo;s siren means ghosts are dangerous. Sound communicates what your eyes can&rsquo;t see. Great arcade sound design is informational, not decorative &mdash; it tells you the state of the world without looking.</p>
+          <p><strong>IX. Immediate Legibility.</strong> You understand the game in five seconds of watching someone else play. No tutorial. No text. The visual language teaches. If a game needs a manual, the game has failed. The screen must be its own explanation.</p>
+          <p><strong>X. Simple Input, Complex Output.</strong> Two buttons and a joystick create infinite tactical situations. Pac-Man has one action: move. Tetris has three: move, rotate, drop. The constraint IS the design space. Complexity of input is the enemy of depth of play.</p>
+          <blockquote>&ldquo;The constraint is the design space. Every unnecessary button, every extra mechanic, every additional enemy type is a confession that the core loop isn&rsquo;t deep enough.&rdquo;</blockquote>
+        </div>
+      </div>
+    </div>
+
+    <!-- CHAPTER 8 -->
+    <div class="book-chapter">
+      <div class="chapter-header" tabindex="0" role="button" aria-expanded="false">
+        <span class="chapter-number">Chapter VIII</span>
+        <div class="chapter-title-group">
+          <div class="chapter-title">The Unexplored Verbs</div>
+          <div class="chapter-teaser">Every genre = core verb + spatial metaphor. What verbs haven&rsquo;t been tried?</div>
+        </div>
+        <span class="chapter-toggle">&#9654;</span>
+      </div>
+      <div class="chapter-body">
+        <div class="chapter-body-inner">
+          <p>Every game genre is defined by a core verb and a spatial metaphor. Platformers: JUMP across platforms. Shooters: SHOOT through a field of targets. Racers: STEER along a track. Puzzles: ARRANGE on a grid. The question that launched an entire research track in this laboratory was: <strong>what core verbs have never been the primary mechanic of an arcade game?</strong></p>
+          <p>Six emerged from the analysis. Each is a verb that exists in games as a secondary mechanic but has never been the entire point.</p>
+          <p><strong class="chapter-highlight">ECHO</strong> &mdash; You move through the arena, and every few seconds the game spawns a &ldquo;ghost&rdquo; that replays your last five seconds of movement on loop, forever. Your movement history becomes autonomous weaponry. After thirty seconds you might have six ghosts running independent patrol patterns while you dodge, weave, and create new ones. Expert players choreograph intricate coverage patterns. New players survive on chaos. No game has ever made this the entire mechanic.</p>
+          <p><strong class="chapter-highlight">TETHER</strong> &mdash; You are a mass on a tether, orbiting an anchor point. Extend for a wide, slow sweep. Retract and you whip around at terrifying speed &mdash; conservation of angular momentum. Release, sail in a straight line, latch a new anchor. Three inputs total. Orbital mechanics as the entire interface. The first time you retract mid-swing and feel the speed spike, tearing through an enemy cluster, you understand viscerally why angular momentum is one of the great forces.</p>
+          <p><strong class="chapter-highlight">SPLIT</strong> &mdash; Press a button and you become two entities. Left hand controls one, right hand controls the other. Merged: strong, slow, big target. Split: weak, fast, covers more ground. One player, two brains. The cognitive challenge of controlling two independent agents with two hands creates a brain-state that doesn&rsquo;t exist anywhere else in gaming. Frustrating for thirty seconds, then it clicks, and you feel superhuman.</p>
+          <p><strong class="chapter-highlight">THREAD</strong> &mdash; You trail a visible line as you move. When your line crosses itself &mdash; forming any closed polygon &mdash; everything inside is captured: enemies destroyed, collectibles scored. But enemies can break your thread on contact, severing the connection. Freeform geometry under time pressure. The game evolved from Qix&rsquo;s territory-drawing into something new: you draw with your movement, not with a button.</p>
+          <p><strong class="chapter-highlight">PULSE</strong> &mdash; You expand and contract as your only weapon. Expand to push enemies away and absorb nearby collectibles. Contract to become small, fast, and invulnerable but unable to affect anything. The rhythm of expand/contract IS the game. Almost biological &mdash; like a heartbeat, like breathing. Timing and spatial awareness replace shooting entirely.</p>
+          <p><strong class="chapter-highlight">BURROW</strong> &mdash; You dig through destructible terrain, creating tunnels, traps, and escape routes. The surface is dangerous; below is safe but dark. Enemies patrol above. You emerge, strike, and dive back under. A dual-layer stealth arena where you reshape the battlefield by removing it. Dig Dug hinted at this, but tunneling was secondary to inflating enemies. Here, the digging IS the game.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- CHAPTER 9 -->
+    <div class="book-chapter">
+      <div class="chapter-header" tabindex="0" role="button" aria-expanded="false">
+        <span class="chapter-number">Chapter IX</span>
+        <div class="chapter-title-group">
+          <div class="chapter-title">What If AI Had Been There?</div>
+          <div class="chapter-teaser">A counterfactual analysis: AI as designer, not player, at each stage of game history.</div>
+        </div>
+        <span class="chapter-toggle">&#9654;</span>
+      </div>
+      <div class="chapter-body">
+        <div class="chapter-body-inner">
+          <p>If AI had existed as a collaborator at each stage of game history, what would it have contributed? Not as a player &mdash; that story is told (Deep Blue, AlphaGo). As a <em>designer</em>. As a co-creator sitting next to the human, sharing the screen, iterating in real time.</p>
+          <p><strong>Era 0: AI as Pattern Discoverer.</strong> Given Senet&rsquo;s mechanics, an AI could have generated every possible variant &mdash; adjusted the board topology, rebalanced safe squares, explored throwing-stick configurations. Not to play better, but to find which rule combinations produce the most interesting games. Generate 50 versions of Ur with one rule changed each time. Map the design space.</p>
+          <p><strong>Era 1: AI as Adaptive Opponent.</strong> The first video games had hardcoded opponent behavior. Pong&rsquo;s AI is an if-statement tracking the ball&rsquo;s Y position. Imagine 1962 Spacewar! where the computer learned your evasion patterns and countered them. Adaptive difficulty before the term existed.</p>
+          <p><strong>Era 2: AI as Level Architect.</strong> Every Breakout brick layout was manually designed. AI would have invented procedural generation twenty years early &mdash; generating thousands of layouts and selecting the ones that produce the most interesting bounce patterns. The infinite-replayability principle that didn&rsquo;t emerge until Rogue (1980) could have arrived a decade sooner.</p>
+          <p><strong>Era 3: AI as Emergent Behavior Engine.</strong> This is where it gets interesting. Space Invaders&rsquo; speedup was a happy accident. An AI collaborator would have found that deliberately &mdash; simulating thousands of parameter variations and surfacing the ones where playtesters&rsquo; engagement spiked. Pac-Man&rsquo;s ghost personalities were hand-crafted genius, but an AI exploring the full space of possible ghost behaviors could have generated hundreds of personality profiles and tested which combinations create the richest experience.</p>
+          <p><strong>Era 4: AI as Combo Discoverer.</strong> Street Fighter II&rsquo;s combos were discovered by players, not designers. An AI would have found every combo within hours of the code being written &mdash; and flagged which ones were degenerate before the game shipped. For Mario and Metroid, it would have been the ultimate level playtester: &ldquo;This room has exactly one viable path&rdquo; or &ldquo;This power-up means players skip this section 80% of the time.&rdquo;</p>
+          <blockquote>&ldquo;This is not a counterfactual. This is us. For the first time in the history of games, the development tool includes an intelligence that can understand a mechanic described in English, generate working code, reason about state spaces, and suggest mutations based on game design principles.&rdquo;</blockquote>
+        </div>
+      </div>
+    </div>
+
+    <!-- CHAPTER 10 -->
+    <div class="book-chapter">
+      <div class="chapter-header" tabindex="0" role="button" aria-expanded="false">
+        <span class="chapter-number">Chapter X</span>
+        <div class="chapter-title-group">
+          <div class="chapter-title">The Frontier</div>
+          <div class="chapter-teaser">The 6-stage evolution from Scaffolder to Dyad &mdash; and the question that remains.</div>
+        </div>
+        <span class="chapter-toggle">&#9654;</span>
+      </div>
+      <div class="chapter-body">
+        <div class="chapter-body-inner">
+          <p>The laboratory itself evolves in how it uses AI. This is the trajectory, invented as we go, updated after each phase based on what we learn:</p>
+          <table class="chapter-table">
+            <tr><th>Stage</th><th>Name</th><th>Role</th></tr>
+            <tr><td>0</td><td>Scaffolder</td><td>AI generates project structure, templates, documentation</td></tr>
+            <tr><td>1</td><td>Co-Developer</td><td>AI builds prototypes from human-described mechanics</td></tr>
+            <tr><td>2</td><td>Mutator</td><td>AI takes existing prototypes and generates mechanical variants</td></tr>
+            <tr><td>3</td><td>Synthesizer</td><td>AI combines mechanics from different series (&ldquo;what if DEF + TRP?&rdquo;)</td></tr>
+            <tr><td>4</td><td>Analyst</td><td>AI playtests by reasoning about state spaces, rates prototypes</td></tr>
+            <tr><td>5</td><td>Proposer</td><td>AI suggests prototypes based on unexplored gaps in the catalogue</td></tr>
+            <tr><td>6</td><td>The Dyad</td><td>Human taste + AI generation as one continuous search</td></tr>
+          </table>
+          <p>Stage 0 is what built this lab &mdash; the templates, the folder structure, the catalogue system, the research documents. All co-created. Stage 1 is where we build our first fifty prototypes: human describes mechanic, AI writes code, human plays and rates, both iterate. Stage 2 is when the AI starts saying &ldquo;what if I change the gravity in phy-003 and give you five variants to compare?&rdquo;</p>
+          <p>Stage 3 comes when AI cross-references the catalogue: &ldquo;You rated def-007 four stars and trp-002 four stars. Want to try a game where you dig holes in a breakout wall and gravity redirects the ball through them?&rdquo; Stage 4 requires AI that can reason about game states: &ldquo;This prototype has a dominant strategy. Adding a rightward incentive would deepen it.&rdquo;</p>
+          <p>Stage 5 is AI analyzing the catalogue as a dataset: &ldquo;Your highest-rated prototypes all share three properties: variable momentum, time pressure the player creates, and a playfield that changes shape. Here are ten prototypes that test those properties in combinations you haven&rsquo;t tried.&rdquo;</p>
+          <p>Stage 6 is the fully mature system. The human doesn&rsquo;t ask for prototypes and the AI doesn&rsquo;t just generate them. They search together, each reacting to what the other discovered, converging toward the thing nobody could have specified in advance but both recognize when they see it.</p>
+          <blockquote>&ldquo;The constraint is no longer &lsquo;can we build it?&rsquo; The constraint is &lsquo;can we recognize the gem when we build it?&rsquo; The human provides taste, aesthetic judgment, and the feeling of &lsquo;I want to play this again.&rsquo; The AI provides speed, variation, and exhaustive exploration of possibility space. Two different kinds of intelligence searching the same space from different angles.&rdquo;</blockquote>
+          <p>This lab exists to find something the world has never seen. Not something merely novel &mdash; something amazing. Every chapter in this book points the same direction: the history of games is the history of constraints falling away and humans discovering what was waiting on the other side. We are standing at the next threshold. The AI is the newest tool. The human is the oldest judge. The frontier is the space between them.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<hr class="section-divider">
+
+<!-- ════════════════════════════════════════════════════════════
+     SECTION 4: TIMELINE
+     ════════════════════════════════════════════════════════════ -->
+<section id="timeline" class="comp-section">
+  <div class="section-header">
+    <h2>Timeline &mdash; Where Games Met AI</h2>
+    <p class="section-sub">1944 &ndash; 2026: Two histories, one shared thread</p>
+  </div>
+  <div class="timeline-container" id="timeline-container">
+    <!-- Rendered by JS -->
+  </div>
+</section>
+
+<hr class="section-divider">
+
+<!-- ════════════════════════════════════════════════════════════
+     SECTION 5: ANCESTRY
+     ════════════════════════════════════════════════════════════ -->
+<section id="ancestry" class="comp-section">
+  <div class="section-header">
+    <h2>Genre Ancestry &mdash; 12 Families of Play</h2>
+    <p class="section-sub">How the foundational mechanics evolved and branched</p>
+  </div>
+  <div class="ancestry-grid" id="ancestry-grid">
+    <!-- Rendered by JS -->
+  </div>
+</section>
+
+<hr class="section-divider">
+
+<!-- ════════════════════════════════════════════════════════════
+     SECTION 6: CREATORS
+     ════════════════════════════════════════════════════════════ -->
+<section id="creators" class="comp-section">
+  <div class="section-header">
+    <h2>The Architects &mdash; 27 Creators Who Built Gaming</h2>
+    <p class="section-sub">Every game was made by real people solving real problems</p>
+  </div>
+  <div class="creators-controls">
+    <input type="text" class="creators-search" id="creator-search" placeholder="Search creators, games, orgs..." aria-label="Search creators">
+    <div class="era-filters" id="era-filters">
+      <button class="era-btn active" data-era="all">All</button>
+      <button class="era-btn" data-era="0-1">Era 0-1</button>
+      <button class="era-btn" data-era="2">Era 2</button>
+      <button class="era-btn" data-era="3">Era 3</button>
+      <button class="era-btn" data-era="3-4">Era 3-4</button>
+    </div>
+  </div>
+  <div class="creators-grid" id="creators-grid">
+    <!-- Rendered by JS -->
+  </div>
+</section>
+
+<hr class="section-divider">
+
+<!-- ════════════════════════════════════════════════════════════
+     SECTION 7: AI CONVERGENCE
+     ════════════════════════════════════════════════════════════ -->
+<section id="ai-convergence" class="comp-section">
+  <div class="section-header">
+    <h2>AI Convergence &mdash; When Games Anticipated Science</h2>
+    <p class="section-sub">Concepts games invented intuitively, years before AI formalized them</p>
+  </div>
+
+  <h3 class="sub-header">Game-First AI Discoveries</h3>
+  <div class="gap-bars" id="gap-bars">
+    <!-- Rendered by JS -->
+  </div>
+
+  <h3 class="sub-header">Seven AI Eras</h3>
+  <div class="eras-accordion" id="eras-accordion">
+    <!-- Rendered by JS -->
+  </div>
+</section>
+
+<hr class="section-divider">
+
+<!-- ════════════════════════════════════════════════════════════
+     SECTION 8: EXPLORER
+     ════════════════════════════════════════════════════════════ -->
+<section id="explorer" class="comp-section">
+  <div class="section-header">
+    <h2>Prototype Explorer</h2>
+    <p class="section-sub">Browse, filter, and play every prototype</p>
+  </div>
+  <div class="explorer-filters" id="explorer-filters">
+    <!-- Rendered by JS -->
+  </div>
+  <div class="explorer-grid" id="explorer-grid">
+    <!-- Rendered by JS -->
+  </div>
+</section>
+
+<hr class="section-divider">
+
+<!-- ════════════════════════════════════════════════════════════
+     SECTION 9: SCIENCE OF PLAY
+     ════════════════════════════════════════════════════════════ -->
+<section id="science" class="comp-section">
+  <div class="section-header">
+    <h2>The Science of Play &mdash; Why Humans Play</h2>
+    <p class="section-sub">Five ancient drives, seven technology eras, six future verbs</p>
+  </div>
+
+  <h3 class="sub-header">Five Ancient Drives</h3>
+  <div class="drives-grid" id="drives-grid">
+    <!-- Rendered by JS -->
+  </div>
+
+  <h3 class="sub-header">Technology Ladder &mdash; How Constraints Create Genres</h3>
+  <div class="tech-ladder" id="tech-ladder">
+    <!-- Rendered by JS -->
+  </div>
+
+  <h3 class="sub-header">Novel Verbs &mdash; Future Mechanics</h3>
+  <div class="verbs-grid" id="verbs-grid">
+    <!-- Rendered by JS -->
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════
+     SECTION 10: FOOTER
+     ════════════════════════════════════════════════════════════ -->
+<footer id="comp-footer">
+  <p><a href="index.html">Back to Gallery</a></p>
+  <p>Built by Joshua Ayson + Claude, 2026</p>
+  <p>Pixel Vault &mdash; A Playable Museum of Game Mechanics</p>
+</footer>
+
+<!-- ════════════════════════════════════════════════════════════════
+     SCRIPT: All logic in a single block, zero dependencies
+     ════════════════════════════════════════════════════════════════ -->
+<script>
+(function() {
+'use strict';
+
+/* ──────────────────────────────────────────────────────
+   GLOBAL STATE
+   ────────────────────────────────────────────────────── */
+let lens = 'full';
+let manifest = null;
+let introActive = true;
+
+/* ──────────────────────────────────────────────────────
+   EMBEDDED FALLBACK DATA
+   ────────────────────────────────────────────────────── */
+const FALLBACK_PROTOTYPES = [
+  { id:'adv-001-zork', name:'zork', series:'adv', seriesName:'Adventure', number:'001', track:'archetype', file:'prototypes/adv/adv-001-zork.html', mechanic:'parse text commands to explore rooms and solve puzzles', ancestry:'Zork (1977, Infocom), Colossal Cave Adventure (1976)', rating:'4', aiInsight:'Text adventures are the original natural language interfaces.' },
+  { id:'adv-002-kings-quest', name:'kings-quest', series:'adv', seriesName:'Adventure', number:'002', track:'archetype', file:'prototypes/adv/adv-002-kings-quest.html', mechanic:'explore rooms, collect items, solve inventory puzzles', ancestry:'King\'s Quest (1984, Sierra/Roberta Williams)', rating:'4', aiInsight:'Dependency graph of items and locks as spatial constraint satisfaction.' },
+  { id:'adv-003-zelda', name:'zelda', series:'adv', seriesName:'Adventure', number:'003', track:'archetype', file:'prototypes/adv/adv-003-zelda.html', mechanic:'explore top-down world, fight with sword, find items', ancestry:'The Legend of Zelda (1986, Nintendo/Miyamoto)', rating:'4', aiInsight:'Open world with soft gates is reward shaping through world design.' },
+  { id:'anc-001-ur', name:'ur', series:'anc', seriesName:'Ancient Games', number:'001', track:'archetype', file:'prototypes/anc/anc-001-ur.html', mechanic:'race + dice + blocking on shared track', ancestry:'Royal Game of Ur (~2600 BCE, Mesopotamia)', rating:'4', aiInsight:'Stochastic game with perfect information — expectiminimax is optimal.' },
+  { id:'anc-002-mancala', name:'mancala', series:'anc', seriesName:'Ancient Games', number:'002', track:'archetype', file:'prototypes/anc/anc-002-mancala.html', mechanic:'seed sowing around pit circuit', ancestry:'Mancala/Oware (~700 CE, Africa/Asia)', rating:'4', aiInsight:'Single verb (sow) with cascading positional consequences.' },
+  { id:'anc-003-stratego', name:'stratego', series:'anc', seriesName:'Ancient Games', number:'003', track:'archetype', file:'prototypes/anc/anc-003-stratego.html', mechanic:'hidden ranks, bluff and deduce to capture flag', ancestry:'Stratego (1947, Mogendorff/Milton Bradley)', rating:'4', aiInsight:'Imperfect information game requiring Bayesian inference on piece identities.' },
+  { id:'def-001-pong', name:'pong', series:'def', seriesName:'Deflection / Paddle', number:'001', track:'archetype', file:'prototypes/def/def-001-pong.html', mechanic:'deflect \u2014 ball bounces between two paddles', ancestry:'Tennis for Two (1958), Pong (1972)', rating:'4', aiInsight:'Opponent is a Y-tracker if-statement.' },
+  { id:'def-002-breakout', name:'breakout', series:'def', seriesName:'Deflection / Paddle', number:'002', track:'archetype', file:'prototypes/def/def-002-breakout.html', mechanic:'deflect + destroy \u2014 ball clears brick field', ancestry:'Pong (1972), Breakout (1976), Arkanoid (1986)', rating:'4', aiInsight:'Physics is the antagonist. DQN found the tunnel strategy.' },
+  { id:'fgt-001-joust', name:'joust', series:'fgt', seriesName:'Fighting / Combat', number:'001', track:'archetype', file:'prototypes/fgt/fgt-001-joust.html', mechanic:'flap-to-fly \u2014 height advantage wins lance combat', ancestry:'Joust (1982), Balloon Fight (1984)', rating:'4', aiInsight:'Height-wins reduces combat to a single axis.' },
+  { id:'fix-001-invaders', name:'invaders', series:'fix', seriesName:'Fixed-Position Shooters', number:'001', track:'archetype', file:'prototypes/fix/fix-001-invaders.html', mechanic:'fix + suppress \u2014 eliminate descending formation', ancestry:'Space Invaders (1978), Galaxian (1979), Galaga (1981)', rating:'4', aiInsight:'Speedup-as-aliens-die is emergent curriculum learning.' },
+  { id:'fix-003-centipede', name:'centipede', series:'fix', seriesName:'Fixed-Position Shooters', number:'003', track:'archetype', file:'prototypes/fix/fix-003-centipede.html', mechanic:'trackball shooter, mushroom field reshapes', ancestry:'Centipede (1981, Dona Bailey/Ed Logg, Atari)', rating:'4', aiInsight:'Player actions reshape the battlefield \u2014 implicit environment co-design.' },
+  { id:'fix-004-missile-command', name:'missile-command', series:'fix', seriesName:'Fixed-Position Shooters', number:'004', track:'archetype', file:'prototypes/fix/fix-004-missile-command.html', mechanic:'area defense, cursor-guided missiles', ancestry:'Missile Command (1980, Dave Theurer, Atari)', rating:'4', aiInsight:'Resource allocation under escalating load \u2014 the defender\'s dilemma.' },
+  { id:'maz-001-pacman', name:'pacman', series:'maz', seriesName:'Maze + Chase', number:'001', track:'archetype', file:'prototypes/maz/maz-001-pacman.html', mechanic:'maze chase \u2014 collect dots, avoid ghosts with distinct behaviours', ancestry:'Pac-Man (1980), Ms. Pac-Man (1982)', rating:'5', aiInsight:'Four ghost personalities are multi-agent behavioral policies.' },
+  { id:'maz-002-frogger', name:'frogger', series:'maz', seriesName:'Maze + Chase', number:'002', track:'archetype', file:'prototypes/maz/maz-002-frogger.html', mechanic:'grid traversal through moving lanes', ancestry:'Frogger (1981, Konami)', rating:'4', aiInsight:'Rhythm-matching disguised as maze \u2014 each lane is a timing window.' },
+  { id:'maz-003-pengo', name:'pengo', series:'maz', seriesName:'Maze + Chase', number:'003', track:'archetype', file:'prototypes/maz/maz-003-pengo.html', mechanic:'push ice blocks to crush enemies', ancestry:'Pengo (1982, Sega)', rating:'4', aiInsight:'Sliding-block crush is a planning problem with cascading spatial consequences.' },
+  { id:'phy-001-asteroids', name:'asteroids', series:'phy', seriesName:'Physics / Inertia', number:'001', track:'archetype', file:'prototypes/phy/phy-001-asteroids.html', mechanic:'inertia combat \u2014 thrust and fight your own momentum', ancestry:'Spacewar! (1962), Asteroids (1979)', rating:'5', aiInsight:'Continuous state-space RL problem before RL existed.' },
+  { id:'phy-003-lunar-lander', name:'lunar-lander', series:'phy', seriesName:'Physics / Inertia', number:'003', track:'archetype', file:'prototypes/phy/phy-003-lunar-lander.html', mechanic:'gravity + fuel + precision landing', ancestry:'Lunar Lander (1979, Atari)', rating:'4', aiInsight:'Continuous control with hard constraint (fuel) and soft constraint (speed).' },
+  { id:'plt-001-runner', name:'runner', series:'plt', seriesName:'Platformer', number:'001', track:'archetype', file:'prototypes/plt/plt-001-runner.html', mechanic:'platformer run \u2014 jump across gaps, stomp enemies, collect coins', ancestry:'Donkey Kong (1981), Super Mario Bros (1985)', rating:'4', aiInsight:'Variable-height jump is continuous action control.' },
+  { id:'plt-002-lode-runner', name:'lode-runner', series:'plt', seriesName:'Platformer', number:'002', track:'archetype', file:'prototypes/plt/plt-002-lode-runner.html', mechanic:'dig traps, collect gold, no jump', ancestry:'Lode Runner (1983, Doug Smith)', rating:'4', aiInsight:'Absence of jump IS the design \u2014 terrain modification as traversal.' },
+  { id:'plt-003-castlevania', name:'castlevania', series:'plt', seriesName:'Platformer', number:'003', track:'archetype', file:'prototypes/plt/plt-003-castlevania.html', mechanic:'whip platformer with subweapons and stiff jumps', ancestry:'Castlevania (1986, Konami)', rating:'4', aiInsight:'Stiff jumps force planning before execution \u2014 each input is commitment.' },
+  { id:'plt-004-metroid', name:'metroid', series:'plt', seriesName:'Platformer', number:'004', track:'archetype', file:'prototypes/plt/plt-004-metroid.html', mechanic:'non-linear explore, acquire abilities to unlock paths', ancestry:'Metroid (1986, Nintendo/Sakamoto)', rating:'4', aiInsight:'Ability-gated world is a dependency graph disguised as geography.' },
+  { id:'puz-001-tetris', name:'tetris', series:'puz', seriesName:'Puzzle / Falling Block', number:'001', track:'archetype', file:'prototypes/puz/puz-001-tetris.html', mechanic:'spatial packing \u2014 rotate and place falling tetrominoes', ancestry:'Tetris (1984), Columns (1990), Puyo Puyo (1991)', rating:'5', aiInsight:'Real-time NP-hard combinatorial optimization.' },
+  { id:'puz-002-columns', name:'columns', series:'puz', seriesName:'Puzzle / Falling Block', number:'002', track:'archetype', file:'prototypes/puz/puz-002-columns.html', mechanic:'match-3 alignment, cycle jewel colors', ancestry:'Columns (1990, Sega), Bejeweled (2001)', rating:'4', aiInsight:'Color alignment is a different NP-hard problem than spatial packing.' },
+  { id:'puz-003-incredible-machine', name:'incredible-machine', series:'puz', seriesName:'Puzzle / Falling Block', number:'003', track:'archetype', file:'prototypes/puz/puz-003-incredible-machine.html', mechanic:'place parts to build Rube Goldberg physics chains', ancestry:'The Incredible Machine (1993, Sierra/Jeff Tunnell)', rating:'4', aiInsight:'Constraint satisfaction in continuous physics space \u2014 planning in a simulator.' },
+  { id:'rac-001-racer', name:'racer', series:'rac', seriesName:'Racing / Driving', number:'001', track:'archetype', file:'prototypes/rac/rac-001-racer.html', mechanic:'perspective-road \u2014 pseudo-3D road racing', ancestry:'Night Driver (1976), Pole Position (1982), Out Run (1986)', rating:'4', aiInsight:'Pseudo-3D racing is one of gaming\'s great optical illusions.' },
+  { id:'rpg-001-bards-tale', name:'bards-tale', series:'rpg', seriesName:'Role-Playing', number:'001', track:'archetype', file:'prototypes/rpg/rpg-001-bards-tale.html', mechanic:'first-person dungeon crawl with party combat', ancestry:'The Bard\'s Tale (1985, Interplay), Wizardry (1981)', rating:'4', aiInsight:'Dungeon crawl is state-space search in a partially observable graph.' },
+  { id:'rpg-002-ys', name:'ys', series:'rpg', seriesName:'Role-Playing', number:'002', track:'archetype', file:'prototypes/rpg/rpg-002-ys.html', mechanic:'bump combat \u2014 angle of approach determines damage', ancestry:'Ys (1987, Nihon Falcom), Hydlide (1984)', rating:'4', aiInsight:'Combat IS movement \u2014 positioning encodes all tactical decisions.' },
+  { id:'scr-001-defender', name:'defender', series:'scr', seriesName:'Scrolling / Shmup', number:'001', track:'archetype', file:'prototypes/scr/scr-001-defender.html', mechanic:'horizontal scroll + protect humans on ground', ancestry:'Defender (1981), Gradius (1985), R-Type (1987)', rating:'4', aiInsight:'Invented the world-larger-than-screen problem \u2014 a playable POMDP.' },
+  { id:'scr-002-scramble', name:'scramble', series:'scr', seriesName:'Scrolling / Shmup', number:'002', track:'archetype', file:'prototypes/scr/scr-002-scramble.html', mechanic:'forced-scroll, dual weapons, terrain bombing', ancestry:'Scramble (1981, Konami)', rating:'4', aiInsight:'First forced-scrolling shooter \u2014 environment moves regardless of input.' },
+  { id:'scr-003-thexder', name:'thexder', series:'scr', seriesName:'Scrolling / Shmup', number:'003', track:'archetype', file:'prototypes/scr/scr-003-thexder.html', mechanic:'transform mech/jet with auto-aim laser', ancestry:'Thexder (1985, Game Arts)', rating:'4', aiInsight:'Dual-mode design is a policy-switching problem between walk and fly.' },
+  { id:'scr-004-ikari', name:'ikari', series:'scr', seriesName:'Scrolling / Shmup', number:'004', track:'archetype', file:'prototypes/scr/scr-004-ikari.html', mechanic:'top-down run-and-gun, rotational fire', ancestry:'Ikari Warriors (1986, SNK), Commando (1985)', rating:'4', aiInsight:'Separates movement from aiming \u2014 dual-output control problem.' },
+  { id:'sht-001-robotron', name:'robotron', series:'sht', seriesName:'Twin-Stick / Arena Shooter', number:'001', track:'archetype', file:'prototypes/sht/sht-001-robotron.html', mechanic:'twin-stick \u2014 move and shoot independently, wave survival', ancestry:'Robotron (1982), Smash TV (1990), Geometry Wars (2003)', rating:'4', aiInsight:'Twin-stick decoupled movement from attack for the first time.' },
+  { id:'sht-002-berzerk', name:'berzerk', series:'sht', seriesName:'Twin-Stick / Arena Shooter', number:'002', track:'archetype', file:'prototypes/sht/sht-002-berzerk.html', mechanic:'room-by-room arena, robots + Evil Otto', ancestry:'Berzerk (1980, Stern Electronics)', rating:'4', aiInsight:'Asymmetric threats: killable robots + unkillable timer (Evil Otto).' },
+  { id:'sht-003-biplanes', name:'biplanes', series:'sht', seriesName:'Twin-Stick / Arena Shooter', number:'003', track:'archetype', file:'prototypes/sht/sht-003-biplanes.html', mechanic:'biplane dogfight with gravity and screen wrap', ancestry:'Biplanes (1982, Intellivision/Mattel), Combat (1977)', rating:'4', aiInsight:'Gravity enriches the rotation-thrust model \u2014 altitude as depletable resource.' },
+  { id:'sim-001-taipan', name:'taipan', series:'sim', seriesName:'Simulation', number:'001', track:'archetype', file:'prototypes/sim/sim-001-taipan.html', mechanic:'trade goods between ports under risk', ancestry:'Taipan! (1982, Art Canfil)', rating:'4', aiInsight:'Multi-armed bandit applied to spatial economics.' },
+  { id:'spt-001-minigolf', name:'minigolf', series:'spt', seriesName:'Sports', number:'001', track:'archetype', file:'prototypes/spt/spt-001-minigolf.html', mechanic:'aim and putt ball through obstacle courses', ancestry:'Zany Golf (1988, EA), Mini-Putt (various 1980s+)', rating:'4', aiInsight:'Trajectory planning with imperfect execution \u2014 model-based RL loop.' },
+  { id:'spt-002-summer-games', name:'summer-games', series:'spt', seriesName:'Sports', number:'002', track:'archetype', file:'prototypes/spt/spt-002-summer-games.html', mechanic:'multi-event athletics, timing and mashing', ancestry:'Summer Games (1984, Epyx), Track & Field (1983)', rating:'4', aiInsight:'Multi-task learning from unified input \u2014 rapid policy switching across events.' },
+  { id:'spt-003-skateboard', name:'skateboard', series:'spt', seriesName:'Sports', number:'003', track:'archetype', file:'prototypes/spt/spt-003-skateboard.html', mechanic:'halfpipe trick timing, pump to build speed', ancestry:'Skate or Die (1987, EA), 720\u00b0 (1986, Atari)', rating:'4', aiInsight:'Resonance exploitation \u2014 timing inputs to amplify a natural oscillator.' },
+  { id:'spt-004-slalom', name:'slalom', series:'spt', seriesName:'Sports', number:'004', track:'archetype', file:'prototypes/spt/spt-004-slalom.html', mechanic:'downhill gates, carving physics, time trial', ancestry:'Slalom (1987, Rare/Nintendo)', rating:'4', aiInsight:'Look-ahead path optimization under momentum constraints.' },
+  { id:'srv-001-tapper', name:'tapper', series:'srv', seriesName:'Service / Dispatch', number:'001', track:'archetype', file:'prototypes/srv/srv-001-tapper.html', mechanic:'multi-lane service dispatch with return acknowledgement', ancestry:'Tapper (1983), Diner Dash (2004)', rating:'4', aiInsight:'Real-time multi-queue scheduling identical to CPU task dispatch.' },
+  { id:'srv-004-paperboy', name:'paperboy', series:'srv', seriesName:'Service / Dispatch', number:'004', track:'archetype', file:'prototypes/srv/srv-004-paperboy.html', mechanic:'deliver papers while dodging obstacles on bicycle', ancestry:'Paperboy (1985, Atari Games)', rating:'4', aiInsight:'Multi-objective optimization \u2014 accuracy, avoidance, resource management.' },
+  { id:'trp-001-qix', name:'qix', series:'trp', seriesName:'Trap / Terrain', number:'001', track:'archetype', file:'prototypes/trp/trp-001-qix.html', mechanic:'territorial trap \u2014 draw lines to claim area under threat', ancestry:'Qix (1981), Volfied (1989), JezzBall (1992)', rating:'5', aiInsight:'Multi-armed bandit with spatial, temporal, and risk dimensions.' },
+  { id:'fix-002-ai-escalation', name:'ai-escalation', series:'fix', seriesName:'Fixed-Position Shooters', number:'002', track:'ai-archaeology', file:'ai-archaeology/fix/fix-002-ai-escalation.html', mechanic:'AI tension management replacing accidental speedup', ancestry:'fix-001 (Space Invaders 1978), curriculum learning (~2015)', rating:'4', aiInsight:'Intentional tension management uses real-time performance signals.' },
+  { id:'phy-002-safety-map', name:'safety-map', series:'phy', seriesName:'Physics / Inertia', number:'002', track:'ai-archaeology', file:'ai-archaeology/phy/phy-002-safety-map.html', mechanic:'Asteroids with AI safety evaluation overlay', ancestry:'phy-001-asteroids, DQN (2013), CMDP (~2015)', rating:'5', aiInsight:'Renders what a safety-constrained RL agent evaluates each frame.' },
+  { id:'srv-002-smartbar', name:'smartbar', series:'srv', seriesName:'Service / Dispatch', number:'002', track:'ai-archaeology', file:'ai-archaeology/srv/srv-002-smartbar.html', mechanic:'Tapper with real-time queue priority overlay', ancestry:'srv-001 (Tapper 1983), Erlang queueing theory (1909)', rating:'4', aiInsight:'What if an expert system had designed Tapper\'s UI?' },
+  { id:'trp-002-risk-heatmap', name:'risk-heatmap', series:'trp', seriesName:'Trap / Terrain', number:'002', track:'ai-archaeology', file:'ai-archaeology/trp/trp-002-risk-heatmap.html', mechanic:'Qix with AI risk/reward heatmap overlay', ancestry:'trp-001 (Qix 1981), advantage functions (RL ~2000s)', rating:'5', aiInsight:'Makes visible what the skilled player intuits: optimal entry windows.' },
+  { id:'wld-001-search-game', name:'search-game', series:'wld', seriesName:'Wild Experiments', number:'001', track:'ai-archaeology', file:'ai-archaeology/wld/wld-001-search-game.html', mechanic:'Navigate maze while search algorithms radiate visibly', ancestry:'A* (1968), Dijkstra (1956)', rating:'4', aiInsight:'The game IS the search. A* expanding shows the AI\'s reasoning.' },
+  { id:'wld-003-neural-game', name:'neural-game', series:'wld', seriesName:'Wild Experiments', number:'003', track:'ai-archaeology', file:'ai-archaeology/wld/wld-003-neural-game.html', mechanic:'Pong where AI builds a visible model of your behavior', ancestry:'Pong (1972), TD-Gammon (1992), Perceptron (1957)', rating:'4', aiInsight:'A learning adversary forces you to discover unmodeled strategies.' },
+  { id:'new-001-thread', name:'thread', series:'new', seriesName:'Novel Mechanics', number:'001', track:'ai-evolution', file:'ai-evolution/new/new-001-thread.html', mechanic:'weave-and-enclose \u2014 trace closed loops around enemies', ancestry:'Qix (1981) \u2014 novel evolution of territory-drawing', rating:'5', aiInsight:'Geometry-under-pressure predates AI-assisted design.' },
+  { id:'srv-003-flowbar', name:'flowbar', series:'srv', seriesName:'Service / Dispatch', number:'003', track:'ai-evolution', file:'ai-evolution/srv/srv-003-flowbar.html', mechanic:'adaptive bar with demand-feedback loop', ancestry:'Tapper (1983), Diner Dash (2004), Overcooked (2016)', rating:'5', aiInsight:'Serve faster \u2192 attract more \u2192 environment becomes harder.' },
+  { id:'wld-001-komorebi', name:'komorebi', series:'wld', seriesName:'Wild Experiments', number:'001', track:'ai-evolution', file:'ai-evolution/wld/wld-002-komorebi.html', mechanic:'atmospheric-navigation through dappled-light patterns', ancestry:'Flower (2009), Proteus (2013)', rating:'4', aiInsight:'Proves "game" need not mean "contest."' }
+];
+
+/* ──────────────────────────────────────────────────────
+   CREATORS DATA (all 27)
+   ────────────────────────────────────────────────────── */
+const CREATORS = [
+  { name:'William Higinbotham', year:1958, game:'Tennis for Two', org:'Brookhaven National Lab', innovation:'First real-time physics game; oscilloscope display; gravity as mechanic', era:'0-1' },
+  { name:'Steve Russell', year:1962, game:'Spacewar!', org:'MIT (PDP-1)', innovation:'First multiplayer game; Newtonian physics; gravity wells; inertia', era:'0-1' },
+  { name:'Nolan Bushnell', year:1971, game:'Computer Space', org:'Nutting Associates', innovation:'First commercial arcade game; Spacewar! adapted for public', era:'0-1' },
+  { name:'Allan Alcorn', year:1972, game:'Pong', org:'Atari', innovation:'Deflection mechanic; Y-tracking opponent; the origin of commercial gaming', era:'2' },
+  { name:'Dave Nutting', year:1975, game:'Gun Fight', org:'Midway / Taito', innovation:'First game with a microprocessor (Intel 8080)', era:'2' },
+  { name:'Steve Wozniak', year:1976, game:'Breakout', org:'Atari', innovation:'Solo deflection; brick destruction; paddle-to-wall loop', era:'2' },
+  { name:'Tomohiro Nishikado', year:1978, game:'Space Invaders', org:'Taito', innovation:'Fixed-position shooting; formation descent; accidental curriculum learning', era:'3' },
+  { name:'Ed Logg', year:1979, game:'Asteroids', org:'Atari', innovation:'Continuous physics space; inertia-based movement; thrust-and-rotate', era:'3' },
+  { name:'Kazunori Sawano', year:1979, game:'Galaxian', org:'Namco', innovation:'Individual enemy attack patterns; breaking formation AI', era:'3' },
+  { name:'Toru Iwatani', year:1980, game:'Pac-Man', org:'Namco', innovation:'Maze chase; 4 ghost personalities; power reversal; multi-agent policies', era:'3' },
+  { name:'Dave Theurer', year:1980, game:'Missile Command', org:'Atari', innovation:'Area defense; resource management under escalating pressure', era:'3' },
+  { name:'Ed Rotberg', year:1980, game:'Battlezone', org:'Atari', innovation:'First-person 3D vector graphics; tank combat', era:'3' },
+  { name:'Michael Toy', year:1980, game:'Rogue', org:'UC Santa Cruz', innovation:'Procedural generation; permadeath; ASCII graphics; invented roguelikes', era:'3' },
+  { name:'Eugene Jarvis', year:1981, game:'Defender', org:'Williams', innovation:'Horizontal scrolling; minimap as dimensionality reduction; partial observability', era:'3' },
+  { name:'Shigeru Miyamoto', year:1981, game:'Donkey Kong', org:'Nintendo', innovation:'Narrative-driven platforming; character identity; jump-over-obstacles loop', era:'3' },
+  { name:'Shigeru Yokoyama', year:1981, game:'Galaga', org:'Namco', innovation:'Capture/rescue mechanic; evolved formation attacks; intentional risk', era:'3' },
+  { name:'Randy Pfeiffer', year:1981, game:'Qix', org:'Taito America', innovation:'Territorial control; area claiming under threat; multi-armed bandit as entertainment', era:'3' },
+  { name:'John Newcomer', year:1982, game:'Joust', org:'Williams', innovation:'Flap-to-fly physics; lance combat; co-op/competitive duality', era:'3' },
+  { name:'Shouichi Fukatani', year:1982, game:'Dig Dug', org:'Namco', innovation:'Tunneling + inflating enemies; terrain is weapon', era:'3' },
+  { name:'Warren Davis', year:1982, game:'Q*bert', org:'Gottlieb', innovation:'Isometric grid; tile-color puzzles; navigational enemy avoidance', era:'3' },
+  { name:'Larry DeMar', year:1983, game:'Tapper', org:'Bally Midway', innovation:'Multi-lane service dispatch; real-time queue scheduling as entertainment; Erlang theory as gameplay', era:'3' },
+  { name:'Steve Ritchie', year:1983, game:'Tapper', org:'Bally Midway', innovation:'Cabinet design; promotional integration (Budweiser); arcade as marketing vehicle', era:'3' },
+  { name:'Gunpei Yokoi', year:1983, game:'Mario Bros.', org:'Nintendo', innovation:'Arena platformer; enemy stunning via floor hit; two-player cooperative', era:'3' },
+  { name:'Alexey Pajitnov', year:1984, game:'Tetris', org:'Soviet Academy of Sciences', innovation:'Real-time NP-hard spatial optimization; falling-block mechanic; the most elegant game design', era:'3-4' },
+  { name:'Takashi Tezuka', year:1985, game:'Super Mario Bros.', org:'Nintendo', innovation:'Scrolling platformer perfected; reward shaping via level design; momentum physics', era:'3-4' },
+  { name:'Lyle Rains', year:1979, game:'Asteroids', org:'Atari', innovation:'Co-designed Asteroids; wrap-around topology; break-to-multiply mechanics', era:'3' },
+  { name:'Eugene Jarvis (Robotron)', year:1982, game:'Robotron: 2084', org:'Williams', innovation:'Twin-stick controls; arena survival; decoupled movement from attack; rescue mechanic', era:'3' }
+];
+
+/* ──────────────────────────────────────────────────────
+   TIMELINE EVENTS
+   ────────────────────────────────────────────────────── */
+const TIMELINE_EVENTS = [
+  // Convergence points from COMPENDIUM.md
+  { year:1944, type:'ai', title:"von Neumann's Theory of Games", desc:'Game theory becomes AI foundation. Mathematical frameworks for strategic decision-making.' },
+  { year:1950, type:'ai', title:"Shannon's chess paper", desc:'Games define what "intelligence" means. Chess as the benchmark for machine reasoning.' },
+  { year:1952, type:'ai', title:"Samuel's checkers (self-play)", desc:'Self-play invented via games. The first program to learn from experience.' },
+  { year:1958, type:'game', title:'Tennis for Two', desc:'First real-time physics game by Higinbotham. Oscilloscope display; gravity as mechanic.' },
+  { year:1962, type:'game', title:'Spacewar!', desc:'First multiplayer game by Steve Russell at MIT. AI research happening on the same PDP-1 hardware.' },
+  { year:1962, type:'ai', title:'AI on same hardware (PDP-1)', desc:'Same buildings, different questions. Games and AI share computational origins.' },
+  { year:1972, type:'game', title:'Pong ships', desc:'Allan Alcorn creates Pong at Atari. The origin of commercial gaming.' },
+  { year:1972, type:'ai', title:'MYCIN expert system', desc:'Specialization works. Both Pong and MYCIN prove that narrow competence beats generality.' },
+  { year:1978, type:'game', title:'Space Invaders', desc:'Nishikado invents fixed-position shooting. Speedup bug becomes accidental curriculum learning.' },
+  { year:1979, type:'game', title:'Asteroids', desc:'Ed Logg creates continuous physics space. Inertia-based movement; exploration-exploitation tradeoff.' },
+  { year:1980, type:'game', title:"Pac-Man's ghost AI", desc:'Toru Iwatani creates 4 ghost personalities. Multi-agent behavioral policies 20 years before the theory.' },
+  { year:1980, type:'ai', title:'Multi-agent systems nascent', desc:'Games solve multi-agent coordination intuitively while AI formalizes the mathematics.' },
+  { year:1980, type:'game', title:'Rogue (procedural generation)', desc:'Procedural content generation invented. ASCII roguelikes 34 years before GANs.' },
+  { year:1981, type:'game', title:'Defender + Qix', desc:'Jarvis invents scrolling worlds and minimaps. Pfeiffer brothers create territorial control.' },
+  { year:1982, type:'game', title:'Robotron: 2084', desc:'Eugene Jarvis invents twin-stick controls. Decoupled movement from attack forever.' },
+  { year:1983, type:'game', title:'Tapper', desc:'Larry DeMar creates multi-queue scheduling as gameplay. Erlang queueing theory made playable.' },
+  { year:1984, type:'game', title:'Tetris', desc:'Pajitnov creates real-time NP-hard optimization as entertainment. No game ancestry.' },
+  { year:1985, type:'game', title:'Super Mario Bros.', desc:'Miyamoto perfects reward shaping via level design. The scrolling platformer template.' },
+  { year:1985, type:'ai', title:'Combinatorial optimization', desc:'Tetris anticipates combinatorial optimization challenges still active in AI research.' },
+  { year:1992, type:'game', title:'SF2 combo discovery', desc:'Players discover combos through unsupervised search. Hidden mechanics emerge from play.' },
+  { year:1992, type:'ai', title:'TD-Gammon (self-play RL)', desc:'Tesauro\'s backgammon AI learns through self-play. Players and networks both do unsupervised search.' },
+  { year:1997, type:'ai', title:'Deep Blue beats Kasparov', desc:'AI conquers its original benchmark. Chess, the first game used to define intelligence, falls.' },
+  { year:2005, type:'game', title:'F.E.A.R. GOAP system', desc:'Game AI leads academic AI in real-time planning. Goal-oriented action planning.' },
+  { year:2013, type:'ai', title:'DQN plays Atari from pixels', desc:'DeepMind uses our prototype lineages as benchmarks. AI learns to play Breakout, Asteroids, Pong.' },
+  { year:2016, type:'ai', title:'AlphaGo Move 37', desc:'AI shows humans their game is deeper than they knew. Creativity from silicon.' },
+  { year:2021, type:'ai', title:'GitHub Copilot', desc:'AI writes game code. The tool becomes a collaborator.' },
+  { year:2026, type:'game', title:'This laboratory', desc:'Human-AI dyad creates games together. The first artifact of Era 7 co-creation.' },
+  { year:2026, type:'ai', title:'Claude/GPT agents', desc:'Agentic AI participates in creative work. Not replacing, collaborating.' }
+];
+
+/* ──────────────────────────────────────────────────────
+   GAME-FIRST DISCOVERIES (gap bars)
+   ────────────────────────────────────────────────────── */
+const GAP_DISCOVERIES = [
+  { game:'Space Invaders', gameYear:1978, concept:'Curriculum Learning', aiYear:2015, gap:37 },
+  { game:'Rogue', gameYear:1980, concept:'Procedural Generation (GANs)', aiYear:2014, gap:34 },
+  { game:'Pac-Man', gameYear:1980, concept:'Multi-Agent RL (MARL)', aiYear:2000, gap:20 },
+  { game:'Super Mario Bros.', gameYear:1985, concept:'Reward Shaping in RL', aiYear:1999, gap:14 },
+  { game:'Asteroids', gameYear:1979, concept:'Exploration-Exploitation (RL)', aiYear:1990, gap:11 },
+  { game:'Defender', gameYear:1981, concept:'POMDPs + Dim. Reduction', aiYear:1990, gap:9 },
+  { game:'Qix', gameYear:1981, concept:'Spatial Bandit Theory', aiYear:1985, gap:4 },
+  { game:'Tetris', gameYear:1984, concept:'NP-hard Spatial Heuristics', aiYear:0, gap:'ongoing' }
+].sort((a,b) => {
+  if (a.gap === 'ongoing') return -1;
+  if (b.gap === 'ongoing') return 1;
+  return b.gap - a.gap;
+});
+
+/* ──────────────────────────────────────────────────────
+   AI ERAS
+   ────────────────────────────────────────────────────── */
+const AI_ERAS = [
+  { num:0, name:'Theoretical Foundations', years:'before 1950', capabilities:'von Neumann, Shannon, Turing define computation and game theory', limitations:'No working AI systems exist yet', parallel:'Games as mathematical objects (Game Theory, 1944)' },
+  { num:1, name:'Search and Symbols', years:'1950\u20131971', capabilities:'Samuel\'s checkers, Newell-Simon GPS, ELIZA. Can search finite trees, match text patterns.', limitations:'Cannot see, cannot learn from experience, cannot handle continuous state', parallel:'Tennis for Two (1958), Spacewar! (1962)' },
+  { num:2, name:'Expert Systems', years:'1972\u20131977', capabilities:'MYCIN, DENDRAL, rule-based reasoning. Can encode human expertise as if-then rules.', limitations:'Brittle to novel situations; no learning', parallel:'Pong (1972), Breakout (1976), Night Driver (1976)' },
+  { num:3, name:'Knowledge Explosion', years:'1978\u20131983', capabilities:'Hopfield networks, early backprop, Connection Machine. Can classify patterns, search large spaces.', limitations:'Cannot see images, understand speech, or generate anything novel', parallel:'The most game genres ever invented: Space Invaders through Tapper' },
+  { num:4, name:'Expert Boom & Second Winter', years:'1985\u20131992', capabilities:'TD-Gammon, expert system collapse, subsumption architecture. Can learn evaluations through self-play.', limitations:'Cannot see usefully, create, or generalize across domains', parallel:'Tetris (1984), Super Mario Bros. (1985), SF2 combos (1991)' },
+  { num:5, name:'Statistical Learning', years:'1992\u20132011', capabilities:'Deep Blue, SVMs, Netflix Prize, Watson, ImageNet. Can beat humans at chess via brute search.', limitations:'Cannot see like a toddler or transfer knowledge across domains', parallel:'F.E.A.R. GOAP (2005), procedural generation matures' },
+  { num:6, name:'Deep Learning + Generative-Agentic', years:'2012\u2013present', capabilities:'AlexNet, GANs, AlphaGo, Transformers, GPT-4, Claude. Can see, read, write, generate, reason about design.', limitations:'Cannot judge if a game is fun, recognize beauty, or decide what to build by intuition', parallel:'DQN plays Atari (2013), AlphaGo (2016), This laboratory (2026)' }
+];
+
+/* ──────────────────────────────────────────────────────
+   ANCESTRY DATA
+   ────────────────────────────────────────────────────── */
+const ANCESTRY = [
+  { code:'DEF', name:'Deflection / Paddle', mechanic:'Object bounces between surfaces; player controls angle via position.',
+    chain:[
+      {name:'Tennis for Two',year:'1958'},
+      {name:'Pong',year:'1972',proto:'def-001-pong'},
+      {name:'Breakout',year:'1976',proto:'def-002-breakout'},
+      {name:'Arkanoid',year:'1986'}
+    ]
+  },
+  { code:'FIX', name:'Fixed-Position Shooters', mechanic:'Player holds position or moves on one axis, eliminates approaching threats.',
+    chain:[
+      {name:'Space Invaders',year:'1978',proto:'fix-001-invaders'},
+      {name:'Galaxian',year:'1979'},
+      {name:'Galaga',year:'1981'},
+      {name:'Bullet-hell',year:'1990s'}
+    ],
+    aiVariants:[{name:'AI Escalation',proto:'fix-002-ai-escalation',track:'ai-archaeology'}]
+  },
+  { code:'PHY', name:'Physics / Inertia', mechanic:'Newtonian physics; thrust changes velocity, not position directly.',
+    chain:[
+      {name:'Spacewar!',year:'1962'},
+      {name:'Asteroids',year:'1979',proto:'phy-001-asteroids'},
+      {name:'Gravitar',year:'1982'},
+      {name:'Thrust',year:'1986'}
+    ],
+    aiVariants:[{name:'Safety Map',proto:'phy-002-safety-map',track:'ai-archaeology'}]
+  },
+  { code:'MAZ', name:'Maze + Chase', mechanic:'Navigate maze, collect items, avoid or reverse-hunt pursuers.',
+    chain:[
+      {name:'Pac-Man',year:'1980',proto:'maz-001-pacman'},
+      {name:'Ms. Pac-Man',year:'1982'},
+      {name:'Stealth games',year:'1990s'}
+    ]
+  },
+  { code:'SCR', name:'Scrolling / Shmup', mechanic:'Continuous scrolling; player moves freely within scrolling frame; partial observability.',
+    chain:[
+      {name:'Defender',year:'1981',proto:'scr-001-defender'},
+      {name:'Scramble',year:'1981'},
+      {name:'Gradius',year:'1985'},
+      {name:'R-Type',year:'1987'},
+      {name:'Ikaruga',year:'2001'}
+    ]
+  },
+  { code:'PLT', name:'Platformer', mechanic:'Gravity + jump; traverse platforms; avoid/defeat enemies.',
+    chain:[
+      {name:'Donkey Kong',year:'1981'},
+      {name:'Mario Bros.',year:'1983'},
+      {name:'Super Mario Bros.',year:'1985',proto:'plt-001-runner'},
+      {name:'Sonic',year:'1991'}
+    ]
+  },
+  { code:'PUZ', name:'Puzzle / Falling Block', mechanic:'Pieces descend; arrange under time pressure; clearing creates space.',
+    chain:[
+      {name:'Tetris',year:'1984',proto:'puz-001-tetris'},
+      {name:'Dr. Mario',year:'1990'},
+      {name:'Columns',year:'1990'},
+      {name:'Puyo Puyo',year:'1991'},
+      {name:'Lumines',year:'2004'}
+    ]
+  },
+  { code:'TRP', name:'Trap / Terrain', mechanic:'Claim territory under threat; risk increases with claim size.',
+    chain:[
+      {name:'Qix',year:'1981',proto:'trp-001-qix'},
+      {name:'Volfied',year:'1989'},
+      {name:'Jezzball',year:'1992'},
+      {name:'territory.io',year:'2018'}
+    ],
+    aiVariants:[{name:'Risk Heatmap',proto:'trp-002-risk-heatmap',track:'ai-archaeology'}],
+    evoVariants:[{name:'Thread',proto:'new-001-thread',track:'ai-evolution'}]
+  },
+  { code:'FGT', name:'Fighting / Combat', mechanic:'Direct combat; spatial positioning determines advantage.',
+    chain:[
+      {name:'Joust',year:'1982',proto:'fgt-001-joust'},
+      {name:'Karate Champ',year:'1984'},
+      {name:'Street Fighter',year:'1987'},
+      {name:'SF2',year:'1991'}
+    ]
+  },
+  { code:'RAC', name:'Racing / Driving', mechanic:'Perspective road; speed/steering tradeoff; competitive time.',
+    chain:[
+      {name:'Night Driver',year:'1976'},
+      {name:'Pole Position',year:'1982',proto:'rac-001-racer'},
+      {name:'Out Run',year:'1986'},
+      {name:'Ridge Racer',year:'1993'}
+    ]
+  },
+  { code:'SHT', name:'Twin-Stick / Arena Shooter', mechanic:'Move and shoot independently; overwhelming enemy waves; survival.',
+    chain:[
+      {name:'Robotron',year:'1982',proto:'sht-001-robotron'},
+      {name:'Smash TV',year:'1990'},
+      {name:'Geometry Wars',year:'2003'},
+      {name:'Binding of Isaac',year:'2011'},
+      {name:'Vampire Survivors',year:'2022'}
+    ]
+  },
+  { code:'SRV', name:'Service / Dispatch', mechanic:'Multi-lane dispatch with return acknowledgement. Player allocates service tokens across simultaneous queues.',
+    chain:[
+      {name:'Tapper',year:'1983',proto:'srv-001-tapper'},
+      {name:'Root Beer Tapper',year:'1984'},
+      {name:'Diner Dash',year:'2004'},
+      {name:'Overcooked',year:'2016'},
+      {name:'Plate Up!',year:'2022'}
+    ],
+    aiVariants:[{name:'SmartBar',proto:'srv-002-smartbar',track:'ai-archaeology'}],
+    evoVariants:[{name:'FlowBar',proto:'srv-003-flowbar',track:'ai-evolution'}]
+  }
+];
+
+/* ──────────────────────────────────────────────────────
+   SCIENCE DATA
+   ────────────────────────────────────────────────────── */
+const DRIVES = [
+  { name:'Contest', desc:'The desire to prove superiority through direct competition. Struggle against an opponent.', ancient:'Greek Olympics, Roman gladiators, jousting', digital:'Fighting games, competitive FPS, esports' },
+  { name:'Chance', desc:'The thrill of uncertain outcomes. Surrendering control to fate.', ancient:'Dice, lots, knucklebones, card games', digital:'Roguelikes, gacha, procedural generation' },
+  { name:'Strategy', desc:'Mastery through planning and foresight. Outthinking opponents.', ancient:'Chess, Go, Mancala, military war games', digital:'RTS, 4X, auto-battlers, tower defense' },
+  { name:'Dexterity', desc:'Physical skill and reflex. Hand-eye coordination as performance.', ancient:'Archery, juggling, ball games, acrobatics', digital:'Platformers, rhythm games, twin-stick shooters' },
+  { name:'Pattern', desc:'Recognition and completion of spatial/temporal patterns. Order from chaos.', ancient:'Mosaics, weaving, music composition, puzzles', digital:'Tetris, match-3, puzzle games, Wordle' }
+];
+
+const TECH_LADDER = [
+  { era:'I', tech:'Pre-electronic', genre:'Board games, card games, dice games' },
+  { era:'II', tech:'Oscilloscope / CRT', genre:'Tennis for Two, real-time physics interaction' },
+  { era:'III', tech:'Mainframe / PDP', genre:'Spacewar!, text adventures, multi-user dungeons' },
+  { era:'IV', tech:'Microprocessor / Arcade', genre:'All 12 foundational genres (1978-1984)' },
+  { era:'V', tech:'Home Console / PC', genre:'RPGs, adventure games, simulation, narrative' },
+  { era:'VI', tech:'GPU / Internet', genre:'MMOs, battle royale, open world, multiplayer' },
+  { era:'VII', tech:'Browser / AI Agents', genre:'Pixel Vault prototypes, AI co-created games, procedural everything' }
+];
+
+const NOVEL_VERBS = [
+  { name:'ECHO', desc:'Actions reverberate through time. Your past moves return as environmental forces you must navigate.' },
+  { name:'TETHER', desc:'Connect objects with persistent links. Physics propagates through the web of connections.' },
+  { name:'SPLIT', desc:'Divide your agent into multiple simultaneous entities. Coordinate parallel selves.' },
+  { name:'WEAVE', desc:'Draw geometry trails with movement. Trace closed loops to affect the world.' },
+  { name:'PULSE', desc:'Emit expanding wavefronts. Timing and rhythm create spatial effects.' },
+  { name:'BURROW', desc:'Dig through destructible terrain. Create paths, traps, and escape routes by reshaping the world.' }
+];
+
+/* ──────────────────────────────────────────────────────
+   HELPERS
+   ────────────────────────────────────────────────────── */
+function $(sel, ctx) { return (ctx || document).querySelector(sel); }
+function $$(sel, ctx) { return Array.from((ctx || document).querySelectorAll(sel)); }
+function h(tag, attrs, ...children) {
+  const el = document.createElement(tag);
+  if (attrs) Object.keys(attrs).forEach(k => {
+    if (k === 'className') el.className = attrs[k];
+    else if (k === 'dataset') Object.keys(attrs[k]).forEach(dk => el.dataset[dk] = attrs[k][dk]);
+    else if (k.startsWith('on')) el.addEventListener(k.slice(2).toLowerCase(), attrs[k]);
+    else el.setAttribute(k, attrs[k]);
+  });
+  children.flat().forEach(c => {
+    if (c == null) return;
+    el.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+  });
+  return el;
+}
+function stars(n) { return '\u2605'.repeat(Number(n)||0) + '\u2606'.repeat(5 - (Number(n)||0)); }
+function trackClass(t) { return (t||'').replace(/_/g,'-'); }
+function getProtos() { return manifest ? manifest.prototypes : FALLBACK_PROTOTYPES; }
+
+/* ──────────────────────────────────────────────────────
+   INTRO — Canvas particle animation
+   ────────────────────────────────────────────────────── */
+function initIntro() {
+  const canvas = document.getElementById('intro-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  let w, ht, particles = [], gridLines = [], animId;
+
+  function resize() {
+    w = canvas.width = window.innerWidth;
+    ht = canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  // Grid lines
+  const gridSpacing = 60;
+  for (let x = 0; x < 80; x++) { gridLines.push({ x: x * gridSpacing, y: 0, vertical: true }); }
+  for (let y = 0; y < 40; y++) { gridLines.push({ x: 0, y: y * gridSpacing, vertical: false }); }
+
+  // Particles
+  for (let i = 0; i < 80; i++) {
+    particles.push({
+      x: Math.random() * w,
+      y: Math.random() * ht,
+      vx: (Math.random() - 0.5) * 0.4,
+      vy: (Math.random() - 0.5) * 0.4,
+      size: Math.random() * 2 + 1,
+      alpha: Math.random() * 0.4 + 0.1
+    });
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, w, ht);
+
+    // Grid
+    ctx.strokeStyle = 'rgba(44,48,96,0.15)';
+    ctx.lineWidth = 1;
+    gridLines.forEach(g => {
+      ctx.beginPath();
+      if (g.vertical) { ctx.moveTo(g.x, 0); ctx.lineTo(g.x, ht); }
+      else { ctx.moveTo(0, g.y); ctx.lineTo(w, g.y); }
+      ctx.stroke();
+    });
+
+    // Particles
+    particles.forEach(p => {
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0) p.x = w;
+      if (p.x > w) p.x = 0;
+      if (p.y < 0) p.y = ht;
+      if (p.y > ht) p.y = 0;
+
+      ctx.fillStyle = 'rgba(90,184,255,' + p.alpha + ')';
+      ctx.fillRect(Math.floor(p.x), Math.floor(p.y), p.size, p.size);
+    });
+
+    animId = requestAnimationFrame(draw);
+  }
+  draw();
+
+  // Dismiss intro
+  function dismiss() {
+    if (!introActive) return;
+    introActive = false;
+    document.getElementById('intro').classList.add('dismissed');
+    setTimeout(() => {
+      cancelAnimationFrame(animId);
+      canvas.remove();
+      document.getElementById('intro').remove();
+    }, 900);
+  }
+
+  document.getElementById('intro').addEventListener('click', dismiss);
+  document.querySelector('.scroll-arrow').addEventListener('click', function(e) { e.stopPropagation(); dismiss(); });
+  document.querySelector('.scroll-arrow').addEventListener('keydown', function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); dismiss(); } });
+  window.addEventListener('wheel', function wheelDismiss() {
+    dismiss();
+    window.removeEventListener('wheel', wheelDismiss);
+  }, { passive: true });
+  window.addEventListener('touchmove', function touchDismiss() {
+    dismiss();
+    window.removeEventListener('touchmove', touchDismiss);
+  }, { passive: true });
+}
+
+/* ──────────────────────────────────────────────────────
+   NAV — Sticky behavior + scroll spy
+   ────────────────────────────────────────────────────── */
+function initNav() {
+  const nav = document.getElementById('sticky-nav');
+  const sections = ['demo-reel','book','timeline','ancestry','creators','ai-convergence','explorer','science'];
+  const sectionEls = sections.map(id => document.getElementById(id)).filter(Boolean);
+
+  // Show nav after intro dismiss or scroll
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.target.id === 'demo-reel' && e.isIntersecting) {
+        nav.classList.add('visible');
+      }
+    });
+  }, { threshold: 0.1 });
+  const dr = document.getElementById('demo-reel');
+  if (dr) observer.observe(dr);
+
+  // Also show if intro is gone
+  setTimeout(() => { if (!introActive) nav.classList.add('visible'); }, 1000);
+
+  // Nav link clicks
+  $$('.nav-link', nav).forEach(btn => {
+    btn.addEventListener('click', () => {
+      const target = document.getElementById(btn.dataset.section);
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+
+  // Scroll spy
+  function updateActive() {
+    const scrollY = window.scrollY + 100;
+    let active = sections[0];
+    sectionEls.forEach(el => {
+      if (el.offsetTop <= scrollY) active = el.id;
+    });
+    $$('.nav-link', nav).forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.section === active);
+    });
+    // Ensure nav visible after scroll
+    if (window.scrollY > 200) nav.classList.add('visible');
+  }
+  window.addEventListener('scroll', updateActive, { passive: true });
+}
+
+/* ──────────────────────────────────────────────────────
+   LENS SYSTEM
+   ────────────────────────────────────────────────────── */
+function initLens() {
+  $$('.lens-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      lens = btn.dataset.lens;
+      $$('.lens-btn').forEach(b => b.classList.toggle('active', b === btn));
+      applyLens();
+    });
+  });
+}
+
+function applyLens() {
+  $$('[data-track]').forEach(el => {
+    const track = el.dataset.track;
+    let show = false;
+    if (lens === 'purist') show = (track === 'archetype');
+    else if (lens === 'ai') show = (track === 'archetype' || track === 'ai-archaeology');
+    else show = true; // full
+    el.classList.toggle('lens-hidden', !show);
+  });
+}
+
+/* ──────────────────────────────────────────────────────
+   DEMO REEL
+   ────────────────────────────────────────────────────── */
+function renderDemoReel() {
+  const container = document.getElementById('reel-container');
+  const protos = getProtos();
+  const trackOrder = ['archetype','ai-archaeology','ai-evolution'];
+  const trackLabels = { 'archetype':'Archetypes', 'ai-archaeology':'AI Archaeology', 'ai-evolution':'AI Evolution' };
+
+  container.innerHTML = '';
+
+  trackOrder.forEach(track => {
+    const items = protos.filter(p => p.track === track);
+    if (!items.length) return;
+
+    const lane = h('div', { className: 'reel-lane', dataset: { track: track } });
+    const label = h('div', { className: 'reel-track-label ' + trackClass(track) }, trackLabels[track] || track);
+    lane.appendChild(label);
+
+    const strip = h('div', { className: 'reel-strip' });
+    items.forEach(p => {
+      const card = h('a', {
+        className: 'reel-card',
+        href: 'index.html?game=' + p.id
+      },
+        h('div', { className: 'rc-id' }, (p.series + '-' + p.number).toUpperCase()),
+        h('div', { className: 'rc-name' }, p.name),
+        h('div', { className: 'rc-mechanic' }, (p.mechanic || '').split('\u2014')[0].trim()),
+        h('div', { className: 'rc-meta' },
+          h('span', { className: 'rc-stars' }, stars(p.rating)),
+          h('span', { className: 'rc-badge ' + trackClass(p.track) }, p.series.toUpperCase())
+        )
+      );
+      strip.appendChild(card);
+    });
+    lane.appendChild(strip);
+    container.appendChild(lane);
+  });
+}
+
+/* ──────────────────────────────────────────────────────
+   TIMELINE
+   ────────────────────────────────────────────────────── */
+function renderTimeline() {
+  const container = document.getElementById('timeline-container');
+  const isMobile = window.innerWidth < 768;
+
+  // Year range
+  const minYear = 1944;
+  const maxYear = 2026;
+  const range = maxYear - minYear;
+
+  if (isMobile) {
+    renderTimelineMobile(container);
+    return;
+  }
+
+  const track = h('div', { className: 'timeline-track' });
+  const axis = h('div', { className: 'timeline-axis' });
+  track.appendChild(axis);
+
+  // Year markers
+  const yearMarks = [1944,1950,1958,1962,1972,1978,1980,1985,1992,1997,2005,2013,2016,2021,2026];
+  yearMarks.forEach(y => {
+    const pct = ((y - minYear) / range) * 100;
+    const marker = h('div', { className: 'timeline-year' }, String(y));
+    marker.style.left = pct + '%';
+    track.appendChild(marker);
+  });
+
+  // Place nodes — handle overlaps
+  const gameOffsets = {};
+  const aiOffsets = {};
+
+  TIMELINE_EVENTS.forEach(ev => {
+    const pct = ((ev.year - minYear) / range) * 100;
+    const node = h('div', {
+      className: 'timeline-node ' + ev.type,
+      tabindex: '0',
+      role: 'button',
+      'aria-label': ev.title
+    });
+    node.style.left = pct + '%';
+
+    // Handle stacking for same year
+    const offsetMap = ev.type === 'game' ? gameOffsets : aiOffsets;
+    if (offsetMap[ev.year]) {
+      const offset = offsetMap[ev.year] * 24;
+      if (ev.type === 'game') {
+        node.style.top = (30 - offset/4) + '%';
+      } else {
+        node.style.top = (70 + offset/4) + '%';
+      }
+      offsetMap[ev.year]++;
+    } else {
+      offsetMap[ev.year] = 1;
+    }
+
+    const tooltip = h('div', { className: 'timeline-tooltip' },
+      h('div', { className: 'tt-year' }, String(ev.year)),
+      h('div', { className: 'tt-title' }, ev.title),
+      h('div', { className: 'tt-desc' }, ev.desc)
+    );
+    node.appendChild(tooltip);
+
+    node.addEventListener('click', function(e) {
+      e.stopPropagation();
+      const wasActive = this.classList.contains('active');
+      $$('.timeline-node.active', track).forEach(n => n.classList.remove('active'));
+      if (!wasActive) this.classList.add('active');
+    });
+    node.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.click(); }
+    });
+
+    track.appendChild(node);
+  });
+
+  // Convergence lines at key years
+  const convergenceYears = [1962, 1972, 1980, 1992, 2026];
+  convergenceYears.forEach(y => {
+    const pct = ((y - minYear) / range) * 100;
+    const line = h('div', { className: 'convergence-line' });
+    line.style.left = pct + '%';
+    line.style.top = '32%';
+    line.style.height = '36%';
+    track.appendChild(line);
+  });
+
+  container.innerHTML = '';
+  container.appendChild(track);
+
+  // Close on outside click
+  document.addEventListener('click', () => {
+    $$('.timeline-node.active', track).forEach(n => n.classList.remove('active'));
+  });
+}
+
+function renderTimelineMobile(container) {
+  const track = h('div', { className: 'timeline-track' });
+  let currentYear = null;
+
+  // Sort events by year
+  const sorted = [...TIMELINE_EVENTS].sort((a,b) => a.year - b.year);
+
+  sorted.forEach(ev => {
+    if (ev.year !== currentYear) {
+      currentYear = ev.year;
+      track.appendChild(h('div', { className: 'timeline-year' }, String(ev.year)));
+    }
+
+    const node = h('div', {
+      className: 'timeline-node ' + ev.type,
+      tabindex: '0',
+      role: 'button'
+    },
+      h('span', { className: 'mobile-label' }, ev.title),
+      h('div', { className: 'mobile-detail' }, ev.desc)
+    );
+    node.addEventListener('click', function() {
+      const wasActive = this.classList.contains('active');
+      $$('.timeline-node.active', track).forEach(n => n.classList.remove('active'));
+      if (!wasActive) this.classList.add('active');
+    });
+    track.appendChild(node);
+  });
+
+  container.innerHTML = '';
+  container.appendChild(track);
+}
+
+/* ──────────────────────────────────────────────────────
+   ANCESTRY
+   ────────────────────────────────────────────────────── */
+function renderAncestry() {
+  const grid = document.getElementById('ancestry-grid');
+  grid.innerHTML = '';
+
+  ANCESTRY.forEach(fam => {
+    const card = h('div', { className: 'ancestry-card' });
+
+    const header = h('div', {
+      className: 'ancestry-header',
+      tabindex: '0',
+      role: 'button',
+      'aria-expanded': 'false'
+    },
+      h('span', { className: 'ancestry-badge' }, fam.code),
+      h('span', { className: 'ah-name' }, fam.name),
+      h('span', { className: 'ah-mechanic' }, fam.mechanic.split(';')[0]),
+      h('span', { className: 'ah-toggle' }, '\u25B6')
+    );
+
+    const body = h('div', { className: 'ancestry-body' });
+    const tree = h('div', { className: 'ancestry-tree' });
+
+    tree.appendChild(h('div', { className: 'tree-mechanic' }, fam.mechanic));
+
+    const chain = h('div', { className: 'tree-chain' });
+    fam.chain.forEach((node, i) => {
+      if (i > 0) chain.appendChild(h('span', { className: 'tree-arrow' }, '\u2192'));
+
+      const cls = node.proto ? 'tree-node pv-proto' : 'tree-node';
+      const tn = h('div', { className: cls },
+        h('span', { className: 'tn-name' }, node.name),
+        h('span', { className: 'tn-year' }, node.year)
+      );
+      if (node.proto) {
+        tn.appendChild(h('a', { className: 'tree-play-link', href: 'index.html?game=' + node.proto }, 'PLAY'));
+      }
+      chain.appendChild(tn);
+    });
+
+    // AI variants
+    if (fam.aiVariants) {
+      fam.aiVariants.forEach(v => {
+        chain.appendChild(h('span', { className: 'tree-arrow', dataset: { track: v.track } }, '\u2192'));
+        const tn = h('div', { className: 'tree-node ai-variant', dataset: { track: v.track } },
+          h('span', { className: 'tn-name' }, v.name),
+          h('a', { className: 'tree-play-link', href: 'index.html?game=' + v.proto, style:'color:var(--orange)' }, 'PLAY')
+        );
+        chain.appendChild(tn);
+      });
+    }
+    if (fam.evoVariants) {
+      fam.evoVariants.forEach(v => {
+        chain.appendChild(h('span', { className: 'tree-arrow', dataset: { track: v.track } }, '\u2192'));
+        const tn = h('div', { className: 'tree-node evo-variant', dataset: { track: v.track } },
+          h('span', { className: 'tn-name' }, v.name),
+          h('a', { className: 'tree-play-link', href: 'index.html?game=' + v.proto, style:'color:var(--green)' }, 'PLAY')
+        );
+        chain.appendChild(tn);
+      });
+    }
+
+    tree.appendChild(chain);
+    body.appendChild(tree);
+    card.appendChild(header);
+    card.appendChild(body);
+
+    header.addEventListener('click', () => {
+      card.classList.toggle('open');
+      header.setAttribute('aria-expanded', card.classList.contains('open'));
+    });
+    header.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); header.click(); }
+    });
+
+    grid.appendChild(card);
+  });
+}
+
+/* ──────────────────────────────────────────────────────
+   CREATORS
+   ────────────────────────────────────────────────────── */
+function renderCreators() {
+  const grid = document.getElementById('creators-grid');
+  grid.innerHTML = '';
+
+  CREATORS.forEach(c => {
+    const card = h('div', { className: 'creator-card', dataset: { era: c.era, search: (c.name + ' ' + c.game + ' ' + c.org + ' ' + c.innovation).toLowerCase() } },
+      h('div', { className: 'cc-name' }, c.name),
+      h('div', { className: 'cc-game' }, c.year + ' \u2014 ' + c.game),
+      h('div', { className: 'cc-org' }, c.org),
+      h('div', { className: 'cc-innovation' }, c.innovation),
+      h('span', { className: 'cc-era' }, 'Era ' + c.era)
+    );
+    card.addEventListener('click', () => card.classList.toggle('expanded'));
+    grid.appendChild(card);
+  });
+
+  // Search
+  document.getElementById('creator-search').addEventListener('input', filterCreators);
+
+  // Era filter
+  $$('#era-filters .era-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      $$('#era-filters .era-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      filterCreators();
+    });
+  });
+}
+
+function filterCreators() {
+  const search = document.getElementById('creator-search').value.toLowerCase();
+  const era = $('#era-filters .era-btn.active').dataset.era;
+
+  $$('#creators-grid .creator-card').forEach(card => {
+    const matchSearch = !search || card.dataset.search.includes(search);
+    const matchEra = era === 'all' || card.dataset.era === era;
+    card.classList.toggle('hidden', !(matchSearch && matchEra));
+  });
+}
+
+/* ──────────────────────────────────────────────────────
+   AI CONVERGENCE — Gap bars + Eras
+   ────────────────────────────────────────────────────── */
+function renderAIConvergence() {
+  // Gap bars
+  const barsContainer = document.getElementById('gap-bars');
+  barsContainer.innerHTML = '';
+
+  GAP_DISCOVERIES.forEach(d => {
+    const gapText = d.gap === 'ongoing' ? 'ONGOING' : d.gap + ' yrs';
+    const bar = h('div', { className: 'gap-bar' },
+      h('div', { className: 'gap-left' },
+        h('div', { className: 'gl-game' }, d.game),
+        h('div', { className: 'gl-year' }, String(d.gameYear))
+      ),
+      h('div', { className: 'gap-badge' }, gapText),
+      h('div', { className: 'gap-right' },
+        h('div', { className: 'gr-ai' }, d.concept),
+        h('div', { className: 'gr-year' }, d.aiYear ? String(d.aiYear) : '\u2014')
+      )
+    );
+    barsContainer.appendChild(bar);
+  });
+
+  // Eras accordion
+  const accordion = document.getElementById('eras-accordion');
+  accordion.innerHTML = '';
+
+  AI_ERAS.forEach(era => {
+    const item = h('div', { className: 'era-item' });
+    const head = h('div', {
+      className: 'era-head',
+      tabindex: '0',
+      role: 'button',
+      'aria-expanded': 'false'
+    },
+      h('span', { className: 'era-num' }, String(era.num)),
+      h('div', { className: 'era-name-years' },
+        h('div', { className: 'en-name' }, era.name),
+        h('div', { className: 'en-years' }, era.years)
+      ),
+      h('span', { className: 'era-chevron' }, '\u25B6')
+    );
+    const detail = h('div', { className: 'era-detail' },
+      h('div', { className: 'era-detail-inner' },
+        h('p', null, h('span', { className: 'ed-label' }, 'Capabilities: '), h('span', { className: 'ed-value' }, era.capabilities)),
+        h('p', null, h('span', { className: 'ed-label' }, 'Limitations: '), h('span', { className: 'ed-value' }, era.limitations)),
+        h('p', null, h('span', { className: 'ed-label' }, 'Game parallel: '), h('span', { className: 'ed-value' }, era.parallel))
+      )
+    );
+
+    head.addEventListener('click', () => {
+      item.classList.toggle('open');
+      head.setAttribute('aria-expanded', item.classList.contains('open'));
+    });
+    head.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); head.click(); }
+    });
+
+    item.appendChild(head);
+    item.appendChild(detail);
+    accordion.appendChild(item);
+  });
+}
+
+/* ──────────────────────────────────────────────────────
+   EXPLORER
+   ────────────────────────────────────────────────────── */
+function renderExplorer() {
+  const filtersContainer = document.getElementById('explorer-filters');
+  const grid = document.getElementById('explorer-grid');
+  const protos = getProtos();
+
+  // Build filters
+  filtersContainer.innerHTML = '';
+
+  // Track chips
+  const tracks = [
+    { label:'All', value:'all' },
+    { label:'Archetypes', value:'archetype' },
+    { label:'AI Archaeology', value:'ai-archaeology' },
+    { label:'AI Evolution', value:'ai-evolution' }
+  ];
+  tracks.forEach(t => {
+    const chip = h('button', {
+      className: 'filter-chip' + (t.value === 'all' ? ' active' : ''),
+      dataset: { filterType: 'track', filterValue: t.value }
+    }, t.label);
+    filtersContainer.appendChild(chip);
+  });
+
+  filtersContainer.appendChild(h('div', { className: 'filter-sep' }));
+
+  // Series chips
+  const seriesSet = new Set();
+  protos.forEach(p => seriesSet.add(p.series.toUpperCase()));
+  const seriesList = Array.from(seriesSet).sort();
+  seriesList.forEach(s => {
+    const chip = h('button', {
+      className: 'filter-chip',
+      dataset: { filterType: 'series', filterValue: s.toLowerCase() }
+    }, s);
+    filtersContainer.appendChild(chip);
+  });
+
+  filtersContainer.appendChild(h('div', { className: 'filter-sep' }));
+
+  // Rating filter
+  [3,4,5].forEach(r => {
+    const chip = h('button', {
+      className: 'filter-chip',
+      dataset: { filterType: 'rating', filterValue: String(r) }
+    }, r + '+ \u2605');
+    filtersContainer.appendChild(chip);
+  });
+
+  // Filter click handling
+  $$('.filter-chip', filtersContainer).forEach(chip => {
+    chip.addEventListener('click', () => {
+      const type = chip.dataset.filterType;
+      if (type === 'track') {
+        $$('.filter-chip[data-filter-type="track"]', filtersContainer).forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+      } else if (type === 'series') {
+        chip.classList.toggle('active');
+      } else if (type === 'rating') {
+        $$('.filter-chip[data-filter-type="rating"]', filtersContainer).forEach(c => c.classList.remove('active'));
+        if (!chip.classList.contains('active')) chip.classList.add('active');
+        else chip.classList.remove('active');
+      }
+      filterExplorer();
+    });
+  });
+
+  // Lazy render cards via IntersectionObserver.
+  // Root cause of compendium slow-load: 460+ cards created synchronously blocks
+  // the main thread for ~2-3s on PC. Fix: create lightweight placeholder divs
+  // (carry all data-* attrs for filtering), inject real HTML only when scrolled
+  // into view. Initial render drops from ~3s → ~50ms.
+  //
+  // Placeholder divs are 110px tall (matching rendered card min-height) to
+  // preserve scroll-bar accuracy. filterExplorer() reads data-* attrs — works
+  // on both placeholders and fully-rendered cards.
+
+  grid.innerHTML = '';
+
+  // Disconnect any previous observer from a prior renderExplorer() call
+  if (grid._pvObserver) {
+    grid._pvObserver.disconnect();
+    grid._pvObserver = null;
+  }
+
+  // Store proto data keyed by id for the observer callback
+  const protoMap = {};
+  protos.forEach(p => { protoMap[p.id] = p; });
+
+  // Build card HTML as a function (called by observer when card enters view)
+  function buildCard(placeholder, p) {
+    const tc = trackClass(p.track);
+    const card = h('div', {
+      className: 'explorer-card' + (placeholder.classList.contains('hidden') ? ' hidden' : ''),
+      dataset: { track: p.track, series: p.series, rating: p.rating || '0' }
+    },
+      h('div', { className: 'ec-top' },
+        h('span', { className: 'ec-id ' + tc }, p.id.toUpperCase()),
+        h('span', { className: 'ec-name' }, p.name),
+        h('span', { className: 'ec-stars' }, stars(p.rating))
+      ),
+      h('div', { className: 'ec-mechanic' }, p.mechanic || ''),
+      h('div', { className: 'ec-ancestry' }, p.ancestry || ''),
+      h('div', { className: 'ec-insight' }, p.aiInsight || ''),
+      h('a', { className: 'ec-play', href: 'index.html?game=' + p.id }, 'Play')
+    );
+    placeholder.replaceWith(card);
+  }
+
+  // IntersectionObserver — renders card when placeholder enters viewport + 300px margin
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+      const el = entry.target;
+      const pid = el.dataset.protoId;
+      const p = protoMap[pid];
+      if (!p) return;
+      observer.unobserve(el);
+      buildCard(el, p);
+    });
+  }, { rootMargin: '300px 0px' });
+
+  grid._pvObserver = observer;
+
+  // Create placeholder divs — very cheap, just data attrs + min-height
+  const fragment = document.createDocumentFragment();
+  protos.forEach(p => {
+    const ph = document.createElement('div');
+    ph.className = 'explorer-card explorer-card--placeholder';
+    ph.dataset.protoId  = p.id;
+    ph.dataset.track    = p.track;
+    ph.dataset.series   = p.series;
+    ph.dataset.rating   = p.rating || '0';
+    fragment.appendChild(ph);
+    observer.observe(ph);
+  });
+  grid.appendChild(fragment);
+}
+
+function filterExplorer() {
+  const filtersEl = document.getElementById('explorer-filters');
+  const activeTrack = ($('.filter-chip[data-filter-type="track"].active', filtersEl) || {}).dataset || {};
+  const trackVal = activeTrack.filterValue || 'all';
+
+  const activeSeries = $$('.filter-chip[data-filter-type="series"].active', filtersEl).map(c => c.dataset.filterValue);
+  const activeRating = ($('.filter-chip[data-filter-type="rating"].active', filtersEl) || {}).dataset || {};
+  const ratingVal = activeRating.filterValue ? Number(activeRating.filterValue) : 0;
+
+  $$('#explorer-grid .explorer-card').forEach(card => {
+    const cTrack = card.dataset.track;
+    const cSeries = card.dataset.series;
+    const cRating = Number(card.dataset.rating) || 0;
+
+    let show = true;
+    if (trackVal !== 'all' && cTrack !== trackVal) show = false;
+    if (activeSeries.length > 0 && !activeSeries.includes(cSeries)) show = false;
+    if (ratingVal > 0 && cRating < ratingVal) show = false;
+
+    // Also respect lens
+    if (lens === 'purist' && cTrack !== 'archetype') show = false;
+    if (lens === 'ai' && cTrack === 'ai-evolution') show = false;
+
+    card.classList.toggle('hidden', !show);
+  });
+}
+
+/* ──────────────────────────────────────────────────────
+   SCIENCE OF PLAY
+   ────────────────────────────────────────────────────── */
+function renderScience() {
+  // Drives
+  const drivesGrid = document.getElementById('drives-grid');
+  drivesGrid.innerHTML = '';
+  DRIVES.forEach(d => {
+    drivesGrid.appendChild(h('div', { className: 'drive-card' },
+      h('div', { className: 'dc-name' }, d.name),
+      h('div', { className: 'dc-desc' }, d.desc),
+      h('div', { className: 'dc-ancient' }, 'Ancient: ', h('span', null, d.ancient)),
+      h('div', { className: 'dc-digital' }, 'Digital: ', h('span', null, d.digital))
+    ));
+  });
+
+  // Tech ladder
+  const ladder = document.getElementById('tech-ladder');
+  ladder.innerHTML = '';
+  TECH_LADDER.forEach(r => {
+    ladder.appendChild(h('div', { className: 'ladder-rung' },
+      h('span', { className: 'lr-era' }, r.era),
+      h('span', { className: 'lr-tech' }, r.tech),
+      h('span', { className: 'lr-genre' }, r.genre)
+    ));
+  });
+
+  // Novel verbs
+  const verbsGrid = document.getElementById('verbs-grid');
+  verbsGrid.innerHTML = '';
+  NOVEL_VERBS.forEach(v => {
+    verbsGrid.appendChild(h('div', { className: 'verb-card' },
+      h('div', { className: 'vc-name' }, v.name),
+      h('div', { className: 'vc-desc' }, v.desc)
+    ));
+  });
+}
+
+/* ──────────────────────────────────────────────────────
+   MANIFEST LOADER
+   ────────────────────────────────────────────────────── */
+async function loadManifest() {
+  try {
+    const r = await fetch('manifest.json');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    manifest = await r.json();
+  } catch(e) {
+    console.warn('manifest.json not available, using embedded fallback data');
+    manifest = { prototypes: FALLBACK_PROTOTYPES };
+  }
+  renderDemoReel();
+  renderExplorer();
+  applyLens();
+}
+
+/* ──────────────────────────────────────────────────────
+   INIT
+   ────────────────────────────────────────────────────── */
+/* ──────────────────────────────────────────────────────
+   BOOK — Chapter expand/collapse
+   ────────────────────────────────────────────────────── */
+function initBook() {
+  $$('.chapter-header').forEach(function(header) {
+    header.addEventListener('click', function() {
+      var chapter = header.closest('.book-chapter');
+      var wasOpen = chapter.classList.contains('open');
+      chapter.classList.toggle('open');
+      header.setAttribute('aria-expanded', !wasOpen);
+    });
+    header.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        header.click();
+      }
+    });
+  });
+}
+
+function init() {
+  initIntro();
+  initNav();
+  initLens();
+  initBook();
+  renderTimeline();
+  renderAncestry();
+  renderCreators();
+  renderAIConvergence();
+  renderScience();
+  loadManifest();
+
+  // Handle window resize for timeline
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => renderTimeline(), 300);
+  });
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+
+})();
+</script>
+
+</body>
+</html>

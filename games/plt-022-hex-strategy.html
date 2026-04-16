@@ -1,0 +1,953 @@
+<!--
+PROTOTYPE: hex-strategy
+SERIES: plt
+NUMBER: 022
+DATE: 2026-03-24
+MECHANIC: slime possession — play as a slime that launches to stick to surfaces and possess host bodies; each host has different abilities; detach and re-possess to traverse levels
+ANCESTRY: MO:Astray (2019, Archpray — Korea/Taiwan), Gish (2004, Chronic Logic), Flubby (experimental slime platformers)
+CONTROLS: Mouse aim + Click/Space — launch slime | Arrow keys — move host | Space — host action (shoot) | Z — detach from host | R — restart room | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 7 (Foundation Models — body-possession as context-switching mirrors multi-modal foundation model adaptation)
+AI-INSIGHT: MO:Astray's body-possession mechanic mirrors how foundation models adapt to different tasks by switching context. The slime is a general-purpose agent that gains specialized abilities through the bodies it inhabits — much like a single model fine-tuned for different domains.
+NOTES: Slime body-possession platformer. 4 rooms with puzzle-platformer
+       progression requiring different host abilities to reach exits.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PLT-022 · HEX STRATEGY</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>PLT-022 · HEX STRATEGY</h1>
+    <p><span class="tag series">PLT — Platformer</span> <span class="tag">Prototype #022</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>You are a small green slime ball. You cannot walk &mdash; you can only launch, stick to surfaces, and possess enemies. Body-hopping IS your traversal.</p>
+    <ul>
+      <li><kbd>Mouse</kbd> &mdash; Aim launch direction (or use arrow keys)</li>
+      <li><kbd>Click</kbd> / <kbd>Space</kbd> &mdash; Launch slime toward cursor</li>
+      <li>Land on an <strong style="color:#f88">enemy</strong> to <strong>possess</strong> them</li>
+      <li><kbd>&#8592;</kbd> <kbd>&#8594;</kbd> &mdash; Move possessed host</li>
+      <li><kbd>&#8593;</kbd> &mdash; Jump (soldier) / Climb (spider) / Fly up (flyer)</li>
+      <li><kbd>Space</kbd> &mdash; Shoot (soldier only)</li>
+      <li><kbd>Z</kbd> &mdash; Detach from host (return to slime)</li>
+      <li><kbd>R</kbd> &mdash; Restart current room</li>
+      <li><kbd>?</kbd> &mdash; Toggle this info panel</li>
+    </ul>
+    <h3>Host Types</h3>
+    <ul>
+      <li><strong style="color:#e44">Soldier:</strong> Walks on ground, can jump. Press Space to shoot. Needed to destroy barriers.</li>
+      <li><strong style="color:#a6f">Spider:</strong> Climbs walls and ceilings, moves fast. Can reach areas others cannot.</li>
+      <li><strong style="color:#4df">Flyer:</strong> Hovers and flies freely. Can reach high platforms and cross gaps.</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li>The slime sticks to any solid surface &mdash; walls and ceilings too.</li>
+      <li>You must detach (Z) before you can possess a new host.</li>
+      <li>Each room requires specific host abilities to reach the exit door.</li>
+      <li>Look for the green exit door to advance to the next room.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> MO:Astray (2019, Archpray) &larr; Gish (2004, Chronic Logic) &larr; experimental slime platformers</p>
+    <p>MO:Astray (2019) was developed by Archpray, a team spanning Korea and Taiwan. In it, players control a sentient slime creature navigating a sci-fi facility, possessing host bodies to solve puzzles and traverse dangerous environments. The game blends horror atmosphere with inventive platforming mechanics.</p>
+    <p>The body-possession mechanic creates a unique form of platforming where the player character itself has limited mobility, but gains radically different movement and combat abilities through the bodies it inhabits. Each possession transforms the gameplay, requiring players to think about which host suits each situation.</p>
+    <p>Its lineage traces through Gish (2004), Edmund McMillen&rsquo;s physics-based slime platformer, which explored non-humanoid protagonists with elastic, sticky movement. MO:Astray advanced the concept by making body-switching the core puzzle mechanic rather than just a movement novelty.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 7 &mdash; Foundation Models (2020&ndash;present)</p>
+    <p><strong>Contemporary AI:</strong> Large language models, multi-modal foundation models, transfer learning, model adaptation.</p>
+    <p><strong>Insight:</strong> MO:Astray&rsquo;s body-possession mechanic mirrors how foundation models adapt to different tasks by switching context. The slime is a general-purpose agent that gains specialized abilities through the bodies it inhabits &mdash; much like a single model fine-tuned for different domains. The detach-and-repossess cycle echoes how models are adapted, evaluated, and re-adapted for new tasks.</p>
+
+    <h2>Classification</h2>
+    <ul>
+      <li><strong>Primary:</strong> Platformer (puzzle, body-possession)</li>
+      <li><strong>Secondary:</strong> Puzzle, action</li>
+      <li><strong>Input:</strong> Mouse aim + keyboard</li>
+      <li><strong>Perspective:</strong> Side-on, room-based</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This prototype implements the core body-possession loop across 4 puzzle rooms. The slime launches, sticks, and possesses three host types (soldier, spider, flyer), each with distinct abilities needed to reach the exit. Room design requires strategic host-switching to progress.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+var W = 800, H = 600;
+var canvas = document.getElementById('c');
+var ctx = canvas.getContext('2d');
+
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+canvas.width = W;
+canvas.height = H;
+
+var infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// ── Constants ──
+var SLIME_R = 10;
+var LAUNCH_SPEED = 8;
+var GRAVITY = 0.3;
+var TILE = 40;
+var COLS = 20, ROWS = 15;
+
+// ── Input ──
+var keys = {};
+var mouseX = 400, mouseY = 300;
+var mouseClick = false;
+
+document.addEventListener('keydown', function(e) {
+  keys[e.key] = true;
+  if (e.key === '?' || e.key === '/') { toggleInfo(); e.preventDefault(); }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); }
+  if (e.key === 'r' || e.key === 'R') loadRoom(currentRoom);
+  if (e.key === 'z' || e.key === 'Z') detachFromHost();
+  if (e.key === ' ') { e.preventDefault(); handleAction(); }
+});
+document.addEventListener('keyup', function(e) { keys[e.key] = false; });
+canvas.addEventListener('mousemove', function(e) {
+  var r = canvas.getBoundingClientRect();
+  mouseX = (e.clientX - r.left) * (W / r.width);
+  mouseY = (e.clientY - r.top) * (H / r.height);
+});
+canvas.addEventListener('click', function(e) {
+  e.preventDefault();
+  handleAction();
+});
+
+// ── Tile types ──
+// 0=empty, 1=wall, 2=exit, 3=barrier(destructible), 4=spike
+// Enemies placed separately
+
+// ── Room definitions ──
+// Each room: { tiles: 2D array, enemies: [{type,x,y}], slimeStart: {x,y}, exitPos: {x,y} }
+var rooms = [];
+
+function makeEmptyRoom() {
+  var t = [];
+  for (var r = 0; r < ROWS; r++) {
+    t[r] = [];
+    for (var c = 0; c < COLS; c++) {
+      if (r === 0 || r === ROWS-1 || c === 0 || c === COLS-1) t[r][c] = 1;
+      else t[r][c] = 0;
+    }
+  }
+  return t;
+}
+
+function buildRooms() {
+  // Room 0: Tutorial — launch and stick, possess a soldier to walk to exit
+  var t0 = makeEmptyRoom();
+  // floor platform in middle
+  for (var c = 5; c < 15; c++) t0[10][c] = 1;
+  // small wall
+  t0[11][8] = 1; t0[12][8] = 1; t0[13][8] = 1;
+  t0[9][3] = 1; t0[9][4] = 1;
+  // exit on right
+  t0[13][18] = 2;
+  rooms[0] = {
+    tiles: t0,
+    enemies: [{ type: 'soldier', x: 10*TILE+20, y: 9*TILE }],
+    slimeStart: { x: 3*TILE, y: 8*TILE },
+    msg: 'Room 1: Possess the soldier to reach the exit'
+  };
+
+  // Room 1: Need soldier to shoot barrier, then reach exit
+  var t1 = makeEmptyRoom();
+  for (var c = 1; c < 10; c++) t1[10][c] = 1;
+  for (var c = 12; c < 19; c++) t1[10][c] = 1;
+  // barrier blocking exit path
+  t1[9][11] = 3; t1[10][11] = 3; t1[11][11] = 3;
+  t1[12][11] = 3; t1[13][11] = 3;
+  // platforms
+  t1[7][4] = 1; t1[7][5] = 1;
+  t1[5][8] = 1; t1[5][9] = 1;
+  t1[13][18] = 2;
+  rooms[1] = {
+    tiles: t1,
+    enemies: [
+      { type: 'soldier', x: 3*TILE+20, y: 9*TILE },
+      { type: 'flyer', x: 14*TILE, y: 4*TILE }
+    ],
+    slimeStart: { x: 2*TILE, y: 9*TILE },
+    msg: 'Room 2: Shoot the barrier, then fly to the exit'
+  };
+
+  // Room 2: Spider needed to climb walls to reach high exit
+  var t2 = makeEmptyRoom();
+  for (var c = 1; c < 8; c++) t2[12][c] = 1;
+  for (var c = 12; c < 19; c++) t2[6][c] = 1;
+  // vertical wall to climb
+  for (var r = 1; r < 14; r++) t2[r][9] = 1;
+  t2[3][15] = 1; t2[3][16] = 1;
+  t2[1][18] = 2;
+  // ceiling platforms
+  t2[1][12] = 1; t2[1][13] = 1;
+  rooms[2] = {
+    tiles: t2,
+    enemies: [
+      { type: 'spider', x: 4*TILE, y: 11*TILE },
+      { type: 'soldier', x: 14*TILE, y: 5*TILE }
+    ],
+    slimeStart: { x: 2*TILE, y: 11*TILE },
+    msg: 'Room 3: Use the spider to climb, then find the exit'
+  };
+
+  // Room 3: Multi-host puzzle — all three types needed
+  var t3 = makeEmptyRoom();
+  // lower platform
+  for (var c = 1; c < 7; c++) t3[12][c] = 1;
+  // mid platform
+  for (var c = 8; c < 13; c++) t3[8][c] = 1;
+  // barrier
+  t3[7][13] = 3; t3[8][13] = 3; t3[9][13] = 3;
+  t3[10][13] = 3; t3[11][13] = 3; t3[12][13] = 3; t3[13][13] = 3;
+  // upper platform behind barrier
+  for (var c = 14; c < 19; c++) t3[10][c] = 1;
+  // high exit
+  t3[3][17] = 2;
+  // wall for spider
+  for (var r = 1; r < 10; r++) t3[r][15] = 1;
+  t3[3][16] = 1;
+  rooms[3] = {
+    tiles: t3,
+    enemies: [
+      { type: 'soldier', x: 3*TILE, y: 11*TILE },
+      { type: 'spider', x: 10*TILE, y: 7*TILE },
+      { type: 'flyer', x: 16*TILE, y: 9*TILE }
+    ],
+    slimeStart: { x: 2*TILE, y: 11*TILE },
+    msg: 'Room 4: Use all three hosts to reach the exit!'
+  };
+}
+
+// ── Game State ──
+var currentRoom = 0;
+var slime = null;
+var enemies = [];
+var bullets = [];
+var particles = [];
+var tiles = [];
+var possessed = null; // reference to enemy being controlled
+var gameState = 'play'; // 'play', 'win', 'title'
+var roomMsg = '';
+var msgTimer = 0;
+var aimAngle = 0;
+var winTimer = 0;
+
+buildRooms();
+
+function loadRoom(idx) {
+  if (idx >= rooms.length) { gameState = 'win'; winTimer = 0; return; }
+  currentRoom = idx;
+  var room = rooms[idx];
+  tiles = [];
+  for (var r = 0; r < ROWS; r++) {
+    tiles[r] = [];
+    for (var c = 0; c < COLS; c++) tiles[r][c] = room.tiles[r][c];
+  }
+  slime = {
+    x: room.slimeStart.x, y: room.slimeStart.y,
+    vx: 0, vy: 0,
+    stuck: false, stuckSurface: null,
+    launching: false
+  };
+  enemies = [];
+  for (var i = 0; i < room.enemies.length; i++) {
+    var e = room.enemies[i];
+    enemies.push(createEnemy(e.type, e.x, e.y));
+  }
+  possessed = null;
+  bullets = [];
+  particles = [];
+  roomMsg = room.msg;
+  msgTimer = 180;
+  gameState = 'play';
+}
+
+function createEnemy(type, x, y) {
+  return {
+    type: type, x: x, y: y, vx: 0, vy: 0,
+    w: type === 'spider' ? 30 : 32,
+    h: type === 'flyer' ? 28 : 32,
+    alive: true, possessed: false,
+    dir: 1, onGround: false,
+    // patrol
+    patrolDir: 1, patrolTimer: 0,
+    shootCooldown: 0
+  };
+}
+
+function detachFromHost() {
+  if (!possessed) return;
+  slime.x = possessed.x + possessed.w/2;
+  slime.y = possessed.y - SLIME_R - 2;
+  slime.vx = 0; slime.vy = -2;
+  slime.stuck = false;
+  slime.launching = false;
+  possessed.possessed = false;
+  possessed = null;
+}
+
+function handleAction() {
+  if (infoOpen) return;
+  if (gameState === 'win') { currentRoom = 0; loadRoom(0); return; }
+  if (gameState === 'title') { gameState = 'play'; loadRoom(0); return; }
+  if (possessed) {
+    // Soldier shoot
+    if (possessed.type === 'soldier' && possessed.shootCooldown <= 0) {
+      bullets.push({
+        x: possessed.x + (possessed.dir > 0 ? possessed.w + 2 : -6),
+        y: possessed.y + possessed.h/2 - 2,
+        vx: possessed.dir * 10,
+        vy: 0, life: 60
+      });
+      possessed.shootCooldown = 20;
+    }
+    return;
+  }
+  // Launch slime
+  if (slime.stuck || slime.onGround()) {
+    var dx = mouseX - slime.x;
+    var dy = mouseY - slime.y;
+    // Allow arrow key aiming if mouse hasn't moved
+    if (keys['ArrowLeft']) dx = -1;
+    if (keys['ArrowRight']) dx = 1;
+    if (keys['ArrowUp']) dy = -1;
+    if (keys['ArrowDown']) dy = 1;
+    var dist = Math.sqrt(dx*dx + dy*dy);
+    if (dist < 1) { dx = 0; dy = -1; dist = 1; }
+    slime.vx = (dx/dist) * LAUNCH_SPEED;
+    slime.vy = (dy/dist) * LAUNCH_SPEED;
+    slime.stuck = false;
+    slime.launching = true;
+    // particles
+    for (var i = 0; i < 5; i++) {
+      particles.push({ x: slime.x, y: slime.y, vx: (Math.random()-0.5)*3, vy: (Math.random()-0.5)*3, life: 20, color: '#6f6' });
+    }
+  }
+}
+
+// Add onGround method to slime
+function slimeOnGround() {
+  var col = Math.floor(slime.x / TILE);
+  var row = Math.floor((slime.y + SLIME_R + 2) / TILE);
+  if (row >= 0 && row < ROWS && col >= 0 && col < COLS) {
+    return tiles[row][col] === 1;
+  }
+  return false;
+}
+
+loadRoom(0);
+
+// Override slime's onGround
+slime.onGround = slimeOnGround;
+
+// ── Physics helpers ──
+function tileAt(px, py) {
+  var c = Math.floor(px / TILE);
+  var r = Math.floor(py / TILE);
+  if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return 1;
+  return tiles[r][c];
+}
+
+function isSolid(px, py) {
+  var t = tileAt(px, py);
+  return t === 1 || t === 3;
+}
+
+function rectCollide(a, b) {
+  return a.x < b.x+b.w && a.x+a.w > b.x && a.y < b.y+b.h && a.y+a.h > b.y;
+}
+
+// ── Update ──
+function update() {
+  if (infoOpen) return;
+  if (gameState === 'win') { winTimer++; return; }
+  if (gameState === 'title') return;
+
+  if (msgTimer > 0) msgTimer--;
+
+  // Update aim angle
+  if (!possessed) {
+    aimAngle = Math.atan2(mouseY - slime.y, mouseX - slime.x);
+  }
+
+  // ── Slime physics ──
+  if (!possessed) {
+    if (!slime.stuck) {
+      slime.vy += GRAVITY;
+      slime.x += slime.vx;
+      slime.y += slime.vy;
+
+      // Wall collision — stick
+      var stuck = false;
+      // Check all 4 directions
+      if (isSolid(slime.x - SLIME_R, slime.y)) { slime.x = Math.floor((slime.x - SLIME_R)/TILE)*TILE + TILE + SLIME_R; stuck = true; }
+      if (isSolid(slime.x + SLIME_R, slime.y)) { slime.x = Math.floor((slime.x + SLIME_R)/TILE)*TILE - SLIME_R; stuck = true; }
+      if (isSolid(slime.x, slime.y - SLIME_R)) { slime.y = Math.floor((slime.y - SLIME_R)/TILE)*TILE + TILE + SLIME_R; stuck = true; }
+      if (isSolid(slime.x, slime.y + SLIME_R)) { slime.y = Math.floor((slime.y + SLIME_R)/TILE)*TILE - SLIME_R; stuck = true; }
+
+      if (stuck) {
+        slime.vx = 0; slime.vy = 0;
+        slime.stuck = true;
+        slime.launching = false;
+      }
+
+      // Check enemy collision — possess
+      for (var i = 0; i < enemies.length; i++) {
+        var e = enemies[i];
+        if (!e.alive || e.possessed) continue;
+        if (slime.x > e.x - SLIME_R && slime.x < e.x + e.w + SLIME_R &&
+            slime.y > e.y - SLIME_R && slime.y < e.y + e.h + SLIME_R) {
+          possessed = e;
+          e.possessed = true;
+          slime.stuck = false;
+          // Possession particles
+          for (var p = 0; p < 10; p++) {
+            particles.push({ x: e.x+e.w/2, y: e.y+e.h/2, vx: (Math.random()-0.5)*5, vy: (Math.random()-0.5)*5, life: 25, color: '#4f4' });
+          }
+          break;
+        }
+      }
+
+      // Check exit
+      var er = Math.floor(slime.y / TILE);
+      var ec = Math.floor(slime.x / TILE);
+      if (er >= 0 && er < ROWS && ec >= 0 && ec < COLS && tiles[er][ec] === 2) {
+        loadRoom(currentRoom + 1);
+        return;
+      }
+
+      // Check spikes
+      if (er >= 0 && er < ROWS && ec >= 0 && ec < COLS && tiles[er][ec] === 4) {
+        loadRoom(currentRoom);
+        return;
+      }
+
+      // Out of bounds
+      if (slime.y > H + 50 || slime.x < -50 || slime.x > W + 50) {
+        loadRoom(currentRoom);
+        return;
+      }
+    }
+  }
+
+  // ── Possessed host movement ──
+  if (possessed) {
+    var e = possessed;
+    e.shootCooldown--;
+
+    if (e.type === 'soldier') {
+      // Gravity
+      e.vy += GRAVITY;
+      // Move
+      if (keys['ArrowLeft']) { e.vx = -3; e.dir = -1; }
+      else if (keys['ArrowRight']) { e.vx = 3; e.dir = 1; }
+      else e.vx = 0;
+      // Jump
+      if (keys['ArrowUp'] && e.onGround) { e.vy = -7; e.onGround = false; }
+
+      e.x += e.vx;
+      e.y += e.vy;
+
+      // Collisions
+      solveEntityCollisions(e);
+    }
+    else if (e.type === 'spider') {
+      // Spider can climb walls — no gravity when on wall
+      var speed = 4;
+      e.vx = 0; e.vy = 0;
+      if (keys['ArrowLeft']) { e.vx = -speed; e.dir = -1; }
+      if (keys['ArrowRight']) { e.vx = speed; e.dir = 1; }
+      if (keys['ArrowUp']) e.vy = -speed;
+      if (keys['ArrowDown']) e.vy = speed;
+
+      e.x += e.vx;
+      e.y += e.vy;
+
+      // Keep in bounds
+      if (e.x < TILE) e.x = TILE;
+      if (e.x + e.w > W - TILE) e.x = W - TILE - e.w;
+      if (e.y < TILE) e.y = TILE;
+      if (e.y + e.h > H - TILE) e.y = H - TILE - e.h;
+
+      // Wall collision
+      solveEntityCollisions(e);
+    }
+    else if (e.type === 'flyer') {
+      var speed = 3;
+      e.vx = 0; e.vy = 0;
+      if (keys['ArrowLeft']) { e.vx = -speed; e.dir = -1; }
+      if (keys['ArrowRight']) { e.vx = speed; e.dir = 1; }
+      if (keys['ArrowUp']) e.vy = -speed;
+      if (keys['ArrowDown']) e.vy = speed;
+
+      e.x += e.vx;
+      e.y += e.vy;
+
+      if (e.x < TILE) e.x = TILE;
+      if (e.x + e.w > W - TILE) e.x = W - TILE - e.w;
+      if (e.y < TILE) e.y = TILE;
+      if (e.y + e.h > H - TILE) e.y = H - TILE - e.h;
+
+      solveEntityCollisions(e);
+    }
+
+    // Check exit while possessed
+    var ecx = Math.floor((e.x + e.w/2) / TILE);
+    var ecy = Math.floor((e.y + e.h/2) / TILE);
+    if (ecy >= 0 && ecy < ROWS && ecx >= 0 && ecx < COLS && tiles[ecy][ecx] === 2) {
+      loadRoom(currentRoom + 1);
+      return;
+    }
+  }
+
+  // ── Unpossessed enemy patrol ──
+  for (var i = 0; i < enemies.length; i++) {
+    var e = enemies[i];
+    if (!e.alive || e.possessed) continue;
+    e.patrolTimer++;
+    if (e.type === 'soldier') {
+      e.vy += GRAVITY;
+      e.vx = e.patrolDir * 1;
+      if (e.patrolTimer > 90) { e.patrolDir *= -1; e.patrolTimer = 0; e.dir = e.patrolDir; }
+      e.x += e.vx; e.y += e.vy;
+      solveEntityCollisions(e);
+    } else if (e.type === 'spider') {
+      // Spider patrols on its surface
+      e.vx = e.patrolDir * 1.5;
+      if (e.patrolTimer > 70) { e.patrolDir *= -1; e.patrolTimer = 0; }
+      e.x += e.vx;
+      // Keep near spawn area
+      solveEntityCollisions(e);
+      e.vy += GRAVITY * 0.5;
+      e.y += e.vy;
+      solveEntityCollisions(e);
+    } else if (e.type === 'flyer') {
+      // Flyer hovers in place with bob
+      e.y += Math.sin(e.patrolTimer * 0.05) * 0.3;
+    }
+  }
+
+  // ── Bullets ──
+  for (var i = bullets.length - 1; i >= 0; i--) {
+    var b = bullets[i];
+    b.x += b.vx;
+    b.y += b.vy;
+    b.life--;
+    if (b.life <= 0) { bullets.splice(i, 1); continue; }
+    // Hit barrier
+    var bc = Math.floor(b.x / TILE);
+    var br = Math.floor(b.y / TILE);
+    if (br >= 0 && br < ROWS && bc >= 0 && bc < COLS) {
+      if (tiles[br][bc] === 3) {
+        tiles[br][bc] = 0;
+        bullets.splice(i, 1);
+        for (var p = 0; p < 6; p++) {
+          particles.push({ x: bc*TILE+TILE/2, y: br*TILE+TILE/2, vx: (Math.random()-0.5)*4, vy: (Math.random()-0.5)*4, life: 20, color: '#fa4' });
+        }
+        continue;
+      }
+      if (tiles[br][bc] === 1) { bullets.splice(i, 1); continue; }
+    }
+  }
+
+  // ── Particles ──
+  for (var i = particles.length - 1; i >= 0; i--) {
+    var p = particles[i];
+    p.x += p.vx; p.y += p.vy;
+    p.life--;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+}
+
+function solveEntityCollisions(e) {
+  // Left
+  if (isSolid(e.x, e.y + 2) || isSolid(e.x, e.y + e.h - 2)) {
+    e.x = Math.floor(e.x / TILE) * TILE + TILE;
+    e.vx = 0;
+    if (!e.possessed) e.patrolDir *= -1;
+  }
+  // Right
+  if (isSolid(e.x + e.w, e.y + 2) || isSolid(e.x + e.w, e.y + e.h - 2)) {
+    e.x = Math.floor((e.x + e.w) / TILE) * TILE - e.w;
+    e.vx = 0;
+    if (!e.possessed) e.patrolDir *= -1;
+  }
+  // Top
+  if (isSolid(e.x + 2, e.y) || isSolid(e.x + e.w - 2, e.y)) {
+    e.y = Math.floor(e.y / TILE) * TILE + TILE;
+    e.vy = 0;
+  }
+  // Bottom
+  if (isSolid(e.x + 2, e.y + e.h) || isSolid(e.x + e.w - 2, e.y + e.h)) {
+    e.y = Math.floor((e.y + e.h) / TILE) * TILE - e.h;
+    e.vy = 0;
+    e.onGround = true;
+  } else {
+    if (e.type === 'soldier') e.onGround = false;
+  }
+}
+
+// ── Draw ──
+function draw() {
+  ctx.fillStyle = '#0a0a1a';
+  ctx.fillRect(0, 0, W, H);
+
+  if (gameState === 'win') {
+    ctx.fillStyle = '#0a0a1a';
+    ctx.fillRect(0, 0, W, H);
+    hudText('ALL ROOMS COMPLETE!', W/2, H/2 - 40, '#4f4', 28, 'center');
+    hudText('You mastered body-possession traversal', W/2, H/2 + 10, '#aaa', 16, 'center');
+    hudText('Click or Space to play again', W/2, H/2 + 50, '#888', 14, 'center');
+    return;
+  }
+
+  // Draw tiles
+  for (var r = 0; r < ROWS; r++) {
+    for (var c = 0; c < COLS; c++) {
+      var t = tiles[r][c];
+      if (t === 0) continue;
+      var tx = c * TILE, ty = r * TILE;
+      if (t === 1) {
+        ctx.fillStyle = '#334';
+        ctx.fillRect(tx, ty, TILE, TILE);
+        ctx.strokeStyle = '#445';
+        ctx.strokeRect(tx+1, ty+1, TILE-2, TILE-2);
+      } else if (t === 2) {
+        // Exit door
+        ctx.fillStyle = '#2a2';
+        ctx.fillRect(tx+4, ty+2, TILE-8, TILE-2);
+        ctx.fillStyle = '#4f4';
+        ctx.fillRect(tx+8, ty+6, TILE-16, TILE-8);
+        // Door handle
+        ctx.fillStyle = '#ff0';
+        ctx.fillRect(tx+TILE-14, ty+TILE/2, 3, 3);
+        // Glow
+        ctx.strokeStyle = 'rgba(0,255,0,0.3)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(tx+2, ty, TILE-4, TILE);
+        ctx.lineWidth = 1;
+      } else if (t === 3) {
+        // Barrier
+        ctx.fillStyle = '#864';
+        ctx.fillRect(tx, ty, TILE, TILE);
+        ctx.strokeStyle = '#a86';
+        ctx.strokeRect(tx+2, ty+2, TILE-4, TILE-4);
+        // X pattern
+        ctx.strokeStyle = '#642';
+        ctx.beginPath();
+        ctx.moveTo(tx+4, ty+4); ctx.lineTo(tx+TILE-4, ty+TILE-4);
+        ctx.moveTo(tx+TILE-4, ty+4); ctx.lineTo(tx+4, ty+TILE-4);
+        ctx.stroke();
+      } else if (t === 4) {
+        // Spikes
+        ctx.fillStyle = '#f44';
+        for (var s = 0; s < 4; s++) {
+          ctx.beginPath();
+          ctx.moveTo(tx + s*10, ty+TILE);
+          ctx.lineTo(tx + s*10+5, ty+4);
+          ctx.lineTo(tx + s*10+10, ty+TILE);
+          ctx.fill();
+        }
+      }
+    }
+  }
+
+  // Draw enemies
+  for (var i = 0; i < enemies.length; i++) {
+    var e = enemies[i];
+    if (!e.alive) continue;
+    drawEnemy(e);
+  }
+
+  // Draw bullets
+  ctx.fillStyle = '#ff0';
+  for (var i = 0; i < bullets.length; i++) {
+    var b = bullets[i];
+    ctx.fillRect(b.x-3, b.y-1, 6, 3);
+  }
+
+  // Draw slime (if not possessing)
+  if (!possessed) {
+    // Slime body
+    var pulse = Math.sin(Date.now() * 0.005) * 2;
+    ctx.fillStyle = '#4f4';
+    ctx.beginPath();
+    ctx.arc(slime.x, slime.y, SLIME_R + pulse, 0, Math.PI*2);
+    ctx.fill();
+    // Slime shine
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.beginPath();
+    ctx.arc(slime.x - 3, slime.y - 3, 3, 0, Math.PI*2);
+    ctx.fill();
+    // Eyes
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.arc(slime.x - 3, slime.y - 1, 2, 0, Math.PI*2);
+    ctx.arc(slime.x + 3, slime.y - 1, 2, 0, Math.PI*2);
+    ctx.fill();
+    // Aim line when stuck
+    if (slime.stuck) {
+      ctx.strokeStyle = 'rgba(100,255,100,0.4)';
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(slime.x, slime.y);
+      ctx.lineTo(slime.x + Math.cos(aimAngle)*50, slime.y + Math.sin(aimAngle)*50);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+
+  // Draw particles
+  for (var i = 0; i < particles.length; i++) {
+    var p = particles[i];
+    ctx.globalAlpha = p.life / 25;
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x-2, p.y-2, 4, 4);
+  }
+  ctx.globalAlpha = 1;
+
+  // ── HUD ──
+  hudText('Room ' + (currentRoom+1) + '/4', 10, 10, '#7bf', 14);
+  if (possessed) {
+    var hostName = possessed.type.charAt(0).toUpperCase() + possessed.type.slice(1);
+    hudText('Possessing: ' + hostName, 10, 30, '#4f4', 14);
+    hudText('[Z] Detach', 10, 48, '#888', 12);
+    if (possessed.type === 'soldier') hudText('[Space] Shoot  [Arrows] Move/Jump', 10, 64, '#888', 12);
+    else if (possessed.type === 'spider') hudText('[Arrows] Climb anywhere', 10, 64, '#888', 12);
+    else if (possessed.type === 'flyer') hudText('[Arrows] Fly freely', 10, 64, '#888', 12);
+  } else {
+    hudText('Slime Form', 10, 30, '#6f6', 14);
+    hudText('[Click/Space] Launch  [Aim] Mouse', 10, 48, '#888', 12);
+  }
+  hudText('[?] Info  [R] Restart', W - 10, 10, '#555', 12, 'right');
+
+  // Room message
+  if (msgTimer > 0) {
+    ctx.globalAlpha = Math.min(1, msgTimer / 30);
+    hudText(roomMsg, W/2, H - 40, '#ff8', 14, 'center');
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawEnemy(e) {
+  var glow = e.possessed ? 'rgba(0,255,0,0.15)' : 'rgba(0,0,0,0)';
+  if (e.possessed) {
+    ctx.fillStyle = glow;
+    ctx.fillRect(e.x-4, e.y-4, e.w+8, e.h+8);
+  }
+
+  if (e.type === 'soldier') {
+    // Body
+    ctx.fillStyle = e.possessed ? '#c44' : '#a33';
+    ctx.fillRect(e.x, e.y, e.w, e.h);
+    // Helmet
+    ctx.fillStyle = '#844';
+    ctx.fillRect(e.x+2, e.y, e.w-4, 8);
+    // Eyes
+    ctx.fillStyle = e.possessed ? '#4f4' : '#f88';
+    var eyeX = e.dir > 0 ? e.x + e.w - 10 : e.x + 4;
+    ctx.fillRect(eyeX, e.y + 10, 6, 4);
+    // Gun
+    ctx.fillStyle = '#666';
+    var gunX = e.dir > 0 ? e.x + e.w - 2 : e.x - 8;
+    ctx.fillRect(gunX, e.y + e.h/2 - 2, 10, 4);
+  }
+  else if (e.type === 'spider') {
+    // Body
+    ctx.fillStyle = e.possessed ? '#a6f' : '#86c';
+    ctx.beginPath();
+    ctx.arc(e.x + e.w/2, e.y + e.h/2, e.w/2, 0, Math.PI*2);
+    ctx.fill();
+    // Legs
+    ctx.strokeStyle = e.possessed ? '#c8f' : '#a6c';
+    ctx.lineWidth = 2;
+    for (var l = 0; l < 4; l++) {
+      var ang = (l/4) * Math.PI - Math.PI/4;
+      ctx.beginPath();
+      ctx.moveTo(e.x + e.w/2, e.y + e.h/2);
+      ctx.lineTo(e.x + e.w/2 + Math.cos(ang)*20, e.y + e.h/2 + Math.sin(ang)*18);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(e.x + e.w/2, e.y + e.h/2);
+      ctx.lineTo(e.x + e.w/2 - Math.cos(ang)*20, e.y + e.h/2 + Math.sin(ang)*18);
+      ctx.stroke();
+    }
+    ctx.lineWidth = 1;
+    // Eyes
+    ctx.fillStyle = e.possessed ? '#4f4' : '#f4f';
+    ctx.fillRect(e.x + e.w/2 - 6, e.y + e.h/2 - 4, 4, 4);
+    ctx.fillRect(e.x + e.w/2 + 2, e.y + e.h/2 - 4, 4, 4);
+  }
+  else if (e.type === 'flyer') {
+    // Body
+    ctx.fillStyle = e.possessed ? '#4df' : '#3ac';
+    ctx.fillRect(e.x+4, e.y+6, e.w-8, e.h-12);
+    // Wings
+    var wingFlap = Math.sin(Date.now() * 0.01) * 4;
+    ctx.fillStyle = e.possessed ? '#6ef' : '#5ce';
+    ctx.beginPath();
+    ctx.moveTo(e.x, e.y + e.h/2);
+    ctx.lineTo(e.x - 8, e.y + wingFlap);
+    ctx.lineTo(e.x + 6, e.y + 8);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(e.x + e.w, e.y + e.h/2);
+    ctx.lineTo(e.x + e.w + 8, e.y + wingFlap);
+    ctx.lineTo(e.x + e.w - 6, e.y + 8);
+    ctx.fill();
+    // Eyes
+    ctx.fillStyle = e.possessed ? '#4f4' : '#8ef';
+    ctx.fillRect(e.x + e.w/2 - 5, e.y + 10, 4, 3);
+    ctx.fillRect(e.x + e.w/2 + 1, e.y + 10, 4, 3);
+  }
+}
+
+// ── Game Loop ──
+function gameLoop() {
+  update();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+// ── Canvas resize ──
+function resize() {
+  var s = Math.min(window.innerWidth / W, window.innerHeight / H);
+  canvas.style.width = (W * s) + 'px';
+  canvas.style.height = (H * s) + 'px';
+}
+window.addEventListener('resize', resize);
+resize();
+
+gameLoop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

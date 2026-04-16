@@ -1,0 +1,832 @@
+<!--
+PROTOTYPE: paengi
+SERIES: spt
+NUMBER: 023
+DATE: 2026-03-24
+MECHANIC: top spinning — spin a top and keep it spinning by whipping it at the right moment; the top slows from friction; time your whip strikes to maintain spin speed
+ANCESTRY: Paengi (팽이, Korea), Beyblade (2000, Japan), Dreidel (Hanukkah, Jewish), Trompo (Latin America), Lattu (South Asia)
+CONTROLS: Space/Click — whip the top | Left/Right — reposition stance | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 2 (Heuristic Bots — timing windows, friction model)
+AI-INSIGHT: A top-spinning survival game reduces to a timing optimization problem. The ideal whip moment depends on current RPM and friction curve — a heuristic bot can learn the optimal strike window. Wind adds a spatial dimension requiring positional adjustment.
+NOTES: Traditional Korean winter game (팽이치기) played on frozen ground.
+       Children whip wooden tops to keep them spinning as long as possible.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPT-023 · PAENGI</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SPT-023 · PAENGI (팽이)</h1>
+    <p><span class="tag series">SPT — Sports</span> <span class="tag">Prototype #023</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Keep the wooden top (팽이) spinning as long as possible by whipping it at the right moment!</p>
+    <ul>
+      <li><kbd>Space</kbd> or <kbd>Click</kbd> — Whip the top to add spin</li>
+      <li><kbd>Left</kbd> / <kbd>Right</kbd> — Reposition your whip stance (needed when wind blows the top off-center)</li>
+      <li>Watch the RPM meter — whip when spin is medium-low for the best boost</li>
+      <li>Whipping when already fast wastes energy with minimal effect</li>
+      <li>If the top slows too much, it wobbles and falls over — game over!</li>
+      <li><kbd>R</kbd> — Restart game</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+
+    <h2>History</h2>
+    <p><em>Paengi-chigi</em> (팽이치기) is a traditional Korean winter game dating back centuries. Children would carve wooden tops and spin them on frozen ground or ice, keeping them going by striking them with a whip or cord. The game was especially popular during the Lunar New Year and cold winter months when the frozen ground provided an ideal smooth surface.</p>
+    <p>Top spinning is found across nearly every culture — from the Latin American <em>trompo</em> to the Jewish <em>dreidel</em> to the South Asian <em>lattu</em>. Korea's paengi tradition is distinctive for its emphasis on endurance and competitive whipping technique. Skilled players could keep tops spinning for extraordinary lengths of time, and competitions between neighborhoods were common.</p>
+
+    <h2>AI Archaeology</h2>
+    <h3>Era 2 — Heuristic Bots</h3>
+    <p>The core challenge is a timing optimization problem: when to whip for maximum effect given the current spin speed and friction decay curve. A simple heuristic — "whip when RPM drops below threshold X" — performs well, but the optimal threshold shifts as wind intensity increases, requiring adaptive behavior. The spatial component (repositioning to match wind-displaced top) adds a second dimension to the heuristic.</p>
+
+    <h3>Classification</h3>
+    <p><span class="tag">timing</span> <span class="tag">endurance</span> <span class="tag">physics simulation</span> <span class="tag">Korean traditional</span> <span class="tag">winter game</span></p>
+
+    <h2>Prototype Notes</h2>
+    <ul>
+      <li>Top-down snowy ground with particle snow effects</li>
+      <li>Wooden top rendered with spin-dependent visual: smooth at high RPM, wobbling at low RPM</li>
+      <li>Whip string animation snaps from player stance to top position</li>
+      <li>Wind gusts increase over time, pushing the top off-center</li>
+      <li>RPM meter and timer HUD display current state</li>
+      <li>Web Audio: spinning hum (pitch scales with speed), whip crack, wobble rattle</li>
+    </ul>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+var canvas = document.getElementById('c');
+var ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, Math.round(x), Math.round(y));
+  ctx.restore();
+}
+
+// ── Canvas setup ──
+var W = 800, H = 600;
+canvas.width = W;
+canvas.height = H;
+function resize() {
+  var s = Math.min(innerWidth / W, innerHeight / H);
+  canvas.style.width = (W * s) + 'px';
+  canvas.style.height = (H * s) + 'px';
+}
+resize();
+addEventListener('resize', resize);
+
+// ── Info panel ──
+var infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// ── Audio ──
+var audioCtx = null;
+var spinOsc = null, spinGain = null;
+function initAudio() {
+  if (audioCtx) return;
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    spinGain = audioCtx.createGain();
+    spinGain.gain.value = 0;
+    spinGain.connect(audioCtx.destination);
+    spinOsc = audioCtx.createOscillator();
+    spinOsc.type = 'sine';
+    spinOsc.frequency.value = 80;
+    spinOsc.connect(spinGain);
+    spinOsc.start();
+  } catch(e) {}
+}
+
+function playWhipCrack() {
+  if (!audioCtx) return;
+  try {
+    var buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.08, audioCtx.sampleRate);
+    var d = buf.getChannelData(0);
+    for (var i = 0; i < d.length; i++) {
+      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 8);
+    }
+    var src = audioCtx.createBufferSource();
+    src.buffer = buf;
+    var g = audioCtx.createGain();
+    g.gain.value = 0.4;
+    src.connect(g);
+    g.connect(audioCtx.destination);
+    src.start();
+  } catch(e) {}
+}
+
+function playWobble() {
+  if (!audioCtx) return;
+  try {
+    var o = audioCtx.createOscillator();
+    o.type = 'triangle';
+    o.frequency.value = 40;
+    var g = audioCtx.createGain();
+    g.gain.value = 0.15;
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+    var lfo = audioCtx.createOscillator();
+    lfo.frequency.value = 8;
+    var lfoG = audioCtx.createGain();
+    lfoG.gain.value = 15;
+    lfo.connect(lfoG);
+    lfoG.connect(o.frequency);
+    o.connect(g);
+    g.connect(audioCtx.destination);
+    lfo.start();
+    o.start();
+    o.stop(audioCtx.currentTime + 0.3);
+    lfo.stop(audioCtx.currentTime + 0.3);
+  } catch(e) {}
+}
+
+function updateSpinSound(rpm) {
+  if (!spinOsc || !spinGain) return;
+  try {
+    var t = audioCtx.currentTime;
+    spinOsc.frequency.setValueAtTime(60 + rpm * 0.8, t);
+    spinGain.gain.setValueAtTime(Math.min(rpm / 500, 0.12), t);
+  } catch(e) {}
+}
+
+// ── Game state ──
+var STATE_TITLE = 0, STATE_PLAY = 1, STATE_OVER = 2;
+var state = STATE_TITLE;
+
+var top = { x: W / 2, y: H / 2 - 30, rpm: 0, angle: 0, wobble: 0, wobblePhase: 0 };
+var player = { x: W / 2, stanceTarget: W / 2 };
+var whip = { active: false, timer: 0, startX: 0, startY: 0, endX: 0, endY: 0 };
+var score = 0;
+var bestScore = 0;
+var elapsed = 0;
+var windSpeed = 0, windDir = 0, windGust = 0, windTimer = 0;
+var difficulty = 0;
+var wobbleSound = 0;
+
+// Snow particles
+var snow = [];
+for (var i = 0; i < 60; i++) {
+  snow.push({ x: Math.random() * W, y: Math.random() * H, s: Math.random() * 2 + 1, sp: Math.random() * 0.5 + 0.3 });
+}
+
+// Ground texture dots (static)
+var groundDots = [];
+for (var i = 0; i < 200; i++) {
+  groundDots.push({ x: Math.random() * W, y: Math.random() * H, r: Math.random() * 2 + 0.5, b: Math.random() * 30 + 210 });
+}
+
+var MAX_RPM = 600;
+var FRICTION = 12; // RPM lost per second base
+var WHIP_COOLDOWN = 0.3;
+var whipCooldown = 0;
+
+var keys = {};
+addEventListener('keydown', function(e) {
+  keys[e.code] = true;
+  if (e.code === 'KeyR') resetGame();
+  if (e.code === 'Slash' && e.shiftKey || e.key === '?') { e.preventDefault(); toggleInfo(); }
+  if (e.code === 'Escape' && infoOpen) toggleInfo();
+  if (state === STATE_TITLE && (e.code === 'Space' || e.code === 'Enter')) { e.preventDefault(); startGame(); }
+  if (state === STATE_PLAY && e.code === 'Space') { e.preventDefault(); doWhip(); }
+  if (state === STATE_OVER && (e.code === 'Space' || e.code === 'Enter')) { e.preventDefault(); resetGame(); }
+});
+addEventListener('keyup', function(e) { keys[e.code] = false; });
+
+canvas.addEventListener('click', function(e) {
+  initAudio();
+  if (state === STATE_TITLE) startGame();
+  else if (state === STATE_PLAY) doWhip();
+  else if (state === STATE_OVER) resetGame();
+});
+
+function startGame() {
+  initAudio();
+  state = STATE_PLAY;
+  top.x = W / 2;
+  top.y = H / 2 - 30;
+  top.rpm = 400;
+  top.angle = 0;
+  top.wobble = 0;
+  top.wobblePhase = 0;
+  player.x = W / 2;
+  player.stanceTarget = W / 2;
+  elapsed = 0;
+  windSpeed = 0;
+  windDir = 0;
+  windGust = 0;
+  windTimer = 0;
+  difficulty = 0;
+  whipCooldown = 0;
+  whip.active = false;
+}
+
+function resetGame() {
+  state = STATE_TITLE;
+}
+
+function doWhip() {
+  if (whipCooldown > 0) return;
+  initAudio();
+  playWhipCrack();
+  whipCooldown = WHIP_COOLDOWN;
+
+  // Calculate effectiveness based on current RPM
+  // Best when RPM is medium-low (100-250), worst when high (>450)
+  var effectiveness;
+  if (top.rpm < 100) {
+    effectiveness = 0.6; // almost too late
+  } else if (top.rpm < 250) {
+    effectiveness = 1.0; // sweet spot
+  } else if (top.rpm < 400) {
+    effectiveness = 0.5; // okay
+  } else {
+    effectiveness = 0.15; // already fast, minimal gain
+  }
+
+  // Distance penalty: further from top = less effective
+  var dx = player.x - top.x;
+  var dist = Math.abs(dx);
+  var distPenalty = Math.max(0, 1 - dist / 200);
+  effectiveness *= distPenalty;
+
+  var boost = 180 * effectiveness;
+  top.rpm = Math.min(MAX_RPM, top.rpm + boost);
+
+  // Whip animation
+  whip.active = true;
+  whip.timer = 0.2;
+  whip.startX = player.x;
+  whip.startY = H - 100;
+  whip.endX = top.x;
+  whip.endY = top.y;
+}
+
+// ── Update ──
+var lastTime = 0;
+function update(dt) {
+  if (infoOpen) return;
+
+  if (state === STATE_TITLE || state === STATE_OVER) return;
+
+  elapsed += dt;
+  difficulty = Math.min(elapsed / 60, 1); // ramps over 60 seconds
+
+  // Friction: top slows down
+  var frictionRate = FRICTION + difficulty * 15;
+  top.rpm -= frictionRate * dt;
+
+  // Wind
+  windTimer -= dt;
+  if (windTimer <= 0) {
+    windTimer = 3 + Math.random() * 4 - difficulty * 2;
+    windGust = (Math.random() * 60 + 20) * (difficulty + 0.3);
+    windDir = Math.random() < 0.5 ? -1 : 1;
+  }
+  windSpeed += (windGust * windDir - windSpeed) * dt * 2;
+
+  // Wind pushes top
+  top.x += windSpeed * dt * 0.5;
+  top.x = Math.max(80, Math.min(W - 80, top.x));
+
+  // Player movement
+  if (keys['ArrowLeft'] || keys['KeyA']) player.stanceTarget -= 250 * dt;
+  if (keys['ArrowRight'] || keys['KeyD']) player.stanceTarget += 250 * dt;
+  player.stanceTarget = Math.max(60, Math.min(W - 60, player.stanceTarget));
+  player.x += (player.stanceTarget - player.x) * 6 * dt;
+
+  // Wobble at low RPM
+  var wobbleThresh = 200;
+  if (top.rpm < wobbleThresh) {
+    var wobbleIntensity = 1 - top.rpm / wobbleThresh;
+    top.wobble = wobbleIntensity * 12;
+    top.wobblePhase += dt * (3 + wobbleIntensity * 8);
+
+    wobbleSound -= dt;
+    if (wobbleSound <= 0 && top.rpm > 0) {
+      playWobble();
+      wobbleSound = 0.4;
+    }
+  } else {
+    top.wobble = 0;
+    wobbleSound = 0;
+  }
+
+  // Spin angle
+  top.angle += top.rpm * 0.1 * dt;
+
+  // Whip cooldown
+  if (whipCooldown > 0) whipCooldown -= dt;
+
+  // Whip animation
+  if (whip.active) {
+    whip.timer -= dt;
+    if (whip.timer <= 0) whip.active = false;
+  }
+
+  // Update spin sound
+  updateSpinSound(Math.max(0, top.rpm));
+
+  // Game over check
+  if (top.rpm <= 0) {
+    top.rpm = 0;
+    state = STATE_OVER;
+    score = elapsed;
+    if (score > bestScore) bestScore = score;
+    if (spinGain) try { spinGain.gain.setValueAtTime(0, audioCtx.currentTime); } catch(e) {}
+  }
+}
+
+// ── Draw ──
+function draw() {
+  // Sky gradient (winter)
+  var skyGrad = ctx.createLinearGradient(0, 0, 0, H);
+  skyGrad.addColorStop(0, '#8aa8c0');
+  skyGrad.addColorStop(0.5, '#b8c8d8');
+  skyGrad.addColorStop(1, '#d8dce0');
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Snowy ground
+  ctx.fillStyle = '#e8ecf0';
+  ctx.fillRect(0, H * 0.3, W, H * 0.7);
+
+  // Ground texture
+  for (var i = 0; i < groundDots.length; i++) {
+    var d = groundDots[i];
+    if (d.y > H * 0.3) {
+      ctx.fillStyle = 'rgba(' + d.b + ',' + d.b + ',' + Math.min(255, d.b + 10) + ',0.5)';
+      ctx.beginPath();
+      ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // Snow shadow area (play zone)
+  ctx.fillStyle = 'rgba(180,190,200,0.3)';
+  ctx.beginPath();
+  ctx.ellipse(W / 2, H / 2 - 10, 250, 150, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  if (state === STATE_TITLE) {
+    drawTitle();
+    drawSnow();
+    return;
+  }
+
+  // Wind indicator
+  if (Math.abs(windSpeed) > 5) {
+    var windAlpha = Math.min(Math.abs(windSpeed) / 80, 0.6);
+    ctx.strokeStyle = 'rgba(100,140,200,' + windAlpha + ')';
+    ctx.lineWidth = 2;
+    var windArrowY = 60;
+    var windLen = windSpeed * 0.8;
+    ctx.beginPath();
+    ctx.moveTo(W / 2 - windLen, windArrowY);
+    ctx.lineTo(W / 2 + windLen, windArrowY);
+    ctx.stroke();
+    // arrowhead
+    var arrowDir = windSpeed > 0 ? 1 : -1;
+    ctx.beginPath();
+    ctx.moveTo(W / 2 + windLen, windArrowY);
+    ctx.lineTo(W / 2 + windLen - 8 * arrowDir, windArrowY - 5);
+    ctx.lineTo(W / 2 + windLen - 8 * arrowDir, windArrowY + 5);
+    ctx.fill();
+    hudText('WIND', W / 2, 42, 'rgba(100,140,200,' + windAlpha + ')', 10, 'center');
+  }
+
+  // Draw top shadow
+  var shadowScale = top.rpm > 0 ? 1 + top.wobble * 0.02 : 1.5;
+  ctx.fillStyle = 'rgba(0,0,0,0.15)';
+  ctx.beginPath();
+  ctx.ellipse(top.x + 3, top.y + 22, 18 * shadowScale, 6 * shadowScale, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Draw top
+  ctx.save();
+  var wobX = top.wobble > 0 ? Math.sin(top.wobblePhase) * top.wobble : 0;
+  var wobTilt = top.wobble > 0 ? Math.sin(top.wobblePhase * 0.7) * top.wobble * 0.02 : 0;
+  ctx.translate(top.x + wobX, top.y);
+  ctx.rotate(wobTilt);
+
+  // Top body (wooden)
+  var topH = 30;
+  var topR = 14;
+
+  // Main body - trapezoid shape
+  ctx.fillStyle = '#a0703c';
+  ctx.beginPath();
+  ctx.moveTo(-topR, -topH * 0.3);
+  ctx.lineTo(-topR * 0.7, -topH * 0.7);
+  ctx.lineTo(topR * 0.7, -topH * 0.7);
+  ctx.lineTo(topR, -topH * 0.3);
+  ctx.lineTo(topR * 0.3, topH * 0.5);
+  ctx.lineTo(-topR * 0.3, topH * 0.5);
+  ctx.closePath();
+  ctx.fill();
+
+  // Tip
+  ctx.fillStyle = '#706050';
+  ctx.beginPath();
+  ctx.moveTo(-topR * 0.3, topH * 0.5);
+  ctx.lineTo(0, topH * 0.8);
+  ctx.lineTo(topR * 0.3, topH * 0.5);
+  ctx.closePath();
+  ctx.fill();
+
+  // Spin lines on top surface
+  if (top.rpm > 50) {
+    var spinAlpha = Math.min(top.rpm / 400, 0.6);
+    ctx.strokeStyle = 'rgba(200,170,120,' + spinAlpha + ')';
+    ctx.lineWidth = 1;
+    for (var i = 0; i < 4; i++) {
+      var a = top.angle + i * Math.PI / 2;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a) * 3, -topH * 0.5 + Math.sin(a) * 2);
+      ctx.lineTo(Math.cos(a) * topR * 0.6, -topH * 0.3 + Math.sin(a) * 4);
+      ctx.stroke();
+    }
+  }
+
+  // Wood grain stripes
+  ctx.strokeStyle = 'rgba(80,50,20,0.3)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(-topR * 0.5, -topH * 0.5);
+  ctx.lineTo(-topR * 0.15, topH * 0.3);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(topR * 0.4, -topH * 0.5);
+  ctx.lineTo(topR * 0.1, topH * 0.3);
+  ctx.stroke();
+
+  // Color band (traditional decoration)
+  ctx.fillStyle = '#c03030';
+  ctx.fillRect(-topR * 0.85, -topH * 0.4, topR * 1.7, 3);
+  ctx.fillStyle = '#2060a0';
+  ctx.fillRect(-topR * 0.75, -topH * 0.55, topR * 1.5, 2);
+
+  ctx.restore();
+
+  // Draw whip animation
+  if (whip.active) {
+    var t = 1 - whip.timer / 0.2;
+    ctx.strokeStyle = '#4a3520';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    var cpx = (whip.startX + whip.endX) / 2 + Math.sin(t * Math.PI * 3) * 40;
+    var cpy = (whip.startY + whip.endY) / 2 - 30;
+    ctx.moveTo(whip.startX, whip.startY);
+    ctx.quadraticCurveTo(cpx, cpy, whip.endX + (1 - t) * 20, whip.endY + (1 - t) * 10);
+    ctx.stroke();
+
+    // Whip tip flash
+    if (t > 0.3 && t < 0.7) {
+      ctx.fillStyle = 'rgba(255,255,200,0.6)';
+      ctx.beginPath();
+      ctx.arc(whip.endX, whip.endY, 8 * (1 - Math.abs(t - 0.5) * 2), 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // Draw player stance (simple figure at bottom)
+  var px = player.x;
+  var py = H - 80;
+
+  // Body
+  ctx.strokeStyle = '#3a3a5a';
+  ctx.lineWidth = 3;
+  // Torso
+  ctx.beginPath();
+  ctx.moveTo(px, py - 30);
+  ctx.lineTo(px, py + 5);
+  ctx.stroke();
+  // Legs
+  ctx.beginPath();
+  ctx.moveTo(px, py + 5);
+  ctx.lineTo(px - 10, py + 25);
+  ctx.moveTo(px, py + 5);
+  ctx.lineTo(px + 10, py + 25);
+  ctx.stroke();
+  // Head
+  ctx.fillStyle = '#5a5a7a';
+  ctx.beginPath();
+  ctx.arc(px, py - 36, 7, 0, Math.PI * 2);
+  ctx.fill();
+  // Arm with whip
+  ctx.strokeStyle = '#3a3a5a';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(px, py - 20);
+  ctx.lineTo(px + 15, py - 30);
+  ctx.stroke();
+  // Whip handle
+  ctx.strokeStyle = '#6a5040';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(px + 15, py - 30);
+  ctx.lineTo(px + 20, py - 38);
+  ctx.stroke();
+
+  // Whip cord hanging (when not striking)
+  if (!whip.active) {
+    ctx.strokeStyle = '#4a3520';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(px + 20, py - 38);
+    ctx.quadraticCurveTo(px + 30, py - 20, px + 15, py - 5);
+    ctx.stroke();
+  }
+
+  // RPM Meter
+  drawRPMMeter();
+
+  // Timer
+  hudText('TIME: ' + elapsed.toFixed(1) + 's', W - 10, 10, '#234', 16, 'right');
+  if (bestScore > 0) {
+    hudText('BEST: ' + bestScore.toFixed(1) + 's', W - 10, 30, '#567', 12, 'right');
+  }
+
+  // Whip timing hint
+  if (whipCooldown > 0) {
+    hudText('reloading...', W / 2, H - 30, '#888', 11, 'center');
+  } else {
+    var hint;
+    if (top.rpm < 100) hint = 'WHIP NOW! (almost too late)';
+    else if (top.rpm < 250) hint = 'PERFECT timing - WHIP!';
+    else if (top.rpm < 400) hint = 'decent timing';
+    else hint = 'too fast - wait';
+    var hintColor = top.rpm < 250 ? '#d04040' : '#667';
+    hudText(hint, W / 2, H - 30, hintColor, 12, 'center');
+  }
+
+  // Draw snow on top
+  drawSnow();
+
+  if (state === STATE_OVER) {
+    drawGameOver();
+  }
+}
+
+function drawRPMMeter() {
+  var mx = 30, my = 80, mw = 20, mh = 200;
+
+  // Background
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.fillRect(mx - 2, my - 2, mw + 4, mh + 4);
+
+  // Meter fill
+  var pct = Math.max(0, top.rpm / MAX_RPM);
+  var fillH = mh * pct;
+
+  // Color based on RPM zone
+  var col;
+  if (top.rpm < 100) col = '#e03030';
+  else if (top.rpm < 250) col = '#e0a030';
+  else if (top.rpm < 400) col = '#60c060';
+  else col = '#4080e0';
+
+  ctx.fillStyle = col;
+  ctx.fillRect(mx, my + mh - fillH, mw, fillH);
+
+  // Border
+  ctx.strokeStyle = '#456';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(mx, my, mw, mh);
+
+  // Zone markers
+  ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+  var zones = [100 / MAX_RPM, 250 / MAX_RPM, 400 / MAX_RPM];
+  for (var i = 0; i < zones.length; i++) {
+    var zy = my + mh - mh * zones[i];
+    ctx.beginPath();
+    ctx.moveTo(mx, zy);
+    ctx.lineTo(mx + mw, zy);
+    ctx.stroke();
+  }
+
+  // Label
+  hudText('RPM', mx + mw / 2, my - 18, '#456', 10, 'center');
+  hudText(Math.round(Math.max(0, top.rpm)).toString(), mx + mw / 2, my + mh + 6, col, 12, 'center');
+
+  // Zone labels
+  hudText('LOW', mx + mw + 4, my + mh - mh * (100 / MAX_RPM) - 6, '#a44', 8, 'left');
+  hudText('MID', mx + mw + 4, my + mh - mh * (250 / MAX_RPM) - 6, '#aa6', 8, 'left');
+  hudText('HI', mx + mw + 4, my + mh - mh * (400 / MAX_RPM) - 6, '#4a4', 8, 'left');
+}
+
+function drawSnow() {
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  for (var i = 0; i < snow.length; i++) {
+    var s = snow[i];
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.s, 0, Math.PI * 2);
+    ctx.fill();
+    s.y += s.sp;
+    s.x += windSpeed * 0.01 + Math.sin(s.y * 0.02) * 0.3;
+    if (s.y > H + 5) { s.y = -5; s.x = Math.random() * W; }
+    if (s.x > W + 5) s.x = -5;
+    if (s.x < -5) s.x = W + 5;
+  }
+}
+
+function drawTitle() {
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.fillRect(0, 0, W, H);
+
+  hudText('PAENGI', W / 2, H * 0.25, '#e8d8c0', 48, 'center');
+  hudText('\ud314\uc774', W / 2, H * 0.25 + 55, '#c0a880', 28, 'center');
+
+  hudText('Korean Top Spinning', W / 2, H * 0.45, '#a0b0c0', 16, 'center');
+  hudText('Keep the top spinning by whipping it!', W / 2, H * 0.45 + 24, '#8898a8', 13, 'center');
+
+  hudText('SPACE / CLICK to whip', W / 2, H * 0.6, '#c0c0d0', 14, 'center');
+  hudText('LEFT / RIGHT to reposition', W / 2, H * 0.6 + 22, '#a0a0b0', 13, 'center');
+  hudText('? for info', W / 2, H * 0.6 + 44, '#808090', 12, 'center');
+
+  var pulse = 0.5 + Math.sin(Date.now() * 0.004) * 0.5;
+  hudText('Press SPACE or CLICK to start', W / 2, H * 0.78, 'rgba(200,200,220,' + (0.4 + pulse * 0.6) + ')', 14, 'center');
+
+  if (bestScore > 0) {
+    hudText('Best: ' + bestScore.toFixed(1) + 's', W / 2, H * 0.85, '#7a8a9a', 13, 'center');
+  }
+
+  // Draw decorative top
+  ctx.save();
+  ctx.translate(W / 2, H * 0.35 + 50);
+  var a = Date.now() * 0.002;
+  ctx.fillStyle = '#a0703c';
+  ctx.beginPath();
+  ctx.moveTo(-10, -5);
+  ctx.lineTo(-7, -15);
+  ctx.lineTo(7, -15);
+  ctx.lineTo(10, -5);
+  ctx.lineTo(3, 10);
+  ctx.lineTo(-3, 10);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#c03030';
+  ctx.fillRect(-8, -8, 16, 2);
+  ctx.fillStyle = '#706050';
+  ctx.beginPath();
+  ctx.moveTo(-3, 10);
+  ctx.lineTo(0, 16);
+  ctx.lineTo(3, 10);
+  ctx.fill();
+  // spin lines
+  ctx.strokeStyle = 'rgba(200,170,120,0.4)';
+  ctx.lineWidth = 1;
+  for (var i = 0; i < 3; i++) {
+    ctx.beginPath();
+    ctx.arc(0, -5, 14 + i * 4, a + i, a + i + 0.5);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawGameOver() {
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.fillRect(0, 0, W, H);
+
+  hudText('TOP FELL OVER!', W / 2, H * 0.3, '#e05050', 32, 'center');
+  hudText('Time: ' + score.toFixed(1) + ' seconds', W / 2, H * 0.42, '#e8d8c0', 20, 'center');
+
+  if (score >= bestScore && score > 0) {
+    hudText('NEW BEST!', W / 2, H * 0.5, '#f0d040', 18, 'center');
+  }
+
+  var pulse = 0.5 + Math.sin(Date.now() * 0.004) * 0.5;
+  hudText('SPACE / CLICK to try again', W / 2, H * 0.65, 'rgba(200,200,220,' + (0.4 + pulse * 0.6) + ')', 14, 'center');
+}
+
+// ── Game loop ──
+function loop(ts) {
+  var dt = Math.min((ts - lastTime) / 1000, 0.05);
+  lastTime = ts;
+  update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(function(ts) { lastTime = ts; loop(ts); });
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: dpad2+fire ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("dpad2+fire");
+</script>
+</body>
+</html>

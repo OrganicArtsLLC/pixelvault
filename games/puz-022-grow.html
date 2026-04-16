@@ -1,0 +1,712 @@
+<!--
+PROTOTYPE: grow
+SERIES: puz
+NUMBER: 022
+DATE: 2026-03-24
+MECHANIC: combinatorial sequence — place items in order and watch them interact and level up; the order determines which items boost which; only one sequence is perfect
+ANCESTRY: GROW (2002, On Nakayama / Eyezmaze), GROW RPG (2004), GROW Cube (2005)
+CONTROLS: Mouse — click items to place them on the planet | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 5 (Ubiquitous Intelligence — emergent interaction systems, combinatorial optimization)
+AI-INSIGHT: GROW is a combinatorial optimization puzzle where 8! = 40,320 permutations yield exactly one perfect solution. The interaction matrix creates a directed graph of dependencies — items boost others placed before them, creating chain reactions that reward systems thinking over brute force.
+NOTES: Combinatorial sequence puzzle distilled to item placement order.
+       Interaction matrix creates emergent complexity from simple rules.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PUZ-022 · GROW</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: pointer; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>PUZ-022 · GROW</h1>
+    <p><span class="tag series">PUZ — Puzzle</span> <span class="tag">Prototype #022</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Click the items around the border to place them on the planet one at a time. Each item interacts with previously placed items, causing them to level up. The goal is to find the one perfect order that maxes all 8 items to level 5.</p>
+    <ul>
+      <li><strong>Click</strong> an item around the border to place it</li>
+      <li>Watch items grow and interact on the planet</li>
+      <li>Items level up based on what was placed before them</li>
+      <li>Only 1 of 40,320 possible orders is perfect</li>
+      <li><kbd>R</kbd> — Restart and try a new order</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li>Pay attention to which items boost which — the interaction hints are shown</li>
+      <li>If an item stays at a low level, it probably needed to be placed later</li>
+      <li>Items placed early get boosted by more subsequent items</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> GROW (2002, On Nakayama / Eyezmaze) &rarr; GROW RPG (2004) &rarr; GROW Cube (2005)</p>
+    <p>On Nakayama created GROW in 2002 as a Flash game on his Eyezmaze website. The concept was deceptively simple: place items in order and watch them interact. The series became a beloved web game phenomenon, spawning numerous sequels (GROW Cube, GROW RPG, GROW Island) each with unique themes but the same core mechanic of finding the perfect sequence through experimentation.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 5 — Ubiquitous Intelligence</p>
+    <p>GROW represents a combinatorial optimization problem where the search space (8! = 40,320 permutations) is small enough for exhaustive search but large enough that humans must rely on pattern recognition and systems thinking. The interaction matrix creates a directed dependency graph — understanding which items catalyze which reveals the solution structure.</p>
+
+    <h2>Classification</h2>
+    <p><strong>Mechanic:</strong> Combinatorial sequence — place items in order and watch them interact and level up</p>
+    <p><strong>Genre:</strong> Puzzle / Experimentation</p>
+
+    <h2>Prototype Notes</h2>
+    <p>8 abstract elements with a carefully designed interaction matrix. One perfect solution that maxes all items to level 5. Visual feedback through item growth animations and level-up effects. The planet grows more vibrant as items reach higher levels.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+const W = 800, H = 600;
+const cv = document.getElementById('c'); cv.width = W; cv.height = H;
+const cx = cv.getContext('2d');
+let infoOpen = false;
+function toggleInfo() { infoOpen = !infoOpen; document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none'; }
+
+// --- ITEMS ---
+// 0:Water 1:Fire 2:Tree 3:Stone 4:Wind 5:Sun 6:House 7:Person
+const NAMES = ['Water','Fire','Tree','Stone','Wind','Sun','House','Person'];
+const COLORS = ['#4af','#f42','#4b2','#888','#aef','#fd2','#c73','#f8a'];
+const ICONS = [
+  // Each icon is drawn procedurally
+];
+
+// Perfect order: Sun, Wind, Water, Stone, Tree, Fire, House, Person
+// Index:         5,   4,   0,    3,    2,   1,   6,    7
+const PERFECT = [5, 4, 0, 3, 2, 1, 6, 7];
+
+// BOOST[placed][existing] = bonus to existing item when placed item arrives
+// When item X is placed, each existing item E gets BOOST[X][E] added to its level
+const BOOST = [
+  // Wa  Fi  Tr  St  Wi  Su  Ho  Pe
+  [  0,  0,  0,  0,  1,  0,  0,  0], // Water placed: boosts Wind+1
+  [  1,  0,  2,  1,  1,  1,  0,  0], // Fire placed: boosts Water+1, Tree+2, Stone+1, Wind+1, Sun+1
+  [  1,  0,  0,  1,  1,  0,  0,  0], // Tree placed: boosts Water+1, Stone+1, Wind+1
+  [  1,  0,  0,  0,  0,  1,  0,  0], // Stone placed: boosts Water+1, Sun+1
+  [  0,  0,  0,  0,  0,  1,  0,  0], // Wind placed: boosts Sun+1
+  [  0,  0,  0,  0,  0,  0,  0,  0], // Sun placed: (placed first in perfect order)
+  [  1,  2,  1,  1,  0,  0,  0,  0], // House placed: boosts Water+1, Fire+2, Tree+1, Stone+1
+  [  0,  2,  1,  1,  1,  1,  4,  0], // Person placed: boosts Fire+2, Tree+1, Stone+1, Wind+1, Sun+1, House+4
+];
+
+// RECV[existing][newcomer] = bonus newcomer gets from existing item on arrival
+const RECV = [
+  // Wa  Fi  Tr  St  Wi  Su  Ho  Pe
+  [  0,  0,  0,  0,  0,  0,  0,  0], // Water exists: no arrival bonuses
+  [  0,  0,  0,  0,  0,  0,  0,  1], // Fire exists: Person gets +1
+  [  0,  0,  0,  0,  0,  0,  0,  1], // Tree exists: Person gets +1
+  [  0,  0,  0,  0,  0,  0,  0,  0], // Stone exists: no arrival bonuses
+  [  0,  0,  0,  0,  0,  0,  0,  1], // Wind exists: Person gets +1
+  [  0,  0,  0,  0,  0,  0,  0,  1], // Sun exists: Person gets +1
+  [  0,  0,  0,  0,  0,  0,  0,  0], // House exists: no arrival bonuses
+  [  0,  0,  0,  0,  0,  0,  0,  0], // Person exists: no arrival bonuses
+];
+
+// State
+let levels = []; // current level of each item (0 = not placed, 1-5)
+let placed = []; // order of placement (indices into NAMES)
+let onPlanet = []; // which items are on planet
+let animations = []; // {type, x, y, text, t, color}
+let planetItems = []; // {id, angle, dist, level, scale, targetScale}
+let gameState = 'playing'; // 'playing', 'complete', 'perfect'
+let hoverItem = -1;
+let totalScore = 0;
+let planetPulse = 0;
+let restartFlash = 0;
+
+function init() {
+  levels = new Array(8).fill(0);
+  placed = [];
+  onPlanet = new Array(8).fill(false);
+  animations = [];
+  planetItems = [];
+  gameState = 'playing';
+  hoverItem = -1;
+  totalScore = 0;
+  planetPulse = 0;
+  restartFlash = 0;
+}
+init();
+
+// Item positions around the border
+function getItemSlot(i) {
+  // 8 items arranged: top (2), right (2), bottom (2), left (2)
+  const slots = [
+    { x: 200, y: 50 },  // 0 Water - top left
+    { x: 600, y: 50 },  // 1 Fire - top right
+    { x: 720, y: 200 }, // 2 Tree - right top
+    { x: 720, y: 400 }, // 3 Stone - right bottom
+    { x: 600, y: 540 }, // 4 Wind - bottom right
+    { x: 200, y: 540 }, // 5 Sun - bottom left
+    { x: 80, y: 400 },  // 6 House - left bottom
+    { x: 80, y: 200 },  // 7 Person - left top
+  ];
+  return slots[i];
+}
+
+// Planet center
+const PX = 400, PY = 300, PR = 80;
+
+function placeItem(id) {
+  if (onPlanet[id] || gameState !== 'playing') return;
+
+  // Set base level to 1
+  levels[id] = 1;
+  onPlanet[id] = true;
+
+  // Existing items boost the new item (RECV)
+  for (let e = 0; e < 8; e++) {
+    if (e === id || !onPlanet[e]) continue;
+    let bonus = RECV[e][id];
+    if (bonus > 0) {
+      levels[id] = Math.min(5, levels[id] + bonus);
+    }
+  }
+
+  // New item boosts existing items (BOOST)
+  for (let e = 0; e < 8; e++) {
+    if (e === id || !onPlanet[e]) continue;
+    let bonus = BOOST[id][e];
+    if (bonus > 0) {
+      let oldLv = levels[e];
+      levels[e] = Math.min(5, levels[e] + bonus);
+      if (levels[e] > oldLv) {
+        // Level up animation for existing item
+        let pi = planetItems.find(p => p.id === e);
+        if (pi) {
+          animations.push({
+            type: 'levelup', x: pi.drawX || PX, y: (pi.drawY || PY) - 25,
+            text: levels[e] === 5 ? 'MAX!' : 'LEVEL UP!',
+            t: 0, color: levels[e] === 5 ? '#fd2' : '#4f4', id: e
+          });
+        }
+      }
+    }
+  }
+
+  placed.push(id);
+
+  // Position on planet
+  let angle = (placed.length - 1) * (Math.PI * 2 / 8) - Math.PI / 2;
+  let dist = placed.length <= 1 ? 0 : 35 + placed.length * 8;
+  planetItems.push({
+    id: id, angle: angle, dist: dist,
+    level: levels[id], scale: 0, targetScale: 1
+  });
+
+  // Check if level 5
+  if (levels[id] === 5) {
+    animations.push({
+      type: 'levelup', x: PX + Math.cos(angle) * dist, y: PY + Math.sin(angle) * dist - 25,
+      text: 'MAX!', t: 0, color: '#fd2', id: id
+    });
+  }
+
+  // Check if all placed
+  if (placed.length === 8) {
+    totalScore = levels.reduce((a, b) => a + b, 0);
+    if (totalScore === 40) {
+      gameState = 'perfect';
+    } else {
+      gameState = 'complete';
+    }
+  }
+}
+
+// Drawing helpers
+function drawPlanet() {
+  // Planet glow
+  let glowR = PR + 15 + Math.sin(planetPulse) * 5;
+  let grd = cx.createRadialGradient(PX, PY, PR * 0.5, PX, PY, glowR);
+  let placedCount = placed.length;
+  let brightness = 0.15 + placedCount * 0.05;
+  grd.addColorStop(0, `rgba(100,180,255,${brightness})`);
+  grd.addColorStop(0.7, `rgba(60,120,200,${brightness * 0.5})`);
+  grd.addColorStop(1, 'rgba(30,60,120,0)');
+  cx.fillStyle = grd;
+  cx.beginPath(); cx.arc(PX, PY, glowR, 0, Math.PI * 2); cx.fill();
+
+  // Planet body
+  grd = cx.createRadialGradient(PX - 15, PY - 15, 5, PX, PY, PR);
+  grd.addColorStop(0, '#5090c0');
+  grd.addColorStop(0.6, '#2a5a8a');
+  grd.addColorStop(1, '#1a3050');
+  cx.fillStyle = grd;
+  cx.beginPath(); cx.arc(PX, PY, PR, 0, Math.PI * 2); cx.fill();
+
+  // Surface details
+  cx.strokeStyle = 'rgba(100,180,255,0.15)';
+  cx.lineWidth = 1;
+  for (let i = 0; i < 5; i++) {
+    cx.beginPath();
+    cx.arc(PX, PY, PR * (0.3 + i * 0.15), -0.5, 0.8);
+    cx.stroke();
+  }
+}
+
+function drawItemIcon(x, y, id, size, alpha) {
+  cx.globalAlpha = alpha;
+  cx.save();
+  cx.translate(x, y);
+
+  let s = size;
+  cx.fillStyle = COLORS[id];
+  cx.strokeStyle = COLORS[id];
+  cx.lineWidth = 2;
+
+  switch (id) {
+    case 0: // Water - droplet
+      cx.beginPath();
+      cx.moveTo(0, -s * 0.6);
+      cx.quadraticCurveTo(s * 0.5, 0, 0, s * 0.5);
+      cx.quadraticCurveTo(-s * 0.5, 0, 0, -s * 0.6);
+      cx.fill();
+      break;
+    case 1: // Fire - flame
+      cx.beginPath();
+      cx.moveTo(0, -s * 0.7);
+      cx.quadraticCurveTo(s * 0.4, -s * 0.2, s * 0.3, s * 0.4);
+      cx.quadraticCurveTo(0, s * 0.2, -s * 0.3, s * 0.4);
+      cx.quadraticCurveTo(-s * 0.4, -s * 0.2, 0, -s * 0.7);
+      cx.fill();
+      cx.fillStyle = '#fa0';
+      cx.beginPath();
+      cx.moveTo(0, -s * 0.3);
+      cx.quadraticCurveTo(s * 0.15, 0, s * 0.1, s * 0.3);
+      cx.quadraticCurveTo(0, s * 0.15, -s * 0.1, s * 0.3);
+      cx.quadraticCurveTo(-s * 0.15, 0, 0, -s * 0.3);
+      cx.fill();
+      break;
+    case 2: // Tree - triangle tree
+      cx.beginPath();
+      cx.moveTo(0, -s * 0.7);
+      cx.lineTo(s * 0.4, s * 0.2);
+      cx.lineTo(-s * 0.4, s * 0.2);
+      cx.closePath(); cx.fill();
+      cx.fillStyle = '#631';
+      cx.fillRect(-s * 0.08, s * 0.2, s * 0.16, s * 0.3);
+      break;
+    case 3: // Stone - hexagon
+      cx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        let a = i * Math.PI / 3 - Math.PI / 6;
+        let px = Math.cos(a) * s * 0.45;
+        let py = Math.sin(a) * s * 0.45;
+        i === 0 ? cx.moveTo(px, py) : cx.lineTo(px, py);
+      }
+      cx.closePath(); cx.fill();
+      cx.fillStyle = 'rgba(255,255,255,0.2)';
+      cx.beginPath();
+      for (let i = 0; i < 3; i++) {
+        let a = i * Math.PI / 3 - Math.PI / 6;
+        let px = Math.cos(a) * s * 0.45;
+        let py = Math.sin(a) * s * 0.45;
+        i === 0 ? cx.moveTo(px, py) : cx.lineTo(px, py);
+      }
+      cx.closePath(); cx.fill();
+      break;
+    case 4: // Wind - swirl
+      cx.lineWidth = 2.5;
+      cx.beginPath();
+      cx.arc(0, -s * 0.1, s * 0.3, Math.PI, 0);
+      cx.stroke();
+      cx.beginPath();
+      cx.arc(s * 0.1, s * 0.1, s * 0.2, Math.PI, 0);
+      cx.stroke();
+      cx.beginPath();
+      cx.arc(-s * 0.05, s * 0.25, s * 0.15, Math.PI, 0);
+      cx.stroke();
+      break;
+    case 5: // Sun - star
+      cx.beginPath();
+      for (let i = 0; i < 8; i++) {
+        let a = i * Math.PI / 4 - Math.PI / 2;
+        let r = i % 2 === 0 ? s * 0.5 : s * 0.25;
+        let px = Math.cos(a) * r;
+        let py = Math.sin(a) * r;
+        i === 0 ? cx.moveTo(px, py) : cx.lineTo(px, py);
+      }
+      cx.closePath(); cx.fill();
+      break;
+    case 6: // House
+      cx.fillStyle = COLORS[id];
+      cx.fillRect(-s * 0.3, -s * 0.1, s * 0.6, s * 0.5);
+      cx.beginPath();
+      cx.moveTo(-s * 0.4, -s * 0.1);
+      cx.lineTo(0, -s * 0.55);
+      cx.lineTo(s * 0.4, -s * 0.1);
+      cx.closePath(); cx.fill();
+      cx.fillStyle = '#fd2';
+      cx.fillRect(-s * 0.1, s * 0.05, s * 0.2, s * 0.2);
+      break;
+    case 7: // Person - stick figure
+      cx.lineWidth = 2.5;
+      cx.beginPath(); cx.arc(0, -s * 0.4, s * 0.15, 0, Math.PI * 2); cx.stroke();
+      cx.beginPath(); cx.moveTo(0, -s * 0.25); cx.lineTo(0, s * 0.15); cx.stroke();
+      cx.beginPath(); cx.moveTo(-s * 0.25, -s * 0.05); cx.lineTo(s * 0.25, -s * 0.05); cx.stroke();
+      cx.beginPath(); cx.moveTo(0, s * 0.15); cx.lineTo(-s * 0.2, s * 0.5); cx.stroke();
+      cx.beginPath(); cx.moveTo(0, s * 0.15); cx.lineTo(s * 0.2, s * 0.5); cx.stroke();
+      break;
+  }
+  cx.restore();
+  cx.globalAlpha = 1;
+}
+
+function drawItemSlot(i) {
+  let slot = getItemSlot(i);
+  let isPlaced = onPlanet[i];
+  let isHover = hoverItem === i && !isPlaced && gameState === 'playing';
+  let boxSize = 60;
+  let half = boxSize / 2;
+
+  // Box background
+  if (isPlaced) {
+    cx.fillStyle = 'rgba(40,40,40,0.5)';
+  } else if (isHover) {
+    cx.fillStyle = 'rgba(60,80,100,0.8)';
+  } else {
+    cx.fillStyle = 'rgba(30,40,50,0.7)';
+  }
+
+  // Rounded rect manually
+  let bx = slot.x - half, by = slot.y - half, bw = boxSize, bh = boxSize, br = 8;
+  cx.beginPath();
+  cx.moveTo(bx + br, by);
+  cx.lineTo(bx + bw - br, by);
+  cx.arcTo(bx + bw, by, bx + bw, by + br, br);
+  cx.lineTo(bx + bw, by + bh - br);
+  cx.arcTo(bx + bw, by + bh, bx + bw - br, by + bh, br);
+  cx.lineTo(bx + br, by + bh);
+  cx.arcTo(bx, by + bh, bx, by + bh - br, br);
+  cx.lineTo(bx, by + br);
+  cx.arcTo(bx, by, bx + br, by, br);
+  cx.closePath();
+  cx.fill();
+
+  // Border
+  cx.strokeStyle = isHover ? '#fff' : (isPlaced ? 'rgba(100,100,100,0.3)' : 'rgba(150,180,210,0.5)');
+  cx.lineWidth = isHover ? 2 : 1;
+  cx.stroke();
+
+  // Icon
+  let alpha = isPlaced ? 0.2 : 1;
+  drawItemIcon(slot.x, slot.y, i, isHover ? 28 : 24, alpha);
+
+  // Label
+  cx.fillStyle = isPlaced ? 'rgba(150,150,150,0.3)' : '#ccc';
+  cx.font = '10px monospace';
+  cx.textAlign = 'center';
+  cx.fillText(NAMES[i], slot.x, slot.y + half + 14);
+
+  // Placed order number
+  if (isPlaced) {
+    let order = placed.indexOf(i) + 1;
+    cx.fillStyle = 'rgba(200,200,200,0.4)';
+    cx.font = 'bold 18px monospace';
+    cx.fillText('#' + order, slot.x, slot.y + 6);
+  }
+}
+
+function drawPlanetItem(pi) {
+  let ix = PX + Math.cos(pi.angle) * pi.dist;
+  let iy = PY + Math.sin(pi.angle) * pi.dist;
+  pi.drawX = ix;
+  pi.drawY = iy;
+
+  // Animate scale
+  pi.scale += (pi.targetScale - pi.scale) * 0.1;
+
+  let lv = levels[pi.id];
+  let sz = (12 + lv * 5) * pi.scale;
+
+  // Glow for level 5
+  if (lv === 5) {
+    cx.save();
+    let glowGrd = cx.createRadialGradient(ix, iy, 0, ix, iy, sz + 10);
+    glowGrd.addColorStop(0, COLORS[pi.id] + '40');
+    glowGrd.addColorStop(1, 'transparent');
+    cx.fillStyle = glowGrd;
+    cx.beginPath(); cx.arc(ix, iy, sz + 10, 0, Math.PI * 2); cx.fill();
+    cx.restore();
+  }
+
+  drawItemIcon(ix, iy, pi.id, sz, 1);
+
+  // Level indicator
+  cx.fillStyle = lv === 5 ? '#fd2' : '#fff';
+  cx.font = lv === 5 ? 'bold 11px monospace' : '10px monospace';
+  cx.textAlign = 'center';
+  let label = lv === 5 ? 'MAX' : 'Lv.' + lv;
+  cx.fillText(label, ix, iy + sz + 12);
+}
+
+function drawAnimations() {
+  for (let i = animations.length - 1; i >= 0; i--) {
+    let a = animations[i];
+    a.t += 0.02;
+    if (a.t > 1) { animations.splice(i, 1); continue; }
+
+    let alpha = 1 - a.t;
+    let yOff = -a.t * 40;
+
+    cx.save();
+    cx.globalAlpha = alpha;
+    cx.fillStyle = a.color;
+    cx.font = a.text === 'MAX!' ? 'bold 16px monospace' : 'bold 13px monospace';
+    cx.textAlign = 'center';
+
+    // Update position to follow planet item
+    let pi = planetItems.find(p => p.id === a.id);
+    let drawX = pi ? (pi.drawX || a.x) : a.x;
+    let drawY = pi ? ((pi.drawY || a.y) - 25) : a.y;
+
+    cx.fillText(a.text, drawX, drawY + yOff);
+    cx.restore();
+  }
+}
+
+function drawUI() {
+  // Title
+  cx.fillStyle = '#7bf';
+  cx.font = 'bold 16px monospace';
+  cx.textAlign = 'center';
+  cx.fillText('G R O W', W / 2, 28);
+
+  // Placed count
+  cx.fillStyle = '#888';
+  cx.font = '12px monospace';
+  cx.fillText('Items: ' + placed.length + '/8', W / 2, 48);
+
+  // Level summary on the right
+  if (placed.length > 0) {
+    cx.textAlign = 'left';
+    cx.font = '11px monospace';
+    let sy = 80;
+    cx.fillStyle = '#666';
+    cx.fillText('Levels:', 650, sy);
+    sy += 16;
+    for (let i = 0; i < placed.length; i++) {
+      let id = placed[i];
+      let lv = levels[id];
+      cx.fillStyle = lv === 5 ? '#fd2' : COLORS[id];
+      let bar = '';
+      for (let j = 0; j < 5; j++) bar += j < lv ? '\u2588' : '\u2591';
+      cx.fillText(NAMES[id].padEnd(7) + bar, 640, sy);
+      sy += 14;
+    }
+  }
+
+  // Game complete messages
+  if (gameState === 'perfect') {
+    cx.save();
+    cx.textAlign = 'center';
+    cx.fillStyle = '#fd2';
+    cx.font = 'bold 24px monospace';
+    cx.fillText('PERFECT! ALL MAX!', W / 2, H - 60);
+    cx.fillStyle = '#aaa';
+    cx.font = '13px monospace';
+    cx.fillText('Score: 40/40 — Press R to play again', W / 2, H - 35);
+    cx.restore();
+  } else if (gameState === 'complete') {
+    cx.save();
+    cx.textAlign = 'center';
+    cx.fillStyle = totalScore >= 35 ? '#4f4' : (totalScore >= 28 ? '#fa0' : '#f44');
+    cx.font = 'bold 20px monospace';
+    cx.fillText('COMPLETE', W / 2, H - 60);
+    cx.fillStyle = '#ccc';
+    cx.font = '14px monospace';
+    cx.fillText('Score: ' + totalScore + '/40 — Press R to try again', W / 2, H - 35);
+    cx.restore();
+  }
+
+  // Controls hint
+  if (gameState === 'playing' && placed.length === 0) {
+    cx.textAlign = 'center';
+    cx.fillStyle = 'rgba(150,180,210,0.6)';
+    cx.font = '12px monospace';
+    cx.fillText('Click an item to place it on the planet', W / 2, H - 25);
+  }
+
+  // Info hint
+  cx.textAlign = 'right';
+  cx.fillStyle = '#444';
+  cx.font = '11px monospace';
+  cx.fillText('[?] Info  [R] Restart', W - 15, H - 8);
+}
+
+function drawStars() {
+  // Static star background
+  cx.fillStyle = '#fff';
+  let seed = 42;
+  for (let i = 0; i < 60; i++) {
+    seed = (seed * 16807 + 7) % 2147483647;
+    let sx = (seed % W);
+    seed = (seed * 16807 + 7) % 2147483647;
+    let sy = (seed % H);
+    seed = (seed * 16807 + 7) % 2147483647;
+    let sa = 0.2 + (seed % 60) / 100;
+    cx.globalAlpha = sa;
+    cx.fillRect(sx, sy, 1, 1);
+  }
+  cx.globalAlpha = 1;
+}
+
+// Interaction lines between planet items
+function drawInteractionLines() {
+  if (planetItems.length < 2) return;
+  cx.save();
+  cx.globalAlpha = 0.15;
+  cx.strokeStyle = '#7bf';
+  cx.lineWidth = 1;
+  for (let i = 0; i < planetItems.length; i++) {
+    for (let j = i + 1; j < planetItems.length; j++) {
+      let a = planetItems[i], b = planetItems[j];
+      let ai = a.id, bi = b.id;
+      // Draw line if there's any interaction
+      if (BOOST[ai][bi] || BOOST[bi][ai] || RECV[ai][bi] || RECV[bi][ai]) {
+        cx.beginPath();
+        cx.moveTo(a.drawX || PX, a.drawY || PY);
+        cx.lineTo(b.drawX || PX, b.drawY || PY);
+        cx.stroke();
+      }
+    }
+  }
+  cx.restore();
+}
+
+// Mouse handling
+let mouseX = 0, mouseY = 0;
+
+cv.addEventListener('mousemove', function(e) {
+  let rect = cv.getBoundingClientRect();
+  let scaleX = W / rect.width, scaleY = H / rect.height;
+  mouseX = (e.clientX - rect.left) * scaleX;
+  mouseY = (e.clientY - rect.top) * scaleY;
+});
+
+cv.addEventListener('click', function(e) {
+  if (infoOpen || gameState !== 'playing') return;
+  let rect = cv.getBoundingClientRect();
+  let scaleX = W / rect.width, scaleY = H / rect.height;
+  let mx = (e.clientX - rect.left) * scaleX;
+  let my = (e.clientY - rect.top) * scaleY;
+
+  for (let i = 0; i < 8; i++) {
+    if (onPlanet[i]) continue;
+    let slot = getItemSlot(i);
+    let dx = mx - slot.x, dy = my - slot.y;
+    if (Math.abs(dx) < 35 && Math.abs(dy) < 35) {
+      placeItem(i);
+      break;
+    }
+  }
+});
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
+    toggleInfo();
+    e.preventDefault();
+  } else if (e.key === 'Escape' && infoOpen) {
+    toggleInfo();
+  } else if ((e.key === 'r' || e.key === 'R') && !infoOpen) {
+    init();
+  }
+});
+
+// Resize
+function resize() {
+  let s = Math.min(window.innerWidth / W, window.innerHeight / H);
+  cv.style.width = (W * s) + 'px';
+  cv.style.height = (H * s) + 'px';
+}
+window.addEventListener('resize', resize);
+resize();
+
+// Main loop
+let lastTime = 0;
+function update(dt) {
+  if (infoOpen) return;
+  planetPulse += dt * 2;
+}
+
+function draw() {
+  cx.fillStyle = '#0a0e18';
+  cx.fillRect(0, 0, W, H);
+
+  drawStars();
+  drawPlanet();
+  drawInteractionLines();
+
+  // Draw planet items
+  for (let pi of planetItems) {
+    drawPlanetItem(pi);
+  }
+
+  // Draw item slots
+  for (let i = 0; i < 8; i++) {
+    drawItemSlot(i);
+  }
+
+  // Hover detection
+  hoverItem = -1;
+  if (gameState === 'playing') {
+    for (let i = 0; i < 8; i++) {
+      if (onPlanet[i]) continue;
+      let slot = getItemSlot(i);
+      let dx = mouseX - slot.x, dy = mouseY - slot.y;
+      if (Math.abs(dx) < 35 && Math.abs(dy) < 35) {
+        hoverItem = i;
+        break;
+      }
+    }
+  }
+
+  drawAnimations();
+  drawUI();
+}
+
+function loop(time) {
+  let dt = Math.min((time - lastTime) / 1000, 0.05);
+  lastTime = time;
+  update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

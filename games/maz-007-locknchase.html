@@ -1,0 +1,949 @@
+<!--
+PROTOTYPE: locknchase
+SERIES: maz
+NUMBER: 007
+DATE: 2026-03-22
+MECHANIC: collect coins in maze while locking doors behind you to trap pursuers
+ANCESTRY: Lock 'n' Chase (1981, Data East), Pac-Man (1980, Namco)
+CONTROLS: Arrow keys — move | Space — lock door | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 2 (Expert Systems — pursuit algorithms with obstacle avoidance)
+AI-INSIGHT: Lock 'n' Chase adds player-created obstacles to the pursuit game — the ability to reshape the maze in real-time transforms a pure evasion problem into a planning problem, presaging dynamic environment manipulation in modern AI research.
+NOTES: Pac-Man variant with door-locking mechanic. Collect all coins to clear level.
+       Player can place temporary doors to block pursuers. Doors disappear after time.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MAZ-007 · LOCK 'N' CHASE</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>MAZ-007 · LOCK 'N' CHASE</h1>
+    <p><span class="tag series">MAZ — Maze</span> <span class="tag">Prototype #007</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Collect all coins to clear the level. Place temporary doors to block police pursuers. Grab treasure items for bonus points.</p>
+    <ul>
+      <li><kbd>&uarr;</kbd> <kbd>&darr;</kbd> <kbd>&larr;</kbd> <kbd>&rarr;</kbd> — Move through the maze</li>
+      <li><kbd>Space</kbd> — Place a door behind you to block pursuers</li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Door placement:</strong> You can hold up to 3 doors. They recharge over time. Doors vanish after ~5 seconds.</li>
+      <li><strong>Trap police:</strong> Place doors in corridors behind you to cut off pursuit. Time it right to trap them in dead ends.</li>
+      <li><strong>Treasure:</strong> Bonus items appear periodically in the maze center. Grab them quickly for big points.</li>
+      <li><strong>Clearing levels:</strong> Each level increases police speed and reduces door duration. Plan your routes.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Lock 'n' Chase (1981, Data East) &larr; Pac-Man (1980, Namco)</p>
+    <p>Lock 'n' Chase (1981) was Data East's response to Pac-Man, replacing the ghost-evading pellet-eater with a thief-vs-police scenario. The key innovation was the door-locking mechanic: the player could place temporary barriers in the maze to block pursuing police officers.</p>
+    <p>This seemingly small addition transformed the game from pure evasion into a strategic planning problem. Players had to think ahead — not just "where am I going?" but "where will I block?" The ability to reshape the environment in real-time was revolutionary for 1981.</p>
+    <p>The game featured a vault-robbery theme with coins and treasure, giving it a distinct identity from Pac-Man's abstract dot-eating. It saw ports to Atari 2600, Intellivision, and Apple II.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 2 — Expert Systems (1972–1990)</p>
+    <p><strong>Contemporary AI:</strong> Rule-based pursuit algorithms. Police use simple chase logic with basic obstacle avoidance.</p>
+    <p><strong>Hidden Intelligence:</strong> Lock 'n' Chase introduces what modern AI calls "dynamic environment manipulation." The player doesn't just navigate the state space — they modify it. This is conceptually related to option frameworks in hierarchical RL, where an agent can create or destroy affordances. The door-placement mechanic is a primitive form of environment design.</p>
+    <p><strong>The Convergence:</strong> The interplay between pursuit AI and player-created obstacles presages adversarial environment design. Modern research in procedural content generation and adversarial training explores exactly this dynamic — agents that reshape their environment to achieve goals.</p>
+    <p><strong>If AI Had Designed This:</strong> Adaptive police AI that learns the player's door-placement patterns and routes around anticipated blockades. Dynamic coin placement that rewards exploration of under-visited maze regions.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: MAZ — Maze</h3>
+    <p>Lock 'n' Chase extends the maze-collection formula with active environment modification. The door mechanic transforms passive evasion into strategic corridor control.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Collect-and-evade with dynamic barrier placement.</strong> Grid-based maze. Coin collection as primary objective. Limited-use temporary doors for strategic blocking. Police pursuers with obstacle-aware pathfinding. Progressive difficulty.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Door placement — does blocking corridors feel strategic and satisfying?</li>
+      <li>Resource management — does the door recharge rate create meaningful decisions?</li>
+      <li>Pursuit pressure — do police feel threatening enough to motivate door use?</li>
+      <li>Level progression — does increasing difficulty feel fair and motivating?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Grid-based maze with coin collection. Door-locking mechanic with recharge system. Four police pursuers with chase AI and obstacle avoidance. Treasure bonuses. Progressive difficulty across levels.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+const keys = {};
+window.addEventListener('keydown', e => { if (!infoOpen) keys[e.code] = true; e.preventDefault(); });
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+// --- MAZE CONSTANTS ---
+const COLS = 25, ROWS = 19;
+const TILE = 28;
+const OX = Math.floor((W - COLS * TILE) / 2);
+const OY = 40;
+
+// Cell types: 0=path, 1=wall, 2=door-slot (horizontal gap where player can place a door)
+// Maze layout: walls on odd rows/cols intersections, paths on even positions
+// We use a fixed maze template inspired by Lock 'n' Chase
+
+function buildMaze() {
+  // 0 = path, 1 = wall
+  const m = [];
+  for (let r = 0; r < ROWS; r++) {
+    m[r] = [];
+    for (let c = 0; c < COLS; c++) {
+      // Border walls
+      if (r === 0 || r === ROWS - 1 || c === 0 || c === COLS - 1) {
+        m[r][c] = 1;
+      } else {
+        m[r][c] = 0;
+      }
+    }
+  }
+
+  // Internal wall structure — Lock 'n' Chase style horizontal shelves with gaps
+  // Horizontal wall rows at rows 2, 4, 6, 8, 10, 12, 14, 16
+  const wallRows = [2, 4, 6, 8, 10, 12, 14, 16];
+  for (const wr of wallRows) {
+    if (wr >= ROWS - 1) continue;
+    for (let c = 1; c < COLS - 1; c++) {
+      m[wr][c] = 1;
+    }
+  }
+
+  // Carve gaps in horizontal walls to create corridors
+  // Vertical corridors at fixed columns
+  const vCorridors = [1, 4, 8, 12, 16, 20, 23];
+  for (const vc of vCorridors) {
+    if (vc >= COLS - 1) continue;
+    for (let r = 1; r < ROWS - 1; r++) {
+      m[r][vc] = 0;
+    }
+  }
+
+  // Additional gaps in walls for variety
+  const gaps = [
+    [2, 2], [2, 6], [2, 10], [2, 14], [2, 18], [2, 22],
+    [4, 3], [4, 7], [4, 11], [4, 15], [4, 19],
+    [6, 2], [6, 6], [6, 10], [6, 14], [6, 18], [6, 22],
+    [8, 3], [8, 7], [8, 11], [8, 15], [8, 19],
+    [10, 2], [10, 6], [10, 10], [10, 14], [10, 18], [10, 22],
+    [12, 3], [12, 7], [12, 11], [12, 15], [12, 19],
+    [14, 2], [14, 6], [14, 10], [14, 14], [14, 18], [14, 22],
+    [16, 3], [16, 7], [16, 11], [16, 15], [16, 19]
+  ];
+  for (const [gr, gc] of gaps) {
+    if (gr < ROWS && gc < COLS) m[gr][gc] = 0;
+  }
+
+  return m;
+}
+
+// Door slot positions — locations in the maze where doors can be placed
+// These are at the entrance/exit of horizontal corridors (gaps in walls)
+function findDoorSlots(maze) {
+  const slots = [];
+  // A door slot is a path cell on a wall row that connects two path regions
+  const wallRows = [2, 4, 6, 8, 10, 12, 14, 16];
+  for (const wr of wallRows) {
+    if (wr >= ROWS - 1) continue;
+    for (let c = 2; c < COLS - 2; c++) {
+      // If this cell is a path on a wall row, it's a door slot
+      if (maze[wr][c] === 0) {
+        // Check it has wall neighbors on same row (it's a gap, not a corridor)
+        const vCorridors = [1, 4, 8, 12, 16, 20, 23];
+        if (!vCorridors.includes(c)) {
+          slots.push({ r: wr, c: c });
+        }
+      }
+    }
+  }
+  return slots;
+}
+
+// --- GAME STATE ---
+let maze, doorSlots, coins, totalCoins, player, police, doors, treasure;
+let score, lives, level, gameOver, levelComplete, levelTimer, frame;
+let doorCharges, maxDoorCharges, doorRechargeTimer, doorDuration;
+let treasureTimer, treasureActive, flashTimer;
+
+function initGame() {
+  score = 0;
+  lives = 3;
+  level = 1;
+  gameOver = false;
+  frame = 0;
+  initLevel();
+}
+
+function initLevel() {
+  maze = buildMaze();
+  doorSlots = findDoorSlots(maze);
+  levelComplete = false;
+  levelTimer = 0;
+  flashTimer = 0;
+  frame = 0;
+
+  // Place coins on all path cells
+  coins = [];
+  totalCoins = 0;
+  for (let r = 1; r < ROWS - 1; r++) {
+    for (let c = 1; c < COLS - 1; c++) {
+      if (maze[r][c] === 0) {
+        // Skip player start area
+        if (r === ROWS - 2 && c >= 11 && c <= 13) continue;
+        coins.push({ r, c, collected: false });
+        totalCoins++;
+      }
+    }
+  }
+
+  // Player starts at bottom center
+  player = {
+    r: ROWS - 2, c: 12,
+    x: OX + 12 * TILE + TILE / 2,
+    y: OY + (ROWS - 2) * TILE + TILE / 2,
+    dir: 0, // 0=right, 1=down, 2=left, 3=up
+    nextDir: -1,
+    speed: 2,
+    moveAcc: 0,
+    mouth: 0
+  };
+
+  // Police start positions — 4 officers
+  const policeStarts = [
+    { r: 1, c: 1 },
+    { r: 1, c: COLS - 2 },
+    { r: 1, c: Math.floor(COLS / 2) },
+    { r: 5, c: Math.floor(COLS / 2) }
+  ];
+
+  const baseSpd = 1.4 + level * 0.15;
+  police = policeStarts.map((p, i) => ({
+    r: p.r, c: p.c,
+    x: OX + p.c * TILE + TILE / 2,
+    y: OY + p.r * TILE + TILE / 2,
+    dir: 1,
+    speed: Math.min(baseSpd + i * 0.05, 2.8),
+    color: ['#f44', '#48f', '#f8f', '#4ff'][i],
+    moveAcc: 0,
+    scared: false,
+    scaredTimer: 0,
+    released: i === 0,
+    releaseTimer: i * 180 + 120
+  }));
+
+  // Doors
+  doors = [];
+  maxDoorCharges = 3;
+  doorCharges = maxDoorCharges;
+  doorRechargeTimer = 0;
+  doorDuration = Math.max(180, 300 - level * 15); // frames, decreases with level
+
+  // Treasure
+  treasure = null;
+  treasureTimer = 600 + Math.floor(Math.random() * 300);
+  treasureActive = false;
+}
+
+// --- GRID HELPERS ---
+function gridToPixel(r, c) {
+  return { x: OX + c * TILE + TILE / 2, y: OY + r * TILE + TILE / 2 };
+}
+
+function pixelToGrid(x, y) {
+  return {
+    c: Math.floor((x - OX) / TILE),
+    r: Math.floor((y - OY) / TILE)
+  };
+}
+
+function isWall(r, c) {
+  if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return true;
+  if (maze[r][c] === 1) return true;
+  // Check active doors
+  for (const d of doors) {
+    if (d.r === r && d.c === c) return true;
+  }
+  return false;
+}
+
+function isWallNoDoors(r, c) {
+  if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return true;
+  return maze[r][c] === 1;
+}
+
+const DX = [1, 0, -1, 0];
+const DY = [0, 1, 0, -1];
+
+function canMove(r, c, dir) {
+  return !isWall(r + DY[dir], c + DX[dir]);
+}
+
+function canMoveNoDoors(r, c, dir) {
+  return !isWallNoDoors(r + DY[dir], c + DX[dir]);
+}
+
+// --- MOVE ENTITY ALONG GRID ---
+function moveEntity(ent, checkDoors) {
+  const wallCheck = checkDoors ? isWall : isWallNoDoors;
+  const moveCheck = checkDoors ? canMove : canMoveNoDoors;
+
+  const target = gridToPixel(ent.r, ent.c);
+  const atCenter = Math.abs(ent.x - target.x) < 2 && Math.abs(ent.y - target.y) < 2;
+
+  if (atCenter) {
+    ent.x = target.x;
+    ent.y = target.y;
+
+    // Try to change direction
+    if (ent.nextDir >= 0 && moveCheck(ent.r, ent.c, ent.nextDir)) {
+      ent.dir = ent.nextDir;
+      ent.nextDir = -1;
+    }
+
+    // Move in current direction
+    if (moveCheck(ent.r, ent.c, ent.dir)) {
+      ent.r += DY[ent.dir];
+      ent.c += DX[ent.dir];
+    }
+  }
+
+  // Interpolate toward target cell
+  const dest = gridToPixel(ent.r, ent.c);
+  const ddx = dest.x - ent.x;
+  const ddy = dest.y - ent.y;
+  const dist = Math.sqrt(ddx * ddx + ddy * ddy);
+  if (dist > 1) {
+    ent.x += (ddx / dist) * ent.speed;
+    ent.y += (ddy / dist) * ent.speed;
+  } else {
+    ent.x = dest.x;
+    ent.y = dest.y;
+  }
+}
+
+// --- POLICE AI ---
+function policeAI(cop) {
+  const target = gridToPixel(cop.r, cop.c);
+  const atCenter = Math.abs(cop.x - target.x) < 2 && Math.abs(cop.y - target.y) < 2;
+
+  if (!atCenter) {
+    // Keep moving to current cell center
+    const ddx = target.x - cop.x;
+    const ddy = target.y - cop.y;
+    const dist = Math.sqrt(ddx * ddx + ddy * ddy);
+    if (dist > 1) {
+      cop.x += (ddx / dist) * cop.speed;
+      cop.y += (ddy / dist) * cop.speed;
+    } else {
+      cop.x = target.x;
+      cop.y = target.y;
+    }
+    return;
+  }
+
+  cop.x = target.x;
+  cop.y = target.y;
+
+  // Find available directions (exclude reverse unless dead end)
+  const reverse = (cop.dir + 2) % 4;
+  const available = [];
+  for (let d = 0; d < 4; d++) {
+    if (canMove(cop.r, cop.c, d)) {
+      available.push(d);
+    }
+  }
+
+  if (available.length === 0) return;
+
+  // At intersections, choose direction toward player (with some randomness)
+  const nonReverse = available.filter(d => d !== reverse);
+  const choices = nonReverse.length > 0 ? nonReverse : available;
+
+  if (choices.length === 1) {
+    cop.dir = choices[0];
+  } else {
+    // Score each direction by distance to player
+    let bestDir = choices[0];
+    let bestScore = Infinity;
+
+    for (const d of choices) {
+      const nr = cop.r + DY[d];
+      const nc = cop.c + DX[d];
+      const pr = player.r;
+      const pc = player.c;
+      const dist = Math.abs(nr - pr) + Math.abs(nc - pc);
+
+      // Chase: prefer directions that reduce distance
+      // Add some randomness for variety
+      const sc = dist + (Math.random() * 3 - 1);
+      if (sc < bestScore) {
+        bestScore = sc;
+        bestDir = d;
+      }
+    }
+
+    cop.dir = bestDir;
+  }
+
+  // Move to next cell
+  if (canMove(cop.r, cop.c, cop.dir)) {
+    cop.r += DY[cop.dir];
+    cop.c += DX[cop.dir];
+  }
+}
+
+// --- UPDATE ---
+function update() {
+  if (infoOpen) return;
+  if (gameOver) { if (keys['KeyR']) initGame(); return; }
+  if (levelComplete) {
+    levelTimer++;
+    if (levelTimer > 120) {
+      level++;
+      initLevel();
+    }
+    return;
+  }
+  frame++;
+
+  // --- Player input ---
+  if (keys['ArrowRight']) player.nextDir = 0;
+  if (keys['ArrowDown']) player.nextDir = 1;
+  if (keys['ArrowLeft']) player.nextDir = 2;
+  if (keys['ArrowUp']) player.nextDir = 3;
+
+  // Move player
+  moveEntity(player, true);
+
+  // Animate mouth
+  player.mouth = (player.mouth + 0.12) % (Math.PI * 2);
+
+  // Collect coins
+  for (const coin of coins) {
+    if (!coin.collected && coin.r === player.r && coin.c === player.c) {
+      // Also check pixel proximity
+      const cp = gridToPixel(coin.r, coin.c);
+      const dx = player.x - cp.x, dy = player.y - cp.y;
+      if (dx * dx + dy * dy < TILE * TILE * 0.5) {
+        coin.collected = true;
+        score += 10;
+      }
+    }
+  }
+
+  // Check level complete
+  const remaining = coins.filter(c => !c.collected).length;
+  if (remaining === 0) {
+    levelComplete = true;
+    levelTimer = 0;
+    score += 500 * level;
+    return;
+  }
+
+  // --- Door placement ---
+  if (keys['Space']) {
+    keys['Space'] = false; // consume input
+    if (doorCharges > 0) {
+      // Place door behind player (opposite of movement direction)
+      const behindDir = (player.dir + 2) % 4;
+      const dr = player.r + DY[behindDir];
+      const dc = player.c + DX[behindDir];
+
+      // Can only place doors at door-slot positions (gaps in wall rows)
+      if (!isWallNoDoors(dr, dc) && !doors.some(d => d.r === dr && d.c === dc)) {
+        // Verify it's a valid door slot location
+        const isSlot = doorSlots.some(s => s.r === dr && s.c === dc);
+        // Also allow placing on wall-row gaps near the player
+        const wallRows = [2, 4, 6, 8, 10, 12, 14, 16];
+        const onWallRow = wallRows.includes(dr);
+
+        if (isSlot || onWallRow) {
+          // Don't place on player's current cell
+          if (dr !== player.r || dc !== player.c) {
+            // Don't trap police on their exact cell
+            let policeOnCell = police.some(p => p.r === dr && p.c === dc);
+            if (!policeOnCell) {
+              doors.push({ r: dr, c: dc, timer: doorDuration });
+              doorCharges--;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Update doors
+  for (let i = doors.length - 1; i >= 0; i--) {
+    doors[i].timer--;
+    if (doors[i].timer <= 0) {
+      doors.splice(i, 1);
+      doorCharges = Math.min(doorCharges + 1, maxDoorCharges);
+    }
+  }
+
+  // Door recharge
+  doorRechargeTimer++;
+  if (doorRechargeTimer >= 300 && doorCharges < maxDoorCharges) {
+    doorCharges++;
+    doorRechargeTimer = 0;
+  }
+
+  // --- Police movement ---
+  for (const cop of police) {
+    if (!cop.released) {
+      cop.releaseTimer--;
+      if (cop.releaseTimer <= 0) cop.released = true;
+      continue;
+    }
+    policeAI(cop);
+
+    // Check collision with player
+    const dx = cop.x - player.x;
+    const dy = cop.y - player.y;
+    if (dx * dx + dy * dy < (TILE * 0.6) * (TILE * 0.6)) {
+      die();
+      return;
+    }
+  }
+
+  // --- Treasure ---
+  treasureTimer--;
+  if (treasureTimer <= 0 && !treasureActive) {
+    // Spawn treasure at a random path cell near center
+    const cr = Math.floor(ROWS / 2);
+    const cc = Math.floor(COLS / 2);
+    // Find nearest path cell
+    for (let rd = 0; rd < 4; rd++) {
+      for (let cd = -2; cd <= 2; cd++) {
+        const tr = cr + rd, tc = cc + cd;
+        if (tr > 0 && tr < ROWS - 1 && tc > 0 && tc < COLS - 1 && !isWallNoDoors(tr, tc)) {
+          treasure = { r: tr, c: tc, type: Math.floor(Math.random() * 3), timer: 480 };
+          treasureActive = true;
+          rd = 99; // break outer
+          break;
+        }
+      }
+    }
+    treasureTimer = 900 + Math.floor(Math.random() * 600);
+  }
+
+  if (treasureActive && treasure) {
+    treasure.timer--;
+    if (treasure.timer <= 0) {
+      treasureActive = false;
+      treasure = null;
+    } else if (player.r === treasure.r && player.c === treasure.c) {
+      const cp = gridToPixel(treasure.r, treasure.c);
+      const dx = player.x - cp.x, dy = player.y - cp.y;
+      if (dx * dx + dy * dy < TILE * TILE * 0.5) {
+        const values = [200, 500, 1000];
+        score += values[treasure.type];
+        flashTimer = 30;
+        treasureActive = false;
+        treasure = null;
+      }
+    }
+  }
+
+  // Restart
+  if (keys['KeyR']) { initGame(); }
+}
+
+function die() {
+  lives--;
+  if (lives <= 0) {
+    gameOver = true;
+  } else {
+    // Reset positions but keep coins and level
+    player.r = ROWS - 2; player.c = 12;
+    player.x = OX + 12 * TILE + TILE / 2;
+    player.y = OY + (ROWS - 2) * TILE + TILE / 2;
+    player.dir = 0; player.nextDir = -1;
+
+    const policeStarts = [
+      { r: 1, c: 1 },
+      { r: 1, c: COLS - 2 },
+      { r: 1, c: Math.floor(COLS / 2) },
+      { r: 5, c: Math.floor(COLS / 2) }
+    ];
+    for (let i = 0; i < police.length; i++) {
+      police[i].r = policeStarts[i].r;
+      police[i].c = policeStarts[i].c;
+      police[i].x = OX + policeStarts[i].c * TILE + TILE / 2;
+      police[i].y = OY + policeStarts[i].r * TILE + TILE / 2;
+      police[i].dir = 1;
+      police[i].released = i === 0;
+      police[i].releaseTimer = i * 180 + 120;
+    }
+
+    doors = [];
+    doorCharges = maxDoorCharges;
+  }
+}
+
+// --- DRAW ---
+function draw() {
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, H);
+
+  // Draw maze
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const x = OX + c * TILE;
+      const y = OY + r * TILE;
+      if (maze[r][c] === 1) {
+        ctx.fillStyle = '#236';
+        ctx.fillRect(x, y, TILE, TILE);
+        // Wall highlight
+        ctx.fillStyle = '#2a4a6a';
+        ctx.fillRect(x, y, TILE, 2);
+        ctx.fillRect(x, y, 2, TILE);
+      }
+    }
+  }
+
+  // Draw coins
+  ctx.fillStyle = '#ff0';
+  for (const coin of coins) {
+    if (coin.collected) continue;
+    const cp = gridToPixel(coin.r, coin.c);
+    ctx.beginPath();
+    ctx.arc(cp.x, cp.y, 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Draw treasure
+  if (treasureActive && treasure) {
+    const tp = gridToPixel(treasure.r, treasure.c);
+    const flash = treasure.timer < 120 && Math.floor(treasure.timer / 8) % 2;
+    if (!flash) {
+      const colors = ['#f80', '#4f4', '#f4f'];
+      const symbols = ['$', 'G', 'D'];
+      ctx.fillStyle = colors[treasure.type];
+      ctx.font = 'bold 20px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(symbols[treasure.type], tp.x, tp.y);
+    }
+  }
+
+  // Draw doors
+  for (const d of doors) {
+    const x = OX + d.c * TILE;
+    const y = OY + d.r * TILE;
+    const fade = d.timer < 60 ? d.timer / 60 : 1;
+    ctx.fillStyle = `rgba(255, 170, 0, ${fade * 0.9})`;
+    ctx.fillRect(x + 2, y + 2, TILE - 4, TILE - 4);
+    // Door bars
+    ctx.strokeStyle = `rgba(200, 120, 0, ${fade})`;
+    ctx.lineWidth = 2;
+    for (let b = 0; b < 3; b++) {
+      const bx = x + 6 + b * 8;
+      ctx.beginPath();
+      ctx.moveTo(bx, y + 3);
+      ctx.lineTo(bx, y + TILE - 3);
+      ctx.stroke();
+    }
+  }
+
+  // Draw player — thief character
+  const px = player.x, py = player.y;
+  // Body
+  ctx.fillStyle = '#ff0';
+  ctx.beginPath();
+  ctx.arc(px, py, TILE * 0.38, 0, Math.PI * 2);
+  ctx.fill();
+  // Hat (flat cap)
+  ctx.fillStyle = '#a80';
+  ctx.fillRect(px - 10, py - 14, 20, 6);
+  ctx.fillRect(px - 7, py - 17, 14, 5);
+  // Eye
+  const eyeOff = DX[player.dir] * 3;
+  const eyeOffy = DY[player.dir] * 2;
+  ctx.fillStyle = '#000';
+  ctx.beginPath();
+  ctx.arc(px + eyeOff, py - 2 + eyeOffy, 2, 0, Math.PI * 2);
+  ctx.fill();
+  // Mask (over eyes)
+  ctx.fillStyle = '#222';
+  ctx.fillRect(px - 8, py - 6, 16, 4);
+
+  // Draw police
+  for (const cop of police) {
+    if (!cop.released) continue;
+    const cx = cop.x, cy = cop.y;
+    // Body
+    ctx.fillStyle = cop.color;
+    ctx.beginPath();
+    ctx.arc(cx, cy + 2, TILE * 0.35, 0, Math.PI * 2);
+    ctx.fill();
+    // Hat
+    ctx.fillStyle = '#226';
+    ctx.fillRect(cx - 8, cy - 13, 16, 8);
+    ctx.fillRect(cx - 5, cy - 16, 10, 4);
+    // Badge
+    ctx.fillStyle = '#ff0';
+    ctx.beginPath();
+    ctx.arc(cx, cy + 2, 3, 0, Math.PI * 2);
+    ctx.fill();
+    // Eyes
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(cx - 3, cy - 2, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(cx + 3, cy - 2, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.arc(cx - 3, cy - 2, 1.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(cx + 3, cy - 2, 1.2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Flash effect for treasure pickup
+  if (flashTimer > 0) {
+    flashTimer--;
+    ctx.fillStyle = `rgba(255,255,255,${flashTimer / 60})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // HUD background
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0, 0, W, 36);
+  ctx.fillRect(0, OY + ROWS * TILE + 4, W, H - OY - ROWS * TILE - 4);
+
+  // HUD text
+  ctx.fillStyle = '#4f4';
+  ctx.font = '16px monospace';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText('SCORE: ' + score, 10, 10);
+
+  ctx.textAlign = 'center';
+  ctx.fillText('LEVEL ' + level, W / 2, 10);
+
+  ctx.textAlign = 'right';
+  ctx.fillText('LIVES: ' + lives, W - 10, 10);
+
+  // Door charges display
+  const hudY = OY + ROWS * TILE + 12;
+  ctx.fillStyle = '#fa0';
+  ctx.font = '14px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('DOORS: ', 10, hudY);
+  for (let i = 0; i < maxDoorCharges; i++) {
+    ctx.fillStyle = i < doorCharges ? '#fa0' : '#333';
+    ctx.fillRect(80 + i * 22, hudY, 16, 14);
+    ctx.strokeStyle = '#a60';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(80 + i * 22, hudY, 16, 14);
+  }
+
+  // Coins remaining
+  const coinsLeft = coins.filter(c => !c.collected).length;
+  ctx.fillStyle = '#ff0';
+  ctx.font = '14px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('COINS: ' + coinsLeft + '/' + totalCoins, W / 2, hudY);
+
+  // Controls hint
+  ctx.fillStyle = '#555';
+  ctx.font = '12px monospace';
+  ctx.textAlign = 'right';
+  ctx.fillText('SPACE: place door | ?: info', W - 10, hudY + 2);
+
+  // Level complete overlay
+  if (levelComplete) {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.font = 'bold 40px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#4f4';
+    ctx.fillText('LEVEL ' + level + ' COMPLETE!', W / 2, H / 2 - 20);
+    ctx.fillStyle = '#ff0';
+    ctx.font = '20px monospace';
+    ctx.fillText('BONUS: ' + (500 * level) + ' pts', W / 2, H / 2 + 20);
+  }
+
+  // Game over overlay
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.font = 'bold 48px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#f55';
+    ctx.fillText('GAME OVER', W / 2, H / 2 - 20);
+    ctx.fillStyle = '#aaa';
+    ctx.font = '18px monospace';
+    ctx.fillText('R to restart   SCORE: ' + score, W / 2, H / 2 + 24);
+  }
+
+  // Title badge
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(8, 8, 290, 22);
+  ctx.fillStyle = '#555';
+  ctx.font = '13px monospace';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText('MAZ-007 \u00b7 LOCK \'N\' CHASE  [?]', 16, 12);
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+initGame();
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

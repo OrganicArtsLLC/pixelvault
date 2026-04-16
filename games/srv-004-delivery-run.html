@@ -1,0 +1,1280 @@
+<!--
+PROTOTYPE: delivery-run
+SERIES: srv
+NUMBER: 004
+DATE: 2026-03-22
+MECHANIC: deliver papers to houses while dodging obstacles on bicycle
+ANCESTRY: Paperboy (1985, Atari Games)
+CONTROLS: ↑ ↓ — change lane | ← → — speed | Space — throw paper | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — multi-objective gameplay, procedural obstacle placement)
+AI-INSIGHT: Paperboy is a multi-objective optimization problem — the player simultaneously maximizes deliveries (accuracy), minimizes damage (avoidance), and manages limited resources (papers). The subscription mechanic adds a meta-game where current performance affects future difficulty, creating a feedback loop between skill and challenge.
+NOTES: Delivering papers IS the game — the obstacles are secondary to the service.
+       Subscription loss as consequence creates stakes beyond score.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SRV-004 · DELIVERY RUN</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #1a3a1a; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.65; }
+#info-panel h1 { color: #4af; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #1a2a3a; color: #4af; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SRV-004 · DELIVERY RUN</h1>
+    <p><span class="tag series">SRV — Service / Dispatch</span> <span class="tag">Prototype #004</span> <span class="tag">★★★★☆</span></p>
+
+    <h2>How to Play</h2>
+    <p>You're a paperboy on a bicycle. Deliver newspapers to subscriber houses (blue) while dodging obstacles on the street. Miss a subscriber and they cancel. Survive 7 days to complete your route.</p>
+    <ul>
+      <li><kbd>↑</kbd> <kbd>↓</kbd> — Change lane (sidewalk, road, far sidewalk)</li>
+      <li><kbd>←</kbd> <kbd>→</kbd> — Slow down / speed up</li>
+      <li><kbd>Space</kbd> — Throw newspaper</li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Aim for mailboxes:</strong> Throw from the middle lane for the best arc to subscriber mailboxes.</li>
+      <li><strong>Conserve papers:</strong> You only get a few extras each day — don't waste them.</li>
+      <li><strong>Watch subscriptions:</strong> Every missed subscriber cancels — fewer targets means fewer points tomorrow.</li>
+      <li><strong>Speed control:</strong> Slow down near clusters of houses, speed up through empty stretches.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Paperboy (1985, Atari Games)</p>
+    <p>Paperboy (1985) was designed by John Salwitz and Dave Ralston at Atari Games. It used a unique handlebar controller and an isometric perspective that was technically ambitious for its era. The game was one of the first to simulate a mundane real-world job — newspaper delivery — and turn it into compelling gameplay.</p>
+    <p>The subscription mechanic was revolutionary: your performance directly affected tomorrow's difficulty. Miss a house, lose a subscriber, have fewer targets and less reason to take risks. It created a natural difficulty curve driven by the player's own performance — a feedback loop that modern roguelikes would rediscover decades later.</p>
+    <p>The game's suburban setting was deliberately ordinary. No aliens, no dungeons — just a kid on a bike, dodging dogs and cars, trying to hit mailboxes. The mundanity was the point.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 3 — Knowledge Explosion (1980–1997)</p>
+    <p><strong>Contemporary AI:</strong> In 1985, expert systems were at their peak. MYCIN diagnosed diseases, R1/XCON configured computers. But no AI system could handle the multi-objective real-time optimization that Paperboy demands — simultaneously tracking delivery targets, obstacle avoidance, resource management, and route planning.</p>
+    <p><strong>Hidden Intelligence:</strong> Paperboy is a multi-objective optimization problem disguised as a newspaper delivery game. The player must: (1) maximize deliveries (accuracy), (2) minimize collisions (survival), (3) manage limited resources (paper count), and (4) maintain the subscriber base (meta-game). These four objectives conflict — taking risks to deliver increases collision probability.</p>
+    <p><strong>The Feedback Loop:</strong> The subscription mechanic creates what control theory calls a "closed-loop system" — output (delivery performance) feeds back into input (subscriber count), which affects future output (available targets). Poor performance compounds; excellence stabilizes. This is the same dynamic that governs customer retention in SaaS businesses.</p>
+    <p><strong>If AI Had Designed This:</strong> A 1985 expert system could have added route preview — showing upcoming houses and obstacles — giving the player planning horizon. The original game's charm was in its immediacy: react, throw, dodge, repeat.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: SRV — Service / Dispatch</h3>
+    <p>Games where the player manages delivery or dispatch across multiple simultaneous channels. The core tension: serve the right targets while surviving the environment.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Side-scrolling delivery with resource management.</strong> Auto-scrolling street, 3 lanes, throw papers at subscriber mailboxes, dodge obstacles. Subscription loss creates a performance feedback loop.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Does the throw-and-deliver arc feel satisfying?</li>
+      <li>Is the subscription loss mechanic motivating or punishing?</li>
+      <li>Does the 7-day structure create a sense of progression?</li>
+      <li>Do obstacle patterns feel fair and readable?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Side-scrolling delivery with 3 lanes, procedural house and obstacle placement, subscription tracking across 7 days, paper arc physics. Simplified from the original's isometric view to a cleaner side-scroll perspective.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// ─── INFO PANEL ────────────────────────────────────────────────
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+// ─── CANVAS SETUP ──────────────────────────────────────────────
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.97;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+// ─── INPUT ─────────────────────────────────────────────────────
+const keys = {};
+const pressed = {};
+window.addEventListener('keydown', e => {
+  if (infoOpen) return;
+  if (!keys[e.code]) pressed[e.code] = true;
+  keys[e.code] = true;
+  e.preventDefault();
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+function pop(code) { const v = pressed[code]; pressed[code] = false; return !!v; }
+
+// ─── HELPERS ───────────────────────────────────────────────────
+function rand(a, b) { return a + Math.random() * (b - a); }
+function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+function randInt(a, b) { return Math.floor(rand(a, b + 1)); }
+
+// ─── CONSTANTS ─────────────────────────────────────────────────
+const LANE_Y = [200, 340, 480];  // top sidewalk, road, bottom sidewalk
+const LANE_NAMES = ['Sidewalk', 'Road', 'Far Side'];
+const HOUSE_Y = 40;              // houses along the top
+const MAILBOX_Y = 155;           // mailbox position (just below houses)
+const SCROLL_BASE = 2.0;
+const PLAYER_X = 120;
+const THROW_COOLDOWN = 20;
+const DAY_LENGTH = 900;          // frames per day (~15 seconds at 60fps)
+const TOTAL_DAYS = 7;
+
+// ─── PERSISTENT ────────────────────────────────────────────────
+let hiScore = 0;
+try { hiScore = +(localStorage.getItem('pv_pb_hi') || 0); } catch(e) {}
+
+// ─── GAME PHASE STATE MACHINE ──────────────────────────────────
+// phase: 'title' | 'playing' | 'day_end' | 'gameover' | 'victory'
+let phase = 'title';
+let titleAnim = 0;
+
+// ─── GAME STATE ────────────────────────────────────────────────
+let playerLane, playerY, lives, score, day;
+let papers, papersMax;
+let scrollSpeed, scrollX, dayTimer;
+let houses, obstacles, thrownPapers, particles;
+let throwCooldown;
+let subscribers, totalHouses;
+let deliveredToday, missedToday;
+let dayEndTimer;
+let speedBoost;
+
+// ─── HOUSE GENERATION ──────────────────────────────────────────
+function generateHouses(dayNum) {
+  const houseList = [];
+  // Place houses along the route
+  const numHouses = 10 + Math.min(dayNum, 4) * 2;  // 10-18 houses
+  totalHouses = numHouses;
+  const spacing = DAY_LENGTH * (SCROLL_BASE + 0.5) / numHouses;
+  for (let i = 0; i < numHouses; i++) {
+    const isSubscriber = i < subscribers;
+    const houseW = randInt(70, 110);
+    const houseH = randInt(50, 70);
+    houseList.push({
+      x: 300 + i * spacing + rand(-20, 20),
+      w: houseW,
+      h: houseH,
+      subscriber: isSubscriber,
+      delivered: false,
+      missed: false,
+      roofColor: isSubscriber ? '#3366aa' : '#884444',
+      wallColor: isSubscriber ? '#5588cc' : '#aa6666',
+      hasMailbox: isSubscriber,
+      mailboxHit: false,
+      windowBroken: false,
+    });
+  }
+  return houseList;
+}
+
+// ─── OBSTACLE GENERATION ───────────────────────────────────────
+function generateObstacles(dayNum) {
+  const obsList = [];
+  const numObs = 8 + dayNum * 3;  // more obstacles each day
+  const routeLen = DAY_LENGTH * (SCROLL_BASE + 0.5);
+  for (let i = 0; i < numObs; i++) {
+    const lane = randInt(0, 2);
+    const type = ['car', 'dog', 'pedestrian', 'skateboarder', 'trashcan'][randInt(0, 4)];
+    let speed = 0;
+    let w = 30, h = 20;
+    let color = '#888';
+    if (type === 'car') {
+      w = 60; h = 28; color = ['#cc3333', '#3333cc', '#33cc33', '#cccc33'][randInt(0, 3)];
+      speed = rand(-1.5, -0.5);  // cars move against scroll
+      lane === 1 || (speed = 0); // cars only move on road
+    } else if (type === 'dog') {
+      w = 24; h = 16; color = '#8B4513';
+      speed = rand(-0.3, 0.3);
+    } else if (type === 'pedestrian') {
+      w = 16; h = 30; color = '#DDA0DD';
+      speed = rand(-0.2, 0.2);
+    } else if (type === 'skateboarder') {
+      w = 20; h = 24; color = '#FF6347';
+      speed = rand(-1.0, -0.3);
+    } else if (type === 'trashcan') {
+      w = 22; h = 26; color = '#666';
+      speed = 0;
+    }
+    obsList.push({
+      x: 400 + rand(0, routeLen - 200),
+      lane,
+      type,
+      speed,
+      w, h, color,
+      anim: rand(0, 100),
+    });
+  }
+  return obsList;
+}
+
+// ─── START GAME ────────────────────────────────────────────────
+function startGame() {
+  playerLane = 1;
+  playerY = LANE_Y[1];
+  lives = 3;
+  score = 0;
+  day = 1;
+  subscribers = 10;
+  speedBoost = 0;
+  startDay();
+  phase = 'playing';
+}
+
+function startDay() {
+  scrollX = 0;
+  scrollSpeed = SCROLL_BASE;
+  dayTimer = 0;
+  throwCooldown = 0;
+  deliveredToday = 0;
+  missedToday = 0;
+  houses = generateHouses(day);
+  obstacles = generateObstacles(day);
+  thrownPapers = [];
+  particles = [];
+  // Papers: subscriber count + a few extra
+  papersMax = subscribers + 3 + Math.floor(day / 2);
+  papers = papersMax;
+}
+
+// ─── PARTICLES ─────────────────────────────────────────────────
+function addParticle(x, y, color, count) {
+  for (let i = 0; i < count; i++) {
+    const a = Math.random() * Math.PI * 2, spd = rand(1, 3.5);
+    particles.push({
+      x, y,
+      vx: Math.cos(a) * spd,
+      vy: Math.sin(a) * spd,
+      life: 30, maxLife: 30,
+      color,
+    });
+  }
+}
+
+function addTextParticle(x, y, text, color) {
+  particles.push({
+    x, y, vx: 0, vy: -1.2,
+    life: 60, maxLife: 60,
+    color, text,
+  });
+}
+
+// ─── LOSE LIFE ─────────────────────────────────────────────────
+function loseLife() {
+  lives--;
+  if (lives <= 0) {
+    lives = 0;
+    if (score > hiScore) { hiScore = score; try { localStorage.setItem('pv_pb_hi', hiScore); } catch(e) {}; }
+    phase = 'gameover';
+  }
+}
+
+// ─── UPDATE TITLE ──────────────────────────────────────────────
+function updateTitle() {
+  titleAnim++;
+  if (pop('Space') || pop('Enter')) startGame();
+}
+
+// ─── UPDATE PLAYING ────────────────────────────────────────────
+function updatePlaying() {
+  throwCooldown = Math.max(0, throwCooldown - 1);
+  dayTimer++;
+
+  // Speed control
+  if (keys['ArrowLeft'] || keys['KeyA']) {
+    speedBoost = Math.max(-1.0, speedBoost - 0.05);
+  } else if (keys['ArrowRight'] || keys['KeyD']) {
+    speedBoost = Math.min(2.0, speedBoost + 0.05);
+  } else {
+    speedBoost *= 0.95;  // ease back to normal
+  }
+  scrollSpeed = SCROLL_BASE + speedBoost;
+  if (scrollSpeed < 0.5) scrollSpeed = 0.5;
+
+  // Lane movement (smooth)
+  const targetY = LANE_Y[playerLane];
+  if (pop('ArrowUp') || pop('KeyW')) {
+    if (playerLane > 0) playerLane--;
+  }
+  if (pop('ArrowDown') || pop('KeyS')) {
+    if (playerLane < 2) playerLane++;
+  }
+  playerY += (LANE_Y[playerLane] - playerY) * 0.18;
+
+  // Scroll
+  scrollX += scrollSpeed;
+
+  // Throw paper
+  if (pop('Space') && throwCooldown === 0 && papers > 0) {
+    papers--;
+    throwCooldown = THROW_COOLDOWN;
+    thrownPapers.push({
+      x: PLAYER_X + 20,
+      y: playerY - 10,
+      vx: 4.5 + scrollSpeed * 0.3,
+      vy: -5.5,
+      active: true,
+      anim: 0,
+    });
+  }
+
+  // Update thrown papers
+  for (let i = thrownPapers.length - 1; i >= 0; i--) {
+    const p = thrownPapers[i];
+    if (!p.active) { thrownPapers.splice(i, 1); continue; }
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.22;  // gravity
+    p.anim++;
+
+    // Check mailbox collisions
+    for (const h of houses) {
+      if (h.mailboxHit || h.delivered) continue;
+      const hScreenX = h.x - scrollX;
+      const mailboxX = hScreenX + h.w / 2;
+      if (h.hasMailbox && Math.abs(p.x - mailboxX) < 25 && Math.abs(p.y - MAILBOX_Y) < 25) {
+        // Hit subscriber mailbox!
+        h.delivered = true;
+        h.mailboxHit = true;
+        p.active = false;
+        deliveredToday++;
+        const pts = 100;
+        score += pts;
+        addParticle(mailboxX, MAILBOX_Y, '#4af', 12);
+        addTextParticle(mailboxX, MAILBOX_Y - 20, '+100', '#4af');
+        break;
+      }
+      // Check window hit on non-subscriber (risky bonus)
+      if (!h.subscriber && !h.windowBroken) {
+        const winX = hScreenX + h.w / 2;
+        const winY = HOUSE_Y + h.h / 2;
+        if (Math.abs(p.x - winX) < 20 && Math.abs(p.y - winY) < 20) {
+          h.windowBroken = true;
+          p.active = false;
+          const pts = 50;
+          score += pts;
+          addParticle(winX, winY, '#ff4', 8);
+          addTextParticle(winX, winY - 20, '+50 WINDOW!', '#ff4');
+          break;
+        }
+      }
+    }
+
+    // Paper hit ground or off screen
+    if (p.y > H + 10 || p.x > W + 50) {
+      p.active = false;
+    }
+  }
+
+  // Check for missed subscribers (house scrolled past player)
+  for (const h of houses) {
+    if (h.subscriber && !h.delivered && !h.missed) {
+      const hScreenX = h.x - scrollX;
+      if (hScreenX + h.w < -50) {
+        h.missed = true;
+        missedToday++;
+      }
+    }
+  }
+
+  // Check obstacle collisions
+  for (let i = obstacles.length - 1; i >= 0; i--) {
+    const o = obstacles[i];
+    o.anim += 0.1;
+    o.x += o.speed;  // some obstacles move
+    const oScreenX = o.x - scrollX;
+    const oScreenY = LANE_Y[o.lane];
+    // Collision with player
+    if (Math.abs(PLAYER_X - oScreenX) < (o.w / 2 + 12) &&
+        Math.abs(playerY - oScreenY) < (o.h / 2 + 12)) {
+      addParticle(PLAYER_X, playerY, '#f44', 14);
+      addTextParticle(PLAYER_X, playerY - 30, 'CRASH!', '#f44');
+      obstacles.splice(i, 1);
+      loseLife();
+      if (phase !== 'playing') return;
+      // Brief invincibility — push player back
+      scrollX -= 40;
+      continue;
+    }
+  }
+
+  // Update particles
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx; p.y += p.vy;
+    if (!p.text) p.vy += 0.08;
+    p.life--;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+
+  // Day end check
+  if (dayTimer >= DAY_LENGTH) {
+    endDay();
+  }
+}
+
+// ─── END DAY ───────────────────────────────────────────────────
+function endDay() {
+  // Count missed subscribers
+  for (const h of houses) {
+    if (h.subscriber && !h.delivered && !h.missed) {
+      h.missed = true;
+      missedToday++;
+    }
+  }
+  // Lose subscribers who were missed
+  subscribers = Math.max(1, subscribers - missedToday);
+  // Perfect delivery bonus
+  if (missedToday === 0 && deliveredToday > 0) {
+    const bonus = 200 * day;
+    score += bonus;
+  }
+  dayEndTimer = 180;  // 3 seconds
+  phase = 'day_end';
+}
+
+// ─── UPDATE DAY END ────────────────────────────────────────────
+function updateDayEnd() {
+  dayEndTimer--;
+  if (dayEndTimer <= 0) {
+    if (day >= TOTAL_DAYS) {
+      // Victory!
+      if (score > hiScore) { hiScore = score; try { localStorage.setItem('pv_pb_hi', hiScore); } catch(e) {}; }
+      phase = 'victory';
+    } else {
+      day++;
+      startDay();
+      phase = 'playing';
+    }
+  }
+}
+
+// ─── MASTER UPDATE ─────────────────────────────────────────────
+function update() {
+  if (infoOpen) return;
+  if (phase === 'title')    { updateTitle(); return; }
+  if (phase === 'gameover') { if (pop('KeyR')) startGame(); return; }
+  if (phase === 'victory')  { if (pop('KeyR')) startGame(); return; }
+  if (phase === 'day_end')  { updateDayEnd(); return; }
+  if (phase === 'playing')  { updatePlaying(); }
+}
+
+// ─── DRAW HELPERS ──────────────────────────────────────────────
+
+function drawSky() {
+  // Sky gradient
+  const grad = ctx.createLinearGradient(0, 0, 0, 180);
+  grad.addColorStop(0, '#4488cc');
+  grad.addColorStop(1, '#88bbee');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, 180);
+}
+
+function drawGround() {
+  // Top lawn (where houses are)
+  ctx.fillStyle = '#3a8a3a';
+  ctx.fillRect(0, 130, W, 90);
+
+  // Top sidewalk
+  ctx.fillStyle = '#aaa';
+  ctx.fillRect(0, LANE_Y[0] - 25, W, 50);
+  // Sidewalk lines
+  ctx.strokeStyle = '#999';
+  ctx.lineWidth = 1;
+  for (let x = -((scrollX * 0.8) % 40); x < W; x += 40) {
+    ctx.beginPath(); ctx.moveTo(x, LANE_Y[0] - 25); ctx.lineTo(x, LANE_Y[0] + 25); ctx.stroke();
+  }
+
+  // Road
+  ctx.fillStyle = '#444';
+  ctx.fillRect(0, LANE_Y[1] - 50, W, 100);
+  // Road center line
+  ctx.strokeStyle = '#cc0';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([20, 15]);
+  ctx.beginPath();
+  const lineOffset = -(scrollX % 35);
+  ctx.moveTo(lineOffset, LANE_Y[1]);
+  ctx.lineTo(W, LANE_Y[1]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  // Road edges
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(0, LANE_Y[1] - 50); ctx.lineTo(W, LANE_Y[1] - 50); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, LANE_Y[1] + 50); ctx.lineTo(W, LANE_Y[1] + 50); ctx.stroke();
+
+  // Bottom sidewalk
+  ctx.fillStyle = '#aaa';
+  ctx.fillRect(0, LANE_Y[2] - 25, W, 50);
+  ctx.strokeStyle = '#999';
+  ctx.lineWidth = 1;
+  for (let x = -((scrollX * 0.8) % 40); x < W; x += 40) {
+    ctx.beginPath(); ctx.moveTo(x, LANE_Y[2] - 25); ctx.lineTo(x, LANE_Y[2] + 25); ctx.stroke();
+  }
+
+  // Bottom lawn
+  ctx.fillStyle = '#3a8a3a';
+  ctx.fillRect(0, LANE_Y[2] + 25, W, H - LANE_Y[2] - 25);
+
+  // Grass detail
+  ctx.fillStyle = '#2d7a2d';
+  for (let x = -((scrollX * 0.5) % 20); x < W; x += 20) {
+    ctx.fillRect(x, LANE_Y[2] + 30, 2, 6);
+    ctx.fillRect(x + 7, LANE_Y[2] + 33, 2, 5);
+    ctx.fillRect(x, 135, 2, 5);
+    ctx.fillRect(x + 9, 138, 2, 4);
+  }
+}
+
+function drawHouse(h) {
+  const sx = h.x - scrollX;
+  if (sx < -150 || sx > W + 50) return;
+
+  const bx = sx, by = HOUSE_Y, bw = h.w, bh = h.h;
+
+  // Wall
+  ctx.fillStyle = h.wallColor;
+  ctx.fillRect(bx, by + 20, bw, bh);
+
+  // Roof (triangle)
+  ctx.fillStyle = h.roofColor;
+  ctx.beginPath();
+  ctx.moveTo(bx - 8, by + 22);
+  ctx.lineTo(bx + bw / 2, by - 5);
+  ctx.lineTo(bx + bw + 8, by + 22);
+  ctx.closePath();
+  ctx.fill();
+
+  // Door
+  ctx.fillStyle = '#553311';
+  ctx.fillRect(bx + bw / 2 - 8, by + bh - 5, 16, 25);
+  // Doorknob
+  ctx.fillStyle = '#cc0';
+  ctx.beginPath(); ctx.arc(bx + bw / 2 + 4, by + bh + 10, 2, 0, Math.PI * 2); ctx.fill();
+
+  // Windows
+  const winColor = h.windowBroken ? '#886622' : '#aaddff';
+  ctx.fillStyle = winColor;
+  ctx.fillRect(bx + 10, by + 30, 14, 12);
+  ctx.fillRect(bx + bw - 24, by + 30, 14, 12);
+  // Window cross
+  ctx.strokeStyle = h.windowBroken ? '#664400' : '#88aacc';
+  ctx.lineWidth = 1;
+  [bx + 10, bx + bw - 24].forEach(wx => {
+    ctx.beginPath(); ctx.moveTo(wx + 7, by + 30); ctx.lineTo(wx + 7, by + 42); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(wx, by + 36); ctx.lineTo(wx + 14, by + 36); ctx.stroke();
+  });
+
+  if (h.windowBroken) {
+    // Crack lines
+    ctx.strokeStyle = '#aa8833';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(bx + bw / 2, by + 30);
+    ctx.lineTo(bx + bw / 2 + 5, by + 36);
+    ctx.lineTo(bx + bw / 2 - 3, by + 40);
+    ctx.stroke();
+  }
+
+  // Mailbox (only for subscribers)
+  if (h.hasMailbox) {
+    const mbx = bx + bw / 2;
+    const mby = MAILBOX_Y;
+    // Post
+    ctx.fillStyle = '#555';
+    ctx.fillRect(mbx - 2, mby, 4, 25);
+    // Box
+    ctx.fillStyle = h.mailboxHit ? '#2ecc71' : '#336';
+    ctx.fillRect(mbx - 10, mby - 10, 20, 15);
+    // Flag
+    ctx.fillStyle = h.delivered ? '#2ecc71' : '#e44';
+    ctx.fillRect(mbx + 10, mby - 12, 3, 10);
+    ctx.fillRect(mbx + 10, mby - 12, 8, 5);
+  }
+
+  // Subscriber indicator
+  if (h.subscriber) {
+    ctx.fillStyle = h.delivered ? '#2ecc71' : (h.missed ? '#e44' : '#4af');
+    ctx.font = 'bold 10px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(h.delivered ? 'DELIVERED' : (h.missed ? 'MISSED' : 'SUBSCRIBER'), bx + bw / 2, by - 10);
+    ctx.textAlign = 'left';
+  }
+}
+
+function drawObstacle(o) {
+  const sx = o.x - scrollX;
+  if (sx < -80 || sx > W + 80) return;
+  const sy = LANE_Y[o.lane];
+
+  ctx.save();
+  if (o.type === 'car') {
+    // Car body
+    ctx.fillStyle = o.color;
+    ctx.fillRect(sx - o.w / 2, sy - o.h / 2, o.w, o.h);
+    // Windshield
+    ctx.fillStyle = '#aaddff';
+    ctx.fillRect(sx - o.w / 2 + 5, sy - o.h / 2 + 3, 12, o.h - 6);
+    // Wheels
+    ctx.fillStyle = '#222';
+    ctx.fillRect(sx - o.w / 2 + 5, sy + o.h / 2 - 4, 10, 6);
+    ctx.fillRect(sx + o.w / 2 - 15, sy + o.h / 2 - 4, 10, 6);
+    // Roof highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.fillRect(sx - o.w / 2 + 2, sy - o.h / 2 + 1, o.w - 4, 4);
+  } else if (o.type === 'dog') {
+    // Dog body
+    const bob = Math.sin(o.anim * 3) * 2;
+    ctx.fillStyle = o.color;
+    ctx.fillRect(sx - 12, sy - 8 + bob, 24, 14);
+    // Head
+    ctx.fillRect(sx + 10, sy - 14 + bob, 10, 12);
+    // Tail
+    ctx.fillRect(sx - 14, sy - 12 + bob, 4, 8);
+    // Legs
+    ctx.fillStyle = '#6B3410';
+    const legOff = Math.sin(o.anim * 5) * 3;
+    ctx.fillRect(sx - 8, sy + 6 + bob, 4, 6 + legOff);
+    ctx.fillRect(sx + 6, sy + 6 + bob, 4, 6 - legOff);
+    // Eye
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(sx + 14, sy - 12 + bob, 3, 3);
+  } else if (o.type === 'pedestrian') {
+    const bob = Math.sin(o.anim * 2.5) * 2;
+    // Body
+    ctx.fillStyle = o.color;
+    ctx.fillRect(sx - 6, sy - 10 + bob, 12, 20);
+    // Head
+    ctx.beginPath(); ctx.arc(sx, sy - 16 + bob, 7, 0, Math.PI * 2);
+    ctx.fillStyle = '#f4c891'; ctx.fill();
+    // Legs
+    ctx.fillStyle = '#336';
+    const legPhase = Math.sin(o.anim * 3) * 3;
+    ctx.fillRect(sx - 4, sy + 10 + bob, 4, 8 + legPhase);
+    ctx.fillRect(sx + 1, sy + 10 + bob, 4, 8 - legPhase);
+  } else if (o.type === 'skateboarder') {
+    const bob = Math.sin(o.anim * 4) * 1.5;
+    // Board
+    ctx.fillStyle = '#8B4513';
+    ctx.fillRect(sx - 12, sy + 8, 24, 4);
+    // Wheels
+    ctx.fillStyle = '#333';
+    ctx.beginPath(); ctx.arc(sx - 8, sy + 14, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(sx + 8, sy + 14, 3, 0, Math.PI * 2); ctx.fill();
+    // Body
+    ctx.fillStyle = o.color;
+    ctx.fillRect(sx - 5, sy - 10 + bob, 10, 18);
+    // Head
+    ctx.beginPath(); ctx.arc(sx, sy - 16 + bob, 6, 0, Math.PI * 2);
+    ctx.fillStyle = '#f4c891'; ctx.fill();
+  } else if (o.type === 'trashcan') {
+    // Can
+    ctx.fillStyle = o.color;
+    ctx.fillRect(sx - 11, sy - 13, 22, 26);
+    // Lid
+    ctx.fillStyle = '#888';
+    ctx.fillRect(sx - 13, sy - 16, 26, 5);
+    // Handle
+    ctx.strokeStyle = '#888';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(sx, sy - 18, 5, Math.PI, 0); ctx.stroke();
+    // Ribs
+    ctx.strokeStyle = '#555';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(sx - 11, sy - 5); ctx.lineTo(sx + 11, sy - 5); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(sx - 11, sy + 5); ctx.lineTo(sx + 11, sy + 5); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawPlayer() {
+  const px = PLAYER_X;
+  const py = playerY;
+  const pedal = Math.sin(dayTimer * 0.15) * 4;
+
+  // Bicycle
+  // Wheels
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(px - 16, py + 14, 10, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(px + 16, py + 14, 10, 0, Math.PI * 2); ctx.stroke();
+  // Spokes
+  ctx.lineWidth = 1;
+  for (let a = 0; a < 4; a++) {
+    const angle = dayTimer * 0.15 + a * Math.PI / 2;
+    [-16, 16].forEach(wx => {
+      ctx.beginPath();
+      ctx.moveTo(px + wx, py + 14);
+      ctx.lineTo(px + wx + Math.cos(angle) * 9, py + 14 + Math.sin(angle) * 9);
+      ctx.stroke();
+    });
+  }
+  // Frame
+  ctx.strokeStyle = '#c33';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(px - 16, py + 14); // rear wheel
+  ctx.lineTo(px - 2, py - 2);   // seat post
+  ctx.lineTo(px + 16, py + 14); // front wheel
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(px - 2, py - 2);
+  ctx.lineTo(px + 8, py - 4);   // top tube
+  ctx.lineTo(px + 16, py + 14);
+  ctx.stroke();
+  // Handlebars
+  ctx.strokeStyle = '#666';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(px + 8, py - 4);
+  ctx.lineTo(px + 12, py - 12);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(px + 8, py - 12);
+  ctx.lineTo(px + 16, py - 12);
+  ctx.stroke();
+  // Seat
+  ctx.fillStyle = '#222';
+  ctx.fillRect(px - 6, py - 6, 10, 4);
+
+  // Rider
+  // Legs (pedaling)
+  ctx.strokeStyle = '#336';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(px - 2, py - 2);
+  ctx.lineTo(px - 2 + pedal, py + 10);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(px - 2, py - 2);
+  ctx.lineTo(px - 2 - pedal, py + 10);
+  ctx.stroke();
+
+  // Body
+  ctx.fillStyle = '#e44';
+  ctx.fillRect(px - 6, py - 22, 12, 18);
+
+  // Head
+  ctx.beginPath(); ctx.arc(px, py - 28, 8, 0, Math.PI * 2);
+  ctx.fillStyle = '#f4c891'; ctx.fill();
+
+  // Cap
+  ctx.fillStyle = '#336';
+  ctx.beginPath();
+  ctx.moveTo(px - 9, py - 30);
+  ctx.lineTo(px + 9, py - 30);
+  ctx.lineTo(px + 12, py - 33);
+  ctx.lineTo(px - 6, py - 36);
+  ctx.closePath();
+  ctx.fill();
+
+  // Arm throwing position
+  ctx.strokeStyle = '#f4c891';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(px + 4, py - 18);
+  ctx.lineTo(px + 14, py - 22);
+  ctx.stroke();
+
+  // Paper bag on back
+  ctx.fillStyle = '#c9956a';
+  ctx.fillRect(px - 14, py - 24, 10, 14);
+  ctx.fillStyle = '#fff';
+  ctx.font = '8px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(papers.toString(), px - 9, py - 14);
+  ctx.textAlign = 'left';
+}
+
+function drawThrownPaper(p) {
+  if (!p.active) return;
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  ctx.rotate(p.anim * 0.3);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(-5, -3, 10, 6);
+  // Fold line
+  ctx.strokeStyle = '#ccc';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(-5, 0); ctx.lineTo(5, 0); ctx.stroke();
+  ctx.restore();
+}
+
+function drawParticles() {
+  for (const p of particles) {
+    const alpha = p.life / p.maxLife;
+    ctx.globalAlpha = alpha;
+    if (p.text) {
+      ctx.fillStyle = p.color;
+      ctx.font = 'bold 14px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(p.text, p.x, p.y);
+      ctx.textAlign = 'left';
+    } else {
+      ctx.fillStyle = p.color;
+      ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawHUD() {
+  // Top bar
+  ctx.fillStyle = 'rgba(0,0,0,0.85)';
+  ctx.fillRect(0, 0, W, 36);
+
+  // Title badge
+  ctx.fillStyle = '#4af';
+  ctx.font = 'bold 13px monospace';
+  ctx.fillText('SRV-004 \u00B7 DELIVERY RUN  [?]', 10, 22);
+
+  // Score
+  ctx.fillStyle = '#fff';
+  ctx.font = '12px monospace';
+  ctx.fillText('SCORE: ' + score, 260, 22);
+
+  // Hi score
+  ctx.fillStyle = '#888';
+  ctx.fillText('HI: ' + hiScore, 370, 22);
+
+  // Day
+  ctx.fillStyle = '#f90';
+  ctx.fillText('DAY: ' + day + '/' + TOTAL_DAYS, 460, 22);
+
+  // Papers
+  ctx.fillStyle = '#fff';
+  ctx.fillText('PAPERS: ' + papers, 570, 22);
+
+  // Lives
+  ctx.fillStyle = '#ddd';
+  ctx.fillText('LIVES:', 680, 22);
+  for (let i = 0; i < lives; i++) {
+    ctx.fillStyle = '#e44';
+    ctx.beginPath(); ctx.arc(730 + i * 18, 18, 6, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // Bottom bar
+  ctx.fillStyle = 'rgba(0,0,0,0.75)';
+  ctx.fillRect(0, H - 30, W, 30);
+
+  // Subscribers
+  ctx.fillStyle = '#4af';
+  ctx.font = '11px monospace';
+  ctx.fillText('SUBSCRIBERS: ' + subscribers, 10, H - 10);
+
+  // Delivered today
+  ctx.fillStyle = '#2ecc71';
+  ctx.fillText('DELIVERED: ' + deliveredToday, 170, H - 10);
+
+  // Missed today
+  ctx.fillStyle = missedToday > 0 ? '#e44' : '#888';
+  ctx.fillText('MISSED: ' + missedToday, 310, H - 10);
+
+  // Day progress bar
+  const progW = 180;
+  const progX = W - progW - 20;
+  ctx.fillStyle = '#333';
+  ctx.fillRect(progX, H - 20, progW, 10);
+  ctx.fillStyle = '#4af';
+  ctx.fillRect(progX, H - 20, progW * Math.min(1, dayTimer / DAY_LENGTH), 10);
+  ctx.strokeStyle = '#555';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(progX, H - 20, progW, 10);
+
+  // Controls hint
+  ctx.fillStyle = '#555';
+  ctx.font = '10px monospace';
+  ctx.fillText('\u2191\u2193 LANE  \u2190\u2192 SPEED  SPACE THROW  ? INFO  R RESTART', 420, H - 10);
+}
+
+// ─── DRAW SCENES ───────────────────────────────────────────────
+
+function drawGameScene() {
+  // Clear entire canvas with grass green to avoid unfilled gaps
+  ctx.fillStyle = '#3a8a3a';
+  ctx.fillRect(0, 0, W, H);
+
+  drawSky();
+  drawGround();
+
+  // Draw houses
+  for (const h of houses) drawHouse(h);
+
+  // Draw obstacles
+  for (const o of obstacles) drawObstacle(o);
+
+  // Draw thrown papers
+  for (const p of thrownPapers) drawThrownPaper(p);
+
+  // Draw particles
+  drawParticles();
+
+  // Draw player
+  drawPlayer();
+
+  // HUD
+  drawHUD();
+}
+
+function drawTitle() {
+  // Sky background
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#2266aa');
+  grad.addColorStop(0.5, '#4488cc');
+  grad.addColorStop(1, '#3a8a3a');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Road
+  ctx.fillStyle = '#444';
+  ctx.fillRect(0, 300, W, 100);
+  ctx.strokeStyle = '#cc0';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([20, 15]);
+  const lineOff = -(titleAnim % 35);
+  ctx.beginPath(); ctx.moveTo(lineOff, 350); ctx.lineTo(W, 350); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Simple houses in background
+  for (let i = 0; i < 6; i++) {
+    const hx = 50 + i * 130;
+    ctx.fillStyle = i % 2 === 0 ? '#5588cc' : '#aa6666';
+    ctx.fillRect(hx, 200, 80, 60);
+    ctx.fillStyle = i % 2 === 0 ? '#3366aa' : '#884444';
+    ctx.beginPath();
+    ctx.moveTo(hx - 5, 202);
+    ctx.lineTo(hx + 40, 175);
+    ctx.lineTo(hx + 85, 202);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // Title panel
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(100, 60, 600, 480);
+  ctx.strokeStyle = '#4af';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(100, 60, 600, 480);
+
+  // Title
+  ctx.textAlign = 'center';
+  ctx.shadowColor = '#4af'; ctx.shadowBlur = 20;
+  ctx.fillStyle = '#4af';
+  ctx.font = 'bold 72px monospace';
+  ctx.fillText('DELIVERY RUN', W / 2, 160);
+  ctx.shadowBlur = 0;
+
+  ctx.fillStyle = '#aaa';
+  ctx.font = '14px monospace';
+  ctx.fillText('1985 \u00B7 Atari Games  \u2014  Pixel Vault SRV-004', W / 2, 195);
+
+  // Instructions
+  ctx.fillStyle = '#ccc';
+  ctx.font = '13px monospace';
+  const lines = [
+    '\u2191 / \u2193  \u2014  Change lane',
+    '\u2190 / \u2192  \u2014  Speed control',
+    'SPACE  \u2014  Throw newspaper',
+    '',
+    'Deliver papers to BLUE subscriber houses.',
+    'Hit the mailbox for +100 points.',
+    'Avoid obstacles on the road!',
+    '',
+    'Miss a subscriber = they CANCEL.',
+    'Survive 7 days to complete the route.',
+    '',
+    'Throw at NON-subscriber windows for +50 bonus!',
+  ];
+  lines.forEach((l, i) => ctx.fillText(l, W / 2, 240 + i * 24));
+
+  // Flashing start
+  if (Math.floor(titleAnim / 30) % 2 === 0) {
+    ctx.fillStyle = '#2ecc71';
+    ctx.font = 'bold 22px monospace';
+    ctx.fillText('PRESS SPACE TO START', W / 2, 520);
+  }
+
+  ctx.textAlign = 'left';
+}
+
+function drawDayEnd() {
+  drawGameScene();
+
+  // Overlay
+  const alpha = Math.min(0.85, (180 - dayEndTimer) / 30);
+  ctx.fillStyle = `rgba(0,0,0,${alpha})`;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.textAlign = 'center';
+
+  // Day complete
+  ctx.fillStyle = '#4af';
+  ctx.font = 'bold 42px monospace';
+  ctx.fillText('DAY ' + day + ' COMPLETE', W / 2, H / 2 - 80);
+
+  // Stats
+  ctx.fillStyle = '#fff';
+  ctx.font = '18px monospace';
+  ctx.fillText('Delivered: ' + deliveredToday + '  |  Missed: ' + missedToday, W / 2, H / 2 - 30);
+
+  // Subscription status
+  if (missedToday > 0) {
+    ctx.fillStyle = '#e44';
+    ctx.font = '16px monospace';
+    ctx.fillText(missedToday + ' subscriber' + (missedToday > 1 ? 's' : '') + ' CANCELLED!', W / 2, H / 2 + 10);
+  } else if (deliveredToday > 0) {
+    ctx.fillStyle = '#2ecc71';
+    ctx.font = 'bold 16px monospace';
+    ctx.fillText('PERFECT DELIVERY! +' + (200 * day) + ' BONUS', W / 2, H / 2 + 10);
+  }
+
+  ctx.fillStyle = '#aaa';
+  ctx.font = '14px monospace';
+  ctx.fillText('Remaining subscribers: ' + subscribers, W / 2, H / 2 + 50);
+
+  ctx.fillStyle = '#f90';
+  ctx.font = '16px monospace';
+  ctx.fillText('SCORE: ' + score, W / 2, H / 2 + 90);
+
+  if (day < TOTAL_DAYS) {
+    ctx.fillStyle = '#888';
+    ctx.font = '13px monospace';
+    ctx.fillText('Next day starting...', W / 2, H / 2 + 130);
+  }
+
+  ctx.textAlign = 'left';
+}
+
+function drawGameOver() {
+  drawGameScene();
+
+  ctx.fillStyle = 'rgba(0,0,0,0.85)';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.textAlign = 'center';
+
+  ctx.shadowColor = '#e44'; ctx.shadowBlur = 18;
+  ctx.fillStyle = '#e44';
+  ctx.font = 'bold 50px monospace';
+  ctx.fillText('ROUTE OVER!', W / 2, H / 2 - 60);
+  ctx.shadowBlur = 0;
+
+  ctx.fillStyle = '#fff';
+  ctx.font = '22px monospace';
+  ctx.fillText('FINAL SCORE: ' + score, W / 2, H / 2);
+
+  ctx.fillStyle = '#aaa';
+  ctx.font = '16px monospace';
+  ctx.fillText('Made it to Day ' + day + ' of ' + TOTAL_DAYS, W / 2, H / 2 + 35);
+
+  if (score >= hiScore && score > 0) {
+    ctx.fillStyle = '#2ecc71';
+    ctx.font = '16px monospace';
+    ctx.fillText('NEW HIGH SCORE!', W / 2, H / 2 + 65);
+  }
+
+  ctx.fillStyle = '#f90';
+  ctx.font = 'bold 18px monospace';
+  ctx.fillText('PRESS R TO PLAY AGAIN', W / 2, H / 2 + 110);
+
+  ctx.textAlign = 'left';
+}
+
+function drawVictory() {
+  // Celebration background
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#1a1a4a');
+  grad.addColorStop(1, '#2a2a6a');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Confetti particles (use titleAnim for animation)
+  titleAnim++;
+  for (let i = 0; i < 40; i++) {
+    const cx = (i * 137 + titleAnim * 0.7) % W;
+    const cy = (i * 89 + titleAnim * (0.5 + (i % 3) * 0.3)) % H;
+    ctx.fillStyle = ['#e44', '#4af', '#2ecc71', '#f90', '#ff4'][i % 5];
+    ctx.fillRect(cx, cy, 6, 4);
+  }
+
+  ctx.textAlign = 'center';
+
+  ctx.shadowColor = '#2ecc71'; ctx.shadowBlur = 22;
+  ctx.fillStyle = '#2ecc71';
+  ctx.font = 'bold 46px monospace';
+  ctx.fillText('ROUTE COMPLETE!', W / 2, H / 2 - 80);
+  ctx.shadowBlur = 0;
+
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 28px monospace';
+  ctx.fillText('ALL 7 DAYS DELIVERED!', W / 2, H / 2 - 30);
+
+  ctx.fillStyle = '#f90';
+  ctx.font = '22px monospace';
+  ctx.fillText('FINAL SCORE: ' + score, W / 2, H / 2 + 20);
+
+  ctx.fillStyle = '#aaa';
+  ctx.font = '16px monospace';
+  ctx.fillText('Final subscribers: ' + subscribers, W / 2, H / 2 + 55);
+
+  if (score >= hiScore && score > 0) {
+    ctx.fillStyle = '#f1c40f';
+    ctx.font = 'bold 18px monospace';
+    ctx.fillText('NEW HIGH SCORE!', W / 2, H / 2 + 90);
+  }
+
+  ctx.fillStyle = '#4af';
+  ctx.font = 'bold 18px monospace';
+  ctx.fillText('PRESS R TO PLAY AGAIN', W / 2, H / 2 + 140);
+
+  ctx.textAlign = 'left';
+}
+
+// ─── RENDER ────────────────────────────────────────────────────
+function draw() {
+  if (phase === 'title')    { drawTitle(); return; }
+  if (phase === 'day_end')  { drawDayEnd(); return; }
+  if (phase === 'gameover') { drawGameOver(); return; }
+  if (phase === 'victory')  { drawVictory(); return; }
+  drawGameScene();
+}
+
+// ─── LOOP ──────────────────────────────────────────────────────
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

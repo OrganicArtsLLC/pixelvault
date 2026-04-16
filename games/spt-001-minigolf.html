@@ -1,0 +1,1152 @@
+<!--
+PROTOTYPE: minigolf
+SERIES: spt
+NUMBER: 001
+DATE: 2026-03-22
+MECHANIC: aim and putt ball through obstacle courses into hole
+ANCESTRY: Zany Golf (1988, Electronic Arts), Mini-Putt (various 1980s+)
+CONTROLS: Click+drag on ball — aim and set power | R — restart hole | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — physics simulation in games matures)
+AI-INSIGHT: Mini golf is a trajectory planning problem with imperfect execution — the player must simulate ball physics mentally, accounting for reflections and friction. Each shot is a hypothesis about the physical world that is immediately tested. This predict-then-observe loop mirrors model-based reinforcement learning.
+NOTES: Drag-to-aim provides intuitive analog control over a physics system.
+       Each hole is a self-contained physics puzzle.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPT-001 · MINI GOLF</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: crosshair; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto; cursor: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SPT-001 · MINI GOLF</h1>
+    <p><span class="tag series">SPT — Sports</span> <span class="tag">Prototype #001</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Putt the ball into the hole in as few strokes as possible. Click on the ball, drag away to aim and set power, then release to putt.</p>
+    <ul>
+      <li><kbd>Click + Drag</kbd> on ball — Aim and set power (ball launches opposite to drag direction)</li>
+      <li><kbd>R</kbd> — Restart current hole</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Drag distance = power:</strong> A longer drag means a harder putt.</li>
+      <li><strong>Wall bounces:</strong> Use bank shots off walls to reach tricky holes.</li>
+      <li><strong>Water hazards:</strong> Landing in water costs +1 stroke and resets the ball.</li>
+      <li><strong>Speed matters:</strong> The ball must be rolling slowly to drop into the hole.</li>
+      <li><strong>Windmill timing:</strong> Wait for the barrier to rotate out of the way.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Zany Golf (1988, Electronic Arts) &rarr; Mini-Putt (various 1980s+)</p>
+    <p>Miniature golf video games translate the real-world putting experience into a physics sandbox. Zany Golf on the Apple IIGS (1988) was a landmark — it combined top-down putting with animated obstacles like windmills, fans, and bouncing bumpers. The genre proved that simple physics (velocity, friction, reflection) could produce endlessly varied puzzles.</p>
+    <p>The drag-to-aim mechanic became the gold standard for mobile golf games, later perfected by Desert Golfing (2014) and What the Golf (2019).</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 3 — Knowledge Explosion (1978–1993)</p>
+    <p><strong>Contemporary AI:</strong> Physics simulation was computationally expensive. Real-time Newtonian mechanics in games required careful approximation — Euler integration, simplified collision detection.</p>
+    <p><strong>Hidden Intelligence:</strong> Mini golf is a trajectory planning problem with imperfect execution. The player must simulate ball physics mentally, accounting for reflections and friction. Each shot is a hypothesis about the physical world that is immediately tested. This predict-then-observe loop mirrors model-based reinforcement learning. The player builds an internal physics model and refines it hole by hole.</p>
+    <p><strong>The Convergence:</strong> Modern robotics uses the same predict-simulate-execute loop for manipulation tasks. A robot planning a billiards shot faces the identical mathematical problem: trajectory under friction with elastic reflections off boundaries.</p>
+    <p><strong>If AI Had Designed This:</strong> Optimal putting solutions via trajectory optimization — computing the launch angle and velocity that minimizes bounces and guarantees the ball reaches the hole below the capture speed threshold.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: SPT — Sports</h3>
+    <p>Sports games translate physical athletic mechanics into digital input. Mini golf distills the sport to its purest element: aim, power, release.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Drag-to-aim putting with ball physics.</strong> Velocity, friction deceleration, wall reflection. 9 holes with obstacles: walls, water hazards, bumpers, windmill. Par scoring system.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Drag-to-aim — does the analog control feel natural and precise?</li>
+      <li>Ball physics — does the friction/bounce model feel realistic enough?</li>
+      <li>Hole design — does each hole present a distinct puzzle?</li>
+      <li>Scoring — does par create meaningful pressure?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Mouse-controlled drag-to-putt. 9 holes with increasing complexity. Physics: friction, wall bouncing, bumper deflection, rotating windmill. Water hazards with stroke penalty. Full scorecard at end.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+// --- MOUSE ---
+let mouseX = 0, mouseY = 0;
+let dragging = false, dragStartX = 0, dragStartY = 0;
+let dragBallX = 0, dragBallY = 0;
+
+function canvasCoords(e) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: (e.clientX - rect.left) * (W / rect.width),
+    y: (e.clientY - rect.top) * (H / rect.height)
+  };
+}
+
+canvas.addEventListener('mousemove', e => {
+  const c = canvasCoords(e);
+  mouseX = c.x; mouseY = c.y;
+});
+
+canvas.addEventListener('mousedown', e => {
+  if (infoOpen) return;
+  e.preventDefault();
+  const c = canvasCoords(e);
+
+  // Check game states that need click handling
+  if (state === 'scorecard') { initGame(); return; }
+  if (state === 'holein') return;
+  if (state === 'nexthole') { nextHole(); return; }
+
+  // Can only putt when ball is stopped
+  if (state !== 'idle') return;
+
+  // Check if click is near the ball
+  const dx = c.x - ball.x, dy = c.y - ball.y;
+  if (dx * dx + dy * dy < 900) { // within 30px
+    dragging = true;
+    dragStartX = c.x; dragStartY = c.y;
+    dragBallX = ball.x; dragBallY = ball.y;
+  }
+});
+
+canvas.addEventListener('mouseup', e => {
+  if (!dragging) return;
+  e.preventDefault();
+  const c = canvasCoords(e);
+  dragging = false;
+
+  const dx = c.x - dragBallX;
+  const dy = c.y - dragBallY;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  if (dist < 5) return; // too small, ignore
+
+  const power = Math.min(dist, 200) / 200; // 0..1
+  const speed = power * 14; // max launch speed
+  // Launch in OPPOSITE direction of drag
+  ball.vx = -(dx / dist) * speed;
+  ball.vy = -(dy / dist) * speed;
+  strokes++;
+  state = 'rolling';
+  lastBallX = ball.x;
+  lastBallY = ball.y;
+});
+
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+window.addEventListener('keydown', e => {
+  if (infoOpen) return;
+  if (e.key === 'r' || e.key === 'R') {
+    resetHole();
+    e.preventDefault();
+  }
+});
+
+// --- CONSTANTS ---
+const FRICTION = 0.985;
+const BALL_R = 6;
+const HOLE_R = 10;
+const HOLE_CAPTURE_SPEED = 3.5;
+const WALL_BOUNCE = 0.75;
+const MAX_POWER_LINE = 200;
+
+// --- HOLE DEFINITIONS ---
+// Each hole: { par, ball:{x,y}, hole:{x,y}, walls:[[x1,y1,x2,y2,x3,y3,x4,y4],...], water:[{x,y,w,h},...], bumpers:[{x,y,r},...], windmill:null|{x,y,len,speed} }
+// Walls are rectangles defined by [x, y, w, h]
+// Course area is offset to center on canvas
+
+function makeHoles() {
+  return [
+    // Hole 1: Straight shot (par 2)
+    {
+      par: 2, name: 'Straight Away',
+      ball: { x: 400, y: 480 },
+      hole: { x: 400, y: 120 },
+      walls: [
+        [300, 60, 10, 480],   // left wall
+        [490, 60, 10, 480],   // right wall
+        [300, 60, 200, 10],   // top wall
+        [300, 530, 200, 10]   // bottom wall
+      ],
+      water: [], bumpers: [], windmill: null
+    },
+    // Hole 2: L-shaped (par 3)
+    {
+      par: 3, name: 'The L',
+      ball: { x: 200, y: 480 },
+      hole: { x: 620, y: 150 },
+      walls: [
+        [130, 70, 10, 470],   // left outer
+        [300, 230, 10, 310],  // left inner vertical
+        [130, 70, 540, 10],   // top
+        [660, 70, 10, 170],   // right upper
+        [300, 230, 370, 10],  // inner horizontal
+        [130, 530, 180, 10],  // bottom left
+        [300, 530, 370, 10],  // bottom right - actually not needed
+        [660, 230, 10, 310],  // right lower - not needed
+      ],
+      water: [], bumpers: [], windmill: null
+    },
+    // Hole 3: Zigzag (par 3)
+    {
+      par: 3, name: 'Zigzag',
+      ball: { x: 200, y: 500 },
+      hole: { x: 200, y: 100 },
+      walls: [
+        [120, 50, 10, 510],    // left outer
+        [120, 50, 560, 10],    // top
+        [670, 50, 10, 510],    // right outer
+        [120, 550, 560, 10],   // bottom
+        [120, 400, 440, 10],   // zigzag wall 1 (from left)
+        [250, 250, 430, 10],   // zigzag wall 2 (from right)
+      ],
+      water: [], bumpers: [], windmill: null
+    },
+    // Hole 4: Island (par 3) — water hazard around hole, narrow bridge
+    {
+      par: 3, name: 'The Island',
+      ball: { x: 400, y: 480 },
+      hole: { x: 400, y: 180 },
+      walls: [
+        [250, 60, 10, 500],   // left outer
+        [540, 60, 10, 500],   // right outer
+        [250, 60, 300, 10],   // top
+        [250, 550, 300, 10],  // bottom
+      ],
+      water: [
+        { x: 310, y: 110, w: 70, h: 150 },  // left water
+        { x: 420, y: 110, w: 70, h: 150 },   // right water
+      ],
+      bumpers: [], windmill: null
+    },
+    // Hole 5: Bumpers (par 3)
+    {
+      par: 3, name: 'Pinball',
+      ball: { x: 400, y: 500 },
+      hole: { x: 400, y: 100 },
+      walls: [
+        [260, 50, 10, 510],
+        [530, 50, 10, 510],
+        [260, 50, 280, 10],
+        [260, 550, 280, 10],
+      ],
+      water: [],
+      bumpers: [
+        { x: 350, y: 200, r: 20 },
+        { x: 450, y: 200, r: 20 },
+        { x: 400, y: 310, r: 20 },
+        { x: 320, y: 400, r: 16 },
+        { x: 480, y: 400, r: 16 },
+      ],
+      windmill: null
+    },
+    // Hole 6: Windmill (par 4)
+    {
+      par: 4, name: 'Windmill',
+      ball: { x: 400, y: 500 },
+      hole: { x: 400, y: 100 },
+      walls: [
+        [280, 50, 10, 510],
+        [510, 50, 10, 510],
+        [280, 50, 240, 10],
+        [280, 550, 240, 10],
+      ],
+      water: [],
+      bumpers: [],
+      windmill: { x: 400, y: 300, len: 90, speed: 0.015 }
+    },
+    // Hole 7: Loop / U-shape (par 4)
+    {
+      par: 4, name: 'The U',
+      ball: { x: 180, y: 480 },
+      hole: { x: 620, y: 480 },
+      walls: [
+        [100, 80, 10, 470],    // left outer
+        [690, 80, 10, 470],    // right outer
+        [100, 80, 600, 10],    // top outer
+        [100, 540, 250, 10],   // bottom left
+        [450, 540, 250, 10],   // bottom right
+        [250, 230, 10, 320],   // left inner
+        [540, 230, 10, 320],   // right inner
+        [250, 230, 300, 10],   // top inner
+      ],
+      water: [], bumpers: [], windmill: null
+    },
+    // Hole 8: Maze (par 4)
+    {
+      par: 4, name: 'The Maze',
+      ball: { x: 200, y: 500 },
+      hole: { x: 600, y: 100 },
+      walls: [
+        [120, 50, 10, 510],     // left outer
+        [670, 50, 10, 510],     // right outer
+        [120, 50, 560, 10],     // top outer
+        [120, 550, 560, 10],    // bottom outer
+        [120, 440, 350, 10],    // horizontal 1
+        [320, 330, 360, 10],    // horizontal 2
+        [120, 220, 350, 10],    // horizontal 3
+        [320, 130, 200, 10],    // horizontal 4
+      ],
+      water: [], bumpers: [], windmill: null
+    },
+    // Hole 9: The Long Shot (par 5)
+    {
+      par: 5, name: 'The Gauntlet',
+      ball: { x: 140, y: 300 },
+      hole: { x: 700, y: 300 },
+      walls: [
+        [80, 200, 10, 210],     // left
+        [740, 200, 10, 210],    // right
+        [80, 200, 670, 10],     // top
+        [80, 400, 670, 10],     // bottom
+      ],
+      water: [
+        { x: 500, y: 210, w: 60, h: 80 },
+        { x: 500, y: 320, w: 60, h: 80 },
+      ],
+      bumpers: [
+        { x: 250, y: 270, r: 18 },
+        { x: 250, y: 340, r: 18 },
+        { x: 400, y: 300, r: 22 },
+        { x: 600, y: 260, r: 15 },
+        { x: 600, y: 350, r: 15 },
+      ],
+      windmill: null
+    }
+  ];
+}
+
+// --- GAME STATE ---
+let holes, holeIdx, ball, strokes, state, lastBallX, lastBallY;
+let windmillAngle = 0;
+let scores = [];
+let holeInOneTimer = 0;
+let transitionTimer = 0;
+let celebrationParticles = [];
+
+function initGame() {
+  holes = makeHoles();
+  holeIdx = 0;
+  scores = [];
+  startHole();
+}
+
+function startHole() {
+  const h = holes[holeIdx];
+  ball = { x: h.ball.x, y: h.ball.y, vx: 0, vy: 0 };
+  strokes = 0;
+  state = 'idle'; // idle, rolling, holein, nexthole, scorecard
+  lastBallX = h.ball.x;
+  lastBallY = h.ball.y;
+  windmillAngle = 0;
+  holeInOneTimer = 0;
+  transitionTimer = 0;
+  celebrationParticles = [];
+  dragging = false;
+}
+
+function resetHole() {
+  const h = holes[holeIdx];
+  ball = { x: h.ball.x, y: h.ball.y, vx: 0, vy: 0 };
+  strokes = 0;
+  state = 'idle';
+  lastBallX = h.ball.x;
+  lastBallY = h.ball.y;
+  windmillAngle = 0;
+  holeInOneTimer = 0;
+  transitionTimer = 0;
+  celebrationParticles = [];
+  dragging = false;
+}
+
+function nextHole() {
+  scores.push(strokes);
+  holeIdx++;
+  if (holeIdx >= holes.length) {
+    state = 'scorecard';
+  } else {
+    startHole();
+  }
+}
+
+initGame();
+
+// --- PHYSICS ---
+function lineSegIntersectCircle(x1, y1, x2, y2, cx, cy, r) {
+  // Check if circle collides with line segment
+  const dx = x2 - x1, dy = y2 - y1;
+  const fx = x1 - cx, fy = y1 - cy;
+  const a = dx * dx + dy * dy;
+  const b = 2 * (fx * dx + fy * dy);
+  const c = fx * fx + fy * fy - r * r;
+  let disc = b * b - 4 * a * c;
+  if (disc < 0) return null;
+  disc = Math.sqrt(disc);
+  const t1 = (-b - disc) / (2 * a);
+  const t2 = (-b + disc) / (2 * a);
+  if (t1 >= 0 && t1 <= 1) return t1;
+  if (t2 >= 0 && t2 <= 1) return t2;
+  return null;
+}
+
+function wallCollision(bx, by, br, walls) {
+  // Walls are [x, y, w, h] rectangles
+  let nx = 0, ny = 0, collided = false;
+
+  for (const wall of walls) {
+    const wx = wall[0], wy = wall[1], ww = wall[2], wh = wall[3];
+
+    // Find nearest point on rectangle to ball center
+    const nearX = Math.max(wx, Math.min(bx, wx + ww));
+    const nearY = Math.max(wy, Math.min(by, wy + wh));
+    const dx = bx - nearX;
+    const dy = by - nearY;
+    const distSq = dx * dx + dy * dy;
+
+    if (distSq < br * br && distSq > 0) {
+      const dist = Math.sqrt(distSq);
+      nx = dx / dist;
+      ny = dy / dist;
+
+      // Push ball out
+      ball.x = nearX + nx * (br + 0.5);
+      ball.y = nearY + ny * (br + 0.5);
+
+      // Reflect velocity
+      const dot = ball.vx * nx + ball.vy * ny;
+      ball.vx -= 2 * dot * nx;
+      ball.vy -= 2 * dot * ny;
+      ball.vx *= WALL_BOUNCE;
+      ball.vy *= WALL_BOUNCE;
+
+      collided = true;
+    }
+  }
+  return collided;
+}
+
+function bumperCollision(bx, by, br, bumpers) {
+  for (const bump of bumpers) {
+    const dx = bx - bump.x;
+    const dy = by - bump.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const minDist = br + bump.r;
+
+    if (dist < minDist && dist > 0) {
+      const nx = dx / dist;
+      const ny = dy / dist;
+
+      // Push ball out
+      ball.x = bump.x + nx * (minDist + 0.5);
+      ball.y = bump.y + ny * (minDist + 0.5);
+
+      // Reflect velocity with extra bounce
+      const dot = ball.vx * nx + ball.vy * ny;
+      ball.vx -= 2 * dot * nx;
+      ball.vy -= 2 * dot * ny;
+
+      // Bumpers add energy
+      const speed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+      if (speed < 4) {
+        ball.vx *= 1.5;
+        ball.vy *= 1.5;
+      }
+    }
+  }
+}
+
+function windmillCollision(bx, by, br, wm, angle) {
+  if (!wm) return;
+
+  // Windmill is a rotating bar: two endpoints from center
+  const cos = Math.cos(angle), sin = Math.sin(angle);
+  const x1 = wm.x - cos * wm.len, y1 = wm.y - sin * wm.len;
+  const x2 = wm.x + cos * wm.len, y2 = wm.y + sin * wm.len;
+
+  // Distance from ball center to line segment
+  const dx = x2 - x1, dy = y2 - y1;
+  const lenSq = dx * dx + dy * dy;
+  let t = ((bx - x1) * dx + (by - y1) * dy) / lenSq;
+  t = Math.max(0, Math.min(1, t));
+  const nearX = x1 + t * dx;
+  const nearY = y1 + t * dy;
+  const distX = bx - nearX, distY = by - nearY;
+  const dist = Math.sqrt(distX * distX + distY * distY);
+
+  const barThickness = 6;
+  if (dist < br + barThickness) {
+    // Normal away from bar
+    if (dist > 0) {
+      const nx = distX / dist, ny = distY / dist;
+      ball.x = nearX + nx * (br + barThickness + 1);
+      ball.y = nearY + ny * (br + barThickness + 1);
+
+      const dot = ball.vx * nx + ball.vy * ny;
+      ball.vx -= 2 * dot * nx;
+      ball.vy -= 2 * dot * ny;
+      ball.vx *= WALL_BOUNCE;
+      ball.vy *= WALL_BOUNCE;
+
+      // Add a little push from windmill rotation
+      const pushSpeed = wm.speed * wm.len * 0.3;
+      ball.vx += -sin * pushSpeed;
+      ball.vy += cos * pushSpeed;
+    }
+  }
+}
+
+function waterCheck(bx, by, waterHazards) {
+  for (const w of waterHazards) {
+    if (bx > w.x && bx < w.x + w.w && by > w.y && by < w.y + w.h) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function spawnCelebration(x, y, count) {
+  for (let i = 0; i < count; i++) {
+    const angle = (Math.PI * 2 * i) / count + Math.random() * 0.3;
+    const speed = 2 + Math.random() * 4;
+    celebrationParticles.push({
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed - 2,
+      life: 60 + Math.random() * 40,
+      color: ['#ff0', '#f80', '#0f0', '#0ff', '#f0f', '#fff'][Math.floor(Math.random() * 6)]
+    });
+  }
+}
+
+// --- UPDATE ---
+function update() {
+  if (infoOpen) return;
+
+  const h = holes[holeIdx];
+
+  // Update windmill
+  if (h && h.windmill) {
+    windmillAngle += h.windmill.speed;
+  }
+
+  // Update celebration particles
+  for (let i = celebrationParticles.length - 1; i >= 0; i--) {
+    const p = celebrationParticles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.08;
+    p.life--;
+    if (p.life <= 0) celebrationParticles.splice(i, 1);
+  }
+
+  if (state === 'holein') {
+    holeInOneTimer++;
+    if (holeInOneTimer > 120) {
+      state = 'nexthole';
+      transitionTimer = 0;
+    }
+    return;
+  }
+
+  if (state === 'nexthole' || state === 'scorecard' || state === 'idle') return;
+
+  if (state !== 'rolling') return;
+
+  // Apply velocity
+  ball.x += ball.vx;
+  ball.y += ball.vy;
+
+  // Apply friction
+  ball.vx *= FRICTION;
+  ball.vy *= FRICTION;
+
+  // Wall collisions
+  wallCollision(ball.x, ball.y, BALL_R, h.walls);
+
+  // Bumper collisions
+  bumperCollision(ball.x, ball.y, BALL_R, h.bumpers);
+
+  // Windmill collision
+  windmillCollision(ball.x, ball.y, BALL_R, h.windmill, windmillAngle);
+
+  // Water hazard check
+  if (waterCheck(ball.x, ball.y, h.water)) {
+    ball.x = lastBallX;
+    ball.y = lastBallY;
+    ball.vx = 0;
+    ball.vy = 0;
+    strokes++; // penalty stroke
+    state = 'idle';
+    return;
+  }
+
+  // Check if ball is in the hole
+  const holeX = h.hole.x, holeY = h.hole.y;
+  const dx = ball.x - holeX, dy = ball.y - holeY;
+  const distToHole = Math.sqrt(dx * dx + dy * dy);
+  const speed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+
+  if (distToHole < HOLE_R && speed < HOLE_CAPTURE_SPEED) {
+    // Ball drops in!
+    ball.x = holeX;
+    ball.y = holeY;
+    ball.vx = 0;
+    ball.vy = 0;
+    state = 'holein';
+    holeInOneTimer = 0;
+
+    if (strokes === 1) {
+      spawnCelebration(holeX, holeY, 60);
+    } else {
+      spawnCelebration(holeX, holeY, 20);
+    }
+    return;
+  }
+
+  // Ball stops
+  if (speed < 0.1) {
+    ball.vx = 0;
+    ball.vy = 0;
+    state = 'idle';
+    lastBallX = ball.x;
+    lastBallY = ball.y;
+  }
+}
+
+// --- DRAW ---
+function scoreLabel(strokes, par) {
+  const diff = strokes - par;
+  if (strokes === 1) return 'HOLE IN ONE!';
+  if (diff === -3) return 'Albatross';
+  if (diff === -2) return 'Eagle';
+  if (diff === -1) return 'Birdie';
+  if (diff === 0) return 'Par';
+  if (diff === 1) return 'Bogey';
+  if (diff === 2) return 'Double Bogey';
+  if (diff === 3) return 'Triple Bogey';
+  return '+' + diff;
+}
+
+function draw() {
+  ctx.fillStyle = '#1a2a1a';
+  ctx.fillRect(0, 0, W, H);
+
+  const h = holes[holeIdx];
+
+  if (state === 'scorecard') {
+    drawScorecard();
+    drawBadge();
+    return;
+  }
+
+  // Draw course background (green felt)
+  // Determine course bounds from walls
+  ctx.fillStyle = '#2d6b2d';
+  // Fill the whole playable area
+  let minX = 9999, minY = 9999, maxX = 0, maxY = 0;
+  for (const w of h.walls) {
+    minX = Math.min(minX, w[0]);
+    minY = Math.min(minY, w[1]);
+    maxX = Math.max(maxX, w[0] + w[2]);
+    maxY = Math.max(maxY, w[1] + w[3]);
+  }
+  ctx.fillRect(minX, minY, maxX - minX, maxY - minY);
+
+  // Subtle grass texture
+  ctx.fillStyle = 'rgba(0,80,0,0.08)';
+  for (let gx = minX; gx < maxX; gx += 20) {
+    for (let gy = minY; gy < maxY; gy += 20) {
+      if ((gx + gy) % 40 === 0) {
+        ctx.fillRect(gx, gy, 20, 20);
+      }
+    }
+  }
+
+  // Water hazards
+  for (const w of h.water) {
+    ctx.fillStyle = '#1a5fa8';
+    ctx.fillRect(w.x, w.y, w.w, w.h);
+    // Water ripples
+    ctx.strokeStyle = 'rgba(100,180,255,0.3)';
+    ctx.lineWidth = 1;
+    const t = Date.now() * 0.002;
+    for (let ry = w.y + 10; ry < w.y + w.h - 5; ry += 15) {
+      ctx.beginPath();
+      for (let rx = w.x; rx < w.x + w.w; rx += 2) {
+        const wave = Math.sin((rx + t * 50) * 0.05 + ry * 0.1) * 3;
+        if (rx === w.x) ctx.moveTo(rx, ry + wave);
+        else ctx.lineTo(rx, ry + wave);
+      }
+      ctx.stroke();
+    }
+  }
+
+  // Walls (brown wood)
+  for (const w of h.walls) {
+    ctx.fillStyle = '#6b4226';
+    ctx.fillRect(w[0], w[1], w[2], w[3]);
+    // Wood grain highlight
+    ctx.fillStyle = '#8b5a2f';
+    if (w[2] > w[3]) {
+      // Horizontal wall
+      ctx.fillRect(w[0], w[1], w[2], 2);
+    } else {
+      // Vertical wall
+      ctx.fillRect(w[0], w[1], 2, w[3]);
+    }
+  }
+
+  // Bumpers
+  for (const b of h.bumpers) {
+    // Outer circle
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+    ctx.fillStyle = '#cc3333';
+    ctx.fill();
+    ctx.strokeStyle = '#ff6666';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // Inner highlight
+    ctx.beginPath();
+    ctx.arc(b.x - b.r * 0.2, b.y - b.r * 0.2, b.r * 0.4, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    ctx.fill();
+  }
+
+  // Windmill
+  if (h.windmill) {
+    const wm = h.windmill;
+    // Center post
+    ctx.beginPath();
+    ctx.arc(wm.x, wm.y, 8, 0, Math.PI * 2);
+    ctx.fillStyle = '#888';
+    ctx.fill();
+    ctx.strokeStyle = '#aaa';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Rotating bar
+    const cos = Math.cos(windmillAngle), sin = Math.sin(windmillAngle);
+    const x1 = wm.x - cos * wm.len, y1 = wm.y - sin * wm.len;
+    const x2 = wm.x + cos * wm.len, y2 = wm.y + sin * wm.len;
+
+    ctx.strokeStyle = '#a0522d';
+    ctx.lineWidth = 12;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+
+    // Edge highlights
+    ctx.strokeStyle = '#c9773d';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+
+    ctx.lineCap = 'butt';
+  }
+
+  // Hole (target)
+  ctx.beginPath();
+  ctx.arc(h.hole.x, h.hole.y, HOLE_R + 3, 0, Math.PI * 2);
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(h.hole.x, h.hole.y, HOLE_R, 0, Math.PI * 2);
+  ctx.fillStyle = '#000';
+  ctx.fill();
+
+  // Flag
+  const flagX = h.hole.x + 2, flagY = h.hole.y;
+  ctx.strokeStyle = '#ccc';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(flagX, flagY);
+  ctx.lineTo(flagX, flagY - 30);
+  ctx.stroke();
+  // Flag triangle
+  ctx.fillStyle = '#e22';
+  ctx.beginPath();
+  ctx.moveTo(flagX, flagY - 30);
+  ctx.lineTo(flagX + 16, flagY - 24);
+  ctx.lineTo(flagX, flagY - 18);
+  ctx.closePath();
+  ctx.fill();
+
+  // Aiming line (while dragging)
+  if (dragging && state === 'idle') {
+    const dx = mouseX - dragBallX;
+    const dy = mouseY - dragBallY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const clampedDist = Math.min(dist, MAX_POWER_LINE);
+    const power = clampedDist / MAX_POWER_LINE;
+
+    // Direction line (opposite of drag)
+    if (dist > 5) {
+      const dirX = -(dx / dist);
+      const dirY = -(dy / dist);
+      const lineLen = clampedDist * 0.8;
+
+      // Power indicator line from ball
+      ctx.setLineDash([4, 6]);
+      ctx.strokeStyle = `rgba(255,${Math.floor(255 * (1 - power))},${Math.floor(255 * (1 - power))},0.8)`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(dragBallX, dragBallY);
+      ctx.lineTo(dragBallX + dirX * lineLen, dragBallY + dirY * lineLen);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Arrow head
+      const arrowX = dragBallX + dirX * lineLen;
+      const arrowY = dragBallY + dirY * lineLen;
+      const arrowSize = 8;
+      ctx.fillStyle = ctx.strokeStyle;
+      ctx.beginPath();
+      ctx.moveTo(arrowX, arrowY);
+      ctx.lineTo(arrowX - dirX * arrowSize + dirY * arrowSize * 0.5,
+                 arrowY - dirY * arrowSize - dirX * arrowSize * 0.5);
+      ctx.lineTo(arrowX - dirX * arrowSize - dirY * arrowSize * 0.5,
+                 arrowY - dirY * arrowSize + dirX * arrowSize * 0.5);
+      ctx.closePath();
+      ctx.fill();
+
+      // Drag line (from ball to mouse)
+      ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(dragBallX, dragBallY);
+      ctx.lineTo(mouseX, mouseY);
+      ctx.stroke();
+
+      // Power meter bar at bottom
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(W / 2 - 102, H - 38, 204, 18);
+      const pw = power * 200;
+      const r = Math.floor(255 * power);
+      const g = Math.floor(255 * (1 - power));
+      ctx.fillStyle = `rgb(${r},${g},0)`;
+      ctx.fillRect(W / 2 - 100, H - 36, pw, 14);
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(W / 2 - 102, H - 38, 204, 18);
+      ctx.fillStyle = '#fff';
+      ctx.font = '10px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('POWER', W / 2, H - 24);
+    }
+  }
+
+  // Ball shadow
+  if (state !== 'holein') {
+    ctx.beginPath();
+    ctx.ellipse(ball.x + 3, ball.y + 3, BALL_R, BALL_R * 0.6, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fill();
+  }
+
+  // Ball
+  if (state !== 'holein' || holeInOneTimer < 20) {
+    const ballAlpha = state === 'holein' ? Math.max(0, 1 - holeInOneTimer / 20) : 1;
+    const ballScale = state === 'holein' ? Math.max(0.2, 1 - holeInOneTimer / 20) : 1;
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, BALL_R * ballScale, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255,255,255,${ballAlpha})`;
+    ctx.fill();
+    ctx.strokeStyle = `rgba(200,200,200,${ballAlpha})`;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    // Highlight
+    ctx.beginPath();
+    ctx.arc(ball.x - 2, ball.y - 2, BALL_R * ballScale * 0.35, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255,255,255,${ballAlpha * 0.6})`;
+    ctx.fill();
+  }
+
+  // Celebration particles
+  for (const p of celebrationParticles) {
+    const alpha = Math.min(1, p.life / 20);
+    ctx.fillStyle = p.color;
+    ctx.globalAlpha = alpha;
+    ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+  }
+  ctx.globalAlpha = 1;
+
+  // --- HUD ---
+  // Hole info
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(W / 2 - 120, 44, 240, 28);
+  ctx.fillStyle = '#fff';
+  ctx.font = '14px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(`Hole ${holeIdx + 1}: ${h.name}`, W / 2, 62);
+
+  // Par and strokes
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(W - 180, 44, 170, 28);
+  ctx.fillStyle = '#aaa';
+  ctx.font = '13px monospace';
+  ctx.textAlign = 'right';
+  ctx.fillText(`Par ${h.par}  |  Strokes: ${strokes}`, W - 16, 62);
+
+  // Total score so far
+  if (scores.length > 0) {
+    const totalStrokes = scores.reduce((a, b) => a + b, 0);
+    const totalPar = holes.slice(0, scores.length).reduce((a, h) => a + h.par, 0);
+    const diff = totalStrokes - totalPar;
+    const diffStr = diff === 0 ? 'E' : (diff > 0 ? '+' + diff : '' + diff);
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(10, 44, 140, 28);
+    ctx.fillStyle = diff <= 0 ? '#4f4' : '#f88';
+    ctx.font = '13px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText(`Total: ${diffStr} (${totalStrokes})`, 16, 62);
+  }
+
+  // Hole-in-one message
+  if (state === 'holein') {
+    ctx.font = 'bold 30px monospace';
+    ctx.textAlign = 'center';
+    const label = scoreLabel(strokes, h.par);
+    const bounce = Math.sin(holeInOneTimer * 0.1) * 5;
+
+    if (strokes === 1) {
+      ctx.fillStyle = '#ff0';
+      ctx.fillText(label, W / 2, H / 2 - 40 + bounce);
+      ctx.font = '16px monospace';
+      ctx.fillStyle = '#fff';
+      ctx.fillText('INCREDIBLE!', W / 2, H / 2 - 10);
+    } else {
+      const col = (strokes <= h.par) ? '#4f4' : '#f88';
+      ctx.fillStyle = col;
+      ctx.fillText(label, W / 2, H / 2 - 30 + bounce);
+    }
+
+    ctx.font = '14px monospace';
+    ctx.fillStyle = '#aaa';
+    ctx.fillText(`${strokes} stroke${strokes > 1 ? 's' : ''}`, W / 2, H / 2 + 10);
+  }
+
+  // Next hole prompt
+  if (state === 'nexthole') {
+    ctx.font = '16px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#fff';
+    ctx.fillText('Click for next hole', W / 2, H / 2 + 40);
+  }
+
+  // Idle hint
+  if (state === 'idle' && !dragging && strokes === 0) {
+    ctx.font = '12px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.fillText('Click and drag from ball to putt', W / 2, H - 16);
+  }
+
+  drawBadge();
+}
+
+function drawScorecard() {
+  ctx.fillStyle = '#1a2a1a';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = '#2d6b2d';
+  ctx.fillRect(100, 60, 600, 450);
+
+  ctx.font = 'bold 28px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ff0';
+  ctx.fillText('SCORECARD', W / 2, 100);
+
+  ctx.font = '14px monospace';
+  ctx.fillStyle = '#aaa';
+
+  // Header row
+  const rowY = 140;
+  const colX = 160;
+  const colW = 55;
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#888';
+  ctx.fillText('HOLE', colX - 30, rowY);
+  for (let i = 0; i < 9; i++) {
+    ctx.fillText('' + (i + 1), colX + 30 + i * colW, rowY);
+  }
+  ctx.fillText('TOT', colX + 30 + 9 * colW, rowY);
+
+  // Par row
+  ctx.fillStyle = '#8b8';
+  ctx.fillText('PAR', colX - 30, rowY + 30);
+  let totalPar = 0;
+  for (let i = 0; i < 9; i++) {
+    ctx.fillText('' + holes[i].par, colX + 30 + i * colW, rowY + 30);
+    totalPar += holes[i].par;
+  }
+  ctx.fillText('' + totalPar, colX + 30 + 9 * colW, rowY + 30);
+
+  // Divider
+  ctx.strokeStyle = '#555';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(120, rowY + 40);
+  ctx.lineTo(680, rowY + 40);
+  ctx.stroke();
+
+  // Score row
+  ctx.fillStyle = '#fff';
+  ctx.fillText('YOU', colX - 30, rowY + 60);
+  let totalScore = 0;
+  for (let i = 0; i < scores.length; i++) {
+    const diff = scores[i] - holes[i].par;
+    if (scores[i] === 1) ctx.fillStyle = '#ff0';
+    else if (diff < 0) ctx.fillStyle = '#4f4';
+    else if (diff === 0) ctx.fillStyle = '#fff';
+    else ctx.fillStyle = '#f88';
+    ctx.fillText('' + scores[i], colX + 30 + i * colW, rowY + 60);
+    totalScore += scores[i];
+  }
+  const totalDiff = totalScore - totalPar;
+  ctx.fillStyle = totalDiff <= 0 ? '#4f4' : '#f88';
+  ctx.fillText('' + totalScore, colX + 30 + 9 * colW, rowY + 60);
+
+  // +/- row
+  ctx.fillStyle = '#888';
+  ctx.fillText('+/-', colX - 30, rowY + 85);
+  for (let i = 0; i < scores.length; i++) {
+    const diff = scores[i] - holes[i].par;
+    if (scores[i] === 1) ctx.fillStyle = '#ff0';
+    else if (diff < 0) ctx.fillStyle = '#4f4';
+    else if (diff === 0) ctx.fillStyle = '#888';
+    else ctx.fillStyle = '#f88';
+    const str = diff === 0 ? 'E' : (diff > 0 ? '+' + diff : '' + diff);
+    ctx.fillText(str, colX + 30 + i * colW, rowY + 85);
+  }
+  const totalDiffStr = totalDiff === 0 ? 'E' : (totalDiff > 0 ? '+' + totalDiff : '' + totalDiff);
+  ctx.fillStyle = totalDiff <= 0 ? '#4f4' : '#f88';
+  ctx.fillText(totalDiffStr, colX + 30 + 9 * colW, rowY + 85);
+
+  // Hole names
+  ctx.font = '11px monospace';
+  ctx.fillStyle = '#666';
+  for (let i = 0; i < 9; i++) {
+    ctx.fillText(holes[i].name, colX + 30 + i * colW, rowY + 110);
+  }
+
+  // Summary
+  ctx.font = 'bold 22px monospace';
+  ctx.textAlign = 'center';
+  const summaryY = rowY + 160;
+
+  if (totalDiff < -5) {
+    ctx.fillStyle = '#ff0';
+    ctx.fillText('AMAZING ROUND!', W / 2, summaryY);
+  } else if (totalDiff < 0) {
+    ctx.fillStyle = '#4f4';
+    ctx.fillText('UNDER PAR - NICE!', W / 2, summaryY);
+  } else if (totalDiff === 0) {
+    ctx.fillStyle = '#fff';
+    ctx.fillText('EVEN PAR - SOLID!', W / 2, summaryY);
+  } else {
+    ctx.fillStyle = '#f88';
+    ctx.fillText('KEEP PRACTICING!', W / 2, summaryY);
+  }
+
+  ctx.font = '14px monospace';
+  ctx.fillStyle = '#aaa';
+  ctx.fillText(`Final Score: ${totalScore} (${totalDiffStr})`, W / 2, summaryY + 30);
+  ctx.fillText('Click to play again', W / 2, summaryY + 65);
+}
+
+function drawBadge() {
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(8, 8, 260, 28);
+  ctx.fillStyle = '#555';
+  ctx.font = '13px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('SPT-001 \u00b7 MINI GOLF  [?]', 16, 26);
+}
+
+// --- GAME LOOP ---
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>

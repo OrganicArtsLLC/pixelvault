@@ -1,0 +1,950 @@
+<!--
+PROTOTYPE: pop-defense
+SERIES: fix
+NUMBER: 005
+DATE: 2026-03-23
+MECHANIC: place fixed towers to pop balloons following a winding path
+ANCESTRY: Bloons TD (2007, Ninja Kiwi), Desktop Tower Defense (2007, HandDrawnGames), Rampart (1990, Atari)
+CONTROLS: Mouse — select and place towers, click to upgrade | Space — start next wave | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 5 (Deep Learning — optimal tower placement as spatial optimization)
+AI-INSIGHT: Tower defense games are constraint satisfaction puzzles in real-time clothing. The optimal placement of fixed-position agents to intercept moving targets along known paths is equivalent to the facility location problem in operations research — NP-hard in general but approximable through greedy heuristics.
+NOTES: Tower defense in its purest form. Path is the constraint,
+       tower variety creates the strategy space, economy paces progression.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FIX-005 · POP DEFENSE</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: crosshair; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto; cursor: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>FIX-005 · POP DEFENSE</h1>
+    <p><span class="tag series">FIX — Fixed Shooter</span> <span class="tag">Prototype #005</span> <span class="tag">★★★★☆</span></p>
+
+    <h2>How to Play</h2>
+    <p>Pop balloons (bloons) by placing towers along a winding path. Each bloon that reaches the end costs you a life. Survive 25 waves of increasingly tough bloons.</p>
+    <ul>
+      <li>Click a tower in the shop panel (right side), then click the map to place it</li>
+      <li>Click a placed tower to upgrade it (costs increase per level)</li>
+      <li><kbd>Space</kbd> — Start next wave (or auto-starts after delay)</li>
+      <li><kbd>R</kbd> — Restart game</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+      <li><kbd>Escape</kbd> — Cancel tower placement / close info</li>
+    </ul>
+    <h3>Tower Types</h3>
+    <ul>
+      <li><strong>Dart Monkey ($200):</strong> Cheap, single target, short range. Your bread and butter.</li>
+      <li><strong>Tack Shooter ($350):</strong> Shoots 8 projectiles in all directions. Great at chokepoints.</li>
+      <li><strong>Ice Tower ($300):</strong> Slows all bloons in range. Doesn't pop, but enables other towers.</li>
+      <li><strong>Sniper ($400):</strong> Infinite range, single target, high damage. Picks off tough bloons.</li>
+      <li><strong>Bomb Tower ($500):</strong> Area damage, pops groups. Can't pop black bloons!</li>
+      <li><strong>Super Monkey ($2500):</strong> Extremely fast fire rate, long range. The endgame tower.</li>
+    </ul>
+    <h3>Bloon Types</h3>
+    <ul>
+      <li><strong style="color:#f44">Red (1 HP)</strong> — basic bloon</li>
+      <li><strong style="color:#44f">Blue (2 HP)</strong> — releases red when popped</li>
+      <li><strong style="color:#4c4">Green (3 HP)</strong> — releases blue</li>
+      <li><strong style="color:#ee0">Yellow (4 HP)</strong> — releases green, faster</li>
+      <li><strong style="color:#f6c">Pink (5 HP)</strong> — releases yellow, fastest</li>
+      <li><strong style="color:#333;background:#888;padding:0 4px">Black (3 HP)</strong> — immune to bombs!</li>
+      <li><strong style="color:#88f">MOAB (200 HP)</strong> — massive blimp, costs 10 lives if leaked</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Bloons TD (2007, Ninja Kiwi) &larr; Desktop Tower Defense (2007) &larr; Rampart (1990, Atari)</p>
+    <p>Tower defense as a genre crystallized from Warcraft III custom maps (2003-2004), but Bloons TD refined it into an accessible, addictive formula. Ninja Kiwi's original Bloons was a dart-throwing puzzle; the TD spin-off married it to the tower defense template and became one of the most successful Flash game franchises, surviving the Flash apocalypse to thrive on mobile.</p>
+    <p>The layered bloon system (pop a blue to reveal a red) creates emergent complexity from simple rules — a hallmark of elegant game design.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 5 — Deep Learning (2006+)</p>
+    <p><strong>Contemporary AI:</strong> Deep reinforcement learning was just emerging. AlphaGo was still a decade away. But the facility location problem that underlies tower placement was well-studied in operations research.</p>
+    <p><strong>Hidden Intelligence:</strong> Tower defense is a constraint satisfaction puzzle wearing real-time clothing. Place fixed agents optimally along a known path to intercept moving targets. This is equivalent to the facility location problem — NP-hard in general. The player develops greedy heuristics: place towers at curves (maximizing time-in-range), diversify damage types, create kill zones. These are the same approximation strategies OR researchers use.</p>
+    <p><strong>The Convergence:</strong> Modern TD AI uses reinforcement learning to discover tower placements that surprise human experts — finding synergies between tower types and positions that emerge from the combinatorial explosion of possibilities.</p>
+
+    <h2>Classification</h2>
+    <p><strong>Series:</strong> FIX (Fixed Shooter / Fixed Position) — player places stationary defenses</p>
+    <p><strong>Core Mechanic:</strong> Spatial optimization under economic constraints</p>
+    <p><strong>Input:</strong> Mouse-driven placement and selection</p>
+
+    <h2>Prototype Notes</h2>
+    <p>This sketch captures the essential tower defense loop: earn → place → optimize → survive. The winding path provides natural chokepoints for strategic placement. Wave pacing escalates from gentle tutorial to frantic endgame. The MOAB boss at wave 20+ tests whether your economy and placement hold up under extreme pressure.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+var C = document.getElementById('c'), X = C.getContext('2d');
+C.width = 800; C.height = 600;
+var infoOpen = false;
+
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// Path definition — winding S-curve
+var PATH = [
+  {x:-20,y:120},{x:120,y:120},{x:200,y:100},{x:300,y:140},{x:400,y:100},
+  {x:500,y:140},{x:580,y:120},{x:620,y:160},{x:620,y:240},{x:580,y:300},
+  {x:500,y:320},{x:400,y:300},{x:300,y:340},{x:200,y:320},{x:140,y:360},
+  {x:140,y:420},{x:200,y:460},{x:300,y:440},{x:400,y:480},{x:500,y:440},
+  {x:600,y:480},{x:660,y:520},{x:660,y:560},{x:600,y:580},{x:500,y:560},
+  {x:400,y:580},{x:300,y:560},{x:200,y:580},{x:100,y:560},{x:40,y:540},
+  {x:-20,y:540}
+];
+
+// Precompute path segments and total length
+var pathSegs = [], pathLen = 0;
+for (var i = 1; i < PATH.length; i++) {
+  var dx = PATH[i].x - PATH[i-1].x, dy = PATH[i].y - PATH[i-1].y;
+  var len = Math.sqrt(dx*dx + dy*dy);
+  pathSegs.push({x0:PATH[i-1].x, y0:PATH[i-1].y, dx:dx, dy:dy, len:len, cumLen:pathLen});
+  pathLen += len;
+}
+
+function posOnPath(dist) {
+  if (dist <= 0) return {x:PATH[0].x, y:PATH[0].y};
+  if (dist >= pathLen) return {x:PATH[PATH.length-1].x, y:PATH[PATH.length-1].y};
+  for (var i = 0; i < pathSegs.length; i++) {
+    var s = pathSegs[i];
+    if (dist <= s.cumLen + s.len) {
+      var t = (dist - s.cumLen) / s.len;
+      return {x: s.x0 + s.dx * t, y: s.y0 + s.dy * t};
+    }
+  }
+  return {x:PATH[PATH.length-1].x, y:PATH[PATH.length-1].y};
+}
+
+function distToPath(px, py) {
+  var minD = 99999;
+  for (var i = 0; i < pathSegs.length; i++) {
+    var s = pathSegs[i];
+    var t = Math.max(0, Math.min(1, ((px-s.x0)*s.dx + (py-s.y0)*s.dy) / (s.len*s.len)));
+    var cx = s.x0 + s.dx*t, cy = s.y0 + s.dy*t;
+    var d = Math.sqrt((px-cx)*(px-cx) + (py-cy)*(py-cy));
+    if (d < minD) minD = d;
+  }
+  return minD;
+}
+
+// Tower definitions
+var TOWERS = {
+  dart:   {name:'Dart',  cost:200,  range:100, rate:40, dmg:1, color:'#a64',  r:10, desc:'Single target'},
+  tack:   {name:'Tack',  cost:350,  range:60,  rate:50, dmg:1, color:'#888',  r:10, desc:'8-direction'},
+  ice:    {name:'Ice',   cost:300,  range:80,  rate:0,  dmg:0, color:'#8df',  r:10, desc:'Slows bloons'},
+  sniper: {name:'Sniper',cost:400,  range:999, rate:80, dmg:3, color:'#474',  r:10, desc:'Long range'},
+  bomb:   {name:'Bomb',  cost:500,  range:90,  rate:70, dmg:2, color:'#c44',  r:12, desc:'Area damage'},
+  super:  {name:'Super', cost:2500, range:150, rate:8,  dmg:1, color:'#f4f',  r:10, desc:'Rapid fire'}
+};
+var TOWER_ORDER = ['dart','tack','ice','sniper','bomb','super'];
+
+// Bloon definitions
+var BLOON = {
+  red:    {hp:1, speed:1.0, color:'#f44', child:null,   r:8,  lives:1},
+  blue:   {hp:2, speed:1.2, color:'#48f', child:'red',  r:9,  lives:1},
+  green:  {hp:3, speed:1.4, color:'#4c4', child:'blue', r:9,  lives:1},
+  yellow: {hp:4, speed:1.8, color:'#ee0', child:'green',r:9,  lives:1},
+  pink:   {hp:5, speed:2.2, color:'#f6c', child:'yellow',r:9, lives:1},
+  black:  {hp:3, speed:1.4, color:'#222', child:'pink', r:10, lives:1, bombImmune:true},
+  moab:   {hp:200,speed:0.5,color:'#66a', child:'black',r:22, lives:10, isMoab:true}
+};
+
+// Wave definitions
+var WAVES = [];
+(function buildWaves() {
+  var types = ['red','blue','green','yellow','pink','black','moab'];
+  for (var w = 0; w < 25; w++) {
+    var wave = [];
+    if (w < 3) { for (var j=0;j<8+w*4;j++) wave.push('red'); }
+    else if (w < 5) { for (var j=0;j<6;j++) wave.push('blue'); for (var j=0;j<6+w;j++) wave.push('red'); }
+    else if (w < 8) { for (var j=0;j<4+w;j++) wave.push('blue'); for (var j=0;j<3;j++) wave.push('green'); }
+    else if (w < 11) { for (var j=0;j<5;j++) wave.push('green'); for (var j=0;j<4+w-5;j++) wave.push('blue'); for (var j=0;j<2;j++) wave.push('yellow'); }
+    else if (w < 14) { for (var j=0;j<4+w-8;j++) wave.push('yellow'); for (var j=0;j<6;j++) wave.push('green'); for (var j=0;j<3;j++) wave.push('pink'); }
+    else if (w < 17) { for (var j=0;j<5;j++) wave.push('pink'); for (var j=0;j<4;j++) wave.push('yellow'); for (var j=0;j<2;j++) wave.push('black'); }
+    else if (w < 20) { for (var j=0;j<4;j++) wave.push('black'); for (var j=0;j<6+w-15;j++) wave.push('pink'); for (var j=0;j<3;j++) wave.push('yellow'); }
+    else if (w === 20) { wave.push('moab'); for (var j=0;j<6;j++) wave.push('black'); for (var j=0;j<4;j++) wave.push('pink'); }
+    else if (w < 23) { wave.push('moab'); for (var j=0;j<8;j++) wave.push('black'); for (var j=0;j<6;j++) wave.push('pink'); for (var j=0;j<4;j++) wave.push('yellow'); }
+    else if (w === 23) { wave.push('moab'); wave.push('moab'); for (var j=0;j<6;j++) wave.push('black'); for (var j=0;j<8;j++) wave.push('pink'); }
+    else { wave.push('moab'); wave.push('moab'); wave.push('moab'); for (var j=0;j<8;j++) wave.push('black'); for (var j=0;j<6;j++) wave.push('pink'); }
+    WAVES.push(wave);
+  }
+})();
+
+// Game state
+var G = {};
+function initGame() {
+  G = {
+    lives: 20, cash: 650, score: 0,
+    wave: 0, waveActive: false, waveQueue: [], spawnTimer: 0,
+    towers: [], bloons: [], projectiles: [], particles: [],
+    selected: null, placing: null, placingValid: false,
+    mouseX: 0, mouseY: 0,
+    gameOver: false, won: false,
+    selectedTower: null
+  };
+}
+initGame();
+
+var SHOP_X = 670, SHOP_W = 130;
+
+// Spawn bloon
+function spawnBloon(type) {
+  var def = BLOON[type];
+  G.bloons.push({
+    type: type, hp: def.hp, maxHp: def.hp, dist: 0,
+    speed: def.speed, color: def.color, r: def.r,
+    child: def.child, lives: def.lives,
+    bombImmune: def.bombImmune || false,
+    isMoab: def.isMoab || false,
+    slowed: 0, x: PATH[0].x, y: PATH[0].y
+  });
+}
+
+function spawnChild(parent) {
+  if (!parent.child) return;
+  var def = BLOON[parent.child];
+  G.bloons.push({
+    type: parent.child, hp: def.hp, maxHp: def.hp, dist: parent.dist,
+    speed: def.speed, color: def.color, r: def.r,
+    child: def.child, lives: def.lives,
+    bombImmune: def.bombImmune || false,
+    isMoab: def.isMoab || false,
+    slowed: 0, x: parent.x, y: parent.y
+  });
+}
+
+// Pop particles
+function addPop(x, y, color) {
+  for (var i = 0; i < 6; i++) {
+    var a = Math.random() * Math.PI * 2;
+    G.particles.push({
+      x:x, y:y, vx: Math.cos(a)*2*(1+Math.random()),
+      vy: Math.sin(a)*2*(1+Math.random()), life: 20+Math.random()*10,
+      color: color, r: 2+Math.random()*2
+    });
+  }
+}
+
+// Tower shooting
+function towerShoot(tower) {
+  var def = TOWERS[tower.ttype];
+  if (tower.ttype === 'ice') return; // ice doesn't shoot
+  if (tower.cooldown > 0) return;
+
+  if (tower.ttype === 'tack') {
+    // Shoot in 8 directions
+    var hasTarget = false;
+    for (var i = 0; i < G.bloons.length; i++) {
+      var b = G.bloons[i];
+      var dx = b.x - tower.x, dy = b.y - tower.y;
+      if (Math.sqrt(dx*dx+dy*dy) <= tower.range) { hasTarget = true; break; }
+    }
+    if (!hasTarget) return;
+    for (var d = 0; d < 8; d++) {
+      var a = d * Math.PI / 4;
+      G.projectiles.push({
+        x:tower.x, y:tower.y, vx:Math.cos(a)*4, vy:Math.sin(a)*4,
+        dmg:tower.dmg, life:tower.range/4, isBomb:false, splash:0, tower:tower
+      });
+    }
+    tower.cooldown = tower.rate;
+    return;
+  }
+
+  // Find closest bloon to end (furthest along path)
+  var best = null, bestDist = -1;
+  for (var i = 0; i < G.bloons.length; i++) {
+    var b = G.bloons[i];
+    var dx = b.x - tower.x, dy = b.y - tower.y;
+    var d = Math.sqrt(dx*dx + dy*dy);
+    if (d <= tower.range && b.dist > bestDist) {
+      best = b; bestDist = b.dist;
+    }
+  }
+  if (!best) return;
+
+  var dx = best.x - tower.x, dy = best.y - tower.y;
+  var d = Math.sqrt(dx*dx+dy*dy);
+  if (d < 1) d = 1;
+  var spd = tower.ttype === 'sniper' ? 20 : 5;
+  G.projectiles.push({
+    x: tower.x, y: tower.y,
+    vx: dx/d * spd, vy: dy/d * spd,
+    dmg: tower.dmg, life: tower.ttype === 'sniper' ? 200 : tower.range/spd + 5,
+    isBomb: tower.ttype === 'bomb',
+    splash: tower.ttype === 'bomb' ? 40 + tower.level * 5 : 0,
+    tower: tower
+  });
+  tower.cooldown = tower.rate;
+}
+
+// Ice tower effect
+function iceEffect(tower) {
+  for (var i = 0; i < G.bloons.length; i++) {
+    var b = G.bloons[i];
+    var dx = b.x - tower.x, dy = b.y - tower.y;
+    if (Math.sqrt(dx*dx+dy*dy) <= tower.range) {
+      b.slowed = 30;
+    }
+  }
+}
+
+function update() {
+  if (infoOpen) return;
+  if (G.gameOver) return;
+
+  // Wave spawning
+  if (G.waveActive && G.waveQueue.length > 0) {
+    G.spawnTimer--;
+    if (G.spawnTimer <= 0) {
+      spawnBloon(G.waveQueue.shift());
+      G.spawnTimer = 20;
+    }
+  }
+  if (G.waveActive && G.waveQueue.length === 0 && G.bloons.length === 0) {
+    G.waveActive = false;
+    if (G.wave >= WAVES.length) { G.won = true; G.gameOver = true; }
+  }
+
+  // Move bloons
+  for (var i = G.bloons.length - 1; i >= 0; i--) {
+    var b = G.bloons[i];
+    var spd = b.speed * 1.2;
+    if (b.slowed > 0) { spd *= 0.4; b.slowed--; }
+    b.dist += spd;
+    var p = posOnPath(b.dist);
+    b.x = p.x; b.y = p.y;
+    if (b.dist >= pathLen) {
+      G.lives -= b.lives;
+      G.bloons.splice(i, 1);
+      if (G.lives <= 0) { G.lives = 0; G.gameOver = true; }
+    }
+  }
+
+  // Tower logic
+  for (var i = 0; i < G.towers.length; i++) {
+    var t = G.towers[i];
+    if (t.cooldown > 0) t.cooldown--;
+    if (t.ttype === 'ice') { iceEffect(t); }
+    else { towerShoot(t); }
+  }
+
+  // Move projectiles
+  for (var i = G.projectiles.length - 1; i >= 0; i--) {
+    var p = G.projectiles[i];
+    p.x += p.vx; p.y += p.vy;
+    p.life--;
+    if (p.life <= 0) { G.projectiles.splice(i, 1); continue; }
+    // Check hit
+    for (var j = G.bloons.length - 1; j >= 0; j--) {
+      var b = G.bloons[j];
+      var dx = b.x - p.x, dy = b.y - p.y;
+      var d = Math.sqrt(dx*dx+dy*dy);
+      if (d < b.r + 3) {
+        if (p.isBomb && b.bombImmune) continue;
+        // Hit!
+        if (p.isBomb && p.splash > 0) {
+          // Area damage
+          for (var k = G.bloons.length - 1; k >= 0; k--) {
+            var b2 = G.bloons[k];
+            if (b2.bombImmune) continue;
+            var dx2 = b2.x - p.x, dy2 = b2.y - p.y;
+            if (Math.sqrt(dx2*dx2+dy2*dy2) < p.splash) {
+              b2.hp -= p.dmg;
+              if (b2.hp <= 0) {
+                addPop(b2.x, b2.y, b2.color);
+                G.cash += b2.isMoab ? 50 : 1;
+                G.score += b2.isMoab ? 100 : 1;
+                spawnChild(b2);
+                G.bloons.splice(k, 1);
+                if (k < j) j--;
+              }
+            }
+          }
+          addPop(p.x, p.y, '#fa0');
+        } else {
+          b.hp -= p.dmg;
+          if (b.hp <= 0) {
+            addPop(b.x, b.y, b.color);
+            G.cash += b.isMoab ? 50 : 1;
+            G.score += b.isMoab ? 100 : 1;
+            spawnChild(b);
+            G.bloons.splice(j, 1);
+          }
+        }
+        G.projectiles.splice(i, 1);
+        break;
+      }
+    }
+  }
+
+  // Particles
+  for (var i = G.particles.length - 1; i >= 0; i--) {
+    var p = G.particles[i];
+    p.x += p.vx; p.y += p.vy;
+    p.vx *= 0.95; p.vy *= 0.95;
+    p.life--;
+    if (p.life <= 0) G.particles.splice(i, 1);
+  }
+}
+
+function drawPath() {
+  X.strokeStyle = '#543';
+  X.lineWidth = 32;
+  X.lineCap = 'round';
+  X.lineJoin = 'round';
+  X.beginPath();
+  X.moveTo(PATH[0].x, PATH[0].y);
+  for (var i = 1; i < PATH.length; i++) X.lineTo(PATH[i].x, PATH[i].y);
+  X.stroke();
+  // Inner path
+  X.strokeStyle = '#765';
+  X.lineWidth = 26;
+  X.beginPath();
+  X.moveTo(PATH[0].x, PATH[0].y);
+  for (var i = 1; i < PATH.length; i++) X.lineTo(PATH[i].x, PATH[i].y);
+  X.stroke();
+}
+
+function drawBloon(b) {
+  X.save();
+  if (b.slowed > 0) { X.globalAlpha = 0.7; }
+  if (b.isMoab) {
+    // Draw MOAB as blimp shape
+    X.fillStyle = b.color;
+    X.beginPath();
+    X.ellipse(b.x, b.y, b.r * 1.5, b.r, 0, 0, Math.PI*2);
+    X.fill();
+    X.strokeStyle = '#88a';
+    X.lineWidth = 2;
+    X.stroke();
+    // HP bar
+    X.fillStyle = '#300';
+    X.fillRect(b.x - 20, b.y - b.r - 8, 40, 5);
+    X.fillStyle = '#f44';
+    X.fillRect(b.x - 20, b.y - b.r - 8, 40 * b.hp / b.maxHp, 5);
+    // Label
+    X.fillStyle = '#fff';
+    X.font = '9px monospace';
+    X.textAlign = 'center';
+    X.fillText('MOAB', b.x, b.y + 3);
+  } else {
+    // Regular bloon — circle with highlight
+    X.fillStyle = b.color;
+    X.beginPath();
+    X.arc(b.x, b.y, b.r, 0, Math.PI*2);
+    X.fill();
+    // Highlight
+    X.fillStyle = 'rgba(255,255,255,0.3)';
+    X.beginPath();
+    X.arc(b.x - b.r*0.25, b.y - b.r*0.25, b.r*0.4, 0, Math.PI*2);
+    X.fill();
+    // Black bloon outline
+    if (b.type === 'black') {
+      X.strokeStyle = '#666';
+      X.lineWidth = 1.5;
+      X.beginPath();
+      X.arc(b.x, b.y, b.r, 0, Math.PI*2);
+      X.stroke();
+    }
+    if (b.slowed > 0) {
+      X.strokeStyle = '#8df';
+      X.lineWidth = 2;
+      X.beginPath();
+      X.arc(b.x, b.y, b.r + 2, 0, Math.PI*2);
+      X.stroke();
+    }
+  }
+  X.restore();
+}
+
+function drawTower(t) {
+  var sel = G.selectedTower === t;
+  // Range circle if selected
+  if (sel && t.range < 500) {
+    X.strokeStyle = 'rgba(255,255,255,0.15)';
+    X.lineWidth = 1;
+    X.beginPath();
+    X.arc(t.x, t.y, t.range, 0, Math.PI*2);
+    X.stroke();
+    X.fillStyle = 'rgba(255,255,255,0.03)';
+    X.fill();
+  }
+  // Tower body
+  X.fillStyle = t.color;
+  X.beginPath();
+  X.arc(t.x, t.y, t.r, 0, Math.PI*2);
+  X.fill();
+  // Outline
+  X.strokeStyle = sel ? '#ff0' : '#fff';
+  X.lineWidth = sel ? 2.5 : 1.5;
+  X.beginPath();
+  X.arc(t.x, t.y, t.r, 0, Math.PI*2);
+  X.stroke();
+  // Level indicator
+  if (t.level > 0) {
+    X.fillStyle = '#ff0';
+    X.font = '8px monospace';
+    X.textAlign = 'center';
+    X.fillText('★'.repeat(Math.min(t.level, 3)), t.x, t.y - t.r - 3);
+  }
+  // Tower icon
+  X.fillStyle = '#fff';
+  X.font = '10px monospace';
+  X.textAlign = 'center';
+  X.textBaseline = 'middle';
+  var icons = {dart:'D',tack:'+',ice:'❄',sniper:'S',bomb:'B',super:'M'};
+  X.fillText(icons[t.ttype] || '?', t.x, t.y+1);
+}
+
+function drawShop() {
+  // Shop background
+  X.fillStyle = '#1a1a2e';
+  X.fillRect(SHOP_X, 0, SHOP_W, 600);
+  X.strokeStyle = '#334';
+  X.lineWidth = 2;
+  X.beginPath(); X.moveTo(SHOP_X, 0); X.lineTo(SHOP_X, 600); X.stroke();
+
+  X.fillStyle = '#aaa';
+  X.font = '12px monospace';
+  X.textAlign = 'center';
+  X.fillText('TOWERS', SHOP_X + SHOP_W/2, 18);
+
+  for (var i = 0; i < TOWER_ORDER.length; i++) {
+    var key = TOWER_ORDER[i];
+    var def = TOWERS[key];
+    var y = 32 + i * 56;
+    var canAfford = G.cash >= def.cost;
+    var isSelected = G.placing === key;
+    // Button background
+    X.fillStyle = isSelected ? '#335' : (canAfford ? '#223' : '#1a1a1a');
+    X.fillRect(SHOP_X + 6, y, SHOP_W - 12, 50);
+    if (isSelected) {
+      X.strokeStyle = '#ff0';
+      X.lineWidth = 2;
+      X.strokeRect(SHOP_X + 6, y, SHOP_W - 12, 50);
+    }
+    // Tower preview
+    X.fillStyle = canAfford ? def.color : '#444';
+    X.beginPath();
+    X.arc(SHOP_X + 24, y + 20, 8, 0, Math.PI*2);
+    X.fill();
+    // Name and cost
+    X.fillStyle = canAfford ? '#ddd' : '#666';
+    X.font = '11px monospace';
+    X.textAlign = 'left';
+    X.fillText(def.name, SHOP_X + 38, y + 17);
+    X.fillStyle = canAfford ? '#4f4' : '#644';
+    X.font = '10px monospace';
+    X.fillText('$' + def.cost, SHOP_X + 38, y + 30);
+    X.fillStyle = '#888';
+    X.font = '9px monospace';
+    X.fillText(def.desc, SHOP_X + 10, y + 44);
+  }
+
+  // Upgrade panel
+  if (G.selectedTower) {
+    var t = G.selectedTower;
+    var uy = 375;
+    X.fillStyle = '#223';
+    X.fillRect(SHOP_X + 4, uy, SHOP_W - 8, 90);
+    X.strokeStyle = '#ff0';
+    X.lineWidth = 1;
+    X.strokeRect(SHOP_X + 4, uy, SHOP_W - 8, 90);
+    X.fillStyle = '#ff0';
+    X.font = '11px monospace';
+    X.textAlign = 'center';
+    X.fillText(TOWERS[t.ttype].name + ' Lv' + (t.level+1), SHOP_X + SHOP_W/2, uy + 16);
+    if (t.level < 3) {
+      var ucost = Math.floor(TOWERS[t.ttype].cost * (0.6 + t.level * 0.4));
+      var canUp = G.cash >= ucost;
+      X.fillStyle = canUp ? '#4f4' : '#644';
+      X.font = '10px monospace';
+      X.fillText('Upgrade: $' + ucost, SHOP_X + SHOP_W/2, uy + 35);
+      X.fillStyle = canUp ? '#aaf' : '#446';
+      X.fillText('[Click tower]', SHOP_X + SHOP_W/2, uy + 50);
+      X.fillStyle = '#888';
+      X.font = '9px monospace';
+      X.fillText('+range +dmg +spd', SHOP_X + SHOP_W/2, uy + 68);
+    } else {
+      X.fillStyle = '#f80';
+      X.font = '10px monospace';
+      X.fillText('MAX LEVEL', SHOP_X + SHOP_W/2, uy + 40);
+    }
+    X.fillStyle = '#666';
+    X.font = '9px monospace';
+    X.fillText('Sell: $' + Math.floor(t.sellValue * 0.7), SHOP_X + SHOP_W/2, uy + 82);
+  }
+
+  // HUD area at bottom of shop
+  var hy = 480;
+  X.fillStyle = '#1a1a2e';
+  X.fillRect(SHOP_X, hy, SHOP_W, 120);
+  X.fillStyle = '#f44';
+  X.font = '12px monospace';
+  X.textAlign = 'center';
+  X.fillText('♥ ' + G.lives, SHOP_X + SHOP_W/2, hy + 18);
+  X.fillStyle = '#4f4';
+  X.fillText('$ ' + G.cash, SHOP_X + SHOP_W/2, hy + 36);
+  X.fillStyle = '#aaa';
+  X.fillText('Score: ' + G.score, SHOP_X + SHOP_W/2, hy + 54);
+  X.fillStyle = '#88f';
+  X.fillText('Wave ' + G.wave + '/' + WAVES.length, SHOP_X + SHOP_W/2, hy + 72);
+  if (!G.waveActive && !G.gameOver && G.wave < WAVES.length) {
+    X.fillStyle = '#ff0';
+    X.font = '10px monospace';
+    X.fillText('[SPACE] Next', SHOP_X + SHOP_W/2, hy + 92);
+  }
+  X.fillStyle = '#555';
+  X.font = '9px monospace';
+  X.fillText('[?] Info [R] Reset', SHOP_X + SHOP_W/2, hy + 110);
+}
+
+function drawPlacement() {
+  if (!G.placing) return;
+  var def = TOWERS[G.placing];
+  var mx = G.mouseX, my = G.mouseY;
+  // Check validity
+  var onPath = distToPath(mx, my) < 24;
+  var onShop = mx >= SHOP_X;
+  var onTower = false;
+  for (var i = 0; i < G.towers.length; i++) {
+    var t = G.towers[i];
+    var dx = t.x - mx, dy = t.y - my;
+    if (Math.sqrt(dx*dx+dy*dy) < 22) { onTower = true; break; }
+  }
+  G.placingValid = !onPath && !onShop && !onTower && mx > 5 && my > 5 && mx < SHOP_X - 5 && my < 595;
+
+  // Range preview
+  X.strokeStyle = G.placingValid ? 'rgba(100,255,100,0.3)' : 'rgba(255,50,50,0.3)';
+  X.lineWidth = 1;
+  X.beginPath();
+  X.arc(mx, my, def.range < 500 ? def.range : 150, 0, Math.PI*2);
+  X.stroke();
+  // Ghost tower
+  X.globalAlpha = 0.5;
+  X.fillStyle = G.placingValid ? def.color : '#f00';
+  X.beginPath();
+  X.arc(mx, my, def.r, 0, Math.PI*2);
+  X.fill();
+  X.globalAlpha = 1;
+}
+
+function draw() {
+  // Background
+  X.fillStyle = '#2a3a2a';
+  X.fillRect(0, 0, 800, 600);
+
+  // Grass texture hint
+  for (var gx = 0; gx < SHOP_X; gx += 20) {
+    for (var gy = 0; gy < 600; gy += 20) {
+      if ((gx+gy)%40 === 0) {
+        X.fillStyle = 'rgba(40,70,40,0.3)';
+        X.fillRect(gx, gy, 20, 20);
+      }
+    }
+  }
+
+  drawPath();
+
+  // Draw bloons (sorted by distance so front ones render on top)
+  var sorted = G.bloons.slice().sort(function(a,b){ return a.dist - b.dist; });
+  for (var i = 0; i < sorted.length; i++) drawBloon(sorted[i]);
+
+  // Draw towers
+  for (var i = 0; i < G.towers.length; i++) drawTower(G.towers[i]);
+
+  // Draw projectiles
+  for (var i = 0; i < G.projectiles.length; i++) {
+    var p = G.projectiles[i];
+    X.fillStyle = p.isBomb ? '#fa0' : '#fff';
+    X.beginPath();
+    X.arc(p.x, p.y, p.isBomb ? 3 : 2, 0, Math.PI*2);
+    X.fill();
+  }
+
+  // Draw particles
+  for (var i = 0; i < G.particles.length; i++) {
+    var p = G.particles[i];
+    X.globalAlpha = p.life / 30;
+    X.fillStyle = p.color;
+    X.beginPath();
+    X.arc(p.x, p.y, p.r * (p.life / 30), 0, Math.PI*2);
+    X.fill();
+  }
+  X.globalAlpha = 1;
+
+  drawPlacement();
+  drawShop();
+
+  // Game over / win overlay
+  if (G.gameOver) {
+    X.fillStyle = 'rgba(0,0,0,0.6)';
+    X.fillRect(0, 0, 800, 600);
+    X.fillStyle = G.won ? '#4f4' : '#f44';
+    X.font = '36px monospace';
+    X.textAlign = 'center';
+    X.fillText(G.won ? 'VICTORY!' : 'GAME OVER', 335, 270);
+    X.fillStyle = '#fff';
+    X.font = '16px monospace';
+    X.fillText('Score: ' + G.score + '  Waves: ' + G.wave, 335, 310);
+    X.fillStyle = '#aaa';
+    X.font = '14px monospace';
+    X.fillText('Press R to restart', 335, 350);
+  }
+
+  // Title bar
+  X.fillStyle = 'rgba(0,0,0,0.5)';
+  X.fillRect(0, 0, SHOP_X, 20);
+  X.fillStyle = '#7bf';
+  X.font = '11px monospace';
+  X.textAlign = 'left';
+  X.fillText('FIX-005 · BLOONS', 6, 14);
+}
+
+function startWave() {
+  if (G.waveActive || G.gameOver || G.wave >= WAVES.length) return;
+  G.waveQueue = WAVES[G.wave].slice();
+  G.wave++;
+  G.waveActive = true;
+  G.spawnTimer = 0;
+}
+
+function placeTower(x, y) {
+  if (!G.placing || !G.placingValid) return;
+  var def = TOWERS[G.placing];
+  if (G.cash < def.cost) return;
+  G.cash -= def.cost;
+  var t = {
+    ttype: G.placing, x: x, y: y,
+    range: def.range, rate: def.rate, dmg: def.dmg,
+    color: def.color, r: def.r,
+    cooldown: 0, level: 0, sellValue: def.cost
+  };
+  G.towers.push(t);
+  G.placing = null;
+  G.selectedTower = t;
+}
+
+function upgradeTower(tower) {
+  if (tower.level >= 3) return;
+  var cost = Math.floor(TOWERS[tower.ttype].cost * (0.6 + tower.level * 0.4));
+  if (G.cash < cost) return;
+  G.cash -= cost;
+  tower.level++;
+  tower.sellValue += cost;
+  tower.dmg += 1;
+  tower.range = Math.min(tower.range + 15, 999);
+  tower.rate = Math.max(tower.rate - Math.floor(tower.rate * 0.2), 3);
+  tower.r = Math.min(tower.r + 1, 16);
+}
+
+C.addEventListener('mousemove', function(e) {
+  var rect = C.getBoundingClientRect();
+  G.mouseX = (e.clientX - rect.left) * 800 / rect.width;
+  G.mouseY = (e.clientY - rect.top) * 600 / rect.height;
+});
+
+C.addEventListener('click', function(e) {
+  if (infoOpen) return;
+  var rect = C.getBoundingClientRect();
+  var mx = (e.clientX - rect.left) * 800 / rect.width;
+  var my = (e.clientY - rect.top) * 600 / rect.height;
+
+  // Shop click
+  if (mx >= SHOP_X) {
+    for (var i = 0; i < TOWER_ORDER.length; i++) {
+      var key = TOWER_ORDER[i];
+      var y = 32 + i * 56;
+      if (mx >= SHOP_X + 6 && mx <= SHOP_X + SHOP_W - 6 && my >= y && my <= y + 50) {
+        if (G.cash >= TOWERS[key].cost) {
+          G.placing = (G.placing === key) ? null : key;
+          G.selectedTower = null;
+        }
+        return;
+      }
+    }
+    return;
+  }
+
+  // Placing tower
+  if (G.placing) {
+    placeTower(mx, my);
+    return;
+  }
+
+  // Click on existing tower — select or upgrade
+  for (var i = 0; i < G.towers.length; i++) {
+    var t = G.towers[i];
+    var dx = t.x - mx, dy = t.y - my;
+    if (Math.sqrt(dx*dx+dy*dy) < t.r + 5) {
+      if (G.selectedTower === t) {
+        upgradeTower(t);
+      } else {
+        G.selectedTower = t;
+      }
+      return;
+    }
+  }
+
+  // Clicked empty space — deselect
+  G.selectedTower = null;
+});
+
+C.addEventListener('contextmenu', function(e) {
+  e.preventDefault();
+  // Right-click to sell selected tower
+  if (G.selectedTower) {
+    G.cash += Math.floor(G.selectedTower.sellValue * 0.7);
+    var idx = G.towers.indexOf(G.selectedTower);
+    if (idx >= 0) G.towers.splice(idx, 1);
+    G.selectedTower = null;
+  }
+});
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
+    e.preventDefault();
+    toggleInfo();
+  } else if (e.key === 'Escape') {
+    if (infoOpen) toggleInfo();
+    else { G.placing = null; G.selectedTower = null; }
+  } else if (e.key === ' ' || e.key === 'Space') {
+    e.preventDefault();
+    startWave();
+  } else if (e.key === 'r' || e.key === 'R') {
+    if (!infoOpen) initGame();
+  }
+});
+
+// Resize
+function resize() {
+  var s = Math.min(window.innerWidth / 800, window.innerHeight / 600);
+  C.style.width = (800 * s) + 'px';
+  C.style.height = (600 * s) + 'px';
+}
+window.addEventListener('resize', resize);
+resize();
+
+// Main loop
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

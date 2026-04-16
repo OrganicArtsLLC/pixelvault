@@ -1,0 +1,1519 @@
+<!--
+PROTOTYPE: bubble-trap
+SERIES: plt
+NUMBER: 006
+DATE: 2026-03-22
+MECHANIC: trap enemies in bubbles on single-screen platforms, pop to defeat
+ANCESTRY: Bubble Bobble (1986, Fukio Mitsuji, Taito), Snow Bros (1990, Toaplan)
+CONTROLS: Arrow keys — move | Space — blow bubble | Up arrow — jump | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — emergent item systems)
+AI-INSIGHT: Bubble Bobble's item system uses hidden counters and specific action sequences to trigger rare power-ups — an early procedural reward system where player behavior unlocks content, prefiguring achievement systems and behavioral analytics in modern game design.
+NOTES: Two-step defeat mechanic (trap then pop) adds tactical depth to platforming.
+       Bubble physics create emergent platform-like behavior.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PLT-006 · BUBBLE TRAP</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;font-family:monospace}
+canvas{image-rendering:pixelated}
+#info-panel{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);z-index:100;color:#ddd;overflow-y:auto}
+#info-panel .inner{max-width:700px;margin:30px auto;padding:20px;line-height:1.6}
+#info-panel h1{color:#7bf;font-size:22px;margin-bottom:4px}
+#info-panel h2{color:#f80;font-size:16px;margin:18px 0 6px;border-bottom:1px solid #333;padding-bottom:4px}
+#info-panel h3{color:#4f4;font-size:14px;margin:12px 0 4px}
+#info-panel p,#info-panel li{font-size:13px}
+#info-panel ul{padding-left:18px}
+#info-panel .tag{display:inline-block;background:#333;color:#aaa;padding:2px 8px;border-radius:3px;font-size:11px;margin:2px}
+#info-panel .tag.series{background:#234;color:#7bf}
+#info-panel .close-btn{position:fixed;top:12px;right:20px;color:#888;font-size:28px;cursor:pointer;z-index:101}
+#info-panel .close-btn:hover{color:#fff}
+#info-panel kbd{background:#333;border:1px solid #555;border-radius:3px;padding:1px 6px;font-size:12px;color:#ff0}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="info-panel">
+<span class="close-btn" onclick="toggleInfo()">&times;</span>
+<div class="inner">
+<h1>PLT-006 · BUBBLE TRAP</h1>
+<p><span class="tag series">PLT &#8212; Platformer</span> <span class="tag">Prototype #006</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+<h2>How to Play</h2>
+<p>Blow bubbles to trap enemies, then pop the bubbles to defeat them! Collect fruit for bonus points. Clear all enemies to advance.</p>
+<ul>
+<li><kbd>&#8592;</kbd> <kbd>&#8594;</kbd> &#8212; Move left / right</li>
+<li><kbd>&#8593;</kbd> &#8212; Jump</li>
+<li><kbd>Space</kbd> &#8212; Blow bubble</li>
+<li><kbd>R</kbd> &#8212; Restart</li>
+<li><kbd>?</kbd> &#8212; This panel</li>
+</ul>
+<h3>Tips</h3>
+<ul>
+<li>Trapped enemies float upward &#8212; jump up and pop them quickly!</li>
+<li>Unpopped bubbles free enemies after ~5 seconds.</li>
+<li>You can ride on floating bubbles as platforms.</li>
+<li>Special bubbles appear: <strong>water</strong> (blue flood), <strong>fire</strong> (orange fireball), <strong>lightning</strong> (yellow zap).</li>
+<li>Clear levels quickly before enemies get angry and speed up!</li>
+<li>Collect fruit dropped by defeated enemies for big points.</li>
+</ul>
+<h2>History &amp; Lineage</h2>
+<p><strong>Ancestry:</strong> Bubble Bobble (1986, Taito) &#8594; Snow Bros (1990) &#8594; Puzzle Bobble (1994)</p>
+<p>Designed by Fukio Mitsuji at Taito, Bubble Bobble was a masterclass in hidden depth. Beneath its cute exterior lay one of arcade gaming&#8217;s most elaborate secret systems. Specific action sequences &#8212; blowing bubbles in patterns, collecting items in order, reaching certain scores &#8212; triggered rare power-ups and secret rooms. The game had multiple endings, with the &#8220;true&#8221; ending requiring two players.</p>
+<p>The two-step defeat mechanic (trap then pop) created a rhythm unique to the game: blow, chase, pop, collect. This loop was so satisfying that it spawned an entire sub-genre of &#8220;trap-em-up&#8221; platformers including Snow Bros, Don Doko Don, and Parasol Stars.</p>
+<h2>AI Archaeology</h2>
+<p><strong>AI Era:</strong> 3 &#8212; Knowledge Explosion</p>
+<p>Bubble Bobble&#8217;s item system is an early procedural reward system driven by hidden counters and behavioral triggers. The game tracks dozens of invisible variables &#8212; bubbles blown, enemies trapped simultaneously, distance traveled &#8212; and uses them to determine item spawns. This prefigures modern achievement systems and behavioral analytics. Players unknowingly trained themselves through operant conditioning to perform specific action sequences, a design pattern now formalized in &#8220;emergent gameplay&#8221; research.</p>
+<h2>Classification</h2>
+<h3>Series: PLT &#8212; Platformer</h3>
+<p><strong>Single-screen trap-and-pop platformer.</strong> Blow bubbles to trap enemies on fixed platform layouts. Two-step defeat mechanic with emergent bubble physics. Wrap-around movement.</p>
+<h2>Prototype Notes</h2>
+<p><strong>Sketch</strong> rated 4/5. Single-screen platformer with bubble trapping, multiple enemy types, special bubble power-ups, procedural level layouts, and wrap-around movement. Fruit collection for bonus scoring.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+</div>
+</div>
+<script>
+const canvas=document.getElementById('c');
+const ctx=canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+canvas.width=800;canvas.height=600;
+
+// --- STATE ---
+let infoOpen=false;
+let state='title'; // title, play, win, gameover, levelclear
+let score=0,lives=3,level=1;
+let levelTimer=0,angryTimer=0,angryMode=false;
+const ANGRY_TIME=1200; // frames before enemies get angry (~20s)
+const LEVEL_CLEAR_TIME=90;
+let levelClearTimer=0;
+let keys={};
+let bubbleCooldown=0;
+
+// --- CONSTANTS ---
+const W=800,H=600;
+const TILE=25;
+const COLS=32,ROWS=24;
+const GRAV=0.35;
+const PLAYER_SPEED=2.8;
+const JUMP_FORCE=-7.5;
+const BUBBLE_SPEED=4;
+const BUBBLE_FLOAT_SPEED=-0.8;
+const BUBBLE_LIFETIME=300; // 5 seconds at 60fps
+const FRUIT_LIFETIME=360;
+
+// --- LEVEL LAYOUTS ---
+// 0=empty, 1=wall, 2=platform
+const LEVEL_TEMPLATES=[
+// Level 1 - simple
+[
+"11111111111111111111111111111111",
+"1.............................1",
+"1.............................1",
+"1.............................1",
+"1.............................1",
+"1.....222222......222222......1",
+"1.............................1",
+"1.............................1",
+"1.............................1",
+"1..222......222222......222...1",
+"1.............................1",
+"1.............................1",
+"1.............................1",
+"1......222222......222222.....1",
+"1.............................1",
+"1.............................1",
+"1.............................1",
+"1...222......222222......222..1",
+"1.............................1",
+"1.............................1",
+"1.............................1",
+"1.............................1",
+"1.............................1",
+"11111111111111111111111111111111",
+],
+// Level 2
+[
+"11111111111111111111111111111111",
+"1.............................1",
+"1.............................1",
+"1..2222..............2222.....1",
+"1.............................1",
+"1.............................1",
+"1.........2222222222..........1",
+"1.............................1",
+"1.............................1",
+"1..22222..................222.1",
+"1.............................1",
+"1............22222222.........1",
+"1.............................1",
+"1.............................1",
+"1..222.............222222.....1",
+"1.............................1",
+"1.............................1",
+"1........22222222.............1",
+"1.............................1",
+"1.............................1",
+"1..2222.............22222.....1",
+"1.............................1",
+"1.............................1",
+"11111111111111111111111111111111",
+],
+// Level 3
+[
+"11111111111111111111111111111111",
+"1.............................1",
+"1.............................1",
+"1.............................1",
+"1..222..222..222..222..222....1",
+"1.............................1",
+"1.............................1",
+"1.............................1",
+"1....222..222..222..222..22...1",
+"1.............................1",
+"1.............................1",
+"1.............................1",
+"1..222..222..222..222..222....1",
+"1.............................1",
+"1.............................1",
+"1.............................1",
+"1....222..222..222..222..22...1",
+"1.............................1",
+"1.............................1",
+"1.............................1",
+"1..222..222..222..222..222....1",
+"1.............................1",
+"1.............................1",
+"11111111111111111111111111111111",
+],
+// Level 4
+[
+"11111111111111111111111111111111",
+"1.............................1",
+"1.............................1",
+"1.............................1",
+"1..22222222222222222222222....1",
+"1.............................1",
+"1.............................1",
+"1.............................1",
+"1.............................1",
+"1....22222222222222222222.....1",
+"1.............................1",
+"1.............................1",
+"1.............................1",
+"1..22222222222222222222222....1",
+"1.............................1",
+"1.............................1",
+"1.............................1",
+"1.............................1",
+"1....22222222222222222222.....1",
+"1.............................1",
+"1.............................1",
+"1.............................1",
+"1.............................1",
+"11111111111111111111111111111111",
+],
+// Level 5
+[
+"11111111111111111111111111111111",
+"1.............................1",
+"1.............................1",
+"1..2222....................2..1",
+"1..2...................2222...1",
+"1..2..2222222222222....2......1",
+"1..2...................2......1",
+"1..2222....................2..1",
+"1.............................1",
+"1.........22222222222.........1",
+"1.............................1",
+"1.............................1",
+"1..22........222........22....1",
+"1.............................1",
+"1.............................1",
+"1.......2222......2222........1",
+"1.............................1",
+"1.............................1",
+"1..22222..............22222...1",
+"1.............................1",
+"1.............................1",
+"1.............................1",
+"1.............................1",
+"11111111111111111111111111111111",
+],
+// Level 6
+[
+"11111111111111111111111111111111",
+"1.............................1",
+"1.............................1",
+"1....22....22....22....22.....1",
+"1.............................1",
+"1.............................1",
+"1.22....22....22....22....22..1",
+"1.............................1",
+"1.............................1",
+"1....22....22....22....22.....1",
+"1.............................1",
+"1.............................1",
+"1.22....22....22....22....22..1",
+"1.............................1",
+"1.............................1",
+"1....22....22....22....22.....1",
+"1.............................1",
+"1.............................1",
+"1.22....22....22....22....22..1",
+"1.............................1",
+"1.............................1",
+"1.............................1",
+"1.............................1",
+"11111111111111111111111111111111",
+],
+// Level 7
+[
+"11111111111111111111111111111111",
+"1.............................1",
+"1.............................1",
+"1.............................1",
+"1..22222222......22222222.....1",
+"1..2....................2.....1",
+"1..2....................2.....1",
+"1..2....................2.....1",
+"1..22222222......22222222.....1",
+"1.............................1",
+"1.............................1",
+"1......22222222222222.........1",
+"1.............................1",
+"1.............................1",
+"1.............................1",
+"1..22222222......22222222.....1",
+"1..2....................2.....1",
+"1..2....................2.....1",
+"1..2....................2.....1",
+"1..22222222......22222222.....1",
+"1.............................1",
+"1.............................1",
+"1.............................1",
+"11111111111111111111111111111111",
+],
+// Level 8
+[
+"11111111111111111111111111111111",
+"1.............................1",
+"1..222222222222222222222222...1",
+"1.............................1",
+"1.............................1",
+"1...222222222222222222222.....1",
+"1.............................1",
+"1.............................1",
+"1..222222222222222222222222...1",
+"1.............................1",
+"1.............................1",
+"1...222222222222222222222.....1",
+"1.............................1",
+"1.............................1",
+"1..222222222222222222222222...1",
+"1.............................1",
+"1.............................1",
+"1...222222222222222222222.....1",
+"1.............................1",
+"1.............................1",
+"1..222222222222222222222222...1",
+"1.............................1",
+"1.............................1",
+"11111111111111111111111111111111",
+],
+// Level 9
+[
+"11111111111111111111111111111111",
+"1.............................1",
+"1.............................1",
+"1.............................1",
+"1.....2222222222222222........1",
+"1.....2..................2....1",
+"1.....2..................2....1",
+"1.....2..................2....1",
+"1.....2..................2....1",
+"1.....2222222222222222222.....1",
+"1.............................1",
+"1.............................1",
+"1..2222...............2222....1",
+"1.............................1",
+"1.............................1",
+"1.............................1",
+"1......2222222222222222.......1",
+"1.............................1",
+"1.............................1",
+"1..222.......222.......222....1",
+"1.............................1",
+"1.............................1",
+"1.............................1",
+"11111111111111111111111111111111",
+],
+// Level 10
+[
+"11111111111111111111111111111111",
+"1.............................1",
+"1.............................1",
+"1..22..22..22..22..22..22....1",
+"1.............................1",
+"1...22..22..22..22..22..2....1",
+"1.............................1",
+"1..22..22..22..22..22..22....1",
+"1.............................1",
+"1...22..22..22..22..22..2....1",
+"1.............................1",
+"1..22..22..22..22..22..22....1",
+"1.............................1",
+"1...22..22..22..22..22..2....1",
+"1.............................1",
+"1..22..22..22..22..22..22....1",
+"1.............................1",
+"1...22..22..22..22..22..2....1",
+"1.............................1",
+"1..22..22..22..22..22..22....1",
+"1.............................1",
+"1.............................1",
+"1.............................1",
+"11111111111111111111111111111111",
+],
+];
+
+// --- OBJECTS ---
+let player,enemies,bubbles,fruits,particles,specialBubbles;
+let tiles=[];
+
+function initLevel(){
+ tiles=[];
+ const tpl=LEVEL_TEMPLATES[(level-1)%LEVEL_TEMPLATES.length];
+ for(let r=0;r<ROWS;r++){
+  tiles[r]=[];
+  for(let c=0;c<COLS;c++){
+   const ch=tpl[r]?tpl[r][c]:'.';
+   tiles[r][c]=ch==='1'?1:(ch==='2'?2:0);
+  }
+ }
+ // Player start bottom-left area
+ player={
+  x:75,y:H-75,
+  vx:0,vy:0,
+  w:20,h:24,
+  dir:1, // 1=right, -1=left
+  onGround:false,
+  invincible:0,
+  blinkTimer:0,
+ };
+ enemies=[];
+ bubbles=[];
+ fruits=[];
+ particles=[];
+ specialBubbles=[];
+ bubbleCooldown=0;
+ angryMode=false;
+ angryTimer=0;
+ levelTimer=0;
+ levelClearTimer=0;
+
+ // Spawn enemies based on level
+ const enemyCount=Math.min(3+level,8);
+ const types=['zenChan','zenChan','zenChan','mighta','mighta','monsta'];
+ for(let i=0;i<enemyCount;i++){
+  const type=types[Math.min(i,types.length-1)];
+  // Place enemies on platforms
+  let ex,ey,placed=false;
+  for(let attempt=0;attempt<50&&!placed;attempt++){
+   ex=60+Math.random()*(W-120);
+   ey=50+Math.random()*(H-200);
+   const col=Math.floor(ex/TILE);
+   const row=Math.floor(ey/TILE);
+   // Check there's a platform below
+   if(row+1<ROWS && row>1){
+    for(let checkR=row;checkR<Math.min(row+4,ROWS);checkR++){
+     if(tiles[checkR][col]){
+      ey=checkR*TILE-24;
+      placed=true;
+      break;
+     }
+    }
+   }
+  }
+  if(!placed){ex=200+i*60;ey=200;}
+  enemies.push({
+   x:ex,y:ey,vx:(Math.random()>0.5?1:-1)*(type==='monsta'?2:1.2),vy:0,
+   w:20,h:22,
+   type:type,
+   trapped:false,trappedTimer:0,
+   bubbleX:0,bubbleY:0,
+   alive:true,
+   dir:Math.random()>0.5?1:-1,
+   jumpTimer:Math.random()*120|0,
+   angrySpeedMul:1,
+   boulderTimer:0,
+  });
+ }
+
+ // Spawn a special bubble occasionally
+ if(level>1 && Math.random()<0.5){
+  const sTypes=['water','fire','lightning'];
+  const st=sTypes[Math.random()*sTypes.length|0];
+  specialBubbles.push({
+   x:100+Math.random()*(W-200),
+   y:H-80,
+   vy:-0.5,
+   type:st,
+   r:12,
+   lifetime:600,
+  });
+ }
+}
+
+// --- COLLISION ---
+function tileAt(px,py){
+ const c=Math.floor(px/TILE),r=Math.floor(py/TILE);
+ if(c<0||c>=COLS||r<0||r>=ROWS)return 0;
+ return tiles[r][c];
+}
+
+function solidAt(px,py){
+ return tileAt(px,py)>0;
+}
+
+function rectOverlap(a,b){
+ return a.x<b.x+b.w && a.x+a.w>b.x && a.y<b.y+b.h && a.y+a.h>b.y;
+}
+
+function moveEntity(e,isPlayer){
+ // Horizontal
+ e.x+=e.vx;
+ // Wrap around horizontally
+ if(e.x<-e.w) e.x=W;
+ if(e.x>W) e.x=-e.w;
+
+ // Horizontal tile collision
+ if(e.vx>0){
+  if(solidAt(e.x+e.w,e.y+2)||solidAt(e.x+e.w,e.y+e.h-2)){
+   e.x=Math.floor((e.x+e.w)/TILE)*TILE-e.w-0.1;
+   e.vx=-e.vx;
+   if(!isPlayer) e.dir=-e.dir;
+  }
+ } else if(e.vx<0){
+  if(solidAt(e.x,e.y+2)||solidAt(e.x,e.y+e.h-2)){
+   e.x=Math.floor(e.x/TILE)*TILE+TILE+0.1;
+   e.vx=-e.vx;
+   if(!isPlayer) e.dir=-e.dir;
+  }
+ }
+
+ // Vertical
+ e.vy+=GRAV;
+ if(e.vy>8) e.vy=8;
+ e.y+=e.vy;
+
+ // Wrap-around: fall off bottom, appear at top
+ if(e.y>H+e.h){
+  e.y=-e.h;
+  e.vy=0.5;
+ }
+ // Wrap top
+ if(e.y<-e.h-20 && e.vy<0){
+  e.y=H;
+ }
+
+ e.onGround=false;
+ // Ground collision
+ if(e.vy>=0){
+  if(solidAt(e.x+2,e.y+e.h)||solidAt(e.x+e.w-2,e.y+e.h)){
+   e.y=Math.floor((e.y+e.h)/TILE)*TILE-e.h;
+   e.vy=0;
+   e.onGround=true;
+  }
+ }
+ // Ceiling collision
+ if(e.vy<0){
+  if(solidAt(e.x+2,e.y)||solidAt(e.x+e.w-2,e.y)){
+   e.y=Math.floor(e.y/TILE)*TILE+TILE;
+   e.vy=0;
+  }
+ }
+}
+
+// --- UPDATE ---
+function update(){
+ if(infoOpen) return;
+ if(state==='title'||state==='gameover'||state==='win') return;
+ if(state==='levelclear'){
+  levelClearTimer--;
+  if(levelClearTimer<=0){
+   level++;
+   if(level>10){
+    state='win';
+   } else {
+    initLevel();
+    state='play';
+   }
+  }
+  return;
+ }
+
+ levelTimer++;
+ angryTimer++;
+ if(angryTimer>ANGRY_TIME && !angryMode){
+  angryMode=true;
+  for(let e of enemies) e.angrySpeedMul=1.8;
+ }
+
+ // --- Player ---
+ if(player.invincible>0) player.invincible--;
+
+ // Movement
+ let moveX=0;
+ if(keys['ArrowLeft']||keys['a']) moveX=-1;
+ if(keys['ArrowRight']||keys['d']) moveX=1;
+ player.vx=moveX*PLAYER_SPEED;
+ if(moveX!==0) player.dir=moveX;
+
+ // Jump
+ if((keys['ArrowUp']||keys['w'])&&player.onGround){
+  player.vy=JUMP_FORCE;
+  player.onGround=false;
+ }
+
+ // Bubble riding - check if player lands on a bubble
+ if(player.vy>=0){
+  for(let b of bubbles){
+   if(!b.hasEnemy && b.vy<0){
+    const bRect={x:b.x-b.r,y:b.y-b.r,w:b.r*2,h:b.r*2};
+    const pFeet={x:player.x,y:player.y+player.h-4,w:player.w,h:8};
+    if(rectOverlap(pFeet,bRect)&&player.vy>=0&&player.y+player.h<b.y+b.r){
+     player.y=b.y-b.r-player.h;
+     player.vy=0;
+     player.onGround=true;
+    }
+   }
+  }
+ }
+
+ moveEntity(player,true);
+
+ // Bubble cooldown
+ if(bubbleCooldown>0) bubbleCooldown--;
+
+ // Blow bubble
+ if(keys[' ']&&bubbleCooldown<=0){
+  bubbleCooldown=15;
+  bubbles.push({
+   x:player.x+player.w/2+player.dir*15,
+   y:player.y+player.h/2-4,
+   vx:player.dir*BUBBLE_SPEED,
+   vy:0,
+   r:14,
+   lifetime:BUBBLE_LIFETIME,
+   age:0,
+   hasEnemy:false,
+   enemyType:null,
+   floating:false,
+   popAnim:0,
+  });
+ }
+
+ // --- Bubbles ---
+ for(let i=bubbles.length-1;i>=0;i--){
+  const b=bubbles[i];
+  b.age++;
+  b.lifetime--;
+
+  if(!b.floating){
+   // Traveling phase
+   b.x+=b.vx;
+   // After traveling a bit, start floating
+   if(b.age>20){
+    b.floating=true;
+    b.vx=0;
+    b.vy=BUBBLE_FLOAT_SPEED;
+   }
+   // Check tile collision during travel
+   if(solidAt(b.x,b.y)){
+    b.floating=true;
+    b.vx=0;
+    b.vy=BUBBLE_FLOAT_SPEED;
+   }
+  } else {
+   // Floating phase - drift upward with slight wobble
+   b.vy=BUBBLE_FLOAT_SPEED*(0.6+0.4*Math.sin(b.age*0.05));
+   b.x+=Math.sin(b.age*0.03)*0.5;
+   b.y+=b.vy;
+   // Wrap at top
+   if(b.y<-30) b.y=H+20;
+  }
+
+  // Check if enemy trapped in bubble escapes
+  if(b.hasEnemy && b.lifetime<=0){
+   // Free the enemy
+   for(let e of enemies){
+    if(e.trapped && Math.abs(e.bubbleX-b.x)<5 && Math.abs(e.bubbleY-b.y)<5){
+     e.trapped=false;
+     e.x=b.x-e.w/2;
+     e.y=b.y-e.h/2;
+     e.vy=0;
+    }
+   }
+   bubbles.splice(i,1);
+   continue;
+  }
+
+  // Remove expired empty bubbles
+  if(!b.hasEnemy && b.lifetime<=0){
+   // Pop with small particles
+   for(let p=0;p<4;p++){
+    particles.push({x:b.x,y:b.y,vx:(Math.random()-0.5)*2,vy:(Math.random()-0.5)*2,life:20,color:'rgba(120,200,255,0.6)',r:3});
+   }
+   bubbles.splice(i,1);
+   continue;
+  }
+
+  // Non-traveling bubbles: check if player pops enemy bubble
+  if(b.hasEnemy && b.floating){
+   const bRect={x:b.x-b.r,y:b.y-b.r,w:b.r*2,h:b.r*2};
+   const pRect={x:player.x,y:player.y,w:player.w,h:player.h};
+   if(rectOverlap(pRect,bRect)){
+    // Pop! Defeat enemy
+    score+=100*level;
+    // Spawn fruit
+    const fruitTypes=['cherry','banana','orange','melon','diamond'];
+    const ft=fruitTypes[Math.min(level-1,fruitTypes.length-1)];
+    fruits.push({
+     x:b.x-8,y:b.y-8,w:16,h:16,
+     type:ft,
+     points:ft==='cherry'?100:ft==='banana'?200:ft==='orange'?300:ft==='melon'?500:1000,
+     lifetime:FRUIT_LIFETIME,
+     vy:-2,
+    });
+    // Kill enemy
+    for(let e of enemies){
+     if(e.trapped && Math.abs(e.bubbleX-b.x)<20 && Math.abs(e.bubbleY-b.y)<20){
+      e.alive=false;
+     }
+    }
+    // Pop particles
+    for(let p=0;p<8;p++){
+     particles.push({x:b.x,y:b.y,vx:(Math.random()-0.5)*4,vy:(Math.random()-0.5)*4,life:30,color:'#fff',r:3});
+    }
+    bubbles.splice(i,1);
+    continue;
+   }
+  }
+
+  // Traveling bubble: check if it traps an enemy
+  if(!b.hasEnemy){
+   for(let e of enemies){
+    if(!e.alive||e.trapped) continue;
+    const eRect={x:e.x,y:e.y,w:e.w,h:e.h};
+    const bRect={x:b.x-b.r,y:b.y-b.r,w:b.r*2,h:b.r*2};
+    if(rectOverlap(eRect,bRect)){
+     b.hasEnemy=true;
+     b.enemyType=e.type;
+     b.floating=true;
+     b.vx=0;
+     b.vy=BUBBLE_FLOAT_SPEED;
+     b.lifetime=BUBBLE_LIFETIME;
+     b.r=18;
+     e.trapped=true;
+     e.bubbleX=b.x;
+     e.bubbleY=b.y;
+     // Particles
+     for(let p=0;p<6;p++){
+      particles.push({x:b.x,y:b.y,vx:(Math.random()-0.5)*3,vy:(Math.random()-0.5)*3,life:20,color:'#8ef',r:2});
+     }
+     break;
+    }
+   }
+  }
+ }
+
+ // --- Enemies ---
+ for(let e of enemies){
+  if(!e.alive||e.trapped) continue;
+  const spd=(e.type==='monsta'?2.5:1.2)*e.angrySpeedMul*(angryMode?1.5:1);
+
+  // AI: move toward player
+  e.jumpTimer--;
+  const dx=player.x-e.x;
+  const dy=player.y-e.y;
+  if(Math.abs(dx)>30){
+   e.vx=dx>0?spd:-spd;
+   e.dir=dx>0?1:-1;
+  }
+
+  // Jump occasionally
+  if(e.onGround && e.jumpTimer<=0 && (dy<-40||Math.random()<0.02)){
+   e.vy=JUMP_FORCE*0.85;
+   e.jumpTimer=60+Math.random()*60|0;
+  }
+
+  // Mighta: throw boulders
+  if(e.type==='mighta' && angryMode){
+   e.boulderTimer--;
+   if(e.boulderTimer<=0){
+    e.boulderTimer=180;
+    // Spawn a boulder as a fast particle
+    particles.push({
+     x:e.x+e.w/2,y:e.y,
+     vx:e.dir*3,vy:-2,
+     life:120,color:'#a86',r:6,isBoulder:true,
+    });
+   }
+  }
+
+  moveEntity(e,false);
+
+  // Enemy-player collision
+  if(player.invincible<=0){
+   const eRect={x:e.x,y:e.y,w:e.w,h:e.h};
+   const pRect={x:player.x,y:player.y,w:player.w,h:player.h};
+   if(rectOverlap(eRect,pRect)){
+    lives--;
+    player.invincible=120;
+    if(lives<=0){
+     state='gameover';
+    }
+    // Knockback
+    player.vy=-4;
+    player.vx=(player.x<e.x?-3:3);
+   }
+  }
+ }
+
+ // Update trapped enemy positions to follow their bubble
+ for(let e of enemies){
+  if(e.trapped){
+   let found=false;
+   for(let b of bubbles){
+    if(b.hasEnemy && Math.abs(e.bubbleX-b.x)<30 && Math.abs(e.bubbleY-b.y)<30){
+     e.bubbleX=b.x;
+     e.bubbleY=b.y;
+     e.x=b.x-e.w/2;
+     e.y=b.y-e.h/2;
+     found=true;
+     break;
+    }
+   }
+   if(!found){
+    // Bubble was removed, free the enemy
+    e.trapped=false;
+    e.vy=0;
+   }
+  }
+ }
+
+ // Remove dead enemies
+ enemies=enemies.filter(e=>e.alive);
+
+ // --- Fruits ---
+ for(let i=fruits.length-1;i>=0;i--){
+  const f=fruits[i];
+  f.lifetime--;
+  f.vy+=0.15;
+  f.y+=f.vy;
+  // Land on ground
+  if(solidAt(f.x+f.w/2,f.y+f.h)){
+   f.y=Math.floor((f.y+f.h)/TILE)*TILE-f.h;
+   f.vy=0;
+  }
+  if(f.lifetime<=0){
+   fruits.splice(i,1);
+   continue;
+  }
+  // Collect
+  const pRect={x:player.x,y:player.y,w:player.w,h:player.h};
+  if(rectOverlap(pRect,f)){
+   score+=f.points;
+   // Score popup particle
+   particles.push({x:f.x,y:f.y,vx:0,vy:-1,life:40,color:'#ff0',r:0,text:f.points+''});
+   fruits.splice(i,1);
+  }
+ }
+
+ // --- Special Bubbles ---
+ for(let i=specialBubbles.length-1;i>=0;i--){
+  const sb=specialBubbles[i];
+  sb.y+=sb.vy;
+  sb.lifetime--;
+  if(sb.y<-30||sb.lifetime<=0){specialBubbles.splice(i,1);continue;}
+  // Player collect
+  const pRect={x:player.x,y:player.y,w:player.w,h:player.h};
+  const sbRect={x:sb.x-sb.r,y:sb.y-sb.r,w:sb.r*2,h:sb.r*2};
+  if(rectOverlap(pRect,sbRect)){
+   // Trigger special effect
+   if(sb.type==='water'){
+    // Flood: kill all enemies on lower half
+    for(let e of enemies){
+     if(!e.alive)continue;
+     if(e.y>H/2||e.trapped){
+      e.alive=false;
+      score+=200;
+      spawnFruitAt(e.x,e.y);
+     }
+    }
+    for(let p=0;p<20;p++){
+     particles.push({x:Math.random()*W,y:H/2+Math.random()*H/2,vx:(Math.random()-0.5)*2,vy:-Math.random()*3,life:60,color:'#48f',r:5});
+    }
+   } else if(sb.type==='fire'){
+    // Fireball across screen
+    const dir=player.dir;
+    for(let p=0;p<15;p++){
+     particles.push({x:player.x+dir*p*40,y:player.y+10,vx:dir*6,vy:(Math.random()-0.5),life:40,color:'#f84',r:6,isFireball:true});
+    }
+    for(let e of enemies){
+     if(!e.alive)continue;
+     if(Math.abs(e.y-player.y)<40){
+      e.alive=false;score+=200;
+      spawnFruitAt(e.x,e.y);
+     }
+    }
+   } else if(sb.type==='lightning'){
+    // Zap all enemies
+    for(let e of enemies){
+     if(!e.alive)continue;
+     e.alive=false;score+=200;
+     spawnFruitAt(e.x,e.y);
+     for(let p=0;p<4;p++){
+      particles.push({x:e.x,y:e.y,vx:(Math.random()-0.5)*5,vy:(Math.random()-0.5)*5,life:20,color:'#ff0',r:3});
+     }
+    }
+   }
+   specialBubbles.splice(i,1);
+  }
+ }
+
+ // --- Particles ---
+ for(let i=particles.length-1;i>=0;i--){
+  const p=particles[i];
+  p.x+=p.vx;
+  p.y+=p.vy;
+  p.life--;
+  // Boulder collision with player
+  if(p.isBoulder && player.invincible<=0){
+   const bRect={x:p.x-p.r,y:p.y-p.r,w:p.r*2,h:p.r*2};
+   const pRect={x:player.x,y:player.y,w:player.w,h:player.h};
+   if(rectOverlap(bRect,pRect)){
+    lives--;
+    player.invincible=120;
+    p.life=0;
+    if(lives<=0) state='gameover';
+    player.vy=-4;
+   }
+  }
+  if(p.life<=0) particles.splice(i,1);
+ }
+
+ // --- Level clear check ---
+ if(enemies.length===0 && state==='play'){
+  state='levelclear';
+  levelClearTimer=LEVEL_CLEAR_TIME;
+ }
+}
+
+function spawnFruitAt(x,y){
+ const fruitTypes=['cherry','banana','orange','melon','diamond'];
+ const ft=fruitTypes[Math.min(level-1,fruitTypes.length-1)];
+ fruits.push({
+  x:x,y:y,w:16,h:16,
+  type:ft,
+  points:ft==='cherry'?100:ft==='banana'?200:ft==='orange'?300:ft==='melon'?500:1000,
+  lifetime:FRUIT_LIFETIME,
+  vy:-1,
+ });
+}
+
+// --- DRAW ---
+function draw(){
+ ctx.fillStyle='#111';
+ ctx.fillRect(0,0,W,H);
+
+ if(state==='title'){
+  drawTitle();
+  return;
+ }
+ if(state==='gameover'){
+  drawLevel();
+  drawHUD();
+  ctx.fillStyle='rgba(0,0,0,0.7)';
+  ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#f44';
+  ctx.font='bold 40px monospace';
+  ctx.textAlign='center';
+  ctx.fillText('GAME OVER',W/2,H/2-20);
+  ctx.fillStyle='#ccc';
+  ctx.font='16px monospace';
+  ctx.fillText('Score: '+score,W/2,H/2+20);
+  ctx.fillText('Press R to restart',W/2,H/2+50);
+  ctx.textAlign='left';
+  return;
+ }
+ if(state==='win'){
+  drawLevel();
+  drawHUD();
+  ctx.fillStyle='rgba(0,0,0,0.7)';
+  ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#4f4';
+  ctx.font='bold 36px monospace';
+  ctx.textAlign='center';
+  ctx.fillText('CONGRATULATIONS!',W/2,H/2-40);
+  ctx.fillStyle='#ff0';
+  ctx.font='20px monospace';
+  ctx.fillText('All levels cleared!',W/2,H/2);
+  ctx.fillStyle='#ccc';
+  ctx.font='16px monospace';
+  ctx.fillText('Final Score: '+score,W/2,H/2+35);
+  ctx.fillText('Press R to play again',W/2,H/2+65);
+  ctx.textAlign='left';
+  return;
+ }
+
+ drawLevel();
+
+ // Draw special bubbles
+ for(const sb of specialBubbles){
+  ctx.globalAlpha=0.7+0.3*Math.sin(sb.lifetime*0.1);
+  ctx.beginPath();
+  ctx.arc(sb.x,sb.y,sb.r,0,Math.PI*2);
+  ctx.fillStyle=sb.type==='water'?'#48f':sb.type==='fire'?'#f84':'#ff0';
+  ctx.fill();
+  ctx.strokeStyle='#fff';
+  ctx.lineWidth=2;
+  ctx.stroke();
+  // Letter
+  ctx.fillStyle='#fff';
+  ctx.font='bold 12px monospace';
+  ctx.textAlign='center';
+  ctx.textBaseline='middle';
+  ctx.fillText(sb.type[0].toUpperCase(),sb.x,sb.y);
+  ctx.globalAlpha=1;
+ }
+
+ // Draw bubbles
+ for(const b of bubbles){
+  const alpha=b.lifetime<60?b.lifetime/60:1;
+  ctx.globalAlpha=alpha;
+  if(b.hasEnemy){
+   // Enemy bubble - greenish
+   ctx.beginPath();
+   ctx.arc(b.x,b.y,b.r,0,Math.PI*2);
+   ctx.fillStyle='rgba(100,255,150,0.25)';
+   ctx.fill();
+   ctx.strokeStyle='rgba(100,255,150,0.7)';
+   ctx.lineWidth=2;
+   ctx.stroke();
+   // Draw tiny enemy inside
+   drawMiniEnemy(b.x,b.y,b.enemyType);
+   // Shine
+   ctx.beginPath();
+   ctx.arc(b.x-b.r*0.3,b.y-b.r*0.3,b.r*0.2,0,Math.PI*2);
+   ctx.fillStyle='rgba(255,255,255,0.5)';
+   ctx.fill();
+  } else {
+   // Regular bubble
+   ctx.beginPath();
+   ctx.arc(b.x,b.y,b.r,0,Math.PI*2);
+   ctx.fillStyle='rgba(100,180,255,0.15)';
+   ctx.fill();
+   ctx.strokeStyle='rgba(140,210,255,0.6)';
+   ctx.lineWidth=1.5;
+   ctx.stroke();
+   // Shine highlight
+   ctx.beginPath();
+   ctx.arc(b.x-b.r*0.3,b.y-b.r*0.3,b.r*0.25,0,Math.PI*2);
+   ctx.fillStyle='rgba(255,255,255,0.35)';
+   ctx.fill();
+  }
+  ctx.globalAlpha=1;
+ }
+
+ // Draw fruits
+ for(const f of fruits){
+  const alpha=f.lifetime<60?f.lifetime/60:1;
+  ctx.globalAlpha=alpha;
+  drawFruit(f.x+f.w/2,f.y+f.h/2,f.type);
+  ctx.globalAlpha=1;
+ }
+
+ // Draw player
+ if(player.invincible<=0||Math.floor(player.invincible/4)%2===0){
+  drawPlayer(player.x,player.y,player.dir);
+ }
+
+ // Draw enemies
+ for(const e of enemies){
+  if(!e.alive||e.trapped) continue;
+  drawEnemy(e.x,e.y,e.type,e.dir,angryMode);
+ }
+
+ // Particles
+ for(const p of particles){
+  ctx.globalAlpha=p.life/40;
+  if(p.text){
+   ctx.fillStyle=p.color;
+   ctx.font='bold 14px monospace';
+   ctx.textAlign='center';
+   ctx.fillText(p.text,p.x,p.y);
+   ctx.textAlign='left';
+  } else {
+   ctx.fillStyle=p.color;
+   ctx.beginPath();
+   ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+   ctx.fill();
+  }
+  ctx.globalAlpha=1;
+ }
+
+ // Level clear text
+ if(state==='levelclear'){
+  ctx.fillStyle='rgba(0,0,0,0.4)';
+  ctx.fillRect(0,H/2-40,W,80);
+  ctx.fillStyle='#4f4';
+  ctx.font='bold 30px monospace';
+  ctx.textAlign='center';
+  ctx.fillText('LEVEL CLEAR!',W/2,H/2+5);
+  ctx.fillStyle='#ccc';
+  ctx.font='14px monospace';
+  ctx.fillText('Get ready for level '+(level+1),W/2,H/2+30);
+  ctx.textAlign='left';
+ }
+
+ drawHUD();
+}
+
+function drawLevel(){
+ // Draw tiles
+ for(let r=0;r<ROWS;r++){
+  for(let c=0;c<COLS;c++){
+   const t=tiles[r][c];
+   if(t===1){
+    // Wall
+    ctx.fillStyle='#334';
+    ctx.fillRect(c*TILE,r*TILE,TILE,TILE);
+    ctx.fillStyle='#445';
+    ctx.fillRect(c*TILE+1,r*TILE+1,TILE-2,TILE-2);
+    // Brick pattern
+    ctx.strokeStyle='#2a2a3a';
+    ctx.lineWidth=1;
+    ctx.strokeRect(c*TILE+1,r*TILE+1,TILE-2,TILE-2);
+   } else if(t===2){
+    // Platform
+    ctx.fillStyle='#585';
+    ctx.fillRect(c*TILE,r*TILE,TILE,6);
+    ctx.fillStyle='#6a6';
+    ctx.fillRect(c*TILE,r*TILE,TILE,3);
+   }
+  }
+ }
+}
+
+function drawPlayer(x,y,dir){
+ // Cute green dragon (Bub)
+ const cx=x+10, cy=y+12;
+
+ // Body
+ ctx.fillStyle='#4c4';
+ ctx.beginPath();
+ ctx.ellipse(cx,cy+4,9,10,0,0,Math.PI*2);
+ ctx.fill();
+
+ // Belly
+ ctx.fillStyle='#afa';
+ ctx.beginPath();
+ ctx.ellipse(cx,cy+6,6,7,0,0,Math.PI*2);
+ ctx.fill();
+
+ // Head
+ ctx.fillStyle='#4c4';
+ ctx.beginPath();
+ ctx.arc(cx+dir*3,cy-8,8,0,Math.PI*2);
+ ctx.fill();
+
+ // Eyes
+ ctx.fillStyle='#fff';
+ ctx.beginPath();
+ ctx.arc(cx+dir*6,cy-10,4,0,Math.PI*2);
+ ctx.fill();
+ ctx.fillStyle='#111';
+ ctx.beginPath();
+ ctx.arc(cx+dir*7,cy-10,2,0,Math.PI*2);
+ ctx.fill();
+
+ // Snout/mouth
+ ctx.fillStyle='#6d6';
+ ctx.beginPath();
+ ctx.ellipse(cx+dir*9,cy-6,4,3,0,0,Math.PI*2);
+ ctx.fill();
+
+ // Spines on back
+ ctx.fillStyle='#2a2';
+ for(let i=0;i<3;i++){
+  ctx.beginPath();
+  ctx.moveTo(cx-dir*5+i*dir*(-3),cy-6-i*4);
+  ctx.lineTo(cx-dir*7+i*dir*(-3),cy-12-i*3);
+  ctx.lineTo(cx-dir*3+i*dir*(-3),cy-6-i*4);
+  ctx.fill();
+ }
+
+ // Feet
+ ctx.fillStyle='#4c4';
+ ctx.fillRect(cx-6,cy+12,5,3);
+ ctx.fillRect(cx+2,cy+12,5,3);
+}
+
+function drawEnemy(x,y,type,dir,angry){
+ const cx=x+10,cy=y+11;
+ if(type==='zenChan'){
+  // Zen-Chan: round blue/white creature
+  ctx.fillStyle=angry?'#f44':'#66f';
+  ctx.beginPath();
+  ctx.arc(cx,cy,10,0,Math.PI*2);
+  ctx.fill();
+  // Eyes
+  ctx.fillStyle='#fff';
+  ctx.beginPath();
+  ctx.arc(cx+dir*3-2,cy-3,3,0,Math.PI*2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(cx+dir*3+3,cy-3,3,0,Math.PI*2);
+  ctx.fill();
+  ctx.fillStyle='#000';
+  ctx.beginPath();
+  ctx.arc(cx+dir*4-2,cy-3,1.5,0,Math.PI*2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(cx+dir*4+3,cy-3,1.5,0,Math.PI*2);
+  ctx.fill();
+  // Feet
+  ctx.fillStyle=angry?'#f44':'#66f';
+  ctx.fillRect(cx-7,cy+8,5,4);
+  ctx.fillRect(cx+3,cy+8,5,4);
+ } else if(type==='mighta'){
+  // Mighta: hooded figure, purple
+  ctx.fillStyle=angry?'#f64':'#a4a';
+  ctx.beginPath();
+  ctx.moveTo(cx,cy-12);
+  ctx.lineTo(cx-10,cy+6);
+  ctx.lineTo(cx+10,cy+6);
+  ctx.closePath();
+  ctx.fill();
+  // Body
+  ctx.fillRect(cx-6,cy+2,12,10);
+  // Eyes
+  ctx.fillStyle='#ff0';
+  ctx.beginPath();
+  ctx.arc(cx-3,cy-2,2,0,Math.PI*2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(cx+3,cy-2,2,0,Math.PI*2);
+  ctx.fill();
+ } else if(type==='monsta'){
+  // Monsta: fast white ghost
+  ctx.fillStyle=angry?'#f88':'#eee';
+  ctx.beginPath();
+  ctx.arc(cx,cy-2,10,Math.PI,0);
+  ctx.lineTo(cx+10,cy+8);
+  // Wavy bottom
+  ctx.quadraticCurveTo(cx+7,cy+4,cx+4,cy+8);
+  ctx.quadraticCurveTo(cx,cy+4,cx-4,cy+8);
+  ctx.quadraticCurveTo(cx-7,cy+4,cx-10,cy+8);
+  ctx.closePath();
+  ctx.fill();
+  // Eyes
+  ctx.fillStyle='#000';
+  ctx.beginPath();
+  ctx.arc(cx-3,cy-3,2.5,0,Math.PI*2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(cx+3,cy-3,2.5,0,Math.PI*2);
+  ctx.fill();
+ }
+}
+
+function drawMiniEnemy(x,y,type){
+ ctx.fillStyle=type==='zenChan'?'#66f':type==='mighta'?'#a4a':'#eee';
+ ctx.beginPath();
+ ctx.arc(x,y,5,0,Math.PI*2);
+ ctx.fill();
+ // Tiny eyes
+ ctx.fillStyle='#000';
+ ctx.fillRect(x-2,y-1,2,2);
+ ctx.fillRect(x+1,y-1,2,2);
+}
+
+function drawFruit(x,y,type){
+ if(type==='cherry'){
+  ctx.fillStyle='#f22';
+  ctx.beginPath();ctx.arc(x-3,y+2,5,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.arc(x+3,y+2,5,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle='#4a2';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(x-3,y-2);ctx.quadraticCurveTo(x,y-8,x+3,y-2);ctx.stroke();
+ } else if(type==='banana'){
+  ctx.fillStyle='#ff0';
+  ctx.beginPath();
+  ctx.ellipse(x,y,8,4,0.3,0,Math.PI);
+  ctx.fill();
+  ctx.strokeStyle='#aa0';ctx.lineWidth=1;
+  ctx.beginPath();ctx.ellipse(x,y,8,4,0.3,0,Math.PI);ctx.stroke();
+ } else if(type==='orange'){
+  ctx.fillStyle='#f80';
+  ctx.beginPath();ctx.arc(x,y,6,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#4a2';
+  ctx.fillRect(x-1,y-8,2,3);
+ } else if(type==='melon'){
+  ctx.fillStyle='#4a4';
+  ctx.beginPath();ctx.ellipse(x,y,7,6,0,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle='#2a2';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(x-5,y);ctx.quadraticCurveTo(x,y-4,x+5,y);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(x-5,y);ctx.quadraticCurveTo(x,y+4,x+5,y);ctx.stroke();
+ } else if(type==='diamond'){
+  ctx.fillStyle='#8ef';
+  ctx.beginPath();
+  ctx.moveTo(x,y-7);ctx.lineTo(x+6,y);ctx.lineTo(x,y+7);ctx.lineTo(x-6,y);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle='#fff';ctx.lineWidth=1;ctx.stroke();
+ }
+}
+
+function drawHUD(){
+ // Title badge
+ ctx.fillStyle='rgba(0,0,0,0.6)';
+ ctx.fillRect(0,0,W,28);
+ ctx.fillStyle='#7bf';
+ ctx.font='bold 14px monospace';
+ ctx.textAlign='left';
+ ctx.fillText('PLT-006 \u00B7 BUBBLE TRAP  [?]',10,18);
+
+ // Score
+ ctx.fillStyle='#ff0';
+ ctx.textAlign='center';
+ ctx.fillText('SCORE: '+score,W/2,18);
+
+ // Level
+ ctx.fillStyle='#4f4';
+ ctx.textAlign='right';
+ ctx.fillText('LV: '+level,W-120,18);
+
+ // Lives
+ ctx.fillStyle='#f66';
+ ctx.fillText('LIVES: '+lives,W-10,18);
+
+ ctx.textAlign='left';
+
+ // Angry warning
+ if(angryMode){
+  ctx.fillStyle='#f44';
+  ctx.font='bold 12px monospace';
+  const blink=Math.sin(Date.now()*0.01)>0;
+  if(blink) ctx.fillText('!! HURRY UP !!',W/2-50,H-8);
+ }
+}
+
+function drawTitle(){
+ // Background
+ ctx.fillStyle='#112';
+ ctx.fillRect(0,0,W,H);
+
+ // Floating bubble decorations
+ const t=Date.now()*0.001;
+ for(let i=0;i<12;i++){
+  const bx=100+i*60+Math.sin(t+i)*20;
+  const by=100+Math.sin(t*0.7+i*0.8)*200+150;
+  const br=10+Math.sin(t+i*2)*4;
+  ctx.globalAlpha=0.3;
+  ctx.beginPath();
+  ctx.arc(bx,by,br,0,Math.PI*2);
+  ctx.strokeStyle='#8cf';
+  ctx.lineWidth=2;
+  ctx.stroke();
+  ctx.globalAlpha=1;
+ }
+
+ // Title
+ ctx.fillStyle='#4f4';
+ ctx.font='bold 48px monospace';
+ ctx.textAlign='center';
+ ctx.fillText('BUBBLE TRAP',W/2,180);
+
+ // Subtitle
+ ctx.fillStyle='#8cf';
+ ctx.font='18px monospace';
+ ctx.fillText('PLT-006 \u00B7 Platformer Prototype',W/2,220);
+
+ // Draw a cute Bub
+ drawPlayer(W/2-12,280,1);
+
+ // Instructions
+ ctx.fillStyle='#aaa';
+ ctx.font='14px monospace';
+ ctx.fillText('\u2190 \u2192  Move    \u2191  Jump    SPACE  Bubble',W/2,360);
+ ctx.fillText('R  Restart    ?  Info Panel',W/2,385);
+
+ ctx.fillStyle='#ff0';
+ ctx.font='bold 18px monospace';
+ const blink=Math.sin(Date.now()*0.005)>0;
+ if(blink) ctx.fillText('PRESS SPACE TO START',W/2,450);
+
+ // Ancestry
+ ctx.fillStyle='#666';
+ ctx.font='12px monospace';
+ ctx.fillText('Ancestry: Bubble Bobble (1986, Fukio Mitsuji, Taito)',W/2,520);
+ ctx.fillText('Snow Bros (1990, Toaplan)',W/2,538);
+
+ ctx.textAlign='left';
+}
+
+// --- INPUT ---
+window.addEventListener('keydown',e=>{
+ keys[e.key]=true;
+ if(e.key===' '||e.key==='ArrowUp'||e.key==='ArrowDown') e.preventDefault();
+
+ if(e.key==='?'||e.key==='/'){
+  toggleInfo();
+  e.preventDefault();
+ }
+ if(e.key==='Escape'&&infoOpen){
+  toggleInfo();
+ }
+ if(e.key==='r'||e.key==='R'){
+  if(state==='gameover'||state==='win'){
+   score=0;lives=3;level=1;
+   initLevel();
+   state='play';
+  } else if(state==='play'){
+   initLevel();
+  }
+ }
+ if(e.key===' '&&state==='title'){
+  initLevel();
+  state='play';
+ }
+});
+
+window.addEventListener('keyup',e=>{
+ keys[e.key]=false;
+});
+
+function toggleInfo(){
+ infoOpen=!infoOpen;
+ document.getElementById('info-panel').style.display=infoOpen?'block':'none';
+}
+
+// --- RESIZE ---
+function resize(){
+ const scale=Math.min(window.innerWidth/W,window.innerHeight/H);
+ canvas.style.width=(W*scale)+'px';
+ canvas.style.height=(H*scale)+'px';
+}
+window.addEventListener('resize',resize);
+resize();
+
+// --- GAME LOOP ---
+function loop(){
+ update();
+ draw();
+ requestAnimationFrame(loop);
+}
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: pong ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("pong");
+</script>
+</body>
+</html>

@@ -1,0 +1,703 @@
+<!--
+PROTOTYPE: congkak
+SERIES: anc
+NUMBER: 022
+DATE: 2026-03-24
+MECHANIC: mancala with store-in-circuit — the player's store IS included in the sowing circle; creates capture-your-own-store dynamics; skip opponent's store during sowing
+ANCESTRY: Congkak/Sungka (~16th century, Malaysia/Philippines), Mancala family
+CONTROLS: Click — choose pit to sow | 1-7 — keyboard pit select | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 2 (Knowledge Engineering — rule-based systems, expert heuristics)
+AI-INSIGHT: Congkak's store-in-circuit sowing creates different tempo dynamics than African mancala. The extra pit and higher seed count expand the game tree considerably. Expert heuristics capture the importance of store-landing bonus turns and opposite-pit captures more naturally than brute-force search.
+NOTES: 2x7 board with 7 seeds per pit. Store-in-circuit sowing is the key differentiator.
+       Beautiful carved wooden board aesthetic. Malaysian/Filipino heritage.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ANC-022 · CONGKAK</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #1a0e08; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>ANC-022 · CONGKAK</h1>
+    <p><span class="tag series">ANC — Ancient Games</span> <span class="tag">Prototype #022</span> <span class="tag">★★★★☆</span></p>
+
+    <h2>How to Play</h2>
+    <p>Pick up all stones from one of your pits and sow them counterclockwise around the board. Collect the most stones in your store (the large pit on your right).</p>
+    <ul>
+      <li>Click a pit on your side (bottom row) or press <kbd>1</kbd>-<kbd>7</kbd></li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Rules (Store-in-Circuit)</h3>
+    <ul>
+      <li><strong>Sowing:</strong> Pick up all stones from a pit, drop one in each subsequent pit counterclockwise — including your own store.</li>
+      <li><strong>Store in circuit:</strong> Unlike African mancala, your store IS part of the sowing path. This is the key difference.</li>
+      <li><strong>Skip opponent's store:</strong> Never drop stones in the opponent's store.</li>
+      <li><strong>Bonus turn:</strong> If your last stone lands in your store, you get another turn.</li>
+      <li><strong>Capture:</strong> If your last stone lands in an empty pit on your side, capture that stone and all stones in the opposite pit into your store.</li>
+      <li><strong>Game end:</strong> When one side is completely empty, remaining stones on the other side go to that side's owner's store.</li>
+      <li><strong>Victory:</strong> Most stones wins. Total is 98 (7 pits x 7 stones x 2 sides).</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Congkak/Sungka (~16th century) — part of the vast Mancala family</p>
+    <p>Congkak (also spelled Congklak) is a traditional mancala game widely played in Malaysia, Singapore, Brunei, and southern Thailand. The Filipino variant is called Sungka. The name may derive from the Malay word "congkak" meaning "mental calculation."</p>
+    <p>Traditionally carved from hardwood (often mahogany or teak) in the shape of a boat or naga (dragon), Congkak boards are works of art. The game was historically associated with aristocratic women in the Malay courts, though it was played widely across social classes.</p>
+    <p>The 2x7 board with stores is the most common configuration, though 2x5 and 2x9 variants exist. The key mechanical difference from West African mancala (Oware) is that the player's store is part of the sowing circuit — stones pass through and accumulate in your store during normal play, creating a different tempo and strategy.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 2 — Knowledge Engineering (1965-1985)</p>
+    <p><strong>Contemporary AI:</strong> The store-in-circuit mechanic creates asymmetric path lengths depending on which pit you choose. Expert systems can encode heuristics: prefer moves that land in your store (bonus turn), set up captures, and avoid feeding the opponent's side.</p>
+    <p><strong>Hidden Intelligence:</strong> With 7 pits and 7 initial stones, the game tree is significantly larger than 6-pit Kalah. The store-in-circuit creates different positional dynamics — stones accumulate in stores naturally through sowing, not just through captures. This changes the tempo: games tend to have more bonus turns and the store fills faster.</p>
+    <p><strong>The Convergence:</strong> Congkak's store-in-circuit is a design insight that changes the feel of mancala. By including the store in the path, every sowing action has a chance of scoring. The game becomes more flowing, less about hoarding — a different optimization landscape.</p>
+    <p><strong>If AI Had Designed This:</strong> An AI optimizing for "satisfying micro-rewards during play" might converge on store-in-circuit. Each sow has a chance of landing in the store, providing frequent positive feedback — a proto-variable-ratio reward schedule.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: ANC — Ancient Games</h3>
+    <p>Games that survived centuries. Congkak's spread across Southeast Asia demonstrates how mancala mechanics adapt to local cultures while preserving core design.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Seed sowing with store-in-circuit.</strong> 2x7 board, 7 stones per pit. Counterclockwise sowing includes your store but skips opponent's. Bonus turns on store landing. Captures on empty own-pit landing.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Store-in-circuit feel — does including the store in sowing change the rhythm?</li>
+      <li>7-pit board — does the wider board feel more strategic than 6-pit mancala?</li>
+      <li>Bonus turn frequency — does store-in-circuit create more chain turns?</li>
+      <li>Carved wood aesthetic — does the visual evoke the traditional board?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Congkak variant: 7 pits per side, 7 stones each. Player vs AI (minimax with heuristic evaluation, depth 5). Beautiful carved wooden board aesthetic.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+const justPressed = {};
+const keys = {};
+window.addEventListener('keydown', e => {
+  if (infoOpen) return;
+  if (!keys[e.code]) justPressed[e.code] = true;
+  keys[e.code] = true;
+  e.preventDefault();
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+function pop(code) { if (justPressed[code]) { justPressed[code] = false; return true; } return false; }
+
+// --- GAME CONSTANTS ---
+// Board layout: 0-6 = P1 pits (bottom, left to right), 7 = P1 store,
+//               8-14 = P2 pits (top, right to left), 15 = P2 store
+const PITS = 7;
+const INIT_STONES = 7;
+const TOTAL_SLOTS = 16; // 7 + 1 + 7 + 1
+const P1_STORE = 7;
+const P2_STORE = 15;
+
+let board, turn, gameOver, winner, message, messageTimer, aiThinking;
+let hoverPit = -1;
+
+function initGame() {
+  board = new Array(TOTAL_SLOTS).fill(INIT_STONES);
+  board[P1_STORE] = 0;
+  board[P2_STORE] = 0;
+  turn = 1;
+  gameOver = false;
+  winner = 0;
+  message = '';
+  messageTimer = 0;
+  aiThinking = 0;
+  hoverPit = -1;
+}
+initGame();
+
+function cloneBoard(b) { return [...b]; }
+
+// Sow stones counterclockwise, skipping opponent's store
+function sow(b, pit, player) {
+  let stones = b[pit];
+  if (stones === 0) return { board: b, extraTurn: false, valid: false };
+  b = cloneBoard(b);
+  b[pit] = 0;
+  let idx = pit;
+  const skipStore = player === 1 ? P2_STORE : P1_STORE;
+
+  while (stones > 0) {
+    idx = (idx + 1) % TOTAL_SLOTS;
+    if (idx === skipStore) continue;
+    b[idx]++;
+    stones--;
+  }
+
+  const myStore = player === 1 ? P1_STORE : P2_STORE;
+  const extraTurn = idx === myStore;
+
+  // Capture: last stone in empty own pit
+  if (!extraTurn) {
+    const myStart = player === 1 ? 0 : 8;
+    const myEnd = player === 1 ? 6 : 14;
+    if (idx >= myStart && idx <= myEnd && b[idx] === 1) {
+      // Opposite pit: for P1 pit i (0-6), opposite is P2 pit (14 - i)
+      // For P2 pit i (8-14), opposite is P1 pit (14 - i) but mapped:
+      // P1 pit 0 <-> P2 pit 14, P1 pit 1 <-> P2 pit 13, ... P1 pit 6 <-> P2 pit 8
+      let opposite;
+      if (player === 1) {
+        opposite = 14 - idx; // pit 0->14, 1->13, ..., 6->8
+      } else {
+        opposite = 14 - idx; // pit 8->6, 9->5, ..., 14->0
+      }
+      if (b[opposite] > 0) {
+        b[myStore] += b[opposite] + 1;
+        b[opposite] = 0;
+        b[idx] = 0;
+      }
+    }
+  }
+
+  return { board: b, extraTurn, valid: true };
+}
+
+function checkGameEnd(b) {
+  let p1Empty = true, p2Empty = true;
+  for (let i = 0; i < PITS; i++) { if (b[i] > 0) p1Empty = false; }
+  for (let i = 8; i < 8 + PITS; i++) { if (b[i] > 0) p2Empty = false; }
+
+  if (p1Empty || p2Empty) {
+    for (let i = 0; i < PITS; i++) { b[P1_STORE] += b[i]; b[i] = 0; }
+    for (let i = 8; i < 8 + PITS; i++) { b[P2_STORE] += b[i]; b[i] = 0; }
+    return true;
+  }
+  return false;
+}
+
+// --- AI ---
+function evaluate(b) {
+  // Heuristic: stone difference + bonus for stones near store
+  let score = b[P2_STORE] - b[P1_STORE];
+  // Prefer having stones on own side (more options)
+  let p2Stones = 0, p1Stones = 0;
+  for (let i = 8; i < 15; i++) p2Stones += b[i];
+  for (let i = 0; i < 7; i++) p1Stones += b[i];
+  score += (p2Stones - p1Stones) * 0.1;
+  return score;
+}
+
+function minimax(b, depth, alpha, beta, isMax) {
+  const bc = cloneBoard(b);
+  if (depth === 0 || checkGameEnd(bc)) return evaluate(bc);
+
+  const player = isMax ? 2 : 1;
+  const start = player === 1 ? 0 : 8;
+
+  if (isMax) {
+    let best = -Infinity;
+    for (let i = start; i < start + PITS; i++) {
+      if (b[i] === 0) continue;
+      const result = sow(cloneBoard(b), i, player);
+      if (!result.valid) continue;
+      const val = result.extraTurn
+        ? minimax(result.board, depth - 1, alpha, beta, true)
+        : minimax(result.board, depth - 1, alpha, beta, false);
+      best = Math.max(best, val);
+      alpha = Math.max(alpha, val);
+      if (beta <= alpha) break;
+    }
+    return best === -Infinity ? evaluate(b) : best;
+  } else {
+    let best = Infinity;
+    for (let i = start; i < start + PITS; i++) {
+      if (b[i] === 0) continue;
+      const result = sow(cloneBoard(b), i, player);
+      if (!result.valid) continue;
+      const val = result.extraTurn
+        ? minimax(result.board, depth - 1, alpha, beta, false)
+        : minimax(result.board, depth - 1, alpha, beta, true);
+      best = Math.min(best, val);
+      beta = Math.min(beta, val);
+      if (beta <= alpha) break;
+    }
+    return best === Infinity ? evaluate(b) : best;
+  }
+}
+
+function aiPickMove() {
+  let bestPit = -1, bestScore = -Infinity;
+  for (let i = 8; i < 8 + PITS; i++) {
+    if (board[i] === 0) continue;
+    const result = sow(cloneBoard(board), i, 2);
+    if (!result.valid) continue;
+    const score = minimax(result.board, 4, -Infinity, Infinity, !result.extraTurn);
+    if (score > bestScore) { bestScore = score; bestPit = i; }
+  }
+  return bestPit;
+}
+
+function makeMove(pit) {
+  const player = turn;
+  const result = sow(board, pit, player);
+  if (!result.valid) return;
+  board = result.board;
+
+  if (checkGameEnd(board)) {
+    gameOver = true;
+    winner = board[P1_STORE] > board[P2_STORE] ? 1 : board[P2_STORE] > board[P1_STORE] ? 2 : 0;
+    return;
+  }
+
+  if (result.extraTurn) {
+    message = (player === 1 ? 'Bonus turn!' : 'AI gets bonus turn');
+    messageTimer = 60;
+  } else {
+    turn = turn === 1 ? 2 : 1;
+  }
+}
+
+// --- LAYOUT ---
+const PIT_R = 32;
+const STORE_W = 60, STORE_H = 170;
+const PIT_GAP = PIT_R * 2 + 8;
+const BOARD_W = PITS * PIT_GAP + 2 * STORE_W + 30;
+const BX = (W - BOARD_W) / 2;
+const BY = H / 2;
+
+function pitPos(idx) {
+  if (idx === P1_STORE) return { x: BX + BOARD_W - STORE_W / 2, y: BY, isStore: true };
+  if (idx === P2_STORE) return { x: BX + STORE_W / 2, y: BY, isStore: true };
+
+  if (idx < PITS) {
+    // Bottom row (P1): left to right
+    return { x: BX + STORE_W + 15 + idx * PIT_GAP + PIT_R, y: BY + 65 };
+  } else {
+    // Top row (P2): right to left — pit 8 is rightmost, 14 is leftmost
+    const col = 14 - idx;
+    return { x: BX + STORE_W + 15 + col * PIT_GAP + PIT_R, y: BY - 65 };
+  }
+}
+
+// Click handling
+canvas.addEventListener('click', e => {
+  if (infoOpen) return;
+  if (gameOver) return;
+  if (turn !== 1) return;
+  const rect = canvas.getBoundingClientRect();
+  const mx = (e.clientX - rect.left) * (W / rect.width);
+  const my = (e.clientY - rect.top) * (H / rect.height);
+
+  for (let i = 0; i < PITS; i++) {
+    const pos = pitPos(i);
+    const dx = mx - pos.x, dy = my - pos.y;
+    if (dx * dx + dy * dy < PIT_R * PIT_R && board[i] > 0) {
+      makeMove(i);
+      return;
+    }
+  }
+});
+
+// Hover tracking
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  const mx = (e.clientX - rect.left) * (W / rect.width);
+  const my = (e.clientY - rect.top) * (H / rect.height);
+  hoverPit = -1;
+  if (turn !== 1 || gameOver || infoOpen) return;
+  for (let i = 0; i < PITS; i++) {
+    const pos = pitPos(i);
+    const dx = mx - pos.x, dy = my - pos.y;
+    if (dx * dx + dy * dy < PIT_R * PIT_R && board[i] > 0) {
+      hoverPit = i;
+      break;
+    }
+  }
+});
+
+function update() {
+  if (infoOpen) return;
+  if (gameOver) { if (pop('KeyR')) initGame(); return; }
+  if (messageTimer > 0) messageTimer--;
+
+  // P1 keyboard input
+  if (turn === 1) {
+    for (let i = 1; i <= 7; i++) {
+      if (pop('Digit' + i) && board[i - 1] > 0) {
+        makeMove(i - 1);
+      }
+    }
+    if (pop('KeyR')) initGame();
+  }
+
+  // AI turn
+  if (turn === 2 && !gameOver) {
+    aiThinking++;
+    if (aiThinking > 30) {
+      const pit = aiPickMove();
+      if (pit >= 0) makeMove(pit);
+      aiThinking = 0;
+    }
+  }
+}
+
+// --- DRAWING ---
+function drawWoodGrain(x, y, w, h, r) {
+  // Board body
+  ctx.fillStyle = '#4a2a12';
+  ctx.beginPath();
+  // Manual rounded rect for compatibility
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  ctx.lineTo(x + r, y + h);
+  ctx.arcTo(x, y + h, x, y + h - r, r);
+  ctx.lineTo(x, y + r);
+  ctx.arcTo(x, y, x + r, y, r);
+  ctx.closePath();
+  ctx.fill();
+
+  // Wood grain lines
+  ctx.strokeStyle = 'rgba(90,50,20,0.4)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 12; i++) {
+    const gy = y + 8 + i * (h / 12);
+    ctx.beginPath();
+    ctx.moveTo(x + 10, gy);
+    ctx.quadraticCurveTo(x + w / 2, gy + (i % 2 ? 3 : -3), x + w - 10, gy);
+    ctx.stroke();
+  }
+
+  // Border
+  ctx.strokeStyle = '#7a5a30';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  ctx.lineTo(x + r, y + h);
+  ctx.arcTo(x, y + h, x, y + h - r, r);
+  ctx.lineTo(x, y + r);
+  ctx.arcTo(x, y, x + r, y, r);
+  ctx.closePath();
+  ctx.stroke();
+
+  // Inner bevel
+  ctx.strokeStyle = 'rgba(200,160,80,0.15)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(x + r + 4, y + 4);
+  ctx.lineTo(x + w - r - 4, y + 4);
+  ctx.arcTo(x + w - 4, y + 4, x + w - 4, y + r + 4, r - 4);
+  ctx.lineTo(x + w - 4, y + h - r - 4);
+  ctx.stroke();
+}
+
+function drawStoreShape(cx, cy, w, h) {
+  // Oval store pit
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, w / 2 - 4, h / 2 - 4, 0, 0, Math.PI * 2);
+  ctx.closePath();
+}
+
+function drawSeeds(x, y, count, radius) {
+  if (count === 0) return;
+  const maxR = radius - 6;
+
+  if (count <= 8) {
+    const angleStep = (Math.PI * 2) / Math.max(count, 1);
+    const r = count === 1 ? 0 : maxR * 0.55;
+    for (let i = 0; i < count; i++) {
+      const a = angleStep * i - Math.PI / 2;
+      const sx = x + Math.cos(a) * r;
+      const sy = y + Math.sin(a) * r;
+      // Stone with gradient look
+      ctx.fillStyle = '#c8a050';
+      ctx.beginPath();
+      ctx.arc(sx, sy, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#e8c878';
+      ctx.beginPath();
+      ctx.arc(sx - 1, sy - 1, 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#8a6020';
+      ctx.lineWidth = 0.5;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 5, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  } else {
+    // Many stones — show as layered pile with count
+    const shown = Math.min(count, 14);
+    for (let i = 0; i < shown; i++) {
+      const a = (i / shown) * Math.PI * 2;
+      const r = maxR * 0.35 + (i % 3) * 4;
+      const sx = x + Math.cos(a) * r;
+      const sy = y + Math.sin(a) * r;
+      ctx.fillStyle = '#c8a050';
+      ctx.beginPath();
+      ctx.arc(sx, sy, 4.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 14px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(count, x, y);
+  }
+}
+
+function draw() {
+  // Background
+  ctx.fillStyle = '#1a0e08';
+  ctx.fillRect(0, 0, W, H);
+
+  // Subtle radial gradient behind board
+  const grd = ctx.createRadialGradient(W / 2, H / 2, 50, W / 2, H / 2, 400);
+  grd.addColorStop(0, '#2a1a0c');
+  grd.addColorStop(1, '#1a0e08');
+  ctx.fillStyle = grd;
+  ctx.fillRect(0, 0, W, H);
+
+  // Board (carved wood)
+  const boardPad = 22;
+  drawWoodGrain(
+    BX - boardPad, BY - STORE_H / 2 - boardPad,
+    BOARD_W + boardPad * 2, STORE_H + boardPad * 2, 25
+  );
+
+  // Stores
+  for (const storeIdx of [P1_STORE, P2_STORE]) {
+    const pos = pitPos(storeIdx);
+    // Carved pit shadow
+    ctx.fillStyle = '#1a0a04';
+    drawStoreShape(pos.x, pos.y, STORE_W, STORE_H);
+    ctx.fill();
+    // Inner rim
+    ctx.strokeStyle = '#5a3818';
+    ctx.lineWidth = 2;
+    drawStoreShape(pos.x, pos.y, STORE_W, STORE_H);
+    ctx.stroke();
+    // Carved depth effect
+    ctx.fillStyle = '#251208';
+    drawStoreShape(pos.x + 1, pos.y + 1, STORE_W - 6, STORE_H - 6);
+    ctx.fill();
+
+    // Stone count in store
+    ctx.fillStyle = '#e8c878';
+    ctx.font = 'bold 26px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(board[storeIdx], pos.x, pos.y);
+  }
+
+  // Store labels
+  ctx.fillStyle = '#b88840';
+  ctx.font = '11px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  const p1s = pitPos(P1_STORE);
+  const p2s = pitPos(P2_STORE);
+  ctx.fillText('YOU', p1s.x, p1s.y + STORE_H / 2 + 6);
+  ctx.fillText('AI', p2s.x, p2s.y + STORE_H / 2 + 6);
+
+  // Pits
+  for (let i = 0; i < TOTAL_SLOTS; i++) {
+    if (i === P1_STORE || i === P2_STORE) continue;
+    const pos = pitPos(i);
+    const isP1 = i < PITS;
+    const isValid = turn === 1 && isP1 && board[i] > 0 && !gameOver;
+    const isHover = i === hoverPit;
+
+    // Pit shadow / cavity
+    ctx.fillStyle = isHover ? '#2a1a08' : '#1a0a04';
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, PIT_R, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Rim
+    ctx.strokeStyle = isHover ? '#c89040' : isValid ? '#8a6a30' : '#4a3018';
+    ctx.lineWidth = isHover ? 3 : isValid ? 2.5 : 1.5;
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, PIT_R, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Inner depth ring
+    ctx.strokeStyle = 'rgba(40,20,5,0.8)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, PIT_R - 4, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Glow for valid pits
+    if (isValid) {
+      ctx.save();
+      ctx.shadowColor = '#c89040';
+      ctx.shadowBlur = isHover ? 12 : 6;
+      ctx.strokeStyle = 'rgba(200,144,64,0.3)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, PIT_R + 2, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Stones
+    drawSeeds(pos.x, pos.y, board[i], PIT_R);
+
+    // Pit number labels (P1 side)
+    if (isP1) {
+      ctx.fillStyle = isValid ? '#a08040' : '#555';
+      ctx.font = '10px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillText(i + 1, pos.x, pos.y + PIT_R + 6);
+    }
+  }
+
+  // Decorative line between rows
+  ctx.strokeStyle = 'rgba(120,80,30,0.2)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(BX + STORE_W + 5, BY);
+  ctx.lineTo(BX + BOARD_W - STORE_W - 5, BY);
+  ctx.stroke();
+
+  // Turn indicator
+  if (!gameOver) {
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    if (turn === 1) {
+      ctx.fillStyle = '#6aaf6a';
+      ctx.font = '16px monospace';
+      ctx.fillText('Your turn — choose a pit', W / 2, BY + STORE_H / 2 + 40);
+    } else {
+      ctx.fillStyle = '#aa6666';
+      ctx.font = '16px monospace';
+      ctx.fillText('AI thinking...', W / 2, BY + STORE_H / 2 + 40);
+    }
+  }
+
+  // Score display
+  ctx.fillStyle = '#888';
+  ctx.font = '13px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillText('You: ' + board[P1_STORE] + '  |  AI: ' + board[P2_STORE], W / 2, BY + STORE_H / 2 + 62);
+
+  // Message (bonus turn, etc.)
+  if (messageTimer > 0) {
+    const alpha = Math.min(1, messageTimer / 15);
+    ctx.fillStyle = 'rgba(255,220,80,' + alpha + ')';
+    ctx.font = 'bold 18px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText(message, W / 2, BY - STORE_H / 2 - 50);
+  }
+
+  // Game over overlay
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.75)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = 'bold 44px monospace';
+    if (winner === 0) {
+      ctx.fillStyle = '#ff0';
+      ctx.fillText("IT'S A TIE!", W / 2, H / 2 - 30);
+    } else {
+      ctx.fillStyle = winner === 1 ? '#6adf6a' : '#ff6644';
+      ctx.fillText(winner === 1 ? 'YOU WIN!' : 'AI WINS', W / 2, H / 2 - 30);
+    }
+    ctx.fillStyle = '#ddd';
+    ctx.font = '22px monospace';
+    ctx.fillText(board[P1_STORE] + ' - ' + board[P2_STORE], W / 2, H / 2 + 10);
+    ctx.fillStyle = '#999';
+    ctx.font = '15px monospace';
+    ctx.fillText('Press R to play again', W / 2, H / 2 + 45);
+  }
+
+  // Title badge
+  hudText('ANC-022 · CONGKAK  [?]', 16, 10, '#666', 13);
+
+  // Sowing direction hint
+  ctx.fillStyle = '#444';
+  ctx.font = '10px monospace';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'top';
+  ctx.fillText('counterclockwise sowing · store in circuit', W - 16, 12);
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+</body>
+</html>

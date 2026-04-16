@@ -1,0 +1,962 @@
+<!--
+PROTOTYPE: tactics
+SERIES: sim
+NUMBER: 008
+DATE: 2026-03-23
+MECHANIC: turn-based grid tactics with unit types, terrain bonuses, and territory capture
+ANCESTRY: Great Little War Game (2011, Rubicon), Advance Wars (2001, Intelligent Systems), Battle Isle (1991, Blue Byte)
+CONTROLS: Mouse — select units, move, attack | Enter — end turn | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 4 (Statistical Learning — minimax-style tactical evaluation, positional play)
+AI-INSIGHT: Turn-based tactics games are discrete optimization problems where terrain transforms the payoff matrix. The AI must evaluate not just unit matchups but positional advantage — a spatial reasoning challenge that connects to classical game tree search with evaluation functions informed by domain knowledge.
+NOTES: Turn-based tactics stripped to core: move, attack, capture.
+       Terrain and unit variety create enough depth for meaningful decisions.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SIM-008 · TACTICS</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: crosshair; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SIM-008 · TACTICS</h1>
+    <p><span class="tag series">SIM — Simulation</span> <span class="tag">Prototype #008</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Command your blue army against the red AI in turn-based grid combat. Move units, attack enemies, capture towns, and destroy the enemy HQ or all their units to win.</p>
+    <ul>
+      <li><kbd>Click</kbd> a friendly unit to select it</li>
+      <li><kbd>Click</kbd> a highlighted tile to move the selected unit</li>
+      <li><kbd>Click</kbd> an enemy in attack range (red highlight) to attack</li>
+      <li><kbd>Enter</kbd> — End your turn</li>
+      <li><kbd>R</kbd> — Restart game</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Units</h3>
+    <ul>
+      <li><strong>Infantry</strong> — 2 move, 3 attack, 5 HP. Reliable all-rounder.</li>
+      <li><strong>Tank</strong> — 3 move, 5 attack, 8 HP. Powerful but costs 15 gold.</li>
+      <li><strong>Sniper</strong> — 1 move, 4 attack at range 3-4, 3 HP. Fragile but deadly from afar.</li>
+      <li><strong>Medic</strong> — 2 move, heals adjacent allies 2 HP, 3 HP. Keep behind the front line.</li>
+    </ul>
+    <h3>Terrain</h3>
+    <ul>
+      <li><strong>Plains</strong> — Normal movement, no bonus.</li>
+      <li><strong>Forest</strong> — +1 defense, costs 2 movement points.</li>
+      <li><strong>Mountain</strong> — Impassable.</li>
+      <li><strong>Town</strong> — +2 defense. Move a unit onto it to capture. Generates 5 gold/turn.</li>
+      <li><strong>HQ</strong> — Your base. Buy units here (1-4 keys). Capture enemy HQ to win.</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li>Capture towns early for income advantage.</li>
+      <li>Use forests for defensive positions — the +1 defense adds up.</li>
+      <li>Snipers are devastating but fragile — protect them with infantry.</li>
+      <li>Medics can turn a close fight by keeping your tanks alive.</li>
+      <li>Focus fire on one enemy unit at a time rather than spreading damage.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Battle Isle (1991, Blue Byte) &rarr; Advance Wars (2001, Intelligent Systems) &rarr; Great Little War Game (2011, Rubicon)</p>
+    <p>Turn-based tactics games trace back to tabletop wargames like Kriegsspiel (1812). The digital lineage runs through SSI's hex wargames of the 1980s, Nintendo Wars (Famicom Wars, 1988), and its masterful successor Advance Wars, which proved that deep tactical gameplay could be wrapped in an accessible, colorful package.</p>
+    <p>Great Little War Game (2011) brought this formula to mobile with charming 3D visuals and streamlined controls, demonstrating that the core move-attack-capture loop remains compelling across platforms and generations.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 4 — Statistical Learning (1990-2000)</p>
+    <p>The AI in tactics games typically uses evaluation functions that score board positions based on unit health, positioning, terrain advantage, and territory control. This connects to classical minimax search with alpha-beta pruning, augmented by heuristic evaluation functions — the same approach that powered early chess engines.</p>
+    <p>Modern tactics AI often uses influence maps to evaluate territorial control, identifying chokepoints and vulnerable flanks. The discrete nature of the grid makes exhaustive move enumeration feasible, allowing deeper tactical reasoning than continuous-space games.</p>
+
+    <h2>Classification</h2>
+    <p><strong>Genre:</strong> Turn-Based Tactics / Strategy</p>
+    <p><strong>Core Mechanic:</strong> Move-attack-capture on a grid with terrain modifiers</p>
+    <p><strong>Input:</strong> Mouse (point and click)</p>
+    <p><strong>Complexity:</strong> Medium — simple rules but deep emergent tactics</p>
+
+    <h2>Prototype Notes</h2>
+    <p>This prototype captures the essential tactics loop: position units, exploit terrain, manage resources, and outmaneuver the opponent. The AI evaluates threats, captures towns, focuses fire on weakened units, and attempts flanking maneuvers. Unit variety (infantry/tank/sniper/medic) creates rock-paper-scissors dynamics without explicit counters — it's about positioning and timing.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+const C = document.getElementById('c');
+const X = C.getContext('2d');
+C.width = 800; C.height = 600;
+
+// ── Constants ──
+const COLS = 12, ROWS = 8;
+const TW = 56, TH = 56;
+const MAP_X = 16, MAP_Y = 56;
+const BLUE = 0, RED = 1;
+
+// Terrain: 0=plains, 1=forest, 2=mountain, 3=town, 4=hq
+const T_PLAIN = 0, T_FOREST = 1, T_MOUNT = 2, T_TOWN = 3, T_HQ = 4;
+const TERRAIN_DEF = [0, 1, 0, 2, 2];
+const TERRAIN_COST = [1, 2, 99, 1, 1];
+const TERRAIN_COLORS = ['#4a5', '#285028', '#888', '#c90', '#da0'];
+const TERRAIN_NAMES = ['Plains', 'Forest', 'Mountain', 'Town', 'HQ'];
+
+// Unit types
+const U_INF = 0, U_TANK = 1, U_SNIPER = 2, U_MEDIC = 3;
+const UNIT_STATS = [
+  { name: 'Infantry', move: 2, atk: 3, hp: 5, range: [1,1], cost: 5 },
+  { name: 'Tank',     move: 3, atk: 5, hp: 8, range: [1,1], cost: 15 },
+  { name: 'Sniper',   move: 1, atk: 4, hp: 3, range: [3,4], cost: 12 },
+  { name: 'Medic',    move: 2, atk: 0, hp: 3, range: [1,1], cost: 8, heals: 2 }
+];
+const UNIT_SYMBOLS = ['I', 'T', 'S', '+'];
+const UNIT_FILL = [['#48f','#f44'], ['#26c','#c22'], ['#6af','#fa6'], ['#8f8','#f88']];
+
+// ── State ──
+var infoOpen = false;
+var terrain, owners, units, selected, moveHighlight, attackHighlight;
+var turn, gold, phase, msg, msgTimer, gameOver, aiActing;
+var unitIdCounter;
+
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+function dist(a, b) { return Math.abs(a.x - b.x) + Math.abs(a.y - b.y); }
+
+function initGame() {
+  terrain = [];
+  owners = []; // town/hq ownership: -1=neutral, 0=blue, 1=red
+  units = [];
+  selected = null;
+  moveHighlight = [];
+  attackHighlight = [];
+  turn = BLUE;
+  gold = [20, 20];
+  phase = 'select'; // select, move, attack
+  msg = 'Your turn — select a unit';
+  msgTimer = 180;
+  gameOver = null;
+  aiActing = false;
+  unitIdCounter = 0;
+
+  // Generate map
+  var layout = [
+    [4,0,1,0,0,3,0,1,0,0,0,0],
+    [0,0,0,1,0,0,0,0,0,1,0,0],
+    [0,1,0,0,0,0,2,0,0,0,0,3],
+    [3,0,0,2,0,1,1,0,2,0,0,0],
+    [0,0,0,2,0,1,1,0,2,0,0,3],
+    [3,0,0,0,0,0,2,0,0,0,1,0],
+    [0,0,1,0,0,0,0,0,1,0,0,0],
+    [0,0,0,0,1,0,3,0,0,1,0,4]
+  ];
+
+  for (var r = 0; r < ROWS; r++) {
+    terrain[r] = [];
+    owners[r] = [];
+    for (var c = 0; c < COLS; c++) {
+      terrain[r][c] = layout[r][c];
+      if (terrain[r][c] === T_HQ) {
+        owners[r][c] = (r === 0 && c === 0) ? BLUE : RED;
+      } else if (terrain[r][c] === T_TOWN) {
+        owners[r][c] = -1;
+      } else {
+        owners[r][c] = -1;
+      }
+    }
+  }
+
+  // Place starting units
+  addUnit(U_INF, BLUE, 0, 1);
+  addUnit(U_INF, BLUE, 1, 0);
+  addUnit(U_INF, BLUE, 1, 1);
+  addUnit(U_TANK, BLUE, 0, 2);
+  addUnit(U_MEDIC, BLUE, 2, 0);
+
+  addUnit(U_INF, RED, 11, 6);
+  addUnit(U_INF, RED, 10, 7);
+  addUnit(U_INF, RED, 10, 6);
+  addUnit(U_TANK, RED, 11, 5);
+  addUnit(U_MEDIC, RED, 9, 7);
+}
+
+function addUnit(type, team, x, y) {
+  var s = UNIT_STATS[type];
+  units.push({
+    id: unitIdCounter++,
+    type: type, team: team, x: x, y: y,
+    hp: s.hp, maxHp: s.hp,
+    moved: false, attacked: false
+  });
+}
+
+function unitAt(x, y) {
+  for (var i = 0; i < units.length; i++) {
+    if (units[i].x === x && units[i].y === y) return units[i];
+  }
+  return null;
+}
+
+function getReachable(unit) {
+  var s = UNIT_STATS[unit.type];
+  var maxMove = s.move;
+  var open = [{x: unit.x, y: unit.y, cost: 0}];
+  var best = {};
+  var key = unit.x + ',' + unit.y;
+  best[key] = 0;
+  var reachable = [];
+
+  while (open.length > 0) {
+    var cur = open.shift();
+    var dirs = [[0,-1],[0,1],[-1,0],[1,0]];
+    for (var d = 0; d < 4; d++) {
+      var nx = cur.x + dirs[d][0], ny = cur.y + dirs[d][1];
+      if (nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS) continue;
+      var tc = TERRAIN_COST[terrain[ny][nx]];
+      if (tc >= 99) continue;
+      var nc = cur.cost + tc;
+      if (nc > maxMove) continue;
+      var nk = nx + ',' + ny;
+      if (best[nk] !== undefined && best[nk] <= nc) continue;
+      // Can't move through enemies
+      var occ = unitAt(nx, ny);
+      if (occ && occ.team !== unit.team) continue;
+      best[nk] = nc;
+      open.push({x: nx, y: ny, cost: nc});
+      // Can only stop on empty tiles or own position
+      if (!occ || (nx === unit.x && ny === unit.y)) {
+        reachable.push({x: nx, y: ny});
+      }
+    }
+  }
+  return reachable;
+}
+
+function getAttackTargets(unit) {
+  var s = UNIT_STATS[unit.type];
+  var targets = [];
+  if (s.atk === 0) return targets; // medic can't attack
+  for (var i = 0; i < units.length; i++) {
+    var e = units[i];
+    if (e.team === unit.team) continue;
+    var d = dist(unit, e);
+    if (d >= s.range[0] && d <= s.range[1]) targets.push(e);
+  }
+  return targets;
+}
+
+function getHealTargets(unit) {
+  var s = UNIT_STATS[unit.type];
+  if (!s.heals) return [];
+  var targets = [];
+  for (var i = 0; i < units.length; i++) {
+    var a = units[i];
+    if (a.team !== unit.team || a === unit) continue;
+    if (dist(unit, a) === 1 && a.hp < a.maxHp) targets.push(a);
+  }
+  return targets;
+}
+
+function doAttack(attacker, defender) {
+  var s = UNIT_STATS[attacker.type];
+  var defBonus = TERRAIN_DEF[terrain[defender.y][defender.x]];
+  var dmg = Math.max(1, s.atk - defBonus);
+  // Randomize slightly
+  dmg = Math.max(1, dmg + Math.floor(Math.random() * 3) - 1);
+  defender.hp -= dmg;
+  attacker.attacked = true;
+  attacker.moved = true;
+  showMsg(UNIT_STATS[attacker.type].name + ' deals ' + dmg + ' damage!');
+  if (defender.hp <= 0) {
+    units.splice(units.indexOf(defender), 1);
+    showMsg(UNIT_STATS[defender.type].name + ' destroyed!');
+  }
+}
+
+function doHeal(medic, target) {
+  var s = UNIT_STATS[medic.type];
+  var amt = Math.min(s.heals, target.maxHp - target.hp);
+  target.hp += amt;
+  medic.attacked = true;
+  medic.moved = true;
+  showMsg('Medic heals ' + amt + ' HP!');
+}
+
+function showMsg(text) { msg = text; msgTimer = 150; }
+
+function tryCapture(unit) {
+  var t = terrain[unit.y][unit.x];
+  if (t === T_TOWN || t === T_HQ) {
+    if (owners[unit.y][unit.x] !== unit.team) {
+      owners[unit.y][unit.x] = unit.team;
+      if (t === T_HQ) {
+        showMsg((unit.team === BLUE ? 'Blue' : 'Red') + ' captures the HQ!');
+      } else {
+        showMsg((unit.team === BLUE ? 'Blue' : 'Red') + ' captures a town!');
+      }
+    }
+  }
+}
+
+function countIncome(team) {
+  var inc = 5; // base income
+  for (var r = 0; r < ROWS; r++) {
+    for (var c = 0; c < COLS; c++) {
+      if (owners[r][c] === team && terrain[r][c] === T_TOWN) inc += 5;
+    }
+  }
+  return inc;
+}
+
+function checkWin() {
+  var blueUnits = 0, redUnits = 0;
+  for (var i = 0; i < units.length; i++) {
+    if (units[i].team === BLUE) blueUnits++;
+    else redUnits++;
+  }
+  if (redUnits === 0) return 'BLUE WINS! All enemy units destroyed.';
+  if (blueUnits === 0) return 'RED WINS! All your units destroyed.';
+  // Check HQ capture
+  for (var r = 0; r < ROWS; r++) {
+    for (var c = 0; c < COLS; c++) {
+      if (terrain[r][c] === T_HQ) {
+        if (owners[r][c] === BLUE && !(r === 0 && c === 0)) return 'BLUE WINS! Enemy HQ captured!';
+        if (owners[r][c] === RED && !(r === 7 && c === 11)) return 'RED WINS! Your HQ captured!';
+      }
+    }
+  }
+  return null;
+}
+
+function endTurn() {
+  // Reset units
+  for (var i = 0; i < units.length; i++) {
+    if (units[i].team === turn) {
+      units[i].moved = false;
+      units[i].attacked = false;
+    }
+  }
+  selected = null;
+  moveHighlight = [];
+  attackHighlight = [];
+
+  if (turn === BLUE) {
+    turn = RED;
+    gold[RED] += countIncome(RED);
+    showMsg('Red turn...');
+    aiActing = true;
+    setTimeout(doAiTurn, 600);
+  } else {
+    turn = BLUE;
+    gold[BLUE] += countIncome(BLUE);
+    showMsg('Your turn — select a unit');
+  }
+}
+
+// ── Buy units ──
+function tryBuy(type) {
+  if (turn !== BLUE || gameOver || aiActing) return;
+  var s = UNIT_STATS[type];
+  if (gold[BLUE] < s.cost) { showMsg('Not enough gold! Need ' + s.cost); return; }
+  // Find HQ
+  var hx = -1, hy = -1;
+  for (var r = 0; r < ROWS; r++) for (var c = 0; c < COLS; c++) {
+    if (terrain[r][c] === T_HQ && owners[r][c] === BLUE) { hx = c; hy = r; }
+  }
+  if (hx < 0) { showMsg('No HQ to build from!'); return; }
+  // Find adjacent empty tile
+  var dirs = [[0,-1],[0,1],[-1,0],[1,0]];
+  for (var d = 0; d < 4; d++) {
+    var nx = hx + dirs[d][0], ny = hy + dirs[d][1];
+    if (nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS) continue;
+    if (terrain[ny][nx] === T_MOUNT) continue;
+    if (!unitAt(nx, ny)) {
+      gold[BLUE] -= s.cost;
+      var u = null;
+      addUnit(type, BLUE, nx, ny);
+      u = units[units.length - 1];
+      u.moved = true;
+      u.attacked = true;
+      showMsg('Built ' + s.name + '! (-' + s.cost + 'g)');
+      return;
+    }
+  }
+  showMsg('No room near HQ!');
+}
+
+// ── AI ──
+function doAiTurn() {
+  if (gameOver) return;
+  var w = checkWin();
+  if (w) { gameOver = w; aiActing = false; return; }
+
+  // AI buys units
+  aiBuy();
+
+  // Gather AI units
+  var aiUnits = [];
+  for (var i = 0; i < units.length; i++) {
+    if (units[i].team === RED) aiUnits.push(units[i]);
+  }
+
+  var step = 0;
+  function aiStep() {
+    if (step >= aiUnits.length) {
+      aiActing = false;
+      var w2 = checkWin();
+      if (w2) { gameOver = w2; return; }
+      endTurn();
+      return;
+    }
+    var u = aiUnits[step];
+    if (units.indexOf(u) < 0) { step++; aiStep(); return; }
+    aiActUnit(u);
+    step++;
+    setTimeout(aiStep, 300);
+  }
+  setTimeout(aiStep, 400);
+}
+
+function aiBuy() {
+  // Find AI HQ
+  var hx = -1, hy = -1;
+  for (var r = 0; r < ROWS; r++) for (var c = 0; c < COLS; c++) {
+    if (terrain[r][c] === T_HQ && owners[r][c] === RED) { hx = c; hy = r; }
+  }
+  if (hx < 0) return;
+
+  // Count units
+  var count = 0;
+  for (var i = 0; i < units.length; i++) if (units[i].team === RED) count++;
+
+  while (gold[RED] >= 5 && count < 10) {
+    // Pick unit type
+    var type = U_INF;
+    if (gold[RED] >= 15 && Math.random() < 0.25) type = U_TANK;
+    else if (gold[RED] >= 12 && Math.random() < 0.2) type = U_SNIPER;
+    else if (gold[RED] >= 8 && Math.random() < 0.15 && count > 3) type = U_MEDIC;
+
+    if (gold[RED] < UNIT_STATS[type].cost) { if (gold[RED] >= 5) type = U_INF; else break; }
+
+    var dirs = [[0,-1],[0,1],[-1,0],[1,0]];
+    var placed = false;
+    for (var d = 0; d < 4; d++) {
+      var nx = hx + dirs[d][0], ny = hy + dirs[d][1];
+      if (nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS) continue;
+      if (terrain[ny][nx] === T_MOUNT) continue;
+      if (!unitAt(nx, ny)) {
+        gold[RED] -= UNIT_STATS[type].cost;
+        addUnit(type, RED, nx, ny);
+        var nu = units[units.length - 1];
+        nu.moved = true; nu.attacked = true;
+        count++;
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) break;
+  }
+}
+
+function aiActUnit(u) {
+  var s = UNIT_STATS[u.type];
+
+  // Find nearest enemy and nearest uncaptured town
+  var nearestEnemy = null, nearestDist = 999;
+  var weakestInRange = null, weakestHp = 999;
+  for (var i = 0; i < units.length; i++) {
+    var e = units[i];
+    if (e.team === u.team) continue;
+    var d = dist(u, e);
+    if (d < nearestDist) { nearestDist = d; nearestEnemy = e; }
+  }
+
+  // Get reachable tiles
+  var reach = getReachable(u);
+
+  // Medic: try to heal
+  if (s.heals) {
+    // Move toward damaged allies
+    var bestTile = null, bestScore = -999;
+    for (var r = 0; r < reach.length; r++) {
+      var t = reach[r];
+      var score = 0;
+      // Check adjacent allies that need healing from this position
+      for (var i = 0; i < units.length; i++) {
+        var a = units[i];
+        if (a.team !== u.team || a === u) continue;
+        var ad = Math.abs(t.x - a.x) + Math.abs(t.y - a.y);
+        if (ad === 1 && a.hp < a.maxHp) score += (a.maxHp - a.hp) * 2;
+        if (ad <= 3) score += 1;
+      }
+      // Prefer forest/town terrain
+      score += TERRAIN_DEF[terrain[t.y][t.x]];
+      if (score > bestScore) { bestScore = score; bestTile = t; }
+    }
+    if (bestTile && (bestTile.x !== u.x || bestTile.y !== u.y)) {
+      u.x = bestTile.x; u.y = bestTile.y;
+    }
+    u.moved = true;
+    tryCapture(u);
+    // Heal adjacent ally
+    var healTargets = getHealTargets(u);
+    if (healTargets.length > 0) {
+      // Heal most damaged
+      healTargets.sort(function(a,b) { return (a.hp/a.maxHp) - (b.hp/b.maxHp); });
+      doHeal(u, healTargets[0]);
+    }
+    u.attacked = true;
+    return;
+  }
+
+  // For combat units: evaluate best position
+  var bestTile = null, bestScore = -9999;
+
+  for (var r = 0; r < reach.length; r++) {
+    var t = reach[r];
+    var score = 0;
+
+    // Can we attack from here?
+    var ox = u.x, oy = u.y;
+    u.x = t.x; u.y = t.y;
+    var targets = getAttackTargets(u);
+    u.x = ox; u.y = oy;
+
+    if (targets.length > 0) {
+      // Find best target
+      for (var ti = 0; ti < targets.length; ti++) {
+        var dmg = Math.max(1, s.atk - TERRAIN_DEF[terrain[targets[ti].y][targets[ti].x]]);
+        var tScore = dmg * 3;
+        if (targets[ti].hp <= dmg) tScore += 20; // kill bonus
+        if (targets[ti].hp / UNIT_STATS[targets[ti].type].hp < 0.5) tScore += 5; // focus fire
+        if (tScore > score) score = tScore;
+      }
+    }
+
+    // Terrain defense bonus
+    score += TERRAIN_DEF[terrain[t.y][t.x]] * 2;
+
+    // Move toward enemy HQ / nearest enemy if no attack
+    if (targets.length === 0 && nearestEnemy) {
+      var dAfter = Math.abs(t.x - nearestEnemy.x) + Math.abs(t.y - nearestEnemy.y);
+      score += (20 - dAfter);
+    }
+
+    // Capture value
+    if (terrain[t.y][t.x] === T_TOWN && owners[t.y][t.x] !== RED) score += 15;
+    if (terrain[t.y][t.x] === T_HQ && owners[t.y][t.x] !== RED) score += 50;
+
+    if (score > bestScore) { bestScore = score; bestTile = t; }
+  }
+
+  // Move
+  if (bestTile && (bestTile.x !== u.x || bestTile.y !== u.y)) {
+    u.x = bestTile.x; u.y = bestTile.y;
+  }
+  u.moved = true;
+  tryCapture(u);
+
+  // Attack
+  var targets = getAttackTargets(u);
+  if (targets.length > 0) {
+    // Pick best target: lowest hp or highest value
+    targets.sort(function(a, b) {
+      var aDmg = Math.max(1, s.atk - TERRAIN_DEF[terrain[a.y][a.x]]);
+      var bDmg = Math.max(1, s.atk - TERRAIN_DEF[terrain[b.y][b.x]]);
+      var aKill = a.hp <= aDmg ? 100 : 0;
+      var bKill = b.hp <= bDmg ? 100 : 0;
+      return (bKill + bDmg) - (aKill + aDmg);
+    });
+    doAttack(u, targets[0]);
+  }
+  u.attacked = true;
+}
+
+// ── Input ──
+C.addEventListener('click', function(e) {
+  if (infoOpen || gameOver || aiActing || turn !== BLUE) return;
+  var rect = C.getBoundingClientRect();
+  var mx = (e.clientX - rect.left) * (C.width / rect.width);
+  var my = (e.clientY - rect.top) * (C.height / rect.height);
+
+  // Map coords
+  var gx = Math.floor((mx - MAP_X) / TW);
+  var gy = Math.floor((my - MAP_Y) / TH);
+
+  if (gx < 0 || gx >= COLS || gy < 0 || gy >= ROWS) return;
+
+  // Check if clicking attack highlight
+  if (selected && !selected.attacked) {
+    for (var i = 0; i < attackHighlight.length; i++) {
+      if (attackHighlight[i].x === gx && attackHighlight[i].y === gy) {
+        var target = unitAt(gx, gy);
+        if (target) {
+          var s2 = UNIT_STATS[selected.type];
+          if (s2.heals && target.team === selected.team) {
+            doHeal(selected, target);
+          } else if (target.team !== selected.team) {
+            doAttack(selected, target);
+          }
+          selected = null;
+          moveHighlight = [];
+          attackHighlight = [];
+          var w2 = checkWin();
+          if (w2) gameOver = w2;
+          return;
+        }
+      }
+    }
+  }
+
+  // Check if clicking move highlight
+  if (selected && !selected.moved) {
+    for (var i = 0; i < moveHighlight.length; i++) {
+      if (moveHighlight[i].x === gx && moveHighlight[i].y === gy) {
+        selected.x = gx;
+        selected.y = gy;
+        selected.moved = true;
+        tryCapture(selected);
+        // Show attack range after moving
+        moveHighlight = [];
+        attackHighlight = [];
+        var atkTargets = getAttackTargets(selected);
+        var healTargets = getHealTargets(selected);
+        for (var j = 0; j < atkTargets.length; j++) attackHighlight.push({x: atkTargets[j].x, y: atkTargets[j].y});
+        for (var j = 0; j < healTargets.length; j++) attackHighlight.push({x: healTargets[j].x, y: healTargets[j].y});
+        if (attackHighlight.length === 0) {
+          selected.attacked = true;
+          selected = null;
+          moveHighlight = [];
+        }
+        var w3 = checkWin();
+        if (w3) gameOver = w3;
+        return;
+      }
+    }
+  }
+
+  // Select a unit
+  var clicked = unitAt(gx, gy);
+  if (clicked && clicked.team === BLUE && !clicked.attacked) {
+    selected = clicked;
+    moveHighlight = [];
+    attackHighlight = [];
+    if (!clicked.moved) {
+      moveHighlight = getReachable(clicked);
+    }
+    // Also show attack range from current pos
+    var atkTargets = getAttackTargets(clicked);
+    var healTargets = getHealTargets(clicked);
+    for (var j = 0; j < atkTargets.length; j++) attackHighlight.push({x: atkTargets[j].x, y: atkTargets[j].y});
+    for (var j = 0; j < healTargets.length; j++) attackHighlight.push({x: healTargets[j].x, y: healTargets[j].y});
+  } else {
+    selected = null;
+    moveHighlight = [];
+    attackHighlight = [];
+  }
+});
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
+    e.preventDefault();
+    toggleInfo();
+    return;
+  }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); return; }
+  if (infoOpen) return;
+  if (e.key === 'r' || e.key === 'R') { initGame(); return; }
+  if (gameOver || aiActing) return;
+  if (e.key === 'Enter' && turn === BLUE) { endTurn(); return; }
+  // Buy units: 1-4
+  if (e.key === '1') tryBuy(U_INF);
+  if (e.key === '2') tryBuy(U_TANK);
+  if (e.key === '3') tryBuy(U_SNIPER);
+  if (e.key === '4') tryBuy(U_MEDIC);
+});
+
+// ── Render ──
+function drawTile(x, y) {
+  var t = terrain[y][x];
+  var px = MAP_X + x * TW, py = MAP_Y + y * TH;
+
+  // Base terrain
+  X.fillStyle = TERRAIN_COLORS[t];
+  X.fillRect(px, py, TW, TH);
+
+  // Mountain pattern
+  if (t === T_MOUNT) {
+    X.fillStyle = '#666';
+    X.beginPath();
+    X.moveTo(px + 10, py + TH - 4);
+    X.lineTo(px + TW/2, py + 8);
+    X.lineTo(px + TW - 10, py + TH - 4);
+    X.closePath();
+    X.fill();
+    X.fillStyle = '#aaa';
+    X.beginPath();
+    X.moveTo(px + TW/2 - 6, py + 20);
+    X.lineTo(px + TW/2, py + 8);
+    X.lineTo(px + TW/2 + 6, py + 20);
+    X.closePath();
+    X.fill();
+  }
+
+  // Forest trees
+  if (t === T_FOREST) {
+    X.fillStyle = '#3a7030';
+    for (var i = 0; i < 3; i++) {
+      var tx = px + 10 + i * 16, ty = py + 14;
+      X.beginPath();
+      X.moveTo(tx, ty + 24);
+      X.lineTo(tx + 8, ty);
+      X.lineTo(tx + 16, ty + 24);
+      X.closePath();
+      X.fill();
+    }
+  }
+
+  // Town/HQ marker
+  if (t === T_TOWN || t === T_HQ) {
+    var oc = owners[y][x];
+    if (oc === BLUE) X.fillStyle = 'rgba(60,100,255,0.3)';
+    else if (oc === RED) X.fillStyle = 'rgba(255,60,60,0.3)';
+    else X.fillStyle = 'rgba(200,200,200,0.2)';
+    X.fillRect(px + 2, py + 2, TW - 4, TH - 4);
+
+    // Building icon
+    X.fillStyle = t === T_HQ ? '#ff0' : '#ddd';
+    X.font = 'bold 11px monospace';
+    X.textAlign = 'center';
+    X.fillText(t === T_HQ ? 'HQ' : 'TOWN', px + TW/2, py + TH - 6);
+  }
+
+  // Grid line
+  X.strokeStyle = 'rgba(0,0,0,0.3)';
+  X.strokeRect(px, py, TW, TH);
+}
+
+function drawHighlights() {
+  // Move highlights
+  for (var i = 0; i < moveHighlight.length; i++) {
+    var h = moveHighlight[i];
+    var px = MAP_X + h.x * TW, py = MAP_Y + h.y * TH;
+    X.fillStyle = 'rgba(100,180,255,0.35)';
+    X.fillRect(px + 2, py + 2, TW - 4, TH - 4);
+    X.strokeStyle = 'rgba(100,180,255,0.7)';
+    X.lineWidth = 2;
+    X.strokeRect(px + 2, py + 2, TW - 4, TH - 4);
+    X.lineWidth = 1;
+  }
+  // Attack highlights
+  for (var i = 0; i < attackHighlight.length; i++) {
+    var h = attackHighlight[i];
+    var px = MAP_X + h.x * TW, py = MAP_Y + h.y * TH;
+    var target = unitAt(h.x, h.y);
+    if (target && target.team === (selected ? selected.team : -1)) {
+      // Heal highlight (green)
+      X.fillStyle = 'rgba(100,255,100,0.35)';
+      X.fillRect(px + 2, py + 2, TW - 4, TH - 4);
+      X.strokeStyle = 'rgba(100,255,100,0.7)';
+    } else {
+      X.fillStyle = 'rgba(255,60,60,0.35)';
+      X.fillRect(px + 2, py + 2, TW - 4, TH - 4);
+      X.strokeStyle = 'rgba(255,60,60,0.7)';
+    }
+    X.lineWidth = 2;
+    X.strokeRect(px + 2, py + 2, TW - 4, TH - 4);
+    X.lineWidth = 1;
+  }
+}
+
+function drawUnit(u) {
+  var s = UNIT_STATS[u.type];
+  var px = MAP_X + u.x * TW, py = MAP_Y + u.y * TH;
+
+  // Unit body
+  var grayed = u.attacked && u.team === turn;
+  X.fillStyle = grayed ? '#555' : UNIT_FILL[u.type][u.team];
+  X.beginPath();
+  X.arc(px + TW/2, py + TH/2 - 2, 18, 0, Math.PI * 2);
+  X.fill();
+
+  // Team border
+  X.strokeStyle = u.team === BLUE ? '#8af' : '#f88';
+  X.lineWidth = 2;
+  X.stroke();
+  X.lineWidth = 1;
+
+  // Symbol
+  X.fillStyle = '#fff';
+  X.font = 'bold 16px monospace';
+  X.textAlign = 'center';
+  X.textBaseline = 'middle';
+  X.fillText(UNIT_SYMBOLS[u.type], px + TW/2, py + TH/2 - 2);
+
+  // HP bar
+  var hpW = TW - 12;
+  var hpPct = u.hp / u.maxHp;
+  X.fillStyle = '#333';
+  X.fillRect(px + 6, py + TH - 12, hpW, 5);
+  X.fillStyle = hpPct > 0.5 ? '#0c0' : hpPct > 0.25 ? '#cc0' : '#f00';
+  X.fillRect(px + 6, py + TH - 12, hpW * hpPct, 5);
+
+  // Selected indicator
+  if (selected === u) {
+    X.strokeStyle = '#ff0';
+    X.lineWidth = 3;
+    X.strokeRect(px + 1, py + 1, TW - 2, TH - 2);
+    X.lineWidth = 1;
+  }
+}
+
+function drawHUD() {
+  // Top bar
+  X.fillStyle = '#111';
+  X.fillRect(0, 0, 800, MAP_Y - 2);
+
+  X.font = '14px monospace';
+  X.textAlign = 'left';
+  X.textBaseline = 'top';
+
+  // Title
+  X.fillStyle = '#7bf';
+  X.fillText('SIM-008 \u00b7 TACTICS', 10, 6);
+
+  // Turn indicator
+  X.fillStyle = turn === BLUE ? '#48f' : '#f44';
+  X.fillText(turn === BLUE ? 'BLUE TURN' : 'RED TURN', 200, 6);
+
+  // Gold
+  X.fillStyle = '#ff0';
+  X.fillText('Gold: ' + gold[BLUE], 340, 6);
+
+  // Income
+  X.fillStyle = '#aa0';
+  X.fillText('(+' + countIncome(BLUE) + '/turn)', 440, 6);
+
+  // Buy hints
+  X.fillStyle = '#888';
+  X.font = '11px monospace';
+  X.fillText('Buy: [1]Inf=$' + UNIT_STATS[0].cost +
+    ' [2]Tank=$' + UNIT_STATS[1].cost +
+    ' [3]Sniper=$' + UNIT_STATS[2].cost +
+    ' [4]Medic=$' + UNIT_STATS[3].cost, 10, 26);
+
+  X.fillText('[Enter] End Turn  [?] Info  [R] Restart', 500, 26);
+
+  // Bottom bar
+  X.fillStyle = '#111';
+  X.fillRect(0, MAP_Y + ROWS * TH + 4, 800, 600 - MAP_Y - ROWS * TH - 4);
+
+  // Message
+  if (msgTimer > 0) {
+    X.fillStyle = '#fff';
+    X.font = '14px monospace';
+    X.textAlign = 'center';
+    X.fillText(msg, 400, MAP_Y + ROWS * TH + 14);
+  }
+
+  // Selected unit info
+  if (selected) {
+    var s = UNIT_STATS[selected.type];
+    X.font = '12px monospace';
+    X.textAlign = 'left';
+    X.fillStyle = '#ccc';
+    var infoY = MAP_Y + ROWS * TH + 32;
+    X.fillText(s.name + '  HP:' + selected.hp + '/' + selected.maxHp +
+      '  ATK:' + s.atk + '  MOVE:' + s.move + '  Range:' + s.range[0] + '-' + s.range[1], 10, infoY);
+    var ter = terrain[selected.y][selected.x];
+    X.fillText('Terrain: ' + TERRAIN_NAMES[ter] + ' (Def+' + TERRAIN_DEF[ter] + ')', 10, infoY + 16);
+  }
+
+  // Hover info bottom-right
+  X.fillStyle = '#888';
+  X.font = '11px monospace';
+  X.textAlign = 'right';
+  X.fillText('Red Gold: ' + gold[RED], 790, MAP_Y + ROWS * TH + 14);
+
+  // Game over
+  if (gameOver) {
+    X.fillStyle = 'rgba(0,0,0,0.7)';
+    X.fillRect(0, 0, 800, 600);
+    X.fillStyle = gameOver.indexOf('BLUE') >= 0 ? '#4af' : '#f44';
+    X.font = 'bold 30px monospace';
+    X.textAlign = 'center';
+    X.textBaseline = 'middle';
+    X.fillText(gameOver, 400, 280);
+    X.fillStyle = '#888';
+    X.font = '16px monospace';
+    X.fillText('Press R to restart', 400, 320);
+  }
+}
+
+function update() {
+  if (infoOpen) return;
+  if (msgTimer > 0) msgTimer--;
+}
+
+function render() {
+  X.fillStyle = '#1a1a2e';
+  X.fillRect(0, 0, 800, 600);
+
+  // Draw map
+  for (var r = 0; r < ROWS; r++) {
+    for (var c = 0; c < COLS; c++) {
+      drawTile(c, r);
+    }
+  }
+
+  // Highlights
+  drawHighlights();
+
+  // Draw units
+  for (var i = 0; i < units.length; i++) {
+    drawUnit(units[i]);
+  }
+
+  drawHUD();
+}
+
+function gameLoop() {
+  update();
+  render();
+  requestAnimationFrame(gameLoop);
+}
+
+initGame();
+gameLoop();
+</script>
+</body>
+</html>

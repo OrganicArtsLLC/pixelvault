@@ -1,0 +1,719 @@
+<!--
+PROTOTYPE: dungeon-loot
+SERIES: rpg
+NUMBER: 008
+DATE: 2026-03-23
+MECHANIC: click-to-move action RPG with procedural dungeons, loot, and leveling
+ANCESTRY: Diablo (1997, Blizzard North), Rogue (1980, Toy/Wichman), Gauntlet (1985, Atari)
+CONTROLS: Click — move/attack | WASD — move | 1/2 — use potions | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 4 (Statistical Learning — procedural generation, loot probability tables)
+AI-INSIGHT: Diablo's procedural dungeon generation combined with randomized loot created a variable-ratio reinforcement schedule — the same psychological mechanism behind slot machines. This marriage of procedural content and reward psychology defined the action RPG genre.
+NOTES: Action RPG distilled to dungeon, loot, and level-up loop.
+       Procedural generation keeps each run fresh within tight constraints.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RPG-008 · DUNGEON LOOT</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#111;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;font-family:monospace}
+canvas{image-rendering:pixelated;cursor:crosshair}
+#info-panel{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);z-index:100;color:#ddd;overflow-y:auto}
+#info-panel .inner{max-width:700px;margin:30px auto;padding:20px;line-height:1.6}
+#info-panel h1{color:#7bf;font-size:22px;margin-bottom:4px}
+#info-panel h2{color:#f80;font-size:16px;margin:18px 0 6px;border-bottom:1px solid #333;padding-bottom:4px}
+#info-panel h3{color:#4f4;font-size:14px;margin:12px 0 4px}
+#info-panel p,#info-panel li{font-size:13px}
+#info-panel ul{padding-left:18px}
+#info-panel .tag{display:inline-block;background:#333;color:#aaa;padding:2px 8px;border-radius:3px;font-size:11px;margin:2px}
+#info-panel .tag.series{background:#234;color:#7bf}
+#info-panel .close-btn{position:fixed;top:12px;right:20px;color:#888;font-size:28px;cursor:pointer;z-index:101}
+#info-panel .close-btn:hover{color:#fff}
+#info-panel kbd{background:#333;border:1px solid #555;border-radius:3px;padding:1px 6px;font-size:12px;color:#ff0}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="info-panel">
+<span class="close-btn" onclick="toggleInfo()">&times;</span>
+<div class="inner">
+<h1>RPG-008 &middot; DUNGEON LOOT</h1>
+<p><span class="tag series">RPG &mdash; Role-Playing Game</span> <span class="tag">Prototype #008</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+<h2>How to Play</h2>
+<p>Descend through procedurally generated dungeon floors, slaying monsters and collecting loot. Reach the final boss to win.</p>
+<ul>
+<li><kbd>Click</kbd> &mdash; Move to location / Attack enemy</li>
+<li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> &mdash; Move</li>
+<li><kbd>Space</kbd> &mdash; Attack nearest enemy</li>
+<li><kbd>1</kbd> &mdash; Use health potion</li>
+<li><kbd>2</kbd> &mdash; Use mana potion</li>
+<li><kbd>R</kbd> &mdash; Restart</li>
+<li><kbd>?</kbd> &mdash; This panel</li>
+</ul>
+<h2>History</h2>
+<p>Diablo (1997) by Blizzard North fused the procedural dungeon generation of Rogue (1980) with real-time combat and randomized loot. David Brevik's original vision was a turn-based RPG; the shift to real-time action created an entirely new genre. The game's 16 randomly generated dungeon levels beneath Tristram Cathedral kept players returning for "just one more run."</p>
+<h2>AI Archaeology</h2>
+<p><strong>Era 4 &mdash; Statistical Learning.</strong> Diablo's procedural generation uses random room placement with connectivity validation. Its loot system employs weighted probability tables with prefix/suffix modifiers, creating a combinatorial explosion of item variety from compact data. Enemy AI follows simple state machines (idle, chase, attack, flee) with per-type behavior parameters.</p>
+<h2>Classification</h2>
+<p><span class="tag">action-rpg</span> <span class="tag">dungeon-crawler</span> <span class="tag">procedural-generation</span> <span class="tag">loot</span> <span class="tag">hack-and-slash</span></p>
+<h2>Prototype Notes</h2>
+<p>Distills the Diablo loop to its essence: procedural dungeon, click-to-move/attack, loot drops, and character progression. Five dungeon floors with a boss every three floors. Equipment affects stats visually in the HUD. Fog of war reveals tiles as the player explores.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+</div>
+</div>
+<script>
+const C=document.getElementById('c'),X=C.getContext('2d');
+C.width=800;C.height=600;
+let infoOpen=false;
+function toggleInfo(){infoOpen=!infoOpen;document.getElementById('info-panel').style.display=infoOpen?'block':'none'}
+
+// Constants
+const TW=24,TH=24,MW=32,MH=24,VW=Math.ceil(800/TW)+1,VH=Math.ceil(600/TH)+1;
+const FLOORS=5,BOSS_EVERY=3;
+const WALL=1,FLOOR=0,STAIR=2,DOOR=3;
+
+// RNG
+let seed=Date.now();
+function rng(){seed^=seed<<13;seed^=seed>>17;seed^=seed<<5;return(seed>>>0)/4294967296}
+function ri(a,b){return a+Math.floor(rng()*(b-a+1))}
+
+// Game state
+let G={},keys={},mouse={x:0,y:0,click:false,target:null};
+
+function initGame(){
+  G={floor:1,state:'play',msg:'',msgT:0,
+    p:{x:0,y:0,hp:50,maxHp:50,mp:20,maxMp:20,atk:8,def:3,lvl:1,xp:0,xpNeed:20,
+       weapon:{name:'Rusty Sword',atk:3,tier:0},armor:{name:'Cloth Tunic',def:1,tier:0},
+       potions:3,mpots:1,moveTarget:null,atkTimer:0,hitTimer:0,speed:2.5},
+    enemies:[],items:[],particles:[],map:null,seen:null,cam:{x:0,y:0},
+    killCount:0,dmgNums:[]};
+  genFloor(G.floor);
+}
+
+// Dungeon generation
+function genFloor(fl){
+  let m=[];
+  for(let y=0;y<MH;y++){m[y]=[];for(let x=0;x<MW;x++)m[y][x]=WALL}
+  // Place rooms
+  let rooms=[];
+  let tries=0,target=5+Math.min(fl,3);
+  while(rooms.length<target&&tries<200){
+    tries++;
+    let rw=ri(3,7),rh=ri(3,5);
+    let rx=ri(1,MW-rw-1),ry=ri(1,MH-rh-1);
+    let ok=true;
+    for(let r of rooms){
+      if(rx-1<r.x+r.w&&rx+rw+1>r.x&&ry-1<r.y+r.h&&ry+rh+1>r.y){ok=false;break}
+    }
+    if(!ok)continue;
+    rooms.push({x:rx,y:ry,w:rw,h:rh});
+    for(let dy=0;dy<rh;dy++)for(let dx=0;dx<rw;dx++)m[ry+dy][rx+dx]=FLOOR;
+  }
+  // Connect rooms with corridors
+  for(let i=1;i<rooms.length;i++){
+    let a=rooms[i-1],b=rooms[i];
+    let ax=Math.floor(a.x+a.w/2),ay=Math.floor(a.y+a.h/2);
+    let bx=Math.floor(b.x+b.w/2),by=Math.floor(b.y+b.h/2);
+    let cx=ax,cy=ay;
+    while(cx!==bx){m[cy][cx]=FLOOR;cx+=cx<bx?1:-1}
+    while(cy!==by){m[cy][cx]=FLOOR;cy+=cy<by?1:-1}
+  }
+  // Place player in first room
+  let r0=rooms[0];
+  G.p.x=(r0.x+Math.floor(r0.w/2))*TW+TW/2;
+  G.p.y=(r0.y+Math.floor(r0.h/2))*TH+TH/2;
+  G.p.moveTarget=null;
+  // Place stairs in last room
+  let rl=rooms[rooms.length-1];
+  let sx=rl.x+Math.floor(rl.w/2),sy=rl.y+Math.floor(rl.h/2);
+  if(fl<FLOORS)m[sy][sx]=STAIR;
+  // Enemies
+  G.enemies=[];
+  let eCnt=3+fl*2;
+  let isBossFloor=(fl%BOSS_EVERY===0)||fl===FLOORS;
+  for(let i=1;i<rooms.length;i++){
+    let rm=rooms[i],cnt=Math.min(ri(1,3),eCnt);
+    eCnt-=cnt;
+    for(let j=0;j<cnt;j++){
+      let ex=(rm.x+ri(1,rm.w-2))*TW+TW/2;
+      let ey=(rm.y+ri(1,rm.h-2))*TH+TH/2;
+      let t=ri(0,2);// 0=skeleton,1=archer,2=demon
+      let elv=fl;
+      G.enemies.push(mkEnemy(t,ex,ey,elv));
+    }
+  }
+  if(isBossFloor&&rooms.length>1){
+    let br=rooms[rooms.length-1];
+    let bx=(br.x+Math.floor(br.w/2))*TW+TW/2;
+    let by=(br.y+Math.floor(br.h/2))*TH+TH/2;
+    G.enemies.push(mkEnemy(3,bx,by,fl+2));// boss
+  }
+  G.items=[];G.particles=[];G.dmgNums=[];
+  G.map=m;
+  G.seen=[];
+  for(let y=0;y<MH;y++){G.seen[y]=[];for(let x=0;x<MW;x++)G.seen[y][x]=false}
+  revealFog();
+}
+
+const EN=['Skeleton','Archer','Demon','Boss'];
+const EC=['#cba','#8c8','#f44','#f0f'];
+function mkEnemy(t,x,y,lv){
+  let base=[{hp:15,atk:4,def:1,spd:1,range:TW*1.5,xp:8},
+            {hp:10,atk:6,def:0,spd:0.8,range:TW*5,xp:10},
+            {hp:12,atk:5,def:1,spd:1.8,range:TW*1.5,xp:12},
+            {hp:60,atk:10,def:4,spd:1.2,range:TW*2,xp:50}][t];
+  let s=1+lv*0.3;
+  return{t,x,y,hp:Math.floor(base.hp*s),maxHp:Math.floor(base.hp*s),
+    atk:Math.floor(base.atk*s),def:Math.floor(base.def*s),spd:base.spd,
+    range:base.range,xp:Math.floor(base.xp*s),atkTimer:0,hitTimer:0,
+    state:'idle',dir:0,projTimer:0}
+}
+
+// Fog of war
+function revealFog(){
+  let px=Math.floor(G.p.x/TW),py=Math.floor(G.p.y/TH);
+  let r=5;
+  for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){
+    let tx=px+dx,ty=py+dy;
+    if(tx<0||ty<0||tx>=MW||ty>=MH)continue;
+    if(dx*dx+dy*dy<=r*r){
+      // Simple LOS: check if path is clear
+      let blocked=false;
+      let steps=Math.max(Math.abs(dx),Math.abs(dy));
+      for(let s=1;s<steps;s++){
+        let cx=Math.round(px+dx*s/steps),cy=Math.round(py+dy*s/steps);
+        if(cx>=0&&cy>=0&&cx<MW&&cy<MH&&G.map[cy][cx]===WALL){blocked=true;break}
+      }
+      if(!blocked)G.seen[ty][tx]=true;
+    }
+  }
+}
+
+function isWall(px,py){
+  let tx=Math.floor(px/TW),ty=Math.floor(py/TH);
+  if(tx<0||ty<0||tx>=MW||ty>=MH)return true;
+  return G.map[ty][tx]===WALL;
+}
+
+function dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y)}
+
+// Loot generation
+const WEAPONS=[
+  {name:'Short Sword',atk:4,tier:0},{name:'Broad Sword',atk:7,tier:1},
+  {name:'War Axe',atk:10,tier:2},{name:'Battle Staff',atk:8,tier:2},
+  {name:'Doom Blade',atk:14,tier:3},{name:'Inferno Axe',atk:12,tier:3}];
+const ARMORS=[
+  {name:'Leather Armor',def:2,tier:0},{name:'Chain Mail',def:4,tier:1},
+  {name:'Plate Armor',def:6,tier:2},{name:'Dragon Scale',def:9,tier:3}];
+
+function dropLoot(x,y,fl){
+  let r=rng();
+  if(r<0.35)G.items.push({type:'hpot',x,y,name:'Health Potion'});
+  else if(r<0.45)G.items.push({type:'mpot',x,y,name:'Mana Potion'});
+  else if(r<0.6){
+    let pool=WEAPONS.filter(w=>w.tier<=Math.floor(fl/2)+1);
+    let w=pool[ri(0,pool.length-1)];
+    let bonus=ri(0,fl);
+    G.items.push({type:'weapon',x,y,name:w.name+(bonus?` +${bonus}`:''),atk:w.atk+bonus,tier:w.tier});
+  }else if(r<0.72){
+    let pool=ARMORS.filter(a=>a.tier<=Math.floor(fl/2)+1);
+    let a=pool[ri(0,pool.length-1)];
+    let bonus=ri(0,Math.floor(fl/2));
+    G.items.push({type:'armor',x,y,name:a.name+(bonus?` +${bonus}`:''),def:a.def+bonus,tier:a.tier});
+  }
+}
+
+function addDmg(x,y,val,col){G.dmgNums.push({x,y,val,col,t:60})}
+function addParticle(x,y,col){
+  for(let i=0;i<5;i++){
+    G.particles.push({x,y,vx:(rng()-0.5)*3,vy:(rng()-0.5)*3,col,t:20+ri(0,10)});
+  }
+}
+
+function showMsg(s){G.msg=s;G.msgT=120}
+
+function levelUp(){
+  let p=G.p;
+  p.lvl++;p.xpNeed=Math.floor(p.xpNeed*1.6);p.xp=0;
+  p.maxHp+=8;p.hp=p.maxHp;p.maxMp+=4;p.mp=p.maxMp;
+  p.atk+=2;p.def+=1;
+  showMsg('LEVEL UP! Lv.'+p.lvl);
+  addParticle(p.x,p.y,'#ff0');
+}
+
+// Input
+document.addEventListener('keydown',e=>{
+  if(e.key==='?'||e.key==='/'){toggleInfo();e.preventDefault();return}
+  if(e.key==='Escape'&&infoOpen){toggleInfo();return}
+  keys[e.key.toLowerCase()]=true;
+  if(e.key==='r'&&(G.state==='dead'||G.state==='win'||G.state==='play')){
+    if(G.state!=='play'||e.shiftKey||G.state==='dead'){initGame();return}
+  }
+  if(e.key==='r'&&G.state==='dead'){initGame();return}
+  let p=G.p;
+  if(G.state==='play'){
+    if(e.key==='1'&&p.potions>0){p.potions--;p.hp=Math.min(p.hp+25,p.maxHp);showMsg('+25 HP');addParticle(p.x,p.y,'#0f0')}
+    if(e.key==='2'&&p.mpots>0){p.mpots--;p.mp=Math.min(p.mp+15,p.maxMp);showMsg('+15 MP');addParticle(p.x,p.y,'#48f')}
+    if(e.key===' '){
+      // Attack nearest enemy
+      let nearest=null,nd=Infinity;
+      for(let en of G.enemies){let d=dist(p,en);if(d<TW*3&&d<nd){nd=d;nearest=en}}
+      if(nearest&&p.atkTimer<=0)attackEnemy(nearest);
+      e.preventDefault();
+    }
+  }
+});
+document.addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=false});
+
+C.addEventListener('mousemove',e=>{
+  let r=C.getBoundingClientRect();
+  mouse.x=e.clientX-r.left;mouse.y=e.clientY-r.top;
+});
+C.addEventListener('click',e=>{
+  if(infoOpen)return;
+  if(G.state==='dead'){initGame();return}
+  let r=C.getBoundingClientRect();
+  let mx=e.clientX-r.left,my=e.clientY-r.top;
+  // World coords
+  let wx=mx+G.cam.x,wy=my+G.cam.y;
+  // Check if clicking enemy
+  let p=G.p;
+  let clicked=null;
+  for(let en of G.enemies){
+    if(Math.abs(en.x-wx)<TW&&Math.abs(en.y-wy)<TH)clicked=en;
+  }
+  if(clicked&&dist(p,clicked)<TW*3){
+    if(p.atkTimer<=0)attackEnemy(clicked);
+    mouse.target=clicked;
+  }else{
+    p.moveTarget={x:wx,y:wy};
+    mouse.target=null;
+  }
+});
+
+function attackEnemy(en){
+  let p=G.p;
+  p.atkTimer=20;
+  let dmg=Math.max(1,p.atk+p.weapon.atk-en.def+ri(-2,2));
+  en.hp-=dmg;en.hitTimer=8;
+  addDmg(en.x,en.y-10,-dmg,'#ff0');
+  addParticle(en.x,en.y,'#fa0');
+  en.state='chase';
+  if(en.hp<=0){
+    G.p.xp+=en.xp;G.killCount++;
+    if(G.p.xp>=G.p.xpNeed)levelUp();
+    dropLoot(en.x,en.y,G.floor);
+    addParticle(en.x,en.y,'#f00');
+    if(en.t===3)showMsg('BOSS DEFEATED!');
+  }
+}
+
+function enemyAttack(en){
+  let p=G.p;
+  en.atkTimer=en.t===1?50:30;
+  let dmg=Math.max(1,en.atk-p.def-p.armor.def+ri(-1,2));
+  p.hp-=dmg;p.hitTimer=8;
+  addDmg(p.x,p.y-10,-dmg,'#f44');
+  addParticle(p.x,p.y,'#f00');
+  if(p.hp<=0){G.state='dead';showMsg('YOU DIED')}
+}
+
+// Projectiles
+let projectiles=[];
+
+function update(){
+  if(infoOpen)return;
+  if(G.state!=='play')return;
+  let p=G.p;
+  if(p.atkTimer>0)p.atkTimer--;
+  if(p.hitTimer>0)p.hitTimer--;
+  if(G.msgT>0)G.msgT--;
+
+  // WASD movement
+  let dx=0,dy=0;
+  if(keys['w']||keys['arrowup'])dy=-1;
+  if(keys['s']||keys['arrowdown'])dy=1;
+  if(keys['a']||keys['arrowleft'])dx=-1;
+  if(keys['d']||keys['arrowright'])dx=1;
+  if(dx||dy){
+    let spd=p.speed;
+    let nx=p.x+dx*spd,ny=p.y+dy*spd;
+    if(!isWall(nx-6,p.y-6)&&!isWall(nx+6,p.y-6)&&!isWall(nx-6,p.y+6)&&!isWall(nx+6,p.y+6))p.x=nx;
+    ny=p.y+dy*spd;
+    if(!isWall(p.x-6,ny-6)&&!isWall(p.x+6,ny-6)&&!isWall(p.x-6,ny+6)&&!isWall(p.x+6,ny+6))p.y=ny;
+    p.moveTarget=null;
+  }
+  // Click to move
+  if(p.moveTarget){
+    let td=dist(p,p.moveTarget);
+    if(td>3){
+      let ang=Math.atan2(p.moveTarget.y-p.y,p.moveTarget.x-p.x);
+      let nx=p.x+Math.cos(ang)*p.speed;
+      let ny=p.y+Math.sin(ang)*p.speed;
+      if(!isWall(nx-6,ny-6)&&!isWall(nx+6,ny-6)&&!isWall(nx-6,ny+6)&&!isWall(nx+6,ny+6)){p.x=nx;p.y=ny}
+      else p.moveTarget=null;
+    }else p.moveTarget=null;
+  }
+  // Follow attack target
+  if(mouse.target){
+    let en=mouse.target;
+    if(en.hp<=0){mouse.target=null}
+    else{
+      let d=dist(p,en);
+      if(d>TW*2.5){
+        let ang=Math.atan2(en.y-p.y,en.x-p.x);
+        let nx=p.x+Math.cos(ang)*p.speed;
+        let ny=p.y+Math.sin(ang)*p.speed;
+        if(!isWall(nx-6,ny-6)&&!isWall(nx+6,ny-6)&&!isWall(nx-6,ny+6)&&!isWall(nx+6,ny+6)){p.x=nx;p.y=ny}
+      }else if(p.atkTimer<=0)attackEnemy(en);
+    }
+  }
+
+  revealFog();
+
+  // Check stairs
+  let tx=Math.floor(p.x/TW),ty=Math.floor(p.y/TH);
+  if(tx>=0&&ty>=0&&tx<MW&&ty<MH&&G.map[ty][tx]===STAIR){
+    G.floor++;
+    if(G.floor>FLOORS){G.state='win';showMsg('VICTORY! Dungeon cleared!');return}
+    showMsg('Descending to Floor '+G.floor+'...');
+    genFloor(G.floor);return;
+  }
+
+  // Pick up items
+  for(let i=G.items.length-1;i>=0;i--){
+    let it=G.items[i];
+    if(dist(p,it)<TW){
+      if(it.type==='hpot'){p.potions++;showMsg('Picked up Health Potion')}
+      else if(it.type==='mpot'){p.mpots++;showMsg('Picked up Mana Potion')}
+      else if(it.type==='weapon'){
+        if(it.atk>p.weapon.atk){
+          showMsg('Equipped '+it.name+' (ATK +'+it.atk+')');
+          p.weapon={name:it.name,atk:it.atk,tier:it.tier};
+        }else showMsg('Found '+it.name+' (weaker)');
+      }else if(it.type==='armor'){
+        if(it.def>p.armor.def){
+          showMsg('Equipped '+it.name+' (DEF +'+it.def+')');
+          p.armor={name:it.name,def:it.def,tier:it.tier};
+        }else showMsg('Found '+it.name+' (weaker)');
+      }
+      addParticle(it.x,it.y,'#0ff');
+      G.items.splice(i,1);
+    }
+  }
+
+  // Enemy AI
+  for(let en of G.enemies){
+    if(en.hp<=0)continue;
+    if(en.atkTimer>0)en.atkTimer--;
+    if(en.hitTimer>0)en.hitTimer--;
+    let d=dist(p,en);
+    // Aggro range
+    if(d<TW*8)en.state='chase';
+    if(en.state==='chase'){
+      if(d>en.range){
+        let ang=Math.atan2(p.y-en.y,p.x-en.x);
+        let nx=en.x+Math.cos(ang)*en.spd;
+        let ny=en.y+Math.sin(ang)*en.spd;
+        if(!isWall(nx-5,ny-5)&&!isWall(nx+5,ny-5)&&!isWall(nx-5,ny+5)&&!isWall(nx+5,ny+5)){en.x=nx;en.y=ny}
+      }else if(en.atkTimer<=0){
+        if(en.t===1){// Archer shoots projectile
+          let ang=Math.atan2(p.y-en.y,p.x-en.x);
+          projectiles.push({x:en.x,y:en.y,vx:Math.cos(ang)*3,vy:Math.sin(ang)*3,dmg:en.atk,t:80});
+          en.atkTimer=50;
+        }else{
+          if(d<en.range+TW*0.5)enemyAttack(en);
+        }
+      }
+    }
+  }
+  G.enemies=G.enemies.filter(e=>e.hp>0);
+
+  // Projectiles
+  for(let pr of projectiles){
+    pr.x+=pr.vx;pr.y+=pr.vy;pr.t--;
+    if(isWall(pr.x,pr.y))pr.t=0;
+    if(Math.abs(pr.x-p.x)<8&&Math.abs(pr.y-p.y)<8){
+      let dmg=Math.max(1,pr.dmg-p.def-p.armor.def+ri(-1,1));
+      p.hp-=dmg;p.hitTimer=8;
+      addDmg(p.x,p.y-10,-dmg,'#f44');
+      pr.t=0;
+      if(p.hp<=0){G.state='dead';showMsg('YOU DIED')}
+    }
+  }
+  projectiles=projectiles.filter(pr=>pr.t>0);
+
+  // Particles & damage nums
+  for(let pt of G.particles)pt.t--;
+  G.particles=G.particles.filter(pt=>pt.t>0);
+  for(let dn of G.dmgNums){dn.t--;dn.y-=0.5}
+  G.dmgNums=G.dmgNums.filter(dn=>dn.t>0);
+
+  // Camera
+  G.cam.x=p.x-400;G.cam.y=p.y-300;
+}
+
+function draw(){
+  X.fillStyle='#000';X.fillRect(0,0,800,600);
+  let cx=G.cam.x,cy=G.cam.y;
+  let p=G.p;
+
+  // Draw map
+  let stx=Math.max(0,Math.floor(cx/TW)),sty=Math.max(0,Math.floor(cy/TH));
+  let etx=Math.min(MW-1,Math.ceil((cx+800)/TW)),ety=Math.min(MH-1,Math.ceil((cy+600)/TH));
+  for(let ty=sty;ty<=ety;ty++){
+    for(let tx=stx;tx<=etx;tx++){
+      let sx=tx*TW-cx,sy=ty*TH-cy;
+      if(!G.seen[ty][tx]){continue}
+      // Check if in LOS for brightness
+      let pdx=tx-Math.floor(p.x/TW),pdy=ty-Math.floor(p.y/TH);
+      let inLOS=pdx*pdx+pdy*pdy<=25;
+      let tile=G.map[ty][tx];
+      if(tile===WALL){
+        X.fillStyle=inLOS?'#443':'#221';X.fillRect(sx,sy,TW,TH);
+        X.fillStyle=inLOS?'#554':'#332';X.fillRect(sx+1,sy+1,TW-2,TH-2);
+      }else if(tile===FLOOR){
+        X.fillStyle=inLOS?'#222':'#111';X.fillRect(sx,sy,TW,TH);
+        // Subtle floor pattern
+        if((tx+ty)%2===0){X.fillStyle=inLOS?'#252525':'#141414';X.fillRect(sx,sy,TW,TH)}
+      }else if(tile===STAIR){
+        X.fillStyle=inLOS?'#222':'#111';X.fillRect(sx,sy,TW,TH);
+        X.fillStyle='#48f';X.font='16px monospace';X.textAlign='center';
+        X.fillText('>',sx+TW/2,sy+TH/2+5);
+      }
+    }
+  }
+
+  // Items
+  for(let it of G.items){
+    let sx=it.x-cx,sy=it.y-cy;
+    if(sx<-TW||sy<-TH||sx>820||sy>620)continue;
+    let itx=Math.floor(it.x/TW),ity=Math.floor(it.y/TH);
+    if(itx>=0&&ity>=0&&itx<MW&&ity<MH&&!G.seen[ity][itx])continue;
+    X.font='14px monospace';X.textAlign='center';
+    if(it.type==='hpot'){X.fillStyle='#f44';X.fillText('\u2665',sx,sy+4)}
+    else if(it.type==='mpot'){X.fillStyle='#48f';X.fillText('\u2666',sx,sy+4)}
+    else if(it.type==='weapon'){X.fillStyle='#ff0';X.fillText('\u2020',sx,sy+4)}
+    else if(it.type==='armor'){X.fillStyle='#0f0';X.fillText('\u25a0',sx,sy+4)}
+  }
+
+  // Enemies
+  for(let en of G.enemies){
+    if(en.hp<=0)continue;
+    let sx=en.x-cx,sy=en.y-cy;
+    if(sx<-TW||sy<-TH||sx>820||sy>620)continue;
+    let etx=Math.floor(en.x/TW),ety=Math.floor(en.y/TH);
+    if(etx>=0&&ety>=0&&etx<MW&&ety<MH&&!G.seen[ety][etx])continue;
+    let col=EC[en.t];
+    if(en.hitTimer>0)col='#fff';
+    let sz=en.t===3?14:10;
+    X.fillStyle=col;
+    // Body
+    X.beginPath();X.arc(sx,sy,sz,0,Math.PI*2);X.fill();
+    // Eyes
+    X.fillStyle='#000';
+    X.fillRect(sx-4,sy-3,3,3);X.fillRect(sx+1,sy-3,3,3);
+    if(en.t===3){// Boss crown
+      X.fillStyle='#ff0';
+      X.fillRect(sx-6,sy-sz-4,12,4);
+      X.fillRect(sx-6,sy-sz-7,3,3);X.fillRect(sx+3,sy-sz-7,3,3);X.fillRect(sx-2,sy-sz-7,3,3);
+    }
+    // HP bar
+    let bw=sz*2;
+    X.fillStyle='#400';X.fillRect(sx-bw/2,sy-sz-6,bw,3);
+    X.fillStyle='#f00';X.fillRect(sx-bw/2,sy-sz-6,bw*(en.hp/en.maxHp),3);
+  }
+
+  // Projectiles
+  X.fillStyle='#8f8';
+  for(let pr of projectiles){
+    let sx=pr.x-cx,sy=pr.y-cy;
+    X.beginPath();X.arc(sx,sy,3,0,Math.PI*2);X.fill();
+  }
+
+  // Player
+  let psx=p.x-cx,psy=p.y-cy;
+  X.fillStyle=p.hitTimer>0?'#f88':'#8cf';
+  X.beginPath();X.arc(psx,psy,10,0,Math.PI*2);X.fill();
+  // Weapon indicator
+  X.fillStyle='#ff0';
+  let wa=mouse.target?Math.atan2(mouse.target.y-p.y,mouse.target.x-p.x):
+    Math.atan2(mouse.y-(psy),mouse.x-(psx));
+  X.fillRect(psx+Math.cos(wa)*12-2,psy+Math.sin(wa)*12-2,5,5);
+
+  // Particles
+  for(let pt of G.particles){
+    let sx=pt.x-cx+pt.vx*(20-pt.t),sy=pt.y-cy+pt.vy*(20-pt.t);
+    X.globalAlpha=pt.t/30;X.fillStyle=pt.col;
+    X.fillRect(sx-1,sy-1,3,3);
+  }
+  X.globalAlpha=1;
+
+  // Damage numbers
+  X.font='bold 12px monospace';X.textAlign='center';
+  for(let dn of G.dmgNums){
+    let sx=dn.x-cx,sy=dn.y-cy;
+    X.globalAlpha=Math.min(1,dn.t/30);
+    X.fillStyle=dn.col;X.fillText(dn.val,sx,sy);
+  }
+  X.globalAlpha=1;
+
+  // HUD
+  drawHUD();
+
+  // Messages
+  if(G.msgT>0){
+    X.globalAlpha=Math.min(1,G.msgT/30);
+    X.fillStyle='#ff0';X.font='bold 18px monospace';X.textAlign='center';
+    X.fillText(G.msg,400,80);X.globalAlpha=1;
+  }
+
+  // Death/Win overlay
+  if(G.state==='dead'){
+    X.fillStyle='rgba(80,0,0,0.7)';X.fillRect(0,0,800,600);
+    X.fillStyle='#f44';X.font='bold 36px monospace';X.textAlign='center';
+    X.fillText('YOU DIED',400,260);
+    X.fillStyle='#aaa';X.font='16px monospace';
+    X.fillText('Floor '+G.floor+' | Level '+p.lvl+' | Kills: '+G.killCount,400,310);
+    X.fillText('Click or R to restart',400,350);
+  }
+  if(G.state==='win'){
+    X.fillStyle='rgba(0,0,60,0.7)';X.fillRect(0,0,800,600);
+    X.fillStyle='#ff0';X.font='bold 36px monospace';X.textAlign='center';
+    X.fillText('DUNGEON CLEARED!',400,250);
+    X.fillStyle='#aaa';X.font='16px monospace';
+    X.fillText('Level '+p.lvl+' | Kills: '+G.killCount,400,300);
+    X.fillText('Press R to play again',400,340);
+  }
+}
+
+function drawHUD(){
+  let p=G.p;
+  // Background
+  X.fillStyle='rgba(0,0,0,0.75)';X.fillRect(0,0,800,48);
+  // HP bar
+  X.fillStyle='#400';X.fillRect(10,8,150,14);
+  X.fillStyle='#d22';X.fillRect(10,8,150*(p.hp/p.maxHp),14);
+  X.fillStyle='#fff';X.font='11px monospace';X.textAlign='left';
+  X.fillText('HP '+p.hp+'/'+p.maxHp,14,19);
+  // MP bar
+  X.fillStyle='#004';X.fillRect(10,26,150,14);
+  X.fillStyle='#22d';X.fillRect(10,26,150*(p.mp/p.maxMp),14);
+  X.fillText('MP '+p.mp+'/'+p.maxMp,14,37);
+  // Stats
+  X.fillStyle='#ccc';X.font='12px monospace';
+  X.fillText('Lv.'+p.lvl,170,19);
+  X.fillText('ATK:'+(p.atk+p.weapon.atk)+' DEF:'+(p.def+p.armor.def),170,37);
+  // XP bar
+  X.fillStyle='#330';X.fillRect(280,8,100,10);
+  X.fillStyle='#aa0';X.fillRect(280,8,100*(p.xp/p.xpNeed),10);
+  X.fillStyle='#ff0';X.font='9px monospace';
+  X.fillText('XP '+p.xp+'/'+p.xpNeed,282,16);
+  // Equipment
+  X.fillStyle='#fc0';X.font='11px monospace';
+  X.fillText('\u2694 '+p.weapon.name,390,19);
+  X.fillStyle='#0cf';
+  X.fillText('\u25a0 '+p.armor.name,390,37);
+  // Potions
+  X.fillStyle='#f44';X.fillText('\u2665'+p.potions,620,19);
+  X.fillStyle='#48f';X.fillText('\u2666'+p.mpots,620,37);
+  // Floor
+  X.fillStyle='#888';X.textAlign='right';
+  X.fillText('Floor '+G.floor+'/'+FLOORS,790,19);
+  X.fillText('Kills: '+G.killCount,790,37);
+  // Controls hint
+  X.textAlign='left';X.fillStyle='#555';X.font='10px monospace';
+  X.fillText('[?] Info  [1] HP Pot  [2] MP Pot',280,46);
+}
+
+function gameLoop(){
+  update();draw();requestAnimationFrame(gameLoop);
+}
+initGame();gameLoop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

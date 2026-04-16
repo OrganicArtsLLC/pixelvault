@@ -1,0 +1,896 @@
+<!--
+PROTOTYPE: endless-dash
+SERIES: plt
+NUMBER: 021
+DATE: 2026-03-24
+MECHANIC: auto-running cookie — run automatically, jump over obstacles, slide under barriers, collect jellies; cookie has energy that depletes
+ANCESTRY: Cookie Run (2013, Devsisters — Korea), Jetpack Joyride (2011, Halfbrick), Canabalt (2009, Adam Saltsman)
+CONTROLS: Space — jump (hold for higher) | Down — slide | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 6 (Foundation Models — massive mobile gaming era, global reach from Korean origins)
+AI-INSIGHT: Cookie Run's energy-depletion mechanic reframes the auto-runner from pure reflex into resource management — the player must balance risk (collecting distant jellies) against safety, mirroring exploration-exploitation tradeoffs central to reinforcement learning.
+NOTES: Korean auto-running cookie platformer. Devsisters (Korea, 2013) — massive in Korea and Asia.
+       Side-scrolling auto-runner with dessert-themed visuals and energy management.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PLT-021 · ENDLESS DASH</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>PLT-021 · ENDLESS DASH</h1>
+    <p><span class="tag series">PLT — Platformer</span> <span class="tag">Prototype #021</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Your cookie runs automatically through a candy-themed world. Jump over gaps and spikes, slide under barriers, and collect jellies to boost your score. Watch your energy bar &mdash; it depletes over time. Grab energy potions to keep running!</p>
+    <ul>
+      <li><kbd>Space</kbd> &mdash; Jump (hold for higher jump)</li>
+      <li><kbd>&darr;</kbd> &mdash; Slide under barriers</li>
+      <li><kbd>R</kbd> &mdash; Restart</li>
+      <li><kbd>?</kbd> &mdash; Toggle this info panel</li>
+    </ul>
+    <h3>Collectibles</h3>
+    <ul>
+      <li><strong style="color:#ff0">Yellow jellies:</strong> +10 points each</li>
+      <li><strong style="color:#f4f">Pink jellies:</strong> +25 points each</li>
+      <li><strong style="color:#4f4">Energy potions:</strong> Restore energy</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Hold jump:</strong> Holding space makes you jump higher &mdash; tap for short hops, hold for big leaps.</li>
+      <li><strong>Slide early:</strong> Start sliding before you reach a barrier to pass safely underneath.</li>
+      <li><strong>Energy management:</strong> Prioritize energy potions when your bar is low &mdash; running out ends the game.</li>
+      <li><strong>Speed increases:</strong> The cookie accelerates over time, so obstacles come faster.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Cookie Run (2013, Devsisters) &larr; Jetpack Joyride (2011, Halfbrick) &larr; Canabalt (2009, Adam Saltsman)</p>
+    <p>Cookie Run (&#xCFE0;&#xD0A4;&#xB7F0;, 2013) was created by Korean studio Devsisters and became a cultural phenomenon across Korea and Asia. Originally released as &ldquo;Cookie Run for Kakao&rdquo; on the KakaoTalk messaging platform, it reached over 20 million downloads within months of launch.</p>
+    <p>The game reimagined the auto-runner genre with a charming dessert theme and an innovative energy-depletion mechanic that added strategic depth to the reflex-based gameplay. Players had to balance collecting jellies for score against grabbing energy potions to survive longer. Each cookie character had unique abilities, creating a collectible meta-game.</p>
+    <p>Its success spawned Cookie Run: OvenBreak (2016) and Cookie Run: Kingdom (2021), the latter becoming a global hit that expanded the franchise into RPG territory. Devsisters grew from a small Seoul startup into a major game company, demonstrating Korea&rsquo;s influence on mobile gaming innovation.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 6 &mdash; Foundation Models (2020&ndash;present)</p>
+    <p><strong>Contemporary AI:</strong> Large language models, multimodal AI, reinforcement learning from human feedback.</p>
+    <p><strong>Insight:</strong> Cookie Run&rsquo;s energy-depletion mechanic reframes the auto-runner from pure reflex into resource management. The player must balance risk (collecting distant jellies) against safety (staying on the safe path), mirroring the exploration-exploitation tradeoff central to reinforcement learning. The game&rsquo;s character collection system also parallels how foundation models learn diverse capabilities.</p>
+
+    <h2>Classification</h2>
+    <ul>
+      <li><strong>Primary:</strong> Platformer (auto-runner)</li>
+      <li><strong>Secondary:</strong> Resource management, reflex</li>
+      <li><strong>Input:</strong> 2-button (jump + slide)</li>
+      <li><strong>Perspective:</strong> Side-scrolling horizontal</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This prototype implements the core auto-running loop with jump/slide mechanics, energy depletion, jelly collection, obstacle variety (gaps, spikes, barriers), and progressive speed increase. The dessert-themed visuals use candy colors and frosting-styled platforms to evoke the original&rsquo;s charming aesthetic.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+var W = 800, H = 600;
+var canvas = document.getElementById('c');
+var ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+canvas.width = W;
+canvas.height = H;
+
+// ── Resize ──
+function resize() {
+  var s = Math.min(innerWidth / W, innerHeight / H);
+  canvas.style.width = (W * s) + 'px';
+  canvas.style.height = (H * s) + 'px';
+}
+resize();
+addEventListener('resize', resize);
+
+// ── Info panel ──
+var infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// ── Audio ──
+var audioCtx = null;
+function initAudio() {
+  if (!audioCtx) {
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+  }
+}
+function playSound(freq, dur, type, vol) {
+  if (!audioCtx) return;
+  try {
+    var osc = audioCtx.createOscillator();
+    var gain = audioCtx.createGain();
+    osc.type = type || 'sine';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(vol || 0.15, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + dur);
+  } catch(e) {}
+}
+function sfxJelly() { playSound(880, 0.1, 'sine', 0.12); playSound(1320, 0.08, 'sine', 0.1); }
+function sfxBigJelly() { playSound(1100, 0.12, 'sine', 0.15); playSound(1650, 0.1, 'sine', 0.12); }
+function sfxJump() { playSound(300, 0.15, 'triangle', 0.1); }
+function sfxSlide() { playSound(200, 0.12, 'sawtooth', 0.06); }
+function sfxPotion() { playSound(523, 0.15, 'sine', 0.12); playSound(784, 0.15, 'sine', 0.1); }
+function sfxDie() { playSound(200, 0.3, 'sawtooth', 0.15); playSound(100, 0.5, 'sawtooth', 0.1); }
+
+// ── Constants ──
+var GROUND_Y = 480;
+var GRAVITY = 0.6;
+var JUMP_FORCE = -12;
+var JUMP_HOLD_FORCE = -0.4;
+var MAX_JUMP_HOLD = 18;
+var SLIDE_DURATION = 25;
+var COOKIE_X = 150;
+var COOKIE_W = 36;
+var COOKIE_H = 44;
+var COOKIE_SLIDE_H = 22;
+var MAX_ENERGY = 100;
+var ENERGY_DRAIN = 0.04;
+var BASE_SPEED = 4;
+var MAX_SPEED = 9;
+
+// ── Game state ──
+var state, cookie, obstacles, jellies, potions, crumbs, bgItems;
+var jellyScore, distance, speed, keys, jumpHoldFrames;
+
+function init() {
+  state = 'title';
+  cookie = { x: COOKIE_X, y: GROUND_Y - COOKIE_H, vy: 0, energy: MAX_ENERGY,
+             grounded: true, sliding: false, slideTimer: 0, frame: 0 };
+  obstacles = [];
+  jellies = [];
+  potions = [];
+  crumbs = [];
+  bgItems = [];
+  jellyScore = 0;
+  distance = 0;
+  speed = BASE_SPEED;
+  jumpHoldFrames = 0;
+  spawnTimer = 0;
+  jellyTimer = 0;
+  potionTimer = 0;
+  bgTimer = 0;
+  // Pre-populate some background items
+  for (var i = 0; i < 8; i++) {
+    bgItems.push({ x: Math.random() * W, y: 50 + Math.random() * 350, type: Math.floor(Math.random() * 4), size: 10 + Math.random() * 20 });
+  }
+}
+
+var keys = {};
+var spawnTimer = 0, jellyTimer = 0, potionTimer = 0, bgTimer = 0;
+
+addEventListener('keydown', function(e) {
+  initAudio();
+  keys[e.code] = true;
+  if (e.code === 'Space' || e.code === 'ArrowDown') e.preventDefault();
+  if (e.code === 'Slash' && e.shiftKey) { toggleInfo(); return; }
+  if (e.code === 'Escape' && infoOpen) { toggleInfo(); return; }
+  if (e.code === 'KeyR') { init(); return; }
+  if (state === 'title' && (e.code === 'Space' || e.code === 'ArrowDown')) {
+    state = 'play';
+  }
+  if (state === 'dead' && e.code === 'Space') {
+    init();
+    state = 'play';
+  }
+});
+addEventListener('keyup', function(e) { keys[e.code] = false; });
+
+// ── Obstacle / item generation ──
+function spawnObstacle() {
+  var types = ['gap', 'spike', 'barrier'];
+  // Weight barriers less at start
+  if (distance < 500) types = ['gap', 'spike', 'spike'];
+  var type = types[Math.floor(Math.random() * types.length)];
+  var o = { x: W + 50, type: type };
+  if (type === 'gap') { o.w = 60 + Math.random() * 40; o.h = 120; o.y = GROUND_Y; }
+  else if (type === 'spike') { o.w = 30; o.h = 30; o.y = GROUND_Y - 30; }
+  else { o.w = 60; o.h = 30; o.y = GROUND_Y - 60; } // barrier - must slide under
+  obstacles.push(o);
+}
+
+function spawnJellyCluster() {
+  var count = 3 + Math.floor(Math.random() * 5);
+  var baseY = GROUND_Y - 60 - Math.random() * 120;
+  var big = Math.random() < 0.25;
+  for (var i = 0; i < count; i++) {
+    jellies.push({
+      x: W + 50 + i * 30,
+      y: baseY + Math.sin(i * 0.8) * 20,
+      big: big && i === Math.floor(count / 2),
+      r: big && i === Math.floor(count / 2) ? 8 : 5
+    });
+  }
+}
+
+function spawnPotion() {
+  potions.push({
+    x: W + 50,
+    y: GROUND_Y - 50 - Math.random() * 100,
+    r: 10
+  });
+}
+
+// ── Cookie drawing ──
+function drawCookie(c) {
+  var bx = c.x, by = c.y;
+  var w = COOKIE_W, h = c.sliding ? COOKIE_SLIDE_H : COOKIE_H;
+  if (c.sliding) by = GROUND_Y - COOKIE_SLIDE_H;
+
+  ctx.save();
+  // Body (round cookie shape)
+  ctx.fillStyle = '#d4943a';
+  ctx.beginPath();
+  if (c.sliding) {
+    // Sliding: flatten into ellipse
+    ctx.ellipse(bx + w/2, by + h/2, w/2 + 4, h/2, 0, 0, Math.PI * 2);
+  } else {
+    // Standing: round body
+    ctx.arc(bx + w/2, by + h/2 - 4, w/2 + 2, 0, Math.PI * 2);
+  }
+  ctx.fill();
+
+  // Cookie chocolate chips
+  ctx.fillStyle = '#6b3a1f';
+  if (!c.sliding) {
+    ctx.fillRect(bx + 8, by + 10, 5, 5);
+    ctx.fillRect(bx + 22, by + 16, 4, 4);
+    ctx.fillRect(bx + 14, by + 24, 5, 4);
+  } else {
+    ctx.fillRect(bx + 6, by + 4, 4, 3);
+    ctx.fillRect(bx + 20, by + 6, 3, 3);
+    ctx.fillRect(bx + 34, by + 4, 4, 3);
+  }
+
+  // Eyes
+  ctx.fillStyle = '#fff';
+  if (!c.sliding) {
+    ctx.beginPath();
+    ctx.arc(bx + 13, by + 10, 5, 0, Math.PI * 2);
+    ctx.arc(bx + 27, by + 10, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#222';
+    ctx.beginPath();
+    ctx.arc(bx + 15, by + 10, 2.5, 0, Math.PI * 2);
+    ctx.arc(bx + 29, by + 10, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Smile
+  if (!c.sliding) {
+    ctx.strokeStyle = '#6b3a1f';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(bx + w/2, by + 16, 8, 0.2, Math.PI - 0.2);
+    ctx.stroke();
+  }
+
+  // Hat / decoration (little chef hat)
+  if (!c.sliding) {
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(bx + 8, by - 8, 22, 6);
+    ctx.fillRect(bx + 12, by - 18, 14, 12);
+    ctx.fillStyle = '#e44';
+    ctx.fillRect(bx + 10, by - 4, 18, 3);
+  }
+
+  // Legs (running animation)
+  if (!c.sliding) {
+    var legPhase = Math.sin(c.frame * 0.3) * 6;
+    ctx.fillStyle = '#d4943a';
+    // Left leg
+    ctx.fillRect(bx + 10 + legPhase, by + h - 12, 8, 12);
+    // Right leg
+    ctx.fillRect(bx + 20 - legPhase, by + h - 12, 8, 12);
+    // Shoes
+    ctx.fillStyle = '#a03020';
+    ctx.fillRect(bx + 8 + legPhase, by + h - 2, 12, 4);
+    ctx.fillRect(bx + 18 - legPhase, by + h - 2, 12, 4);
+  }
+
+  ctx.restore();
+}
+
+// ── Background drawing ──
+function drawBg() {
+  // Sky gradient
+  var grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#ffa0d0');
+  grad.addColorStop(0.5, '#ffccaa');
+  grad.addColorStop(1, '#ffe8c0');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Clouds / candy background items
+  for (var i = 0; i < bgItems.length; i++) {
+    var b = bgItems[i];
+    ctx.globalAlpha = 0.3;
+    switch(b.type) {
+      case 0: // cloud
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.size, 0, Math.PI * 2);
+        ctx.arc(b.x + b.size, b.y - b.size * 0.3, b.size * 0.7, 0, Math.PI * 2);
+        ctx.arc(b.x - b.size * 0.6, b.y - b.size * 0.2, b.size * 0.5, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+      case 1: // lollipop
+        ctx.fillStyle = '#f4a';
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.size * 0.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#a86';
+        ctx.fillRect(b.x - 2, b.y + b.size * 0.5, 4, b.size);
+        break;
+      case 2: // candy cane
+        ctx.strokeStyle = '#f44';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(b.x, b.y + b.size);
+        ctx.lineTo(b.x, b.y);
+        ctx.arc(b.x + b.size * 0.3, b.y, b.size * 0.3, Math.PI, 0, true);
+        ctx.stroke();
+        break;
+      case 3: // star
+        ctx.fillStyle = '#ff0';
+        ctx.beginPath();
+        for (var s = 0; s < 5; s++) {
+          var ang = -Math.PI/2 + s * Math.PI * 2/5;
+          var ang2 = ang + Math.PI/5;
+          ctx.lineTo(b.x + Math.cos(ang) * b.size * 0.4, b.y + Math.sin(ang) * b.size * 0.4);
+          ctx.lineTo(b.x + Math.cos(ang2) * b.size * 0.2, b.y + Math.sin(ang2) * b.size * 0.2);
+        }
+        ctx.fill();
+        break;
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // Ground: chocolate with frosting top
+  ctx.fillStyle = '#6b3520';
+  ctx.fillRect(0, GROUND_Y, W, H - GROUND_Y);
+
+  // Frosting layer
+  ctx.fillStyle = '#ffb8d0';
+  ctx.beginPath();
+  ctx.moveTo(0, GROUND_Y);
+  for (var x = 0; x < W; x += 20) {
+    ctx.lineTo(x + 10, GROUND_Y - 6 + Math.sin(x * 0.1 + distance * 0.01) * 4);
+  }
+  ctx.lineTo(W, GROUND_Y);
+  ctx.lineTo(W, GROUND_Y + 8);
+  ctx.lineTo(0, GROUND_Y + 8);
+  ctx.fill();
+
+  // Wafer pattern on ground
+  ctx.strokeStyle = '#8b4a2a';
+  ctx.lineWidth = 1;
+  ctx.globalAlpha = 0.3;
+  for (var gx = -Math.floor(distance * 0.5) % 40; gx < W; gx += 40) {
+    ctx.beginPath();
+    ctx.moveTo(gx, GROUND_Y + 8);
+    ctx.lineTo(gx, H);
+    ctx.stroke();
+  }
+  for (var gy = GROUND_Y + 28; gy < H; gy += 20) {
+    ctx.beginPath();
+    ctx.moveTo(0, gy);
+    ctx.lineTo(W, gy);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+
+// ── Update ──
+function update() {
+  if (infoOpen) return;
+  if (state !== 'play') return;
+
+  cookie.frame++;
+  distance += speed;
+  speed = Math.min(MAX_SPEED, BASE_SPEED + distance * 0.0004);
+
+  // Energy drain
+  cookie.energy -= ENERGY_DRAIN + distance * 0.000002;
+  if (cookie.energy <= 0) {
+    cookie.energy = 0;
+    state = 'dead';
+    sfxDie();
+    return;
+  }
+
+  // Jump
+  if (keys['Space'] && cookie.grounded && !cookie.sliding) {
+    cookie.vy = JUMP_FORCE;
+    cookie.grounded = false;
+    jumpHoldFrames = 0;
+    sfxJump();
+  }
+  // Hold jump for higher
+  if (keys['Space'] && !cookie.grounded && jumpHoldFrames < MAX_JUMP_HOLD && cookie.vy < 0) {
+    cookie.vy += JUMP_HOLD_FORCE;
+    jumpHoldFrames++;
+  }
+
+  // Slide
+  if (keys['ArrowDown'] && cookie.grounded && !cookie.sliding) {
+    cookie.sliding = true;
+    cookie.slideTimer = SLIDE_DURATION;
+    sfxSlide();
+  }
+  if (cookie.sliding) {
+    cookie.slideTimer--;
+    if (cookie.slideTimer <= 0) cookie.sliding = false;
+  }
+
+  // Gravity
+  if (!cookie.grounded) {
+    cookie.vy += GRAVITY;
+    cookie.y += cookie.vy;
+    if (cookie.y >= GROUND_Y - COOKIE_H) {
+      cookie.y = GROUND_Y - COOKIE_H;
+      cookie.vy = 0;
+      cookie.grounded = true;
+    }
+  }
+
+  // Fell into gap check
+  var inGap = false;
+  for (var i = 0; i < obstacles.length; i++) {
+    var o = obstacles[i];
+    if (o.type === 'gap') {
+      if (cookie.x + COOKIE_W > o.x && cookie.x < o.x + o.w && cookie.grounded) {
+        inGap = true;
+        break;
+      }
+    }
+  }
+  if (inGap) {
+    cookie.grounded = false;
+    cookie.vy = 2;
+  }
+  if (cookie.y > H + 50) {
+    state = 'dead';
+    sfxDie();
+    return;
+  }
+
+  // Spawn obstacles
+  spawnTimer -= speed;
+  if (spawnTimer <= 0) {
+    spawnObstacle();
+    spawnTimer = 200 + Math.random() * 200 - distance * 0.02;
+    if (spawnTimer < 100) spawnTimer = 100;
+  }
+
+  // Spawn jellies
+  jellyTimer -= speed;
+  if (jellyTimer <= 0) {
+    spawnJellyCluster();
+    jellyTimer = 120 + Math.random() * 100;
+  }
+
+  // Spawn potions
+  potionTimer -= speed;
+  if (potionTimer <= 0) {
+    spawnPotion();
+    potionTimer = 400 + Math.random() * 300;
+  }
+
+  // Spawn bg items
+  bgTimer -= speed;
+  if (bgTimer <= 0) {
+    bgItems.push({ x: W + 30, y: 40 + Math.random() * 350, type: Math.floor(Math.random() * 4), size: 10 + Math.random() * 25 });
+    bgTimer = 100 + Math.random() * 150;
+  }
+
+  // Move obstacles
+  for (var i = obstacles.length - 1; i >= 0; i--) {
+    obstacles[i].x -= speed;
+    if (obstacles[i].x + (obstacles[i].w || 0) < -50) obstacles.splice(i, 1);
+  }
+
+  // Move jellies
+  for (var i = jellies.length - 1; i >= 0; i--) {
+    jellies[i].x -= speed;
+    if (jellies[i].x < -20) { jellies.splice(i, 1); continue; }
+    // Collect
+    var j = jellies[i];
+    var cx = cookie.x + COOKIE_W / 2;
+    var cy = cookie.sliding ? GROUND_Y - COOKIE_SLIDE_H / 2 : cookie.y + COOKIE_H / 2;
+    var dx = cx - j.x, dy = cy - j.y;
+    if (dx * dx + dy * dy < (j.r + 18) * (j.r + 18)) {
+      if (j.big) { jellyScore += 25; sfxBigJelly(); } else { jellyScore += 10; sfxJelly(); }
+      jellies.splice(i, 1);
+    }
+  }
+
+  // Move potions
+  for (var i = potions.length - 1; i >= 0; i--) {
+    potions[i].x -= speed;
+    if (potions[i].x < -20) { potions.splice(i, 1); continue; }
+    var p = potions[i];
+    var cx = cookie.x + COOKIE_W / 2;
+    var cy = cookie.sliding ? GROUND_Y - COOKIE_SLIDE_H / 2 : cookie.y + COOKIE_H / 2;
+    var dx = cx - p.x, dy = cy - p.y;
+    if (dx * dx + dy * dy < (p.r + 20) * (p.r + 20)) {
+      cookie.energy = Math.min(MAX_ENERGY, cookie.energy + 25);
+      sfxPotion();
+      potions.splice(i, 1);
+    }
+  }
+
+  // Move bg items
+  for (var i = bgItems.length - 1; i >= 0; i--) {
+    bgItems[i].x -= speed * 0.3;
+    if (bgItems[i].x < -50) bgItems.splice(i, 1);
+  }
+
+  // Collision with obstacles
+  var ch = cookie.sliding ? COOKIE_SLIDE_H : COOKIE_H;
+  var cy2 = cookie.sliding ? GROUND_Y - COOKIE_SLIDE_H : cookie.y;
+  for (var i = 0; i < obstacles.length; i++) {
+    var o = obstacles[i];
+    if (o.type === 'gap') continue; // handled above
+    if (cookie.x + COOKIE_W > o.x + 4 && cookie.x < o.x + o.w - 4) {
+      if (o.type === 'spike') {
+        if (cy2 + ch > o.y + 4) {
+          state = 'dead';
+          sfxDie();
+          return;
+        }
+      } else if (o.type === 'barrier') {
+        if (!cookie.sliding && cy2 < o.y + o.h && cy2 + ch > o.y) {
+          state = 'dead';
+          sfxDie();
+          return;
+        }
+      }
+    }
+  }
+
+  // Crumb trail
+  if (cookie.frame % 4 === 0 && cookie.grounded) {
+    crumbs.push({ x: cookie.x + COOKIE_W / 2, y: GROUND_Y - 2, life: 30 });
+  }
+  for (var i = crumbs.length - 1; i >= 0; i--) {
+    crumbs[i].x -= speed;
+    crumbs[i].life--;
+    if (crumbs[i].life <= 0 || crumbs[i].x < -10) crumbs.splice(i, 1);
+  }
+
+}
+
+function getScore() {
+  return Math.floor(distance * 0.1) + jellyScore;
+}
+
+function draw() {
+  drawBg();
+
+  // Draw crumbs
+  ctx.fillStyle = '#c89040';
+  for (var i = 0; i < crumbs.length; i++) {
+    ctx.globalAlpha = crumbs[i].life / 30;
+    ctx.fillRect(crumbs[i].x - 2, crumbs[i].y, 4, 3);
+  }
+  ctx.globalAlpha = 1;
+
+  // Draw obstacles
+  for (var i = 0; i < obstacles.length; i++) {
+    var o = obstacles[i];
+    if (o.type === 'gap') {
+      // Draw gap as missing ground
+      ctx.fillStyle = '#2a1008';
+      ctx.fillRect(o.x, GROUND_Y, o.w, H - GROUND_Y);
+      // Gap edges
+      ctx.fillStyle = '#6b3520';
+      ctx.fillRect(o.x - 4, GROUND_Y, 4, H - GROUND_Y);
+      ctx.fillRect(o.x + o.w, GROUND_Y, 4, H - GROUND_Y);
+    } else if (o.type === 'spike') {
+      // Candy spike (triangle)
+      ctx.fillStyle = '#ff4444';
+      ctx.beginPath();
+      ctx.moveTo(o.x, GROUND_Y);
+      ctx.lineTo(o.x + o.w / 2, o.y);
+      ctx.lineTo(o.x + o.w, GROUND_Y);
+      ctx.fill();
+      ctx.fillStyle = '#ff8888';
+      ctx.beginPath();
+      ctx.moveTo(o.x + 4, GROUND_Y);
+      ctx.lineTo(o.x + o.w / 2, o.y + 8);
+      ctx.lineTo(o.x + o.w - 4, GROUND_Y);
+      ctx.fill();
+    } else if (o.type === 'barrier') {
+      // Wafer barrier
+      ctx.fillStyle = '#d4a050';
+      ctx.fillRect(o.x, o.y, o.w, o.h);
+      // Wafer lines
+      ctx.strokeStyle = '#b8863a';
+      ctx.lineWidth = 1;
+      for (var lx = o.x + 8; lx < o.x + o.w; lx += 10) {
+        ctx.beginPath(); ctx.moveTo(lx, o.y); ctx.lineTo(lx, o.y + o.h); ctx.stroke();
+      }
+      // Posts
+      ctx.fillStyle = '#a07030';
+      ctx.fillRect(o.x - 4, o.y, 6, GROUND_Y - o.y);
+      ctx.fillRect(o.x + o.w - 2, o.y, 6, GROUND_Y - o.y);
+      // Arrow hint
+      ctx.fillStyle = 'rgba(255,255,0,0.4)';
+      ctx.font = '16px monospace';
+      ctx.fillText('\u2193', o.x + o.w / 2 - 5, o.y - 18);
+    }
+  }
+
+  // Draw jellies
+  for (var i = 0; i < jellies.length; i++) {
+    var j = jellies[i];
+    var pulse = 1 + Math.sin(cookie.frame * 0.15 + j.x * 0.05) * 0.15;
+    if (j.big) {
+      ctx.fillStyle = '#ff66cc';
+      ctx.beginPath();
+      ctx.arc(j.x, j.y, j.r * pulse, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffaaee';
+      ctx.beginPath();
+      ctx.arc(j.x - 2, j.y - 2, j.r * 0.4, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.fillStyle = '#ffdd44';
+      ctx.beginPath();
+      ctx.arc(j.x, j.y, j.r * pulse, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffee88';
+      ctx.beginPath();
+      ctx.arc(j.x - 1, j.y - 1, j.r * 0.35, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // Draw potions
+  for (var i = 0; i < potions.length; i++) {
+    var p = potions[i];
+    var bob = Math.sin(cookie.frame * 0.08 + p.x * 0.03) * 3;
+    // Bottle
+    ctx.fillStyle = '#44ff66';
+    ctx.beginPath();
+    ctx.arc(p.x, p.y + bob, p.r, 0, Math.PI * 2);
+    ctx.fill();
+    // Bottle neck
+    ctx.fillStyle = '#33cc55';
+    ctx.fillRect(p.x - 3, p.y + bob - p.r - 5, 6, 7);
+    // Cap
+    ctx.fillStyle = '#ffcc00';
+    ctx.fillRect(p.x - 4, p.y + bob - p.r - 7, 8, 4);
+    // Shine
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.beginPath();
+    ctx.arc(p.x - 3, p.y + bob - 3, 3, 0, Math.PI * 2);
+    ctx.fill();
+    // "E" label
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 10px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('E', p.x, p.y + bob + 4);
+    ctx.textAlign = 'left';
+  }
+
+  // Draw cookie
+  drawCookie(cookie);
+
+  // HUD - Energy bar
+  var barW = 160, barH = 16, barX = 20, barY = 20;
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.fillRect(barX - 2, barY - 2, barW + 4, barH + 4);
+  var energyPct = cookie.energy / MAX_ENERGY;
+  var barColor = energyPct > 0.5 ? '#44ff66' : energyPct > 0.25 ? '#ffaa22' : '#ff3333';
+  ctx.fillStyle = barColor;
+  ctx.fillRect(barX, barY, barW * energyPct, barH);
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(barX, barY, barW, barH);
+  hudText('ENERGY', barX + barW + 8, barY + 1, '#fff', 12);
+
+  // Score and distance
+  var totalScore = getScore();
+  hudText('SCORE: ' + totalScore, W - 20, 20, '#fff', 16, 'right');
+  hudText(Math.floor(distance) + 'm', W - 20, 42, '#ffa', 12, 'right');
+  hudText('SPEED: ' + speed.toFixed(1), W - 20, 58, '#aaf', 11, 'right');
+
+  // Energy warning flash
+  if (cookie.energy < 20 && cookie.frame % 30 < 15) {
+    hudText('LOW ENERGY!', W / 2, 80, '#ff3333', 18, 'center');
+  }
+}
+
+function drawTitle() {
+  drawBg();
+
+  // Title cookie
+  var tc = { x: 350, y: GROUND_Y - COOKIE_H - 20, sliding: false, frame: Math.floor(Date.now() / 50) };
+  drawCookie(tc);
+
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.fillRect(180, 140, 440, 200);
+
+  hudText('COOKIE RUN', W / 2, 160, '#ffcc44', 36, 'center');
+  hudText('\uCFE0\uD0A4\uB7F0', W / 2, 205, '#ffaa88', 18, 'center');
+
+  hudText('Auto-running cookie platformer', W / 2, 245, '#ddd', 14, 'center');
+  hudText('Inspired by Devsisters (Korea, 2013)', W / 2, 265, '#aaa', 12, 'center');
+
+  if (Math.floor(Date.now() / 500) % 2 === 0) {
+    hudText('Press SPACE to start', W / 2, 305, '#ff0', 16, 'center');
+  }
+
+  hudText('SPACE = Jump (hold for higher)  |  DOWN = Slide  |  ? = Info', W / 2, H - 40, '#888', 11, 'center');
+}
+
+function drawDead() {
+  draw(); // draw last frame
+
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(200, 180, 400, 220);
+
+  var totalScore = getScore();
+  hudText('GAME OVER', W / 2, 200, '#ff4444', 30, 'center');
+  hudText('Distance: ' + Math.floor(distance) + 'm', W / 2, 250, '#ffa', 16, 'center');
+  hudText('Score: ' + totalScore, W / 2, 275, '#fff', 20, 'center');
+
+  if (cookie.energy <= 0) {
+    hudText('Energy depleted!', W / 2, 310, '#ff8844', 14, 'center');
+  } else {
+    hudText('Fell into a gap!', W / 2, 310, '#ff8844', 14, 'center');
+  }
+
+  if (Math.floor(Date.now() / 500) % 2 === 0) {
+    hudText('Press SPACE to retry', W / 2, 360, '#ff0', 14, 'center');
+  }
+}
+
+// ── Main loop ──
+function loop() {
+  update();
+  if (state === 'title') drawTitle();
+  else if (state === 'dead') drawDead();
+  else draw();
+  requestAnimationFrame(loop);
+}
+
+init();
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

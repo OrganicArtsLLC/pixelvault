@@ -1,0 +1,886 @@
+<!--
+PROTOTYPE: haunted-puzzle
+SERIES: adv
+NUMBER: 005
+DATE: 2026-03-22
+MECHANIC: point-and-click adventure with verb interface and multiple characters
+ANCESTRY: Maniac Mansion (1987, Ron Gilbert/Gary Winnick, Lucasfilm Games), Zork (1977, Infocom)
+CONTROLS: Mouse — click verbs/objects | 1/2/3 — switch character | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — SCUMM engine and state-machine puzzles)
+AI-INSIGHT: Maniac Mansion's SCUMM engine abstracted adventure game logic into a verb-noun state machine, creating one of the first domain-specific languages for interactive narrative. The verb-object-target grammar is structurally identical to the action-entity-parameter patterns in modern task-planning AI systems.
+NOTES: Multiple character abilities create parallel solution paths — proto-emergent design.
+       The verb interface makes the interaction grammar visible and learnable.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ADV-005 · HAUNTED PUZZLE</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: pointer; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>ADV-005 · HAUNTED PUZZLE</h1>
+    <p><span class="tag series">ADV — Adventure</span> <span class="tag">Prototype #005</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Explore the mansion with three characters. Click verbs then objects to interact. Rescue Sandy!</p>
+    <ul>
+      <li><strong>Click a verb</strong> then <strong>click an object</strong> to act</li>
+      <li><strong>Use + item + object</strong>: Click Use, click inventory item, then click target</li>
+      <li><kbd>1</kbd>/<kbd>2</kbd>/<kbd>3</kbd> — Switch characters | <kbd>R</kbd> — Restart | <kbd>?</kbd> — Info</li>
+    </ul>
+    <h3>Characters</h3>
+    <ul>
+      <li><strong>Dave</strong> (blue) — Strong, can push heavy objects</li>
+      <li><strong>Bernard</strong> (green) — Nerd, fixes machines</li>
+      <li><strong>Razor</strong> (magenta) — Musician, plays instruments</li>
+    </ul>
+    <p>Inventory is shared. Click doors/stairs to move. Watch text feedback for clues.</p>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Zork (1977) &rarr; Maniac Mansion (1987, Lucasfilm Games / Ron Gilbert &amp; Gary Winnick)</p>
+    <p>First game built on the SCUMM engine, which drove adventure logic via a visible verb-noun grammar. Pioneered the "no dead ends" philosophy &mdash; every puzzle stayed solvable, unlike Sierra's frequent softlocks.</p>
+    <p>Multiple playable characters with unique abilities created emergent solution paths a decade before the concept went mainstream. SCUMM went on to power Monkey Island, Day of the Tentacle, and Sam &amp; Max.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 3 — Knowledge Explosion (1978–1993)</p>
+    <p><strong>Contemporary AI:</strong> Expert systems and frame-based reasoning. SCUMM's verb-noun grammar mirrors slot-filling in frame-based AI.</p>
+    <p><strong>Hidden Intelligence:</strong> SCUMM abstracted adventure logic into a verb-noun state machine &mdash; each interaction is VERB(object, [target]), structurally identical to action-entity-parameter patterns in STRIPS/PDDL planners.</p>
+    <p><strong>Convergence:</strong> Modern LLM game agents use this same verb-object-target grammar. SCUMM made the action space visible to humans &mdash; early transparent AI interaction design.</p>
+    <p><strong>Multi-Agent:</strong> Multiple characters with unique abilities = proto-multi-agent planning, now standard in role-specialized AI agent systems.</p>
+
+    <h2>Classification</h2>
+    <p><strong>Series: ADV</strong> — Point-and-click with verb-noun grammar.</p>
+    <p><strong>Core Mechanic:</strong> Verb-noun state machine + multiple character abilities creating parallel puzzle paths.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Verb panel flow, character switching, room navigation, puzzle feedback</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p><strong>Sketch</strong> 4/5. 8 rooms, 3 characters, 8 verbs, shared inventory, multiple solutions per puzzle.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+const ROOM_H = 340, UI_Y = 340, VERB_H = 100;
+const INV_Y = UI_Y + VERB_H, INV_H = H - INV_Y, MSG_Y = UI_Y - 22;
+const VERBS = ['Walk to','Pick up','Use','Open','Close','Give','Push','Pull'];
+const VERB_W = 100, VERB_ROW_H = 25;
+const YARD = 0, FOYER = 1, KITCHEN = 2, LIBRARY = 3;
+const LAB = 4, DUNGEON = 5, MUSIC = 6, ATTIC = 7;
+const ROOM_NAMES = ['Front Yard','Foyer','Kitchen','Library','Lab','Dungeon','Music Room','Attic'];
+const DAVE = 0, BERNARD = 1, RAZOR = 2;
+const CHAR_NAMES = ['Dave','Bernard','Razor'];
+const CHAR_COLORS = ['#4488ff','#44cc44','#cc44cc'];
+
+let activeChar, characters, inventory, selectedVerb, selectedItem;
+let currentRooms, message, msgTimer, gameWon, frame;
+let puzzleState, roomObjects, hotspots, useTarget, walkTarget;
+
+function initGame() {
+  activeChar = DAVE;
+  characters = [
+    { id: DAVE, x: 400, y: 240, room: YARD, name: 'Dave', color: '#4488ff', ability: 'strong' },
+    { id: BERNARD, x: 350, y: 240, room: YARD, name: 'Bernard', color: '#44cc44', ability: 'fix' },
+    { id: RAZOR, x: 450, y: 240, room: YARD, name: 'Razor', color: '#cc44cc', ability: 'music' }
+  ];
+  inventory = [];
+  selectedVerb = 'Walk to';
+  selectedItem = null;
+  useTarget = null;
+  walkTarget = null;
+  gameWon = false;
+  frame = 0;
+  message = 'Welcome to the Edison Mansion! Rescue Sandy!';
+  msgTimer = 240;
+
+  puzzleState = {
+    frontDoorOpen: false,
+    kitchenKeyTaken: false,
+    labDoorOpen: false,
+    dungeonOpen: false,
+    pianoPlayed: false,
+    chandelierDown: false,
+    generatorFixed: false,
+    cageLockOpen: false,
+    sandyFreed: false,
+    wrenchTaken: false,
+    keyTaken: false,
+    flashlightTaken: false,
+    batteryTaken: false,
+    sheetMusicTaken: false,
+    crowbarTaken: false,
+    fuseTaken: false,
+    rustyKeyTaken: false,
+    atticOpen: false,
+    pipeFixed: false,
+    bookFound: false,
+    paintingMoved: false,
+  };
+
+  buildRoomObjects();
+}
+
+function buildRoomObjects() {
+  roomObjects = [
+    // YARD
+    { id:'front_door', name:'Front Door', x:350, y:140, w:100, h:130, room:YARD,
+      visible:()=>true, actions:{
+        'Open':  (ch)=>{ if(puzzleState.frontDoorOpen) return 'It\'s already open.';
+          puzzleState.frontDoorOpen=true; return 'You push the creaky door open...'; },
+        'Close': (ch)=>{ if(!puzzleState.frontDoorOpen) return 'It\'s already closed.';
+          puzzleState.frontDoorOpen=false; return 'You close the door.'; },
+        'Walk to':(ch)=>{ if(!puzzleState.frontDoorOpen) return 'The door is closed.';
+          moveCharToRoom(ch,FOYER,400,240); return null; }
+      }
+    },
+    { id:'mailbox', name:'Mailbox', x:100, y:210, w:50, h:60, room:YARD,
+      visible:()=>true, actions:{
+        'Open': (ch)=>{ if(puzzleState.keyTaken) return 'The mailbox is empty.';
+          puzzleState.keyTaken=true; inventory.push('old_key');
+          return 'You find an old rusty key inside!'; },
+        'Pick up':(ch)=>'It\'s bolted to the ground.'
+      }
+    },
+    { id:'bushes', name:'Bushes', x:600, y:220, w:120, h:80, room:YARD,
+      visible:()=>true, actions:{
+        'Push': (ch)=>{ if(puzzleState.flashlightTaken) return 'Just bushes.';
+          puzzleState.flashlightTaken=true; inventory.push('flashlight');
+          return 'You push aside the bushes and find a flashlight!'; },
+        'Pull': (ch)=>'You pull the branches. Nothing interesting.'
+      }
+    },
+
+    // FOYER
+    { id:'stairs_up', name:'Stairs Up', x:600, y:80, w:140, h:200, room:FOYER,
+      visible:()=>true, actions:{
+        'Walk to':(ch)=>{ moveCharToRoom(ch,LIBRARY,400,240); return null; }
+      }
+    },
+    { id:'kitchen_door', name:'Kitchen Door', x:50, y:120, w:80, h:150, room:FOYER,
+      visible:()=>true, actions:{
+        'Walk to':(ch)=>{ moveCharToRoom(ch,KITCHEN,700,240); return null; },
+        'Open':(ch)=>'The kitchen door swings open easily.'
+      }
+    },
+    { id:'foyer_exit', name:'Front Door', x:350, y:140, w:100, h:130, room:FOYER,
+      visible:()=>true, actions:{
+        'Walk to':(ch)=>{ moveCharToRoom(ch,YARD,400,200); return null; }
+      }
+    },
+    { id:'chandelier', name:'Chandelier', x:350, y:20, w:100, h:60, room:FOYER,
+      visible:()=>!puzzleState.chandelierDown, actions:{
+        'Pull':(ch)=>{ if(ch.ability!=='strong') return 'It\'s too heavy for you.';
+          puzzleState.chandelierDown=true; inventory.push('crystal');
+          return 'Dave yanks the chandelier down! You take a crystal from it.'; },
+        'Push':(ch)=>'You push it. It swings back and forth.'
+      }
+    },
+    { id:'painting', name:'Painting', x:200, y:80, w:80, h:100, room:FOYER,
+      visible:()=>true, actions:{
+        'Push':(ch)=>{ if(puzzleState.paintingMoved) return 'You already moved it.';
+          puzzleState.paintingMoved=true; return 'Behind the painting is a safe! But it needs a code...'; },
+        'Pull':(ch)=>{ if(puzzleState.paintingMoved) return 'It\'s already moved.';
+          puzzleState.paintingMoved=true; return 'Behind the painting is a safe! But it needs a code...'; }
+      }
+    },
+
+    // KITCHEN
+    { id:'kitchen_exit', name:'Door to Foyer', x:700, y:120, w:70, h:150, room:KITCHEN,
+      visible:()=>true, actions:{
+        'Walk to':(ch)=>{ moveCharToRoom(ch,FOYER,100,240); return null; }
+      }
+    },
+    { id:'fridge', name:'Refrigerator', x:50, y:80, w:80, h:180, room:KITCHEN,
+      visible:()=>true, actions:{
+        'Open':(ch)=>{ if(puzzleState.batteryTaken) return 'Just old food.';
+          puzzleState.batteryTaken=true; inventory.push('battery');
+          return 'You find a battery hidden behind the milk!'; }
+      }
+    },
+    { id:'stove', name:'Stove', x:200, y:140, w:100, h:100, room:KITCHEN,
+      visible:()=>true, actions:{
+        'Use':(ch)=>'The stove clicks but doesn\'t light. No gas.',
+        'Open':(ch)=>'The oven is empty and cold.'
+      }
+    },
+    { id:'cabinet', name:'Cabinet', x:400, y:80, w:100, h:60, room:KITCHEN,
+      visible:()=>true, actions:{
+        'Open':(ch)=>{ if(puzzleState.fuseTaken) return 'Empty shelves.';
+          puzzleState.fuseTaken=true; inventory.push('fuse');
+          return 'You find a spare fuse!'; }
+      }
+    },
+    { id:'dungeon_hatch', name:'Hatch in Floor', x:500, y:250, w:80, h:40, room:KITCHEN,
+      visible:()=>true, actions:{
+        'Open':(ch)=>{ if(puzzleState.dungeonOpen) return 'It\'s already open.';
+          if(!hasItem('old_key')) return 'It\'s locked. You need a key.';
+          puzzleState.dungeonOpen=true; removeItem('old_key');
+          return 'The old key fits! The hatch creaks open.'; },
+        'Walk to':(ch)=>{ if(!puzzleState.dungeonOpen) return 'The hatch is closed and locked.';
+          moveCharToRoom(ch,DUNGEON,400,100); return null; }
+      }
+    },
+
+    // LIBRARY
+    { id:'library_stairs', name:'Stairs Down', x:600, y:200, w:140, h:120, room:LIBRARY,
+      visible:()=>true, actions:{
+        'Walk to':(ch)=>{ moveCharToRoom(ch,FOYER,650,200); return null; }
+      }
+    },
+    { id:'attic_ladder', name:'Ladder to Attic', x:50, y:40, w:60, h:200, room:LIBRARY,
+      visible:()=>true, actions:{
+        'Walk to':(ch)=>{ if(!puzzleState.atticOpen) return 'The attic trapdoor is locked.';
+          moveCharToRoom(ch,ATTIC,400,240); return null; }
+      }
+    },
+    { id:'music_door', name:'Door to Music Room', x:300, y:100, w:80, h:160, room:LIBRARY,
+      visible:()=>true, actions:{
+        'Walk to':(ch)=>{ moveCharToRoom(ch,MUSIC,600,240); return null; }
+      }
+    },
+    { id:'bookshelf', name:'Bookshelf', x:450, y:60, w:120, h:220, room:LIBRARY,
+      visible:()=>true, actions:{
+        'Use':(ch)=>{ if(puzzleState.bookFound) return 'Nothing else interesting.';
+          puzzleState.bookFound=true; return 'You find a book with the code "1337" written inside!'; },
+        'Pull':(ch)=>{ if(puzzleState.bookFound) return 'You already searched it.';
+          puzzleState.bookFound=true; return 'A book falls open. Inside: the safe code is "1337"!'; },
+        'Pick up':(ch)=>'There are hundreds of books. Too many to carry.'
+      }
+    },
+    { id:'attic_trapdoor', name:'Attic Trapdoor', x:50, y:30, w:80, h:30, room:LIBRARY,
+      visible:()=>!puzzleState.atticOpen, actions:{
+        'Open':(ch)=>{ if(!hasItem('crowbar')) return 'It\'s sealed shut. You need a tool.';
+          puzzleState.atticOpen=true; return 'You pry open the trapdoor with the crowbar!'; },
+        'Push':(ch)=>'It won\'t budge. It\'s sealed.'
+      }
+    },
+
+    // MUSIC ROOM
+    { id:'music_exit', name:'Door to Library', x:600, y:100, w:70, h:160, room:MUSIC,
+      visible:()=>true, actions:{
+        'Walk to':(ch)=>{ moveCharToRoom(ch,LIBRARY,350,240); return null; }
+      }
+    },
+    { id:'piano', name:'Grand Piano', x:150, y:120, w:200, h:140, room:MUSIC,
+      visible:()=>true, actions:{
+        'Use':(ch)=>{
+          if(ch.ability==='music'){
+            if(hasItem('sheet_music')){
+              puzzleState.pianoPlayed=true;
+              return 'Razor plays the melody! A secret panel opens in the wall!';
+            }
+            return 'Razor plays a few notes but doesn\'t know what song to play.';
+          }
+          return ch.name+' plunks a few keys. Sounds terrible.';
+        },
+        'Push':(ch)=>'It\'s way too heavy to move.',
+        'Pick up':(ch)=>'It weighs a ton!'
+      }
+    },
+    { id:'secret_panel', name:'Secret Panel', x:450, y:140, w:60, h:80, room:MUSIC,
+      visible:()=>puzzleState.pianoPlayed, actions:{
+        'Walk to':(ch)=>{ moveCharToRoom(ch,LAB,400,240); return 'You enter the hidden passage to the lab!'; },
+        'Open':(ch)=>'It\'s already open.'
+      }
+    },
+    { id:'sheet_stand', name:'Music Stand', x:80, y:100, w:40, h:80, room:MUSIC,
+      visible:()=>true, actions:{
+        'Pick up':(ch)=>{ if(puzzleState.sheetMusicTaken) return 'The stand is empty.';
+          puzzleState.sheetMusicTaken=true; inventory.push('sheet_music');
+          return 'You take the sheet music from the stand!'; }
+      }
+    },
+
+    // LAB
+    { id:'lab_exit', name:'Exit to Music Room', x:350, y:100, w:80, h:130, room:LAB,
+      visible:()=>puzzleState.pianoPlayed, actions:{
+        'Walk to':(ch)=>{ moveCharToRoom(ch,MUSIC,450,200); return null; }
+      }
+    },
+    { id:'lab_exit2', name:'Door to Dungeon', x:50, y:120, w:60, h:150, room:LAB,
+      visible:()=>true, actions:{
+        'Walk to':(ch)=>{ moveCharToRoom(ch,DUNGEON,400,240); return null; }
+      }
+    },
+    { id:'generator', name:'Generator', x:600, y:100, w:120, h:160, room:LAB,
+      visible:()=>true, actions:{
+        'Use':(ch)=>{
+          if(puzzleState.generatorFixed) return 'It\'s already running.';
+          if(ch.ability==='fix'){
+            if(hasItem('fuse')&&hasItem('battery')){
+              puzzleState.generatorFixed=true; removeItem('fuse'); removeItem('battery');
+              return 'Bernard installs the fuse and battery. The generator hums to life!';
+            }
+            if(hasItem('fuse')) return 'Bernard says: "I need a power source too. A battery maybe?"';
+            if(hasItem('battery')) return 'Bernard says: "The fuse is blown. I need a replacement."';
+            return 'Bernard examines it: "Needs a fuse and a battery."';
+          }
+          return ch.name+' looks at the machine. Too complicated.';
+        },
+        'Pick up':(ch)=>'It\'s bolted to the floor and weighs a ton.'
+      }
+    },
+    { id:'sandy_cage', name:'Sandy\'s Cage', x:250, y:80, w:120, h:180, room:LAB,
+      visible:()=>true, actions:{
+        'Open':(ch)=>{
+          if(puzzleState.sandyFreed) return 'Sandy is already free!';
+          if(!puzzleState.generatorFixed) return 'The electronic lock has no power.';
+          if(!puzzleState.cageLockOpen) {
+            if(hasItem('rusty_key')){
+              puzzleState.cageLockOpen=true; puzzleState.sandyFreed=true;
+              removeItem('rusty_key'); gameWon=true;
+              return 'The rusty key fits the cage lock! Sandy is free! YOU WIN!';
+            }
+            return 'The electronic lock is powered, but you need a key for the manual lock.';
+          }
+          return 'It\'s open!';
+        },
+        'Use':(ch)=>{
+          if(puzzleState.sandyFreed) return 'Sandy is already free!';
+          if(selectedItem==='rusty_key'||useTarget==='rusty_key'){
+            if(!puzzleState.generatorFixed) return 'The electronic lock still has no power.';
+            puzzleState.cageLockOpen=true; puzzleState.sandyFreed=true;
+            removeItem('rusty_key'); gameWon=true; selectedItem=null; useTarget=null;
+            return 'You use the rusty key on the cage. Sandy is free! YOU WIN!';
+          }
+          if(selectedItem==='crystal'||useTarget==='crystal'){
+            return 'The crystal is pretty but doesn\'t help here.';
+          }
+          return 'You need to find a way to open this cage.';
+        },
+        'Pick up':(ch)=>'You can\'t pick up a cage!'
+      }
+    },
+
+    // DUNGEON
+    { id:'dungeon_ladder', name:'Ladder Up', x:380, y:40, w:60, h:100, room:DUNGEON,
+      visible:()=>true, actions:{
+        'Walk to':(ch)=>{ moveCharToRoom(ch,KITCHEN,500,200); return null; }
+      }
+    },
+    { id:'lab_door_dungeon', name:'Door to Lab', x:650, y:80, w:70, h:160, room:DUNGEON,
+      visible:()=>true, actions:{
+        'Walk to':(ch)=>{ if(!puzzleState.labDoorOpen) return 'The door is locked tight.';
+          moveCharToRoom(ch,LAB,100,240); return null; },
+        'Open':(ch)=>{ if(puzzleState.labDoorOpen) return 'It\'s already open.';
+          if(!hasItem('old_key')&&!hasItem('crowbar')) return 'It\'s locked. You need something to open it.';
+          if(hasItem('crowbar')){ puzzleState.labDoorOpen=true; return 'You pry the door open with the crowbar!'; }
+          return 'The old key doesn\'t fit this lock.'; },
+        'Push':(ch)=>{ if(ch.ability==='strong'){ puzzleState.labDoorOpen=true;
+          return 'Dave forces the door open with brute strength!'; }
+          return 'It won\'t budge. It\'s very heavy.'; }
+      }
+    },
+    { id:'pipes', name:'Rusty Pipes', x:100, y:60, w:150, h:40, room:DUNGEON,
+      visible:()=>true, actions:{
+        'Use':(ch)=>{
+          if(puzzleState.pipeFixed) return 'The pipes are fixed now.';
+          if(ch.ability==='fix'){
+            if(hasItem('wrench')){
+              puzzleState.pipeFixed=true;
+              return 'Bernard tightens the pipes with the wrench. Water stops leaking!';
+            }
+            return 'Bernard: "I could fix this with a wrench."';
+          }
+          return 'The pipes are leaking. Needs someone who knows plumbing.';
+        },
+        'Pick up':(ch)=>'They\'re attached to the wall.'
+      }
+    },
+    { id:'chest', name:'Old Chest', x:500, y:200, w:80, h:60, room:DUNGEON,
+      visible:()=>true, actions:{
+        'Open':(ch)=>{ if(puzzleState.crowbarTaken) return 'The chest is empty.';
+          puzzleState.crowbarTaken=true; inventory.push('crowbar');
+          return 'Inside the chest you find a crowbar!'; },
+        'Pick up':(ch)=>'It\'s too heavy to carry.'
+      }
+    },
+    { id:'loose_brick', name:'Loose Brick', x:250, y:180, w:40, h:30, room:DUNGEON,
+      visible:()=>true, actions:{
+        'Pull':(ch)=>{ if(puzzleState.rustyKeyTaken) return 'Just an empty space behind the brick.';
+          puzzleState.rustyKeyTaken=true; inventory.push('rusty_key');
+          return 'You pull the brick out and find a rusty key behind it!'; },
+        'Push':(ch)=>'You push it deeper. That was a bad idea. Try pulling.',
+        'Pick up':(ch)=>{ if(puzzleState.rustyKeyTaken) return 'Nothing here.';
+          puzzleState.rustyKeyTaken=true; inventory.push('rusty_key');
+          return 'You pull the loose brick free and find a rusty key!'; }
+      }
+    },
+
+    // ATTIC
+    { id:'attic_exit', name:'Ladder Down', x:380, y:220, w:60, h:100, room:ATTIC,
+      visible:()=>true, actions:{
+        'Walk to':(ch)=>{ moveCharToRoom(ch,LIBRARY,100,200); return null; }
+      }
+    },
+    { id:'telescope', name:'Telescope', x:100, y:60, w:60, h:120, room:ATTIC,
+      visible:()=>true, actions:{
+        'Use':(ch)=>'You look through the telescope. You can see the whole town!',
+        'Pick up':(ch)=>'Way too big and fragile.'
+      }
+    },
+    { id:'trunk', name:'Old Trunk', x:500, y:160, w:100, h:70, room:ATTIC,
+      visible:()=>true, actions:{
+        'Open':(ch)=>{ if(puzzleState.wrenchTaken) return 'Nothing else in here.';
+          puzzleState.wrenchTaken=true; inventory.push('wrench');
+          return 'You open the trunk and find a wrench!'; }
+      }
+    },
+    { id:'radio', name:'Old Radio', x:650, y:100, w:80, h:60, room:ATTIC,
+      visible:()=>true, actions:{
+        'Use':(ch)=>{
+          if(ch.ability==='fix') return 'Bernard tunes the radio. Static... then a voice: "The key is in the dungeon wall..."';
+          if(ch.ability==='music') return 'Razor finds a music station. Catchy tune!';
+          return 'You twist the knobs. Nothing but static.';
+        },
+        'Pick up':(ch)=>'It\'s plugged in and too bulky.'
+      }
+    },
+  ];
+}
+
+function hasItem(id) { return inventory.includes(id); }
+function removeItem(id) { const i=inventory.indexOf(id); if(i>=0) inventory.splice(i,1); }
+function moveCharToRoom(ch,roomId,x,y) { ch.room=roomId; ch.x=x; ch.y=y; walkTarget=null; }
+function getActiveChar() { return characters[activeChar]; }
+function getObjectsInRoom(roomId) { return roomObjects.filter(o=>o.room===roomId&&o.visible()); }
+const ITEM_NAMES = {
+  old_key: 'Old Key', flashlight: 'Flashlight', battery: 'Battery',
+  fuse: 'Fuse', sheet_music: 'Sheet Music', crowbar: 'Crowbar',
+  wrench: 'Wrench', crystal: 'Crystal', rusty_key: 'Rusty Key'
+};
+function itemName(id) { return ITEM_NAMES[id] || id; }
+
+let mouseX=0, mouseY=0, canvasRect;
+function getCanvasPos(e) {
+  canvasRect=canvas.getBoundingClientRect();
+  return { x:(e.clientX-canvasRect.left)*W/canvasRect.width, y:(e.clientY-canvasRect.top)*H/canvasRect.height };
+}
+canvas.addEventListener('mousemove',e=>{const p=getCanvasPos(e);mouseX=p.x;mouseY=p.y;});
+canvas.addEventListener('click',e=>{
+  if(infoOpen||gameWon) return;
+  const p=getCanvasPos(e); handleClick(p.x,p.y);
+});
+
+function handleClick(mx, my) {
+  if (my>=UI_Y && my<INV_Y) {
+    const idx=Math.floor((my-UI_Y)/VERB_ROW_H)*4+Math.floor(mx/VERB_W);
+    if(idx>=0&&idx<VERBS.length){selectedVerb=VERBS[idx];selectedItem=null;useTarget=null;} return;
+  }
+  if (my>=INV_Y && my<H) {
+    if(mx>=650){const ci=Math.floor((my-INV_Y)/30);if(ci>=0&&ci<3){activeChar=ci;setMsg('Switched to '+CHAR_NAMES[ci]+'.',90);walkTarget=null;}return;}
+    const idx=Math.floor((my-INV_Y)/22)*8+Math.floor(mx/100);
+    if(idx>=0&&idx<inventory.length){
+      const item=inventory[idx];
+      if(selectedVerb==='Use'&&!useTarget){useTarget=item;setMsg('Use '+itemName(item)+' on...',300);return;}
+      if(selectedVerb==='Pick up'){setMsg('You already have the '+itemName(item)+'.',120);return;}
+      selectedItem=item;
+    } return;
+  }
+  if (my<ROOM_H) {
+    const ch=getActiveChar(), objs=getObjectsInRoom(ch.room);
+    for(let i=objs.length-1;i>=0;i--){
+      const o=objs[i];
+      if(mx>=o.x&&mx<=o.x+o.w&&my>=o.y&&my<=o.y+o.h){performAction(o);return;}
+    }
+    if(selectedVerb==='Walk to') walkTarget={x:Math.max(30,Math.min(770,mx)),y:Math.max(120,Math.min(300,my))};
+  }
+}
+
+function performAction(obj) {
+  const ch=getActiveChar(), verb=selectedVerb;
+  if(verb==='Use'&&useTarget){
+    if(obj.actions&&obj.actions['Use']){selectedItem=useTarget;const r=obj.actions['Use'](ch);selectedItem=null;useTarget=null;if(r)setMsg(r,180);}
+    else{setMsg('Can\'t use '+itemName(useTarget)+' on '+obj.name+'.',150);useTarget=null;} return;
+  }
+  if(obj.actions&&obj.actions[verb]){const r=obj.actions[verb](ch);if(r)setMsg(r,180);}
+  else{
+    if(verb==='Walk to')walkTarget={x:obj.x+obj.w/2,y:Math.min(300,obj.y+obj.h/2)};
+    else if(verb==='Give')setMsg('Give what to whom?',100);
+    else setMsg('Can\'t '+verb.toLowerCase()+' the '+obj.name+'.',100);
+  }
+}
+
+function setMsg(t,d){message=t;msgTimer=d;}
+window.addEventListener('keydown',e=>{
+  if(infoOpen)return;
+  if(e.key>='1'&&e.key<='3'){activeChar=+e.key-1;setMsg('Switched to '+CHAR_NAMES[activeChar]+'.',90);walkTarget=null;}
+  if(e.key==='r'||e.key==='R')initGame();
+});
+function update() {
+  if(infoOpen)return; frame++;
+  const ch=getActiveChar();
+  if(walkTarget){
+    const dx=walkTarget.x-ch.x,dy=walkTarget.y-ch.y,dist=Math.sqrt(dx*dx+dy*dy);
+    if(dist>4){ch.x+=dx/dist*3;ch.y+=dy/dist*3;}else walkTarget=null;
+  }
+  if(msgTimer>0)msgTimer--;
+}
+
+function draw() {
+  ctx.fillStyle='#111'; ctx.fillRect(0,0,W,H);
+  const ch=getActiveChar();
+  drawRoom(ch.room); drawCharactersInRoom(ch.room); drawUI(); drawMessage(); drawTitleBadge();
+  if(gameWon) drawWinScreen();
+}
+const roomDrawFns=[()=>drawYard(),()=>drawFoyer(),()=>drawKitchen(),()=>drawLibrary(),()=>drawLab(),()=>drawDungeon(),()=>drawMusicRoom(),()=>drawAttic()];
+function drawRoom(roomId) {
+  ctx.save(); ctx.beginPath(); ctx.rect(0,0,W,ROOM_H); ctx.clip();
+  roomDrawFns[roomId]();
+  const objs=getObjectsInRoom(roomId);
+  for(const o of objs){
+    if(mouseX>=o.x&&mouseX<=o.x+o.w&&mouseY>=o.y&&mouseY<=o.y+o.h&&mouseY<ROOM_H){
+      ctx.strokeStyle='#ff0';ctx.lineWidth=2;ctx.setLineDash([4,4]);ctx.strokeRect(o.x,o.y,o.w,o.h);ctx.setLineDash([]);
+      ctx.fillStyle='#ff0';ctx.font='12px monospace';ctx.textAlign='center';ctx.fillText(o.name,o.x+o.w/2,o.y-4);
+    }
+  }
+  ctx.fillStyle='rgba(0,0,0,0.6)';ctx.fillRect(0,0,W,24);
+  ctx.fillStyle='#aaa';ctx.font='14px monospace';ctx.textAlign='left';ctx.fillText(ROOM_NAMES[roomId],10,16);
+  ctx.restore();
+}
+
+function drawYard() {
+  ctx.fillStyle='#0a0a2a'; ctx.fillRect(0,0,W,ROOM_H);
+  ctx.fillStyle='#fff';
+  [30,50,120,80,200,30,350,60,500,40,650,70,750,20].forEach((v,i,a)=>{if(i%2===0)ctx.fillRect(v,a[i+1],2,2);});
+  ctx.fillStyle='#ffe'; ctx.beginPath(); ctx.arc(700,50,30,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#0a0a2a'; ctx.beginPath(); ctx.arc(710,45,26,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#1a3a1a'; ctx.fillRect(0,270,W,70);
+  ctx.fillStyle='#3a3a2a'; ctx.fillRect(340,270,120,70);
+  ctx.fillStyle='#2a1a1a'; ctx.fillRect(200,60,400,220);
+  ctx.fillStyle='#1a0a0a'; ctx.beginPath(); ctx.moveTo(180,60); ctx.lineTo(400,10); ctx.lineTo(620,60); ctx.fill();
+  ctx.fillStyle='#443300'; ctx.fillRect(240,100,50,50); ctx.fillRect(510,100,50,50);
+  ctx.fillStyle='#664400'; ctx.fillRect(244,104,42,42); ctx.fillRect(514,104,42,42);
+  ctx.fillStyle=puzzleState.frontDoorOpen?'#1a0a0a':'#4a2a1a'; ctx.fillRect(370,150,60,130);
+  if(!puzzleState.frontDoorOpen){ctx.fillStyle='#aa8844';ctx.beginPath();ctx.arc(420,215,4,0,Math.PI*2);ctx.fill();}
+  ctx.fillStyle='#556'; ctx.fillRect(115,230,20,40);
+  ctx.fillStyle='#778'; ctx.fillRect(105,210,40,30);
+  ctx.fillStyle='#143'; for(let i=0;i<4;i++){ctx.beginPath();ctx.arc(620+i*30,260,25,0,Math.PI*2);ctx.fill();}
+}
+
+function drawFoyer() {
+  ctx.fillStyle='#2a1a2a'; ctx.fillRect(0,0,W,ROOM_H);
+  ctx.fillStyle='#3a2a1a'; ctx.fillRect(0,270,W,70);
+  for(let x=0;x<W;x+=40){for(let y=270;y<340;y+=40){if((x/40+y/40)%2===0){ctx.fillStyle='#4a3a2a';ctx.fillRect(x,y,40,40);}}}
+  ctx.fillStyle='#3a2a3a'; ctx.fillRect(20,40,W-40,230);
+  ctx.fillStyle='#4a3a2a'; ctx.fillRect(20,200,W-40,70);
+  ctx.fillStyle='#4a2a1a'; ctx.fillRect(370,150,60,120);
+  ctx.fillStyle='#5a3a2a'; ctx.fillRect(55,130,70,140);
+  ctx.fillStyle='#aa8844'; ctx.beginPath(); ctx.arc(115,200,4,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#5a4a3a'; for(let i=0;i<8;i++) ctx.fillRect(600+i*20,80+i*25,30,25);
+  ctx.fillStyle='#6a5a4a'; ctx.fillRect(600,80,160,8);
+  if(!puzzleState.chandelierDown){
+    ctx.fillStyle='#aa8'; ctx.fillRect(395,10,10,20);
+    ctx.fillStyle='#dda'; ctx.beginPath(); ctx.moveTo(360,30);ctx.lineTo(400,20);ctx.lineTo(440,30);ctx.lineTo(430,50);ctx.lineTo(370,50);ctx.closePath();ctx.fill();
+    ctx.fillStyle='#eef'; for(let i=0;i<5;i++) ctx.fillRect(370+i*14,50,4,10);
+  }
+  ctx.fillStyle='#864'; ctx.fillRect(196,76,88,108);
+  if(puzzleState.paintingMoved){
+    ctx.fillStyle='#2a1a2a'; ctx.fillRect(200,80,80,100);
+    ctx.fillStyle='#444'; ctx.fillRect(210,90,60,50);
+    ctx.fillStyle='#888'; ctx.beginPath();ctx.arc(250,115,6,0,Math.PI*2);ctx.fill();
+  } else {
+    ctx.fillStyle='#68a'; ctx.fillRect(200,80,80,60);
+    ctx.fillStyle='#4a6'; ctx.fillRect(200,140,80,40);
+  }
+}
+
+function drawKitchen() {
+  ctx.fillStyle='#2a2a1a'; ctx.fillRect(0,0,W,ROOM_H);
+  for(let x=0;x<W;x+=50){ctx.fillStyle=x/50%2===0?'#4a4a3a':'#5a5a4a';ctx.fillRect(x,260,50,80);}
+  ctx.fillStyle='#ccc'; ctx.fillRect(50,80,80,180);
+  ctx.fillStyle='#888'; ctx.fillRect(122,140,6,30); ctx.fillRect(122,200,6,30);
+  ctx.fillStyle='#555'; ctx.fillRect(200,140,100,120);
+  ctx.fillStyle='#333'; ctx.fillRect(200,140,100,10);
+  ctx.fillStyle='#444'; for(let i=0;i<4;i++){ctx.beginPath();ctx.arc(220+i*20,148,6,0,Math.PI*2);ctx.fill();}
+  ctx.fillStyle='#7a5a3a'; ctx.fillRect(380,70,120,70);
+  ctx.strokeStyle='#5a3a1a'; ctx.lineWidth=2; ctx.strokeRect(385,75,50,60); ctx.strokeRect(445,75,50,60);
+  ctx.fillStyle='#5a3a2a'; ctx.fillRect(705,130,60,130);
+  ctx.fillStyle='#aa8844'; ctx.beginPath(); ctx.arc(712,195,4,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle=puzzleState.dungeonOpen?'#1a1a0a':'#5a4a3a'; ctx.fillRect(500,250,80,40);
+  if(!puzzleState.dungeonOpen){ctx.fillStyle='#aa8844';ctx.beginPath();ctx.arc(540,268,5,0,Math.PI*2);ctx.fill();}
+  ctx.fillStyle='#8a7a6a'; ctx.fillRect(550,160,120,10);
+  ctx.fillStyle='#7a6a5a'; ctx.fillRect(550,170,120,90);
+}
+
+function drawLibrary() {
+  ctx.fillStyle='#1a1a2a'; ctx.fillRect(0,0,W,ROOM_H);
+  ctx.fillStyle='#3a2a2a'; ctx.fillRect(0,280,W,60);
+  ctx.fillStyle='#5a1a1a'; ctx.fillRect(150,285,400,50);
+  ctx.fillStyle='#5a3a1a'; ctx.fillRect(450,60,120,220);
+  const bc=['#a22','#2a2','#22a','#a8a','#aa2','#2aa','#a52'];
+  for(let r=0;r<6;r++)for(let c=0;c<8;c++){ctx.fillStyle=bc[(r*8+c)%7];ctx.fillRect(455+c*14,68+r*35,10,28);}
+  ctx.fillStyle='#8a7a5a'; ctx.fillRect(55,40,10,240); ctx.fillRect(95,40,10,240);
+  for(let i=0;i<8;i++) ctx.fillRect(55,60+i*30,50,5);
+  ctx.fillStyle=puzzleState.atticOpen?'#111':'#5a4a3a'; ctx.fillRect(50,30,80,20);
+  ctx.fillStyle='#4a3a3a'; for(let i=0;i<6;i++) ctx.fillRect(610+i*20,200+i*15,40,15);
+  ctx.fillStyle='#5a4a3a'; ctx.fillRect(300,100,80,160);
+  ctx.fillStyle='#aa8844'; ctx.beginPath(); ctx.arc(370,180,4,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#6a4a2a'; ctx.fillRect(160,220,120,40); ctx.fillRect(170,260,10,30); ctx.fillRect(260,260,10,30);
+  ctx.fillStyle='#4a8a6a'; ctx.beginPath(); ctx.arc(220,210,16,0,Math.PI*2); ctx.fill();
+}
+
+function drawMusicRoom() {
+  ctx.fillStyle='#2a1a2a'; ctx.fillRect(0,0,W,ROOM_H);
+  ctx.fillStyle='#3a2a2a'; ctx.fillRect(0,270,W,70);
+  ctx.fillStyle='#4a3a3a'; ctx.fillRect(50,260,500,20);
+  ctx.fillStyle='#111'; ctx.fillRect(150,120,200,140);
+  ctx.fillStyle='#1a1a1a'; ctx.beginPath(); ctx.moveTo(150,120);ctx.quadraticCurveTo(250,80,350,120);ctx.lineTo(350,160);ctx.lineTo(150,160);ctx.closePath();ctx.fill();
+  ctx.fillStyle='#eee'; ctx.fillRect(160,240,180,20);
+  for(let i=0;i<12;i++){if([1,3,6,8,10].includes(i)){ctx.fillStyle='#333';ctx.fillRect(164+i*14,240,8,12);}}
+  ctx.fillStyle='#111'; ctx.fillRect(160,260,8,20); ctx.fillRect(332,260,8,20);
+  ctx.fillStyle='#8a7a5a'; ctx.fillRect(85,130,6,60);
+  ctx.fillStyle='#7a6a4a'; ctx.fillRect(70,100,36,30);
+  if(!puzzleState.sheetMusicTaken){ctx.fillStyle='#eee';ctx.fillRect(74,104,28,22);ctx.fillStyle='#333';for(let i=0;i<3;i++)ctx.fillRect(78+i*8,110,4,4);}
+  ctx.fillStyle='#5a4a3a'; ctx.fillRect(605,100,65,160);
+  ctx.fillStyle='#aa8844'; ctx.beginPath(); ctx.arc(612,180,4,0,Math.PI*2); ctx.fill();
+  if(puzzleState.pianoPlayed){
+    ctx.fillStyle='#111';ctx.fillRect(450,140,60,80);ctx.fillStyle='#333';ctx.fillRect(452,142,56,76);
+    ctx.fillStyle='#ff0';ctx.font='16px monospace';ctx.textAlign='center';ctx.fillText('>',480,185);
+  }
+  ctx.fillStyle='#444';ctx.font='24px monospace';ctx.textAlign='left';
+  ctx.fillText('\u266A',420,80);ctx.fillText('\u266B',500,60);
+}
+
+function drawLab() {
+  ctx.fillStyle='#1a2a1a'; ctx.fillRect(0,0,W,ROOM_H);
+  for(let x=0;x<W;x+=30){ctx.fillStyle=x%60===0?'#2a2a2a':'#333';ctx.fillRect(x,270,30,70);}
+  ctx.fillStyle='#333'; ctx.fillRect(250,80,120,180);
+  ctx.strokeStyle='#888'; ctx.lineWidth=3;
+  for(let x=260;x<370;x+=15){ctx.beginPath();ctx.moveTo(x,80);ctx.lineTo(x,260);ctx.stroke();}
+  if(!puzzleState.sandyFreed){
+    ctx.fillStyle='#ffaa88';ctx.beginPath();ctx.arc(310,160,12,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#c44';ctx.fillRect(298,172,24,50);
+    ctx.fillStyle='#ff8';ctx.beginPath();ctx.arc(310,152,14,Math.PI,0);ctx.fill();
+    ctx.fillStyle='#333';ctx.fillRect(305,158,3,3);ctx.fillRect(313,158,3,3);
+  } else {ctx.fillStyle='#4f4';ctx.font='14px monospace';ctx.textAlign='center';ctx.fillText('Sandy is free!',310,180);}
+  ctx.fillStyle=puzzleState.generatorFixed?'#0f0':'#f00'; ctx.fillRect(365,150,10,10);
+  ctx.fillStyle='#556'; ctx.fillRect(600,100,120,160);
+  ctx.fillStyle='#667'; ctx.fillRect(610,110,100,60);
+  ctx.fillStyle=puzzleState.generatorFixed?'#0f0':'#a00';
+  ctx.beginPath();ctx.arc(640,190,10,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.arc(690,190,10,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#aaa';ctx.font='10px monospace';ctx.textAlign='center';ctx.fillText('GENERATOR',660,230);
+  if(puzzleState.generatorFixed){ctx.fillStyle='#0f0';ctx.fillText('ONLINE',660,245);}
+  if(puzzleState.pianoPlayed){ctx.fillStyle='#333';ctx.fillRect(350,100,80,130);}
+  ctx.fillStyle='#4a3a2a'; ctx.fillRect(50,120,60,150);
+  ctx.fillStyle='#566'; ctx.fillRect(450,160,80,20);
+  ctx.fillStyle='#8af'; ctx.fillRect(460,140,15,20);
+  ctx.fillStyle='#a8f'; ctx.fillRect(490,145,15,15);
+}
+
+function drawDungeon() {
+  ctx.fillStyle='#1a1a1a'; ctx.fillRect(0,0,W,ROOM_H);
+  ctx.strokeStyle='#252525'; ctx.lineWidth=1;
+  for(let y=0;y<ROOM_H;y+=30)for(let x=0;x<W;x+=50) ctx.strokeRect(x+((y/30)%2===0?25:0),y,50,30);
+  ctx.fillStyle='#1a2a2a'; ctx.fillRect(0,260,W,80);
+  ctx.fillStyle='rgba(40,80,120,0.3)';ctx.beginPath();ctx.ellipse(200,290,60,10,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle=puzzleState.pipeFixed?'#887766':'#775544';
+  ctx.fillRect(100,60,150,12);ctx.fillRect(100,60,12,40);ctx.fillRect(238,60,12,40);
+  if(!puzzleState.pipeFixed){ctx.fillStyle='#4af';const d=(frame%40)/40;ctx.fillRect(170,72+d*40,4,6);}
+  ctx.fillStyle='#8a7a5a';ctx.fillRect(385,40,8,100);ctx.fillRect(427,40,8,100);
+  for(let i=0;i<5;i++) ctx.fillRect(385,50+i*18,50,4);
+  ctx.fillStyle=puzzleState.labDoorOpen?'#111':'#5a4a3a'; ctx.fillRect(650,80,70,160);
+  if(!puzzleState.labDoorOpen){ctx.fillStyle='#aa8844';ctx.beginPath();ctx.arc(710,160,5,0,Math.PI*2);ctx.fill();}
+  ctx.fillStyle='#5a3a1a'; ctx.fillRect(500,200,80,60);
+  ctx.fillStyle='#6a4a2a'; ctx.fillRect(500,195,80,12);
+  ctx.fillStyle='#aa8844'; ctx.fillRect(535,215,10,8);
+  ctx.fillStyle='#3a2a2a'; ctx.fillRect(250,180,40,30);
+  ctx.strokeStyle='#4a3a3a';ctx.lineWidth=1;ctx.strokeRect(250,180,40,30);
+  ctx.strokeStyle='#555';ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(350,50);ctx.lineTo(350,100);ctx.lineTo(340,110);ctx.stroke();
+  ctx.fillStyle='#8a6a3a';ctx.fillRect(50,100,8,30);
+  ctx.fillStyle='#fa0';ctx.beginPath();ctx.moveTo(46,100);ctx.lineTo(54,80);ctx.lineTo(62,100);ctx.closePath();ctx.fill();
+}
+
+function drawAttic() {
+  ctx.fillStyle='#2a2a1a'; ctx.fillRect(0,0,W,ROOM_H);
+  ctx.fillStyle='#3a3a2a'; ctx.beginPath();
+  ctx.moveTo(0,100);ctx.lineTo(400,20);ctx.lineTo(W,100);ctx.lineTo(W,ROOM_H);ctx.lineTo(0,ROOM_H);ctx.closePath();ctx.fill();
+  ctx.strokeStyle='#4a3a2a';ctx.lineWidth=6;
+  ctx.beginPath();ctx.moveTo(0,100);ctx.lineTo(400,20);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(400,20);ctx.lineTo(W,100);ctx.stroke();
+  ctx.fillStyle='#4a3a2a'; ctx.fillRect(0,290,W,50);
+  ctx.strokeStyle='#3a2a1a';ctx.lineWidth=1;for(let x=0;x<W;x+=60){ctx.beginPath();ctx.moveTo(x,290);ctx.lineTo(x,340);ctx.stroke();}
+  ctx.fillStyle='#666'; ctx.fillRect(100,80,12,100);
+  ctx.save();ctx.translate(106,80);ctx.rotate(-0.4);ctx.fillStyle='#888';ctx.fillRect(-6,-60,12,60);ctx.restore();
+  ctx.strokeStyle='#666';ctx.lineWidth=3;
+  ctx.beginPath();ctx.moveTo(106,180);ctx.lineTo(80,290);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(106,180);ctx.lineTo(130,290);ctx.stroke();
+  ctx.fillStyle='#112'; ctx.fillRect(140,60,60,80);
+  ctx.strokeStyle='#555';ctx.lineWidth=2;ctx.strokeRect(140,60,60,80);
+  ctx.fillStyle='#fff';ctx.fillRect(155,75,2,2);ctx.fillRect(180,90,2,2);
+  ctx.fillStyle='#6a4a2a'; ctx.fillRect(500,160,100,70);
+  ctx.fillStyle='#7a5a3a'; ctx.fillRect(500,155,100,12);
+  ctx.fillStyle='#aa8844'; ctx.fillRect(545,180,10,8);
+  ctx.fillStyle='#554433'; ctx.fillRect(650,100,80,60);
+  ctx.fillStyle='#665544'; ctx.fillRect(655,105,70,40);
+  ctx.fillStyle='#aa8';ctx.beginPath();ctx.arc(675,125,8,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.arc(710,125,8,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle='#888';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(690,100);ctx.lineTo(700,60);ctx.stroke();
+  ctx.fillStyle='#8a7a5a';ctx.fillRect(385,220,8,100);ctx.fillRect(427,220,8,100);
+  for(let i=0;i<4;i++) ctx.fillRect(385,230+i*20,50,4);
+  ctx.fillStyle='rgba(200,200,150,0.3)';for(let i=0;i<4;i++){ctx.fillRect(200+i*100+Math.sin(frame*0.02+i)*20,140+Math.cos(frame*0.015+i*2)*30,2,2);}
+}
+
+function drawCharactersInRoom(roomId) {
+  for(const ch of characters){if(ch.room===roomId) drawCharacter(ch,ch.id===activeChar);}
+}
+function drawCharacter(ch,isActive) {
+  const x=ch.x,y=ch.y;
+  ctx.fillStyle='rgba(0,0,0,0.3)';ctx.beginPath();ctx.ellipse(x,y+24,12,4,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle=ch.color; ctx.fillRect(x-8,y-4,16,24);
+  ctx.fillStyle='#ffcc99';ctx.beginPath();ctx.arc(x,y-12,10,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#333';ctx.fillRect(x-4,y-14,3,3);ctx.fillRect(x+2,y-14,3,3);
+  if(ch.id===DAVE){ctx.fillStyle='#643';ctx.beginPath();ctx.arc(x,y-16,10,Math.PI,0);ctx.fill();}
+  else if(ch.id===BERNARD){ctx.strokeStyle='#aaa';ctx.lineWidth=1;ctx.beginPath();ctx.arc(x-3,y-13,5,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.arc(x+4,y-13,5,0,Math.PI*2);ctx.stroke();}
+  else{ctx.fillStyle='#f0f';ctx.beginPath();ctx.moveTo(x-8,y-18);ctx.lineTo(x,y-28);ctx.lineTo(x+8,y-18);ctx.closePath();ctx.fill();}
+  ctx.fillStyle='#333';ctx.fillRect(x-9,y+20,8,4);ctx.fillRect(x+1,y+20,8,4);
+  if(isActive){ctx.strokeStyle='#ff0';ctx.lineWidth=2;ctx.setLineDash([3,3]);ctx.strokeRect(x-14,y-28,28,56);ctx.setLineDash([]);
+    ctx.fillStyle='#ff0';ctx.font='10px monospace';ctx.textAlign='center';ctx.fillText(ch.name,x,y-32);}
+}
+
+function drawUI() {
+  ctx.fillStyle='#333';ctx.fillRect(0,UI_Y,W,2);
+  ctx.fillStyle='#111';ctx.fillRect(0,UI_Y+2,W,VERB_H-2);
+  for(let i=0;i<VERBS.length;i++){
+    const col=i%4,row=i>>2,vx=col*VERB_W,vy=UI_Y+4+row*VERB_ROW_H;
+    const sel=selectedVerb===VERBS[i],hov=mouseX>=vx&&mouseX<=vx+VERB_W&&mouseY>=vy&&mouseY<=vy+VERB_ROW_H;
+    ctx.fillStyle=sel?'#446':hov?'#223':'#111'; ctx.fillRect(vx,vy,VERB_W-2,VERB_ROW_H-2);
+    ctx.fillStyle=sel?'#ff0':hov?'#aaf':'#88a'; ctx.font='13px monospace';ctx.textAlign='center';
+    ctx.fillText(VERBS[i],vx+VERB_W/2,vy+16);
+  }
+  ctx.fillStyle='#222';ctx.fillRect(400,UI_Y+4,400,VERB_ROW_H-2);
+  let at=selectedVerb;
+  if(useTarget)at+=' '+itemName(useTarget)+' on...';else if(selectedItem)at+=' '+itemName(selectedItem);
+  if(mouseY<ROOM_H){const objs=getObjectsInRoom(getActiveChar().room);for(const o of objs){
+    if(mouseX>=o.x&&mouseX<=o.x+o.w&&mouseY>=o.y&&mouseY<=o.y+o.h){at=useTarget?selectedVerb+' '+itemName(useTarget)+' on '+o.name:selectedVerb+' '+o.name;break;}
+  }}
+  ctx.fillStyle='#fff';ctx.font='14px monospace';ctx.textAlign='left';ctx.fillText(at,410,UI_Y+18);
+  ctx.fillStyle='#222';ctx.fillRect(400,UI_Y+VERB_ROW_H+4,400,VERB_ROW_H-2);
+  for(let i=0;i<3;i++){
+    const cx=420+i*130,cy=UI_Y+VERB_ROW_H+6,isA=activeChar===i;
+    ctx.fillStyle=isA?'#333':'#1a1a1a';ctx.fillRect(cx-10,cy,120,20);
+    ctx.fillStyle=isA?CHAR_COLORS[i]:'#555';ctx.font=(isA?'bold ':'')+'12px monospace';ctx.textAlign='left';
+    ctx.fillText((i+1)+': '+CHAR_NAMES[i],cx,cy+14);
+    ctx.fillStyle='#666';ctx.font='9px monospace';ctx.fillText(ROOM_NAMES[characters[i].room],cx+60,cy+14);
+  }
+  ctx.fillStyle='#0a0a0a';ctx.fillRect(0,INV_Y,W,INV_H);
+  ctx.fillStyle='#444';ctx.fillRect(0,INV_Y,W,1);
+  ctx.fillStyle='#666';ctx.font='11px monospace';ctx.textAlign='left';ctx.fillText('INVENTORY:',6,INV_Y+14);
+  for(let i=0;i<inventory.length;i++){
+    const ix=i%8*100+4,iy=INV_Y+20+(i>>3)*22;
+    const hov=mouseX>=ix&&mouseX<=ix+96&&mouseY>=iy&&mouseY<=iy+20;
+    const sel=selectedItem===inventory[i]||useTarget===inventory[i];
+    ctx.fillStyle=sel?'#335':hov?'#1a1a2a':'#0a0a0a';ctx.fillRect(ix,iy,96,20);
+    ctx.fillStyle=sel?'#ff0':hov?'#aaf':'#8a8';ctx.font='11px monospace';ctx.textAlign='left';
+    ctx.fillText(itemName(inventory[i]),ix+4,iy+14);
+  }
+  for(let i=0;i<3;i++){
+    const py=INV_Y+4+i*30,isA=activeChar===i;
+    ctx.fillStyle=isA?'rgba(255,255,255,0.1)':'rgba(0,0,0,0.3)';ctx.fillRect(660,py,130,26);
+    ctx.fillStyle=CHAR_COLORS[i];ctx.fillRect(664,py+4,10,16);
+    ctx.fillStyle='#ffcc99';ctx.beginPath();ctx.arc(669,py+2,5,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle=isA?'#fff':'#888';ctx.font='11px monospace';ctx.textAlign='left';ctx.fillText(CHAR_NAMES[i],680,py+16);
+  }
+}
+
+function drawMessage() {
+  if(msgTimer>0&&message){
+    ctx.fillStyle='rgba(0,0,0,0.85)';ctx.fillRect(0,MSG_Y-16,W,22);
+    ctx.fillStyle='rgba(255,255,200,'+(msgTimer<30?msgTimer/30:1)+')';
+    ctx.font='13px monospace';ctx.textAlign='center';ctx.fillText(message,W/2,MSG_Y);
+  }
+}
+function drawTitleBadge() {
+  ctx.fillStyle='rgba(0,0,0,0.7)';ctx.fillRect(W-310,0,310,24);
+  ctx.fillStyle='#999';ctx.font='12px monospace';ctx.textAlign='right';
+  ctx.fillText('ADV-005 \u00B7 MANIAC MANSION  [?]',W-8,16);
+}
+function drawWinScreen() {
+  ctx.fillStyle='rgba(0,0,0,0.7)';ctx.fillRect(0,0,W,ROOM_H);
+  ctx.fillStyle='#ff0';ctx.font='bold 36px monospace';ctx.textAlign='center';ctx.fillText('SANDY IS FREE!',W/2,120);
+  ctx.fillStyle='#4f4';ctx.font='20px monospace';ctx.fillText('YOU WIN!',W/2,160);
+  ctx.fillStyle='#aaa';ctx.font='14px monospace';ctx.fillText('Press R to play again.',W/2,200);
+}
+
+initGame();
+function loop(){update();draw();requestAnimationFrame(loop);}
+loop();
+</script>
+</body>
+</html>

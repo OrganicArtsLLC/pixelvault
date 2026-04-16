@@ -1,0 +1,837 @@
+<!--
+PROTOTYPE: gonggi
+SERIES: spt
+NUMBER: 019
+DATE: 2026-03-24
+MECHANIC: Korean jacks — toss one stone up, pick up stones from the ground, catch the tossed stone before it lands; progressive rounds increase difficulty (pick 1, then 2, then 3, then 4, then all 5)
+ANCESTRY: Gonggi (공기놀이, Korea, centuries-old), Knucklebones (ancient Greece/Rome), Jacks (worldwide variants), Otedama (Japan)
+CONTROLS: Click stone — toss it up | Click ground stones — pick up while tossed stone is airborne | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 2 (Heuristic — timing windows, pickup ordering)
+AI-INSIGHT: Gonggi's core challenge is a real-time dexterity test with sequential constraints. The timing window between toss and catch creates a natural difficulty curve as more stones must be gathered in each round. An AI needs only simple timing heuristics — the human challenge is entirely in motor coordination.
+NOTES: Traditional Korean stone-tossing game played for centuries.
+       The satisfying rhythm of toss-grab-catch defines the play feel.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPT-019 · GONGGI</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: pointer; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SPT-019 · GONGGI (공기)</h1>
+    <p><span class="tag series">SPT — Sports</span> <span class="tag">Prototype #019</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Gonggi is a traditional Korean stone-tossing game played with 5 small stones. Toss one stone into the air, pick up stones from the ground, and catch the tossed stone before it lands!</p>
+    <ul>
+      <li><kbd>Click</kbd> a ground stone to select it as the toss stone, then it flies up</li>
+      <li>While the stone is in the air, <kbd>Click</kbd> ground stones to pick them up</li>
+      <li>The tossed stone must be caught before it lands — if you miss, you fail the round</li>
+      <li><strong>Round 1 (알기)</strong> — Pick up <strong>1</strong> stone at a time (4 tosses)</li>
+      <li><strong>Round 2 (두기)</strong> — Pick up <strong>2</strong> stones at once (2 tosses)</li>
+      <li><strong>Round 3 (세기)</strong> — Pick up <strong>3</strong> stones at once (1 toss + 1 toss for remaining 1)</li>
+      <li><strong>Round 4 (네기)</strong> — Pick up all <strong>4</strong> remaining stones at once</li>
+      <li><strong>Round 5 (날기)</strong> — Toss all 5 up, catch on back of hand</li>
+      <li><kbd>R</kbd> — Restart game</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+
+    <h2>History</h2>
+    <p><em>Gonggi</em> (공기놀이, also romanized as gongi or gongginori) is one of Korea's oldest and most beloved traditional games, played for centuries by children and adults alike. The game uses five small stones — originally pebbles gathered from riverbeds, later manufactured as colorful plastic pieces.</p>
+    <p>Gonggi belongs to the worldwide family of "jacks" or "knucklebones" games, with parallels in ancient Greek <em>astragaloi</em> (knucklebone tossing, ~3000 BCE), Japanese <em>otedama</em>, and the Western game of jacks. The Korean version emphasizes sequential rounds of increasing difficulty, creating a natural progression from simple to challenging.</p>
+    <p>The game remains deeply embedded in Korean culture — it appears in school playgrounds, variety shows, and even competitive tournaments. The satisfying tactile rhythm of toss-grab-catch has kept it alive across generations.</p>
+
+    <h2>AI Archaeology</h2>
+    <h3>Era 2 — Heuristic</h3>
+    <p>Gonggi's AI challenge is minimal from a strategic standpoint — the game is almost entirely about human dexterity and timing. A heuristic AI needs only to model the timing window (time between toss and landing) and execute pickups within that window. The real challenge is for human players: coordinating visual tracking of the airborne stone with precise hand movements to grab ground stones.</p>
+    <p>The progressive round structure is an elegant difficulty curve — each round demands picking up more stones in the same time window, naturally pushing players to develop faster coordination.</p>
+
+    <h3>Classification</h3>
+    <p><span class="tag">dexterity game</span> <span class="tag">timing precision</span> <span class="tag">traditional Korean</span> <span class="tag">sequential rounds</span> <span class="tag">jacks family</span></p>
+
+    <h2>Prototype Notes</h2>
+    <ul>
+      <li>5 colored stones rendered as rounded shapes with highlight shading</li>
+      <li>Parabolic arc for tossed stone with gravity simulation</li>
+      <li>Click-based pickup during the airborne window — timing is everything</li>
+      <li>Progressive rounds: pick 1, 2, 3, 4, then final toss-all-5 round</li>
+      <li>Web Audio sound effects: stone clink on toss, grab, catch, and drop sounds</li>
+      <li>Visual hand representation shows stones in hand vs on ground</li>
+    </ul>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+var canvas = document.getElementById('c');
+var ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+canvas.width = 800;
+canvas.height = 600;
+
+// ── Audio ──
+var audioCtx = null;
+function initAudio() {
+  if (!audioCtx) {
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+  }
+}
+
+function playSound(freq, dur, type, vol) {
+  if (!audioCtx) return;
+  var osc = audioCtx.createOscillator();
+  var gain = audioCtx.createGain();
+  osc.type = type || 'sine';
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(vol || 0.3, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + dur);
+}
+
+function sndToss() {
+  playSound(800, 0.08, 'square', 0.2);
+  setTimeout(function(){ playSound(1200, 0.06, 'square', 0.15); }, 30);
+}
+function sndGrab() {
+  playSound(500, 0.06, 'triangle', 0.25);
+  playSound(700, 0.05, 'triangle', 0.15);
+}
+function sndCatch() {
+  playSound(1000, 0.1, 'sine', 0.3);
+  setTimeout(function(){ playSound(1400, 0.08, 'sine', 0.2); }, 50);
+}
+function sndDrop() {
+  playSound(200, 0.2, 'sawtooth', 0.25);
+  playSound(150, 0.3, 'sawtooth', 0.15);
+}
+function sndSuccess() {
+  playSound(600, 0.1, 'sine', 0.3);
+  setTimeout(function(){ playSound(800, 0.1, 'sine', 0.3); }, 100);
+  setTimeout(function(){ playSound(1000, 0.15, 'sine', 0.3); }, 200);
+}
+function sndWin() {
+  [600,800,1000,1200,1400].forEach(function(f,i){
+    setTimeout(function(){ playSound(f, 0.15, 'sine', 0.3); }, i*100);
+  });
+}
+
+// ── Info panel ──
+var infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// ── Constants ──
+var GROUND_Y = 420;
+var STONE_R = 18;
+var GRAVITY = 0.35;
+var TOSS_VY = -14;
+var STONE_COLORS = ['#e74c3c','#3498db','#2ecc71','#f39c12','#9b59b6'];
+var STONE_HIGHLIGHT = ['#ff7675','#74b9ff','#55efc4','#ffeaa7','#d7aaff'];
+var ROUND_NAMES = ['알기 (Pick 1)','두기 (Pick 2)','세기 (Pick 3)','네기 (Pick 4)','날기 (Toss All)'];
+var ROUND_PICK = [1, 2, 3, 4, 5];
+
+// ── State ──
+var stones = [];
+var phase = 'idle'; // idle, tossed, round5toss, round5catch, success, fail, gameover, win
+var round = 0;
+var tossedIdx = -1;
+var tossY = 0;
+var tossVY = 0;
+var tossX = 0;
+var tossStartY = 0;
+var picked = 0;
+var pickedThisToss = 0;
+var neededThisToss = 1;
+var totalScore = 0;
+var failMsg = '';
+var msgTimer = 0;
+var particles = [];
+var handStones = [];
+var attempts = 0;
+var hoverIdx = -1;
+var round5Stones = [];
+var round5CatchCount = 0;
+var shakeMag = 0;
+
+function initStones() {
+  stones = [];
+  var startX = 280;
+  var spacing = 60;
+  for (var i = 0; i < 5; i++) {
+    stones.push({
+      x: startX + i * spacing,
+      y: GROUND_Y,
+      onGround: true,
+      inHand: false,
+      color: STONE_COLORS[i],
+      highlight: STONE_HIGHLIGHT[i],
+      bobPhase: Math.random() * Math.PI * 2,
+      shadowScale: 1
+    });
+  }
+}
+
+function scatterStones() {
+  var cx = 400, cy = GROUND_Y;
+  for (var i = 0; i < 5; i++) {
+    if (stones[i].onGround) {
+      stones[i].x = cx + (Math.random() - 0.5) * 300;
+      stones[i].y = cy + (Math.random() - 0.5) * 80;
+      stones[i].x = Math.max(100, Math.min(700, stones[i].x));
+      stones[i].y = Math.max(GROUND_Y - 50, Math.min(GROUND_Y + 50, stones[i].y));
+    }
+  }
+}
+
+function resetGame() {
+  round = 0;
+  phase = 'idle';
+  tossedIdx = -1;
+  picked = 0;
+  pickedThisToss = 0;
+  neededThisToss = 1;
+  totalScore = 0;
+  failMsg = '';
+  msgTimer = 0;
+  handStones = [];
+  attempts = 0;
+  round5CatchCount = 0;
+  initStones();
+  scatterStones();
+}
+
+function startRound() {
+  // Put all stones back on ground
+  for (var i = 0; i < 5; i++) {
+    stones[i].onGround = true;
+    stones[i].inHand = false;
+    stones[i].shadowScale = 1;
+  }
+  picked = 0;
+  pickedThisToss = 0;
+  handStones = [];
+  phase = 'idle';
+  tossedIdx = -1;
+  neededThisToss = ROUND_PICK[round];
+  scatterStones();
+}
+
+function countGroundStones() {
+  var c = 0;
+  for (var i = 0; i < 5; i++) {
+    if (stones[i].onGround) c++;
+  }
+  return c;
+}
+
+resetGame();
+
+// ── Resize ──
+function resize() {
+  var s = Math.min(window.innerWidth / 800, window.innerHeight / 600);
+  canvas.style.width = (800 * s) + 'px';
+  canvas.style.height = (600 * s) + 'px';
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ── Input ──
+var mouseX = 0, mouseY = 0;
+
+function getCanvasPos(e) {
+  var rect = canvas.getBoundingClientRect();
+  var sx = 800 / rect.width;
+  var sy = 600 / rect.height;
+  var cx = (e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0));
+  var cy = (e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : 0));
+  return { x: (cx - rect.left) * sx, y: (cy - rect.top) * sy };
+}
+
+function dist(x1, y1, x2, y2) {
+  var dx = x1 - x2, dy = y1 - y2;
+  return Math.sqrt(dx*dx + dy*dy);
+}
+
+function findStoneAt(mx, my) {
+  for (var i = 4; i >= 0; i--) {
+    if (stones[i].onGround && dist(mx, my, stones[i].x, stones[i].y) < STONE_R + 8) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+canvas.addEventListener('mousemove', function(e) {
+  var p = getCanvasPos(e);
+  mouseX = p.x; mouseY = p.y;
+  hoverIdx = (phase === 'idle' || phase === 'tossed') ? findStoneAt(mouseX, mouseY) : -1;
+});
+
+canvas.addEventListener('click', function(e) {
+  initAudio();
+  var p = getCanvasPos(e);
+  var mx = p.x, my = p.y;
+
+  if (phase === 'fail' || phase === 'success') return;
+
+  if (phase === 'gameover' || phase === 'win') {
+    resetGame();
+    return;
+  }
+
+  if (round === 4 && phase === 'idle') {
+    // Round 5: toss all 5 up
+    phase = 'round5toss';
+    round5Stones = [];
+    for (var i = 0; i < 5; i++) {
+      round5Stones.push({
+        x: stones[i].x,
+        y: stones[i].y,
+        vy: TOSS_VY + (Math.random() - 0.5) * 3,
+        startY: stones[i].y,
+        caught: false
+      });
+      stones[i].onGround = false;
+    }
+    sndToss();
+    return;
+  }
+
+  if (phase === 'round5catch') {
+    // Click to catch stones on back of hand
+    var caught = 0;
+    for (var i = 0; i < 5; i++) {
+      if (!round5Stones[i].caught) {
+        var sy = round5Stones[i].y;
+        if (sy > 200 && sy < 450) {
+          round5Stones[i].caught = true;
+          caught++;
+        }
+      }
+    }
+    if (caught > 0) {
+      round5CatchCount += caught;
+      sndCatch();
+    }
+    return;
+  }
+
+  if (phase === 'idle') {
+    var idx = findStoneAt(mx, my);
+    if (idx >= 0) {
+      // Toss this stone
+      tossedIdx = idx;
+      stones[idx].onGround = false;
+      tossX = stones[idx].x;
+      tossY = stones[idx].y;
+      tossStartY = stones[idx].y;
+      tossVY = TOSS_VY;
+      phase = 'tossed';
+      pickedThisToss = 0;
+      sndToss();
+    }
+  } else if (phase === 'tossed') {
+    var idx = findStoneAt(mx, my);
+    if (idx >= 0 && idx !== tossedIdx) {
+      // Pick up this stone
+      stones[idx].onGround = false;
+      stones[idx].inHand = true;
+      handStones.push(idx);
+      pickedThisToss++;
+      picked++;
+      sndGrab();
+      addParticles(stones[idx].x, stones[idx].y, stones[idx].color);
+    }
+  }
+});
+
+canvas.addEventListener('touchstart', function(e) {
+  e.preventDefault();
+  var touch = e.touches[0];
+  canvas.dispatchEvent(new MouseEvent('click', { clientX: touch.clientX, clientY: touch.clientY }));
+});
+
+window.addEventListener('keydown', function(e) {
+  if (e.key === '?' || e.key === '/') { toggleInfo(); e.preventDefault(); }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); }
+  if (e.key === 'r' || e.key === 'R') { resetGame(); }
+});
+
+// ── Particles ──
+function addParticles(x, y, color) {
+  for (var i = 0; i < 8; i++) {
+    var angle = Math.random() * Math.PI * 2;
+    var speed = 1 + Math.random() * 3;
+    particles.push({
+      x: x, y: y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed - 2,
+      life: 30 + Math.random() * 20,
+      color: color,
+      r: 2 + Math.random() * 3
+    });
+  }
+}
+
+// ── Update ──
+function update() {
+  if (infoOpen) return;
+
+  // Particles
+  for (var i = particles.length - 1; i >= 0; i--) {
+    particles[i].x += particles[i].vx;
+    particles[i].y += particles[i].vy;
+    particles[i].vy += 0.1;
+    particles[i].life--;
+    if (particles[i].life <= 0) particles.splice(i, 1);
+  }
+
+  // Shake decay
+  if (shakeMag > 0) shakeMag *= 0.9;
+  if (shakeMag < 0.1) shakeMag = 0;
+
+  // Message timer
+  if (msgTimer > 0) {
+    msgTimer--;
+    if (msgTimer <= 0) {
+      if (phase === 'fail') {
+        attempts++;
+        startRound();
+      } else if (phase === 'success') {
+        round++;
+        if (round >= 5) {
+          phase = 'win';
+          sndWin();
+        } else {
+          startRound();
+        }
+      }
+    }
+  }
+
+  // Stone bobbing
+  for (var i = 0; i < 5; i++) {
+    stones[i].bobPhase += 0.03;
+  }
+
+  // Round 5 toss physics
+  if (phase === 'round5toss') {
+    var allDown = true;
+    for (var i = 0; i < 5; i++) {
+      round5Stones[i].vy += GRAVITY;
+      round5Stones[i].y += round5Stones[i].vy;
+      if (round5Stones[i].y < round5Stones[i].startY) {
+        allDown = false;
+      }
+    }
+    // When stones reach peak (all going down), switch to catch phase
+    var allGoingDown = true;
+    for (var i = 0; i < 5; i++) {
+      if (round5Stones[i].vy < 0) allGoingDown = false;
+    }
+    if (allGoingDown) {
+      phase = 'round5catch';
+      round5CatchCount = 0;
+    }
+  }
+
+  if (phase === 'round5catch') {
+    var anyInAir = false;
+    for (var i = 0; i < 5; i++) {
+      if (!round5Stones[i].caught) {
+        round5Stones[i].vy += GRAVITY;
+        round5Stones[i].y += round5Stones[i].vy;
+        if (round5Stones[i].y < round5Stones[i].startY + 20) {
+          anyInAir = true;
+        }
+      }
+    }
+    if (!anyInAir) {
+      // All stones have landed — check how many caught
+      if (round5CatchCount >= 3) {
+        // Success! (catching 3+ on back of hand is considered a pass)
+        totalScore += round5CatchCount;
+        phase = 'success';
+        failMsg = 'ROUND 5 COMPLETE! Caught ' + round5CatchCount + '/5!';
+        msgTimer = 90;
+        sndSuccess();
+      } else {
+        phase = 'fail';
+        failMsg = 'Only caught ' + round5CatchCount + '/5 — need at least 3!';
+        msgTimer = 90;
+        shakeMag = 8;
+        sndDrop();
+      }
+    }
+  }
+
+  // Tossed stone physics
+  if (phase === 'tossed') {
+    tossVY += GRAVITY;
+    tossY += tossVY;
+
+    // Shadow scale based on height
+    var height = tossStartY - tossY;
+    stones[tossedIdx].shadowScale = Math.max(0.3, 1 - height / 300);
+
+    // Stone landed
+    if (tossY >= tossStartY) {
+      tossY = tossStartY;
+      if (pickedThisToss >= neededThisToss) {
+        // Caught successfully!
+        sndCatch();
+        stones[tossedIdx].inHand = true;
+        handStones.push(tossedIdx);
+        addParticles(tossX, tossY, stones[tossedIdx].color);
+
+        var groundLeft = countGroundStones();
+        if (groundLeft === 0) {
+          // Round complete
+          totalScore += (round + 1) * 10;
+          phase = 'success';
+          failMsg = ROUND_NAMES[round] + ' COMPLETE!';
+          msgTimer = 90;
+          sndSuccess();
+        } else {
+          // More tosses needed this round
+          // Put tossed stone back and continue
+          // Actually in gonggi, you keep the tossed stone and toss another
+          // Reset for next toss in this round
+          phase = 'idle';
+          tossedIdx = -1;
+
+          // In rounds where pick count doesn't divide evenly:
+          // Round 3: pick 3 then pick 1
+          var remaining = countGroundStones();
+          if (remaining > 0 && remaining < neededThisToss) {
+            neededThisToss = remaining;
+          }
+        }
+      } else {
+        // Failed — didn't pick up enough
+        sndDrop();
+        shakeMag = 8;
+        phase = 'fail';
+        if (pickedThisToss === 0) {
+          failMsg = 'No stones picked up! Need ' + neededThisToss + '.';
+        } else {
+          failMsg = 'Picked ' + pickedThisToss + ', needed ' + neededThisToss + '!';
+        }
+        msgTimer = 90;
+      }
+    }
+  }
+}
+
+// ── Draw ──
+function drawStone(x, y, r, color, highlight, shadow, hover, inAir) {
+  // Shadow on ground
+  if (shadow) {
+    ctx.save();
+    ctx.globalAlpha = 0.3;
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    var shadowR = r * (inAir ? 0.6 : 1);
+    var shadowY = inAir ? GROUND_Y + 5 : y + r * 0.3;
+    ctx.ellipse(x, shadowY, shadowR, shadowR * 0.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Stone body
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  var grad = ctx.createRadialGradient(x - r*0.3, y - r*0.3, r*0.1, x, y, r);
+  grad.addColorStop(0, highlight);
+  grad.addColorStop(0.7, color);
+  grad.addColorStop(1, shadeColor(color, -40));
+  ctx.fillStyle = grad;
+  ctx.fill();
+  ctx.strokeStyle = shadeColor(color, -60);
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Specular highlight
+  ctx.beginPath();
+  ctx.arc(x - r*0.25, y - r*0.3, r*0.25, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.fill();
+
+  // Hover ring
+  if (hover) {
+    ctx.beginPath();
+    ctx.arc(x, y, r + 5, 0, Math.PI * 2);
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+function shadeColor(color, amount) {
+  var r = parseInt(color.slice(1,3), 16);
+  var g = parseInt(color.slice(3,5), 16);
+  var b = parseInt(color.slice(5,7), 16);
+  r = Math.max(0, Math.min(255, r + amount));
+  g = Math.max(0, Math.min(255, g + amount));
+  b = Math.max(0, Math.min(255, b + amount));
+  return '#' + ((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);
+}
+
+function draw() {
+  ctx.save();
+
+  // Shake
+  if (shakeMag > 0) {
+    ctx.translate((Math.random()-0.5)*shakeMag, (Math.random()-0.5)*shakeMag);
+  }
+
+  // Background — wooden floor/mat
+  var bgGrad = ctx.createLinearGradient(0, 0, 0, 600);
+  bgGrad.addColorStop(0, '#2c1810');
+  bgGrad.addColorStop(0.5, '#3d2317');
+  bgGrad.addColorStop(1, '#2c1810');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, 800, 600);
+
+  // Wood grain lines
+  ctx.strokeStyle = 'rgba(60,35,20,0.3)';
+  ctx.lineWidth = 1;
+  for (var i = 0; i < 15; i++) {
+    var gy = i * 42 + 10;
+    ctx.beginPath();
+    ctx.moveTo(0, gy);
+    for (var gx = 0; gx < 800; gx += 20) {
+      ctx.lineTo(gx, gy + Math.sin(gx * 0.01 + i) * 3);
+    }
+    ctx.stroke();
+  }
+
+  // Play mat area
+  ctx.fillStyle = 'rgba(100, 70, 40, 0.15)';
+  ctx.beginPath();
+  ctx.ellipse(400, GROUND_Y, 320, 120, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(150, 100, 60, 0.2)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Ground stones
+  for (var i = 0; i < 5; i++) {
+    if (stones[i].onGround) {
+      var bob = Math.sin(stones[i].bobPhase) * 1.5;
+      drawStone(stones[i].x, stones[i].y + bob, STONE_R, stones[i].color, stones[i].highlight, true, hoverIdx === i, false);
+    }
+  }
+
+  // Tossed stone
+  if (phase === 'tossed' && tossedIdx >= 0) {
+    drawStone(tossX, tossY, STONE_R, stones[tossedIdx].color, stones[tossedIdx].highlight, true, false, true);
+
+    // Arc trail
+    ctx.save();
+    ctx.globalAlpha = 0.15;
+    for (var t = 0; t < 5; t++) {
+      var trailY = tossY + t * 8;
+      if (trailY < tossStartY) {
+        ctx.beginPath();
+        ctx.arc(tossX, trailY, STONE_R * (1 - t*0.15), 0, Math.PI * 2);
+        ctx.fillStyle = stones[tossedIdx].color;
+        ctx.fill();
+      }
+    }
+    ctx.restore();
+
+    // Timing bar
+    var progress = (tossY - (tossStartY + TOSS_VY * TOSS_VY / (2 * GRAVITY) * -1)) / (tossStartY - (tossStartY + TOSS_VY * TOSS_VY / (2 * GRAVITY) * -1));
+    var barW = 200;
+    var barH = 10;
+    var barX = 300;
+    var barY = 30;
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(barX, barY, barW, barH);
+    var timeLeft = Math.max(0, (tossStartY - tossY) / (tossStartY - 100));
+    var barColor = timeLeft > 0.5 ? '#2ecc71' : timeLeft > 0.2 ? '#f39c12' : '#e74c3c';
+    ctx.fillStyle = barColor;
+    ctx.fillRect(barX, barY, barW * timeLeft, barH);
+    ctx.strokeStyle = '#888';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(barX, barY, barW, barH);
+    hudText('TIME', barX - 45, barY - 2, '#aaa', 12);
+  }
+
+  // Round 5 stones in air
+  if (phase === 'round5toss' || phase === 'round5catch') {
+    for (var i = 0; i < 5; i++) {
+      if (!round5Stones[i].caught) {
+        drawStone(round5Stones[i].x, round5Stones[i].y, STONE_R, stones[i].color, stones[i].highlight, true, false, true);
+      }
+    }
+    if (phase === 'round5catch') {
+      hudText('CLICK to catch stones!', 400, 200, '#ff0', 20, 'center');
+      hudText('Caught: ' + round5CatchCount + '/5', 400, 230, '#fff', 16, 'center');
+    }
+  }
+
+  // Hand display — stones collected this round
+  if (handStones.length > 0) {
+    var handX = 650;
+    var handY = 520;
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath();
+    ctx.ellipse(handX + 30, handY + 10, 60, 25, 0, 0, Math.PI * 2);
+    ctx.fill();
+    hudText('IN HAND:', handX - 30, handY - 30, '#aaa', 11);
+    for (var i = 0; i < handStones.length; i++) {
+      var si = handStones[i];
+      drawStone(handX + i * 25, handY, STONE_R * 0.7, stones[si].color, stones[si].highlight, false, false, false);
+    }
+  }
+
+  // HUD
+  hudText('GONGGI  공기', 20, 15, '#f4d03f', 20);
+  hudText('Round: ' + (round + 1) + '/5  ' + ROUND_NAMES[round], 20, 42, '#ddd', 14);
+  hudText('Score: ' + totalScore, 20, 62, '#7bf', 14);
+  hudText('Attempts: ' + attempts, 20, 82, '#aaa', 12);
+
+  // Pick requirement indicator
+  if (phase === 'idle' && round < 4) {
+    hudText('Click a stone to toss it up', 400, 520, '#ccc', 14, 'center');
+    hudText('Pick ' + neededThisToss + ' stone' + (neededThisToss > 1 ? 's' : '') + ' per toss', 400, 545, '#f80', 13, 'center');
+  } else if (phase === 'tossed') {
+    var need = neededThisToss - pickedThisToss;
+    if (need > 0) {
+      hudText('Pick ' + need + ' more stone' + (need > 1 ? 's' : '') + '!', 400, 545, '#f39c12', 16, 'center');
+    } else {
+      hudText('Wait for catch...', 400, 545, '#2ecc71', 16, 'center');
+    }
+  } else if (phase === 'idle' && round === 4) {
+    hudText('Click to toss all 5 stones up!', 400, 520, '#ccc', 14, 'center');
+    hudText('Catch them on the back of your hand', 400, 545, '#f80', 13, 'center');
+  }
+
+  // Picked count during toss
+  if (phase === 'tossed') {
+    hudText('Picked: ' + pickedThisToss + '/' + neededThisToss, 400, 520, '#fff', 14, 'center');
+  }
+
+  // Messages
+  if ((phase === 'fail' || phase === 'success') && msgTimer > 0) {
+    var alpha = Math.min(1, msgTimer / 20);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(150, 250, 500, 80);
+    ctx.strokeStyle = phase === 'fail' ? '#e74c3c' : '#2ecc71';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(150, 250, 500, 80);
+    var msgColor = phase === 'fail' ? '#e74c3c' : '#2ecc71';
+    hudText(failMsg, 400, 275, msgColor, 18, 'center');
+    if (phase === 'fail') {
+      hudText('Trying again...', 400, 300, '#aaa', 13, 'center');
+    }
+    ctx.restore();
+  }
+
+  // Win / Game Over
+  if (phase === 'win') {
+    ctx.fillStyle = 'rgba(0,0,0,0.75)';
+    ctx.fillRect(0, 0, 800, 600);
+    hudText('ALL ROUNDS COMPLETE!', 400, 200, '#f4d03f', 28, 'center');
+    hudText('공기놀이 완성!', 400, 240, '#fff', 20, 'center');
+    hudText('Final Score: ' + totalScore, 400, 290, '#7bf', 22, 'center');
+    hudText('Attempts: ' + attempts, 400, 320, '#aaa', 16, 'center');
+    hudText('Click to play again', 400, 380, '#ccc', 14, 'center');
+  }
+
+  if (phase === 'gameover') {
+    ctx.fillStyle = 'rgba(0,0,0,0.75)';
+    ctx.fillRect(0, 0, 800, 600);
+    hudText('GAME OVER', 400, 250, '#e74c3c', 28, 'center');
+    hudText('Score: ' + totalScore, 400, 290, '#7bf', 20, 'center');
+    hudText('Click to try again', 400, 340, '#ccc', 14, 'center');
+  }
+
+  // Particles
+  for (var i = 0; i < particles.length; i++) {
+    var p = particles[i];
+    ctx.save();
+    ctx.globalAlpha = p.life / 50;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // ? hint
+  hudText('Press ? for info', 780, 580, '#555', 11, 'right');
+
+  ctx.restore();
+}
+
+// ── Loop ──
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

@@ -1,0 +1,648 @@
+<!--
+PROTOTYPE: slidepuzzle
+SERIES: puz
+NUMBER: 018
+DATE: 2026-03-24
+MECHANIC: tile permutation — slide numbered tiles in a 4×4 grid with one empty space to reach the sorted configuration
+ANCESTRY: 15-Puzzle (1874 Noyes Chapman), Sam Loyd's puzzle craze (1880), A* search heuristic
+CONTROLS: Click tile adjacent to empty — slide it | Arrow keys — slide tile into empty space | R — shuffle | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 1-5 (Search & Symbols → Statistical — A* search, Manhattan distance heuristic, IDA*)
+AI-INSIGHT: The 15-puzzle inspired fundamental search algorithms. The Manhattan distance heuristic (sum of each tile's distance from its goal) was one of the first admissible heuristics for A* search. Exactly half of all starting positions are unsolvable — determined by the parity of the permutation.
+NOTES: Caused a global puzzle craze in 1880. Sam Loyd offered $1000 for solving the 14-15 swap (impossible — wrong parity). The puzzle teaches permutation groups through play.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PUZ-018 · SLIDE PUZZLE</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: pointer; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>PUZ-018 · SLIDE PUZZLE</h1>
+    <p><span class="tag series">PUZ — Puzzle</span> <span class="tag">Prototype #018</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Slide numbered tiles in a 4&times;4 grid to arrange them in order from 1 to 15, left-to-right and top-to-bottom, with the empty space in the bottom-right corner.</p>
+    <ul>
+      <li><strong>Click</strong> a tile adjacent to the empty space to slide it</li>
+      <li><strong>Arrow keys</strong> &mdash; slide the tile from that direction into the empty space</li>
+      <li><kbd>R</kbd> &mdash; Shuffle the board</li>
+      <li><kbd>?</kbd> &mdash; Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li>Solve the top row first, then the second row, then the bottom two rows together</li>
+      <li>Work left-to-right within each row</li>
+      <li>The move counter tracks your efficiency &mdash; experts solve in under 80 moves</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Noyes Chapman</strong> invented the 15-puzzle in 1874. By 1880 it had become a worldwide craze, with newspapers publishing solutions and offering prizes. <strong>Sam Loyd</strong>, the famous puzzle-maker, claimed to have invented it and offered $1,000 for anyone who could solve a configuration with tiles 14 and 15 swapped &mdash; knowing it was mathematically impossible.</p>
+    <p>Mathematicians proved that exactly half of all possible arrangements are reachable from the solved state. The puzzle became a cornerstone of combinatorial mathematics and group theory, demonstrating permutation parity in a tangible, physical form.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>Era 1&ndash;5 &mdash; Search &amp; Symbols to Statistical (A* search, Manhattan distance, IDA*).</strong></p>
+    <p>The 15-puzzle was one of the first problems tackled by AI search algorithms. The <strong>Manhattan distance heuristic</strong> &mdash; the sum of each tile's horizontal and vertical distance from its goal position &mdash; became a textbook example of an admissible heuristic for A* search. It never overestimates the true cost, guaranteeing optimal solutions.</p>
+    <p><strong>IDA*</strong> (Iterative Deepening A*) by Richard Korf in 1985 solved random 15-puzzle instances optimally, proving the average optimal solution length is about 52.5 moves. The puzzle remains a standard benchmark for heuristic search research.</p>
+
+    <h2>Classification</h2>
+    <ul>
+      <li><strong>Series:</strong> PUZ &mdash; Puzzle</li>
+      <li><strong>Mechanic:</strong> Tile permutation</li>
+      <li><strong>Input:</strong> Mouse click / Arrow keys</li>
+      <li><strong>AI Relevance:</strong> Heuristic search, A*, permutation parity</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This prototype implements solvability checking via permutation inversion counting. Only even-parity shuffles are generated. Smooth tile animation uses linear interpolation. The beveled tile style references the physical wooden sliding puzzles of the 1880s.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This is a non-commercial educational prototype created for the study of game design history and AI concepts. It is a clean-room reconstruction inspired by the public-domain 15-puzzle concept (1874). No copyrighted assets are used.</p>
+  </div>
+</div>
+
+<script>
+// --- Info panel ---
+var infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// --- Canvas setup ---
+var canvas = document.getElementById('c');
+var ctx = canvas.getContext('2d');
+var W = 800, H = 600;
+canvas.width = W;
+canvas.height = H;
+
+function resize() {
+  var scale = Math.min(window.innerWidth / W, window.innerHeight / H);
+  canvas.style.width = (W * scale) + 'px';
+  canvas.style.height = (H * scale) + 'px';
+}
+window.addEventListener('resize', resize);
+resize();
+
+// --- hudText helper ---
+function hudText(text, x, y, size, color, align) {
+  ctx.save();
+  ctx.font = size + 'px monospace';
+  ctx.fillStyle = color || '#fff';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+// --- Game constants ---
+var GRID = 4;
+var TILE_SIZE = 120;
+var GRID_PX = GRID * TILE_SIZE;
+var OFFSET_X = (W - GRID_PX) / 2;
+var OFFSET_Y = (H - GRID_PX) / 2 + 20;
+var GAP = 3;
+
+// Tile colors - warm gradient from gold to deep orange
+var TILE_COLORS = [
+  '#d4a437', '#c9963a', '#be883d', '#b37a40',
+  '#a86c43', '#c47832', '#d98a28', '#e09c1e',
+  '#c4652e', '#b85734', '#d06e2a', '#c58038',
+  '#a04828', '#9a3a2e', '#b05030', '#c06038'
+];
+
+// --- Game state ---
+var board = [];       // board[row][col] = tile number (0 = empty)
+var emptyR, emptyC;
+var moves = 0;
+var timerStart = 0;
+var elapsed = 0;
+var won = false;
+var shuffling = false;
+var winTime = 0;
+
+// Animation state
+var animating = false;
+var animTile = 0;
+var animFromR = 0, animFromC = 0;
+var animToR = 0, animToC = 0;
+var animProgress = 0;
+var ANIM_SPEED = 8; // frames to complete animation
+
+// Win celebration
+var confetti = [];
+
+function initBoard() {
+  board = [];
+  for (var r = 0; r < GRID; r++) {
+    board[r] = [];
+    for (var c = 0; c < GRID; c++) {
+      board[r][c] = r * GRID + c + 1;
+    }
+  }
+  board[GRID - 1][GRID - 1] = 0;
+  emptyR = GRID - 1;
+  emptyC = GRID - 1;
+}
+
+// Count inversions for solvability check
+function countInversions(arr) {
+  var inv = 0;
+  for (var i = 0; i < arr.length; i++) {
+    for (var j = i + 1; j < arr.length; j++) {
+      if (arr[i] > 0 && arr[j] > 0 && arr[i] > arr[j]) {
+        inv++;
+      }
+    }
+  }
+  return inv;
+}
+
+function isSolvable() {
+  var flat = [];
+  var emptyRow = 0;
+  for (var r = 0; r < GRID; r++) {
+    for (var c = 0; c < GRID; c++) {
+      flat.push(board[r][c]);
+      if (board[r][c] === 0) emptyRow = r;
+    }
+  }
+  var inv = countInversions(flat);
+  // For even-width grids: solvable if (inversions + empty row from bottom) is odd
+  var emptyFromBottom = GRID - emptyRow;
+  return (inv + emptyFromBottom) % 2 === 1;
+}
+
+function shuffle() {
+  // Fisher-Yates shuffle, then check solvability
+  var flat = [];
+  for (var i = 0; i <= 15; i++) flat.push(i);
+
+  do {
+    for (var i = flat.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = flat[i]; flat[i] = flat[j]; flat[j] = tmp;
+    }
+    // Place into board
+    for (var r = 0; r < GRID; r++) {
+      for (var c = 0; c < GRID; c++) {
+        board[r][c] = flat[r * GRID + c];
+        if (board[r][c] === 0) { emptyR = r; emptyC = c; }
+      }
+    }
+  } while (!isSolvable() || isWon());
+
+  moves = 0;
+  elapsed = 0;
+  timerStart = 0;
+  won = false;
+  animating = false;
+  confetti = [];
+}
+
+function isWon() {
+  for (var r = 0; r < GRID; r++) {
+    for (var c = 0; c < GRID; c++) {
+      if (r === GRID - 1 && c === GRID - 1) {
+        if (board[r][c] !== 0) return false;
+      } else {
+        if (board[r][c] !== r * GRID + c + 1) return false;
+      }
+    }
+  }
+  return true;
+}
+
+function tryMove(dr, dc) {
+  if (animating || won) return;
+  var tileR = emptyR + dr;
+  var tileC = emptyC + dc;
+  if (tileR < 0 || tileR >= GRID || tileC < 0 || tileC >= GRID) return;
+
+  if (timerStart === 0) timerStart = performance.now();
+
+  // Start animation
+  animTile = board[tileR][tileC];
+  animFromR = tileR;
+  animFromC = tileC;
+  animToR = emptyR;
+  animToC = emptyC;
+  animProgress = 0;
+  animating = true;
+
+  // Update board immediately for logic
+  board[emptyR][emptyC] = board[tileR][tileC];
+  board[tileR][tileC] = 0;
+  emptyR = tileR;
+  emptyC = tileC;
+  moves++;
+}
+
+function spawnConfetti() {
+  confetti = [];
+  for (var i = 0; i < 80; i++) {
+    confetti.push({
+      x: W / 2 + (Math.random() - 0.5) * 200,
+      y: H / 2,
+      vx: (Math.random() - 0.5) * 12,
+      vy: -Math.random() * 10 - 4,
+      size: Math.random() * 6 + 3,
+      color: ['#ff0', '#f80', '#0f0', '#0af', '#f0f', '#f44'][Math.floor(Math.random() * 6)],
+      rot: Math.random() * Math.PI * 2,
+      vr: (Math.random() - 0.5) * 0.3,
+      life: 1
+    });
+  }
+}
+
+// --- Input ---
+document.addEventListener('keydown', function(e) {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
+    e.preventDefault();
+    toggleInfo();
+    return;
+  }
+  if (e.key === 'Escape' && infoOpen) {
+    toggleInfo();
+    return;
+  }
+  if (infoOpen) return;
+
+  if (e.key === 'r' || e.key === 'R') {
+    initBoard();
+    shuffle();
+    return;
+  }
+
+  // Arrow keys: slide tile FROM that direction into the empty space
+  if (e.key === 'ArrowUp') { e.preventDefault(); tryMove(1, 0); }    // tile below empty slides up
+  else if (e.key === 'ArrowDown') { e.preventDefault(); tryMove(-1, 0); }  // tile above empty slides down
+  else if (e.key === 'ArrowLeft') { e.preventDefault(); tryMove(0, 1); }   // tile right of empty slides left
+  else if (e.key === 'ArrowRight') { e.preventDefault(); tryMove(0, -1); }  // tile left of empty slides right
+});
+
+canvas.addEventListener('click', function(e) {
+  if (infoOpen || animating || won) return;
+  var rect = canvas.getBoundingClientRect();
+  var scaleX = W / rect.width;
+  var scaleY = H / rect.height;
+  var mx = (e.clientX - rect.left) * scaleX;
+  var my = (e.clientY - rect.top) * scaleY;
+
+  var c = Math.floor((mx - OFFSET_X) / TILE_SIZE);
+  var r = Math.floor((my - OFFSET_Y) / TILE_SIZE);
+
+  if (r < 0 || r >= GRID || c < 0 || c >= GRID) return;
+  if (board[r][c] === 0) return;
+
+  // Check if adjacent to empty
+  var dr = emptyR - r;
+  var dc = emptyC - c;
+  if (Math.abs(dr) + Math.abs(dc) === 1) {
+    tryMove(-dr, -dc);
+  }
+});
+
+// --- Draw ---
+function drawTile(num, px, py) {
+  var s = TILE_SIZE - GAP * 2;
+  var x = px + GAP;
+  var y = py + GAP;
+
+  // Tile body with gradient
+  var baseColor = TILE_COLORS[num - 1] || '#888';
+  var grad = ctx.createLinearGradient(x, y, x, y + s);
+  grad.addColorStop(0, lightenColor(baseColor, 40));
+  grad.addColorStop(0.4, baseColor);
+  grad.addColorStop(1, darkenColor(baseColor, 40));
+  ctx.fillStyle = grad;
+
+  // Rounded rect manually (no roundRect)
+  var radius = 8;
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + s - radius, y);
+  ctx.arcTo(x + s, y, x + s, y + radius, radius);
+  ctx.lineTo(x + s, y + s - radius);
+  ctx.arcTo(x + s, y + s, x + s - radius, y + s, radius);
+  ctx.lineTo(x + radius, y + s);
+  ctx.arcTo(x, y + s, x, y + s - radius, radius);
+  ctx.lineTo(x, y + radius);
+  ctx.arcTo(x, y, x + radius, y, radius);
+  ctx.closePath();
+  ctx.fill();
+
+  // Bevel highlight (top-left edges)
+  ctx.save();
+  ctx.globalAlpha = 0.35;
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y + 1);
+  ctx.lineTo(x + s - radius, y + 1);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x + 1, y + radius);
+  ctx.lineTo(x + 1, y + s - radius);
+  ctx.stroke();
+
+  // Shadow (bottom-right edges)
+  ctx.strokeStyle = '#000';
+  ctx.globalAlpha = 0.3;
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y + s - 1);
+  ctx.lineTo(x + s - radius, y + s - 1);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x + s - 1, y + radius);
+  ctx.lineTo(x + s - 1, y + s - radius);
+  ctx.stroke();
+  ctx.restore();
+
+  // Number
+  ctx.save();
+  ctx.font = 'bold 40px monospace';
+  ctx.fillStyle = '#fff';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = 'rgba(0,0,0,0.5)';
+  ctx.shadowBlur = 4;
+  ctx.shadowOffsetX = 2;
+  ctx.shadowOffsetY = 2;
+  ctx.fillText(num, x + s / 2, y + s / 2);
+  ctx.restore();
+}
+
+function lightenColor(hex, amt) {
+  var r = parseInt(hex.slice(1, 3), 16);
+  var g = parseInt(hex.slice(3, 5), 16);
+  var b = parseInt(hex.slice(5, 7), 16);
+  r = Math.min(255, r + amt);
+  g = Math.min(255, g + amt);
+  b = Math.min(255, b + amt);
+  return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+}
+
+function darkenColor(hex, amt) {
+  var r = parseInt(hex.slice(1, 3), 16);
+  var g = parseInt(hex.slice(3, 5), 16);
+  var b = parseInt(hex.slice(5, 7), 16);
+  r = Math.max(0, r - amt);
+  g = Math.max(0, g - amt);
+  b = Math.max(0, b - amt);
+  return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+}
+
+function formatTime(ms) {
+  var s = Math.floor(ms / 1000);
+  var m = Math.floor(s / 60);
+  s = s % 60;
+  return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+}
+
+function update() {
+  if (infoOpen) return;
+
+  // Update timer
+  if (timerStart > 0 && !won) {
+    elapsed = performance.now() - timerStart;
+  }
+
+  // Update animation
+  if (animating) {
+    animProgress += 1 / ANIM_SPEED;
+    if (animProgress >= 1) {
+      animProgress = 1;
+      animating = false;
+
+      // Check win
+      if (!won && isWon()) {
+        won = true;
+        winTime = elapsed;
+        spawnConfetti();
+      }
+    }
+  }
+
+  // Update confetti
+  for (var i = confetti.length - 1; i >= 0; i--) {
+    var p = confetti[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.25;
+    p.rot += p.vr;
+    p.life -= 0.006;
+    if (p.life <= 0 || p.y > H + 20) {
+      confetti.splice(i, 1);
+    }
+  }
+}
+
+function draw() {
+  // Background
+  ctx.fillStyle = '#0a0a12';
+  ctx.fillRect(0, 0, W, H);
+
+  // Grid background
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fillRect(OFFSET_X - 4, OFFSET_Y - 4, GRID_PX + 8, GRID_PX + 8);
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(OFFSET_X - 4, OFFSET_Y - 4, GRID_PX + 8, GRID_PX + 8);
+
+  // Empty space subtle indicator
+  ctx.fillStyle = '#12121e';
+  var exr = emptyR, exc = emptyC;
+  // If animating, the visual empty is at the FROM position
+  if (animating) { exr = animFromR; exc = animFromC; }
+  ctx.fillRect(
+    OFFSET_X + exc * TILE_SIZE + GAP,
+    OFFSET_Y + exr * TILE_SIZE + GAP,
+    TILE_SIZE - GAP * 2,
+    TILE_SIZE - GAP * 2
+  );
+
+  // Draw tiles
+  for (var r = 0; r < GRID; r++) {
+    for (var c = 0; c < GRID; c++) {
+      var num = board[r][c];
+      if (num === 0) continue;
+
+      // Skip the animating tile (draw it separately)
+      if (animating && num === animTile) continue;
+
+      var px = OFFSET_X + c * TILE_SIZE;
+      var py = OFFSET_Y + r * TILE_SIZE;
+      drawTile(num, px, py);
+    }
+  }
+
+  // Draw animating tile
+  if (animating) {
+    var t = animProgress;
+    // Ease-out
+    t = 1 - (1 - t) * (1 - t);
+    var fx = OFFSET_X + animFromC * TILE_SIZE;
+    var fy = OFFSET_Y + animFromR * TILE_SIZE;
+    var tx = OFFSET_X + animToC * TILE_SIZE;
+    var ty = OFFSET_Y + animToR * TILE_SIZE;
+    var cx = fx + (tx - fx) * t;
+    var cy = fy + (ty - fy) * t;
+    drawTile(animTile, cx, cy);
+  }
+
+  // HUD - Title
+  hudText('15 PUZZLE', W / 2, 28, 24, '#7bf', 'center');
+
+  // Moves
+  hudText('MOVES: ' + moves, OFFSET_X, OFFSET_Y - 16, 16, '#ccc', 'left');
+
+  // Timer
+  hudText('TIME: ' + formatTime(elapsed), OFFSET_X + GRID_PX, OFFSET_Y - 16, 16, '#ccc', 'right');
+
+  // Controls hint
+  hudText('[R] Shuffle   [?] Info   Click or Arrow Keys to slide', W / 2, H - 18, 12, '#555', 'center');
+
+  // Win overlay
+  if (won) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.fillRect(0, 0, W, H);
+
+    hudText('SOLVED!', W / 2, H / 2 - 60, 48, '#ff0', 'center');
+    hudText(moves + ' moves in ' + formatTime(winTime), W / 2, H / 2, 22, '#fff', 'center');
+    hudText('Press [R] to play again', W / 2, H / 2 + 50, 16, '#888', 'center');
+
+    // Draw confetti
+    for (var i = 0; i < confetti.length; i++) {
+      var p = confetti[i];
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.globalAlpha = p.life;
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+}
+
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+// --- Init ---
+initBoard();
+shuffle();
+requestAnimationFrame(loop);
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

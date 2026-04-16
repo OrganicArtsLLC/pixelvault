@@ -1,0 +1,705 @@
+<!--
+PROTOTYPE: swarm-rescue
+SERIES: sht
+NUMBER: 001
+DATE: 2026-03-26
+MECHANIC: twin-stick — move and shoot independently in all directions, wave-based arena survival
+ANCESTRY: Robotron: 2084 (1982, Williams/Eugene Jarvis), Smash TV (1990), Geometry Wars (2003)
+CONTROLS: WASD — move | Arrow keys — shoot direction | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Early Neural — enemy wave choreography, rescue mechanics, escalating threat matrices)
+AI-INSIGHT: Twin-stick decoupled movement from attack for the first time. Before Robotron, you moved toward danger to fight it. After Robotron, you could flee and fight simultaneously. This single mechanical innovation birthed an entire genre and changed action game design forever. The family rescue mechanic added emotional stakes to pure survival.
+NOTES: Eugene Jarvis's masterpiece. The twin-stick mechanic is one of gaming's most consequential inventions — it split the player's attention into two parallel control streams, creating cognitive load as game design.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SHT-001 · SWARM RESCUE</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .content {
+  max-width: 700px; margin: 40px auto; padding: 20px; line-height: 1.7;
+}
+#info-panel h2 { color: #f90; margin-bottom: 10px; }
+#info-panel kbd { background: #333; padding: 2px 8px; border-radius: 3px; color: #fff; }
+#info-panel .close-btn { position: fixed; top: 15px; right: 25px; color: #f90;
+  font-size: 28px; cursor: pointer; z-index: 101; }
+</style>
+</head>
+<body>
+<canvas id="c" width="800" height="600"></canvas>
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="content">
+    <h2>SHT-001 · SWARM RESCUE</h2>
+    <p><strong>Mechanic:</strong> Twin-stick — move and shoot independently in 8 directions</p>
+    <p><strong>Ancestry:</strong> Robotron: 2084 (1982, Williams), Smash TV (1990), Geometry Wars (2003)</p>
+    <p><strong>Controls:</strong></p>
+    <ul>
+      <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> — Move</li>
+      <li><kbd>Arrow keys</kbd> — Shoot direction (8-way)</li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — Toggle this panel</li>
+    </ul>
+    <p><strong>Rules:</strong> Survive waves of enemies. Rescue humans (green) for bonus points
+    before hulks (purple) crush them. Grunts chase you. Brains reprogram humans into enemies.
+    Spheroids spawn enforcers. Clear all enemies to advance.</p>
+    <p><strong>AI Insight:</strong> Twin-stick decoupled movement from attack for the first time.
+    Before Robotron, you moved toward danger to fight it. After, you could flee and fight simultaneously.
+    This split the player's attention into two parallel control streams — cognitive load as game design.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+
+let infoPanelOpen = false;
+function toggleInfo() {
+  infoPanelOpen = !infoPanelOpen;
+  document.getElementById('info-panel').style.display = infoPanelOpen ? 'block' : 'none';
+}
+
+const W = 800, H = 600;
+const BORDER = 20;
+const PLAYER_SPEED = 4;
+const BULLET_SPEED = 10;
+const FIRE_RATE = 6;   // frames between shots
+
+// --- GAME STATE ---
+let player, bullets, enemies, humans, particles;
+let wave, lives, score, state, fireTimer;
+let keys = {};
+
+function initPlayer() {
+  return { x: W / 2, y: H / 2, w: 16, h: 16, invincible: 60 };
+}
+
+// --- ENEMY TYPES ---
+// Grunt: chases player, slow
+// Hulk: indestructible, chases humans, slow
+// Electrode: stationary hazard
+// Spheroid: wanders, spawns enforcers
+// Enforcer: spawned by spheroid, shoots diagonally
+// Brain: chases humans, converts them to enemies
+
+function spawnEnemies(waveNum) {
+  const list = [];
+  const gruntCount = Math.min(5 + waveNum * 3, 30);
+  const hulkCount = Math.min(Math.floor(waveNum / 2), 5);
+  const electrodeCount = Math.min(waveNum, 8);
+  const spheroidCount = Math.min(Math.floor((waveNum - 1) / 2), 3);
+  const brainCount = Math.min(Math.floor((waveNum - 2) / 3), 3);
+
+  for (let i = 0; i < gruntCount; i++) {
+    list.push(makeEnemy('grunt'));
+  }
+  for (let i = 0; i < hulkCount; i++) {
+    list.push(makeEnemy('hulk'));
+  }
+  for (let i = 0; i < electrodeCount; i++) {
+    list.push(makeEnemy('electrode'));
+  }
+  for (let i = 0; i < spheroidCount; i++) {
+    list.push(makeEnemy('spheroid'));
+  }
+  for (let i = 0; i < brainCount; i++) {
+    list.push(makeEnemy('brain'));
+  }
+  return list;
+}
+
+function makeEnemy(type) {
+  let x, y;
+  // Spawn away from player
+  do {
+    x = BORDER + 30 + Math.random() * (W - BORDER * 2 - 60);
+    y = BORDER + 30 + Math.random() * (H - BORDER * 2 - 60);
+  } while (Math.abs(x - player.x) < 120 && Math.abs(y - player.y) < 120);
+
+  const base = { x, y, w: 14, h: 14, type, alive: true, timer: 0 };
+
+  switch (type) {
+    case 'grunt':
+      return { ...base, speed: 1.0 + wave * 0.15, color: '#f44', hp: 1 };
+    case 'hulk':
+      return { ...base, w: 22, h: 22, speed: 0.6, color: '#a3f', hp: Infinity };
+    case 'electrode':
+      return { ...base, speed: 0, color: '#ff0', hp: 1 };
+    case 'spheroid':
+      return { ...base, speed: 0.8, color: '#f8f', hp: 2, spawnTimer: 180 + Math.floor(Math.random() * 120), angle: Math.random() * Math.PI * 2 };
+    case 'brain':
+      return { ...base, speed: 0.9, color: '#4ff', hp: 1 };
+    default:
+      return base;
+  }
+}
+
+function spawnHumans(waveNum) {
+  const count = Math.min(3 + waveNum, 10);
+  const list = [];
+  for (let i = 0; i < count; i++) {
+    list.push({
+      x: BORDER + 40 + Math.random() * (W - BORDER * 2 - 80),
+      y: BORDER + 40 + Math.random() * (H - BORDER * 2 - 80),
+      w: 12, h: 12, alive: true,
+      vx: (Math.random() - 0.5) * 1.5,
+      vy: (Math.random() - 0.5) * 1.5,
+    });
+  }
+  return list;
+}
+
+function spawnParticles(x, y, color, count) {
+  for (let i = 0; i < count; i++) {
+    particles.push({
+      x, y,
+      vx: (Math.random() - 0.5) * 8,
+      vy: (Math.random() - 0.5) * 8,
+      life: 15 + Math.random() * 15,
+      color,
+    });
+  }
+}
+
+function initGame() {
+  player = initPlayer();
+  bullets = [];
+  enemies = [];
+  humans = [];
+  particles = [];
+  wave = 1;
+  lives = 3;
+  score = 0;
+  fireTimer = 0;
+  state = 'title';
+}
+
+function startWave() {
+  player.x = W / 2;
+  player.y = H / 2;
+  player.invincible = 60;
+  bullets = [];
+  particles = [];
+  enemies = spawnEnemies(wave);
+  humans = spawnHumans(wave);
+  state = 'play';
+}
+
+// --- UPDATE ---
+function update() {
+  if (infoPanelOpen) return;
+  if (state !== 'play') return;
+
+  // Player movement (WASD)
+  let dx = 0, dy = 0;
+  if (keys['w'] || keys['W']) dy = -1;
+  if (keys['s'] || keys['S']) dy = 1;
+  if (keys['a'] || keys['A']) dx = -1;
+  if (keys['d'] || keys['D']) dx = 1;
+  if (dx && dy) { dx *= 0.707; dy *= 0.707; }
+  player.x += dx * PLAYER_SPEED;
+  player.y += dy * PLAYER_SPEED;
+  player.x = Math.max(BORDER, Math.min(W - BORDER - player.w, player.x));
+  player.y = Math.max(BORDER, Math.min(H - BORDER - player.h, player.y));
+  player.invincible = Math.max(0, player.invincible - 1);
+
+  // Shooting (arrow keys — 8 directional)
+  let sx = 0, sy = 0;
+  if (keys['ArrowUp']) sy = -1;
+  if (keys['ArrowDown']) sy = 1;
+  if (keys['ArrowLeft']) sx = -1;
+  if (keys['ArrowRight']) sx = 1;
+
+  fireTimer = Math.max(0, fireTimer - 1);
+  if ((sx || sy) && fireTimer <= 0) {
+    const len = Math.sqrt(sx * sx + sy * sy);
+    bullets.push({
+      x: player.x + player.w / 2,
+      y: player.y + player.h / 2,
+      vx: (sx / len) * BULLET_SPEED,
+      vy: (sy / len) * BULLET_SPEED,
+      life: 60,
+    });
+    fireTimer = FIRE_RATE;
+  }
+
+  // Update bullets
+  for (let i = bullets.length - 1; i >= 0; i--) {
+    const b = bullets[i];
+    b.x += b.vx;
+    b.y += b.vy;
+    b.life--;
+    if (b.life <= 0 || b.x < BORDER || b.x > W - BORDER || b.y < BORDER || b.y > H - BORDER) {
+      bullets.splice(i, 1);
+    }
+  }
+
+  // Update enemies
+  for (const e of enemies) {
+    if (!e.alive) continue;
+    e.timer++;
+
+    switch (e.type) {
+      case 'grunt': {
+        // Chase player with slight wobble
+        const angle = Math.atan2(player.y - e.y, player.x - e.x);
+        const wobble = Math.sin(e.timer * 0.1) * 0.3;
+        e.x += Math.cos(angle + wobble) * e.speed;
+        e.y += Math.sin(angle + wobble) * e.speed;
+        break;
+      }
+      case 'hulk': {
+        // Chase nearest human
+        let target = null, minD = Infinity;
+        for (const h of humans) {
+          if (!h.alive) continue;
+          const d = Math.hypot(h.x - e.x, h.y - e.y);
+          if (d < minD) { minD = d; target = h; }
+        }
+        if (target) {
+          const angle = Math.atan2(target.y - e.y, target.x - e.x);
+          e.x += Math.cos(angle) * e.speed;
+          e.y += Math.sin(angle) * e.speed;
+          // Kill human on contact
+          if (minD < 20) {
+            target.alive = false;
+            spawnParticles(target.x, target.y, '#0f0', 8);
+          }
+        } else {
+          // Wander if no humans
+          const angle = Math.atan2(player.y - e.y, player.x - e.x);
+          e.x += Math.cos(angle) * e.speed * 0.5;
+          e.y += Math.sin(angle) * e.speed * 0.5;
+        }
+        break;
+      }
+      case 'electrode':
+        // Stationary — just blink
+        break;
+      case 'spheroid': {
+        // Wander in circles, spawn enforcers
+        e.angle += 0.02;
+        e.x += Math.cos(e.angle) * e.speed;
+        e.y += Math.sin(e.angle) * e.speed;
+        e.spawnTimer--;
+        if (e.spawnTimer <= 0) {
+          enemies.push({
+            x: e.x, y: e.y, w: 10, h: 10, type: 'enforcer',
+            alive: true, timer: 0, speed: 2.5, color: '#f8f',
+            hp: 1, vx: (Math.random() - 0.5) * 3, vy: (Math.random() - 0.5) * 3,
+          });
+          e.spawnTimer = 200 + Math.floor(Math.random() * 100);
+        }
+        break;
+      }
+      case 'enforcer': {
+        // Move diagonally, bounce off walls
+        e.x += e.vx;
+        e.y += e.vy;
+        if (e.x < BORDER || e.x > W - BORDER - e.w) e.vx = -e.vx;
+        if (e.y < BORDER || e.y > H - BORDER - e.h) e.vy = -e.vy;
+        break;
+      }
+      case 'brain': {
+        // Chase nearest human, convert on contact
+        let target = null, minD = Infinity;
+        for (const h of humans) {
+          if (!h.alive) continue;
+          const d = Math.hypot(h.x - e.x, h.y - e.y);
+          if (d < minD) { minD = d; target = h; }
+        }
+        if (target) {
+          const angle = Math.atan2(target.y - e.y, target.x - e.x);
+          e.x += Math.cos(angle) * e.speed;
+          e.y += Math.sin(angle) * e.speed;
+          if (minD < 16) {
+            // Convert human to grunt
+            target.alive = false;
+            enemies.push({
+              x: target.x, y: target.y, w: 14, h: 14,
+              type: 'grunt', alive: true, timer: 0,
+              speed: 1.5 + wave * 0.1, color: '#fa0', hp: 1,
+            });
+            spawnParticles(target.x, target.y, '#4ff', 10);
+          }
+        } else {
+          const angle = Math.atan2(player.y - e.y, player.x - e.x);
+          e.x += Math.cos(angle) * e.speed;
+          e.y += Math.sin(angle) * e.speed;
+        }
+        break;
+      }
+    }
+
+    // Clamp to arena
+    e.x = Math.max(BORDER, Math.min(W - BORDER - e.w, e.x));
+    e.y = Math.max(BORDER, Math.min(H - BORDER - e.h, e.y));
+  }
+
+  // Update humans (wander)
+  for (const h of humans) {
+    if (!h.alive) continue;
+    h.x += h.vx;
+    h.y += h.vy;
+    if (h.x < BORDER + 10 || h.x > W - BORDER - 20) h.vx = -h.vx;
+    if (h.y < BORDER + 10 || h.y > H - BORDER - 20) h.vy = -h.vy;
+
+    // Player rescues human on contact
+    if (Math.abs(h.x - player.x) < 18 && Math.abs(h.y - player.y) < 18) {
+      h.alive = false;
+      score += 1000 * wave;
+      spawnParticles(h.x + 6, h.y + 6, '#0f0', 10);
+    }
+  }
+
+  // Bullet-enemy collisions
+  for (let bi = bullets.length - 1; bi >= 0; bi--) {
+    const b = bullets[bi];
+    for (const e of enemies) {
+      if (!e.alive) continue;
+      if (b.x > e.x && b.x < e.x + e.w && b.y > e.y && b.y < e.y + e.h) {
+        e.hp--;
+        if (e.hp <= 0) {
+          e.alive = false;
+          const points = e.type === 'spheroid' ? 1000 : e.type === 'brain' ? 500 :
+                         e.type === 'enforcer' ? 150 : e.type === 'electrode' ? 25 : 100;
+          score += points;
+          spawnParticles(e.x + e.w / 2, e.y + e.h / 2, e.color, 10);
+        }
+        bullets.splice(bi, 1);
+        break;
+      }
+    }
+  }
+
+  // Player-enemy collision
+  if (player.invincible <= 0) {
+    for (const e of enemies) {
+      if (!e.alive) continue;
+      if (player.x < e.x + e.w && player.x + player.w > e.x &&
+          player.y < e.y + e.h && player.y + player.h > e.y) {
+        lives--;
+        spawnParticles(player.x + 8, player.y + 8, '#fff', 20);
+        if (lives <= 0) {
+          state = 'gameover';
+        } else {
+          player.x = W / 2;
+          player.y = H / 2;
+          player.invincible = 90;
+        }
+        break;
+      }
+    }
+  }
+
+  // Particles
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vx *= 0.96;
+    p.vy *= 0.96;
+    p.life--;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+
+  // Wave complete — all killable enemies dead
+  const killable = enemies.filter(e => e.alive && e.hp !== Infinity);
+  if (killable.length === 0) {
+    wave++;
+    score += wave * 2000;
+    startWave();
+  }
+}
+
+// --- DRAW ---
+function draw() {
+  // Background
+  ctx.fillStyle = '#0a0a0a';
+  ctx.fillRect(0, 0, W, H);
+
+  // Arena border
+  ctx.strokeStyle = '#338';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(BORDER, BORDER, W - BORDER * 2, H - BORDER * 2);
+
+  // Grid lines (subtle)
+  ctx.strokeStyle = '#111';
+  ctx.lineWidth = 1;
+  for (let x = BORDER; x < W - BORDER; x += 40) {
+    ctx.beginPath(); ctx.moveTo(x, BORDER); ctx.lineTo(x, H - BORDER); ctx.stroke();
+  }
+  for (let y = BORDER; y < H - BORDER; y += 40) {
+    ctx.beginPath(); ctx.moveTo(BORDER, y); ctx.lineTo(W - BORDER, y); ctx.stroke();
+  }
+
+  if (state === 'title') {
+    ctx.fillStyle = '#f90';
+    ctx.font = 'bold 48px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('SWARM RESCUE', W / 2, 200);
+    ctx.fillStyle = '#aaa';
+    ctx.font = '18px monospace';
+    ctx.fillText('Twin-stick arena survival', W / 2, 250);
+    ctx.fillText('WASD — move  |  ARROW KEYS — shoot', W / 2, 290);
+    ctx.fillText('Rescue humans (green) for bonus points', W / 2, 320);
+    ctx.fillText('Press any arrow key to start', W / 2, 380);
+    ctx.fillStyle = '#666';
+    ctx.font = '14px monospace';
+    ctx.fillText('SHT-001 · Twin-Stick / Arena Shooter Series', W / 2, 560);
+    return;
+  }
+
+  // Humans
+  for (const h of humans) {
+    if (!h.alive) continue;
+    ctx.fillStyle = '#0f0';
+    ctx.fillRect(h.x, h.y, h.w, h.h);
+    // Head
+    ctx.fillRect(h.x + 2, h.y - 5, 8, 6);
+  }
+
+  // Enemies
+  for (const e of enemies) {
+    if (!e.alive) continue;
+    ctx.fillStyle = e.color;
+
+    switch (e.type) {
+      case 'grunt':
+        ctx.fillRect(e.x, e.y, e.w, e.h);
+        break;
+      case 'hulk':
+        ctx.fillRect(e.x, e.y, e.w, e.h);
+        ctx.fillStyle = '#61a';
+        ctx.fillRect(e.x + 3, e.y + 3, e.w - 6, e.h - 6);
+        break;
+      case 'electrode':
+        // Blinking cross
+        if (Math.floor(e.timer / 4) % 2) {
+          ctx.fillRect(e.x + 4, e.y, 6, e.h);
+          ctx.fillRect(e.x, e.y + 4, e.w, 6);
+        } else {
+          ctx.fillRect(e.x + 2, e.y + 2, 10, 10);
+        }
+        break;
+      case 'spheroid':
+        // Pulsing diamond
+        ctx.save();
+        ctx.translate(e.x + e.w / 2, e.y + e.h / 2);
+        ctx.rotate(e.timer * 0.05);
+        const s = 6 + Math.sin(e.timer * 0.1) * 2;
+        ctx.beginPath();
+        ctx.moveTo(0, -s); ctx.lineTo(s, 0); ctx.lineTo(0, s); ctx.lineTo(-s, 0);
+        ctx.closePath(); ctx.fill();
+        ctx.restore();
+        break;
+      case 'enforcer':
+        ctx.beginPath();
+        ctx.arc(e.x + 5, e.y + 5, 5, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+      case 'brain':
+        // Wavy shape
+        ctx.fillRect(e.x + 2, e.y, 10, e.h);
+        ctx.fillStyle = '#2aa';
+        ctx.fillRect(e.x + 4, e.y + 2, 6, 3);
+        ctx.fillRect(e.x + 4, e.y + 7, 6, 3);
+        break;
+    }
+  }
+
+  // Bullets
+  ctx.fillStyle = '#fff';
+  for (const b of bullets) {
+    ctx.fillRect(b.x - 2, b.y - 2, 4, 4);
+  }
+
+  // Player
+  const flashOff = player.invincible > 0 && Math.floor(player.invincible / 3) % 2;
+  if (!flashOff) {
+    ctx.fillStyle = '#4af';
+    ctx.fillRect(player.x, player.y, player.w, player.h);
+    ctx.fillStyle = '#8cf';
+    ctx.fillRect(player.x + 3, player.y + 3, 10, 10);
+  }
+
+  // Particles
+  for (const p of particles) {
+    ctx.globalAlpha = p.life / 30;
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+  }
+  ctx.globalAlpha = 1;
+
+  // HUD
+  ctx.fillStyle = '#fff';
+  ctx.font = '16px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText(`SCORE: ${score}`, 15, 15);
+  ctx.textAlign = 'center';
+  ctx.fillText(`WAVE ${wave}`, W / 2, 15);
+  ctx.textAlign = 'right';
+  ctx.fillText(`LIVES: ${'♥'.repeat(lives)}`, W - 15, 15);
+
+  // Human count
+  const humanCount = humans.filter(h => h.alive).length;
+  if (humanCount > 0) {
+    ctx.fillStyle = '#0f0';
+    ctx.textAlign = 'left';
+    ctx.fillText(`HUMANS: ${humanCount}`, 15, H - 8);
+  }
+
+  // Enemy count
+  const enemyCount = enemies.filter(e => e.alive).length;
+  ctx.fillStyle = '#f44';
+  ctx.textAlign = 'right';
+  ctx.fillText(`ENEMIES: ${enemyCount}`, W - 15, H - 8);
+
+  if (state === 'gameover') {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#f44';
+    ctx.font = 'bold 42px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('GAME OVER', W / 2, 250);
+    ctx.fillStyle = '#fff';
+    ctx.font = '20px monospace';
+    ctx.fillText(`Score: ${score}  |  Wave: ${wave}`, W / 2, 300);
+    ctx.fillStyle = '#0f0';
+    ctx.font = '16px monospace';
+    ctx.fillText(`Humans rescued: ${score > 0 ? 'some' : 'none'}`, W / 2, 340);
+    ctx.fillStyle = '#aaa';
+    ctx.fillText('Press R to restart', W / 2, 390);
+  }
+}
+
+// --- INPUT ---
+document.addEventListener('keydown', e => {
+  keys[e.key] = true;
+  if (e.key === '?') { toggleInfo(); return; }
+  if (e.key === 'r' || e.key === 'R') { initGame(); startWave(); return; }
+  if (state === 'title' && e.key.startsWith('Arrow')) { startWave(); }
+  if (e.key === ' ') e.preventDefault();
+});
+document.addEventListener('keyup', e => { keys[e.key] = false; });
+
+// --- GAME LOOP ---
+initGame();
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: twin-stick ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("twin-stick");
+</script>
+</body>
+</html>

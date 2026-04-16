@@ -1,0 +1,763 @@
+<!--
+PROTOTYPE: gem-aim
+SERIES: def
+NUMBER: 006
+DATE: 2026-03-24
+MECHANIC: competitive Breakout — bounce a ball to break gems on your side; cleared gems become attacks raining on opponent's field; first to lose their ball loses
+ANCESTRY: Breakout (1976, Atari) → Arkanoid (1986, Taito) → Puchi Carat (1997, Taito)
+CONTROLS: Mouse — move paddle | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 4 (Intelligence Explosion — competitive puzzle-action hybrid AI)
+AI-INSIGHT: Puchi Carat merged Breakout with competitive puzzle-game attack mechanics. The AI opponent must balance offense (clearing gem clusters for attacks) with defense (surviving incoming garbage). This dual-objective optimization presages modern game AI that must weigh multiple competing goals simultaneously.
+NOTES: Split-screen competitive Breakout. Player (left) vs AI (right).
+       Match-3 gem clearing sends garbage to opponent. Mouse controls paddle.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DEF-006 · GEM AIM</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: none; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>DEF-006 · GEM AIM</h1>
+    <p><span class="tag series">DEF — Deflection</span> <span class="tag">Prototype #006</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Competitive Breakout! You play on the left field. Bounce your ball to break gems. Clear groups of 3+ same-colored gems to send garbage blocks raining onto your opponent's field. If the opponent's gems reach their paddle line, they lose. Don't let your own gems reach yours!</p>
+    <ul>
+      <li><kbd>Mouse</kbd> — Move paddle left/right</li>
+      <li><kbd>R</kbd> — Restart match</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Aim for clusters:</strong> Breaking 3+ gems of the same color sends garbage to the opponent.</li>
+      <li><strong>Combos matter:</strong> Larger clusters send more garbage rows. A 5+ chain is devastating.</li>
+      <li><strong>Watch the danger line:</strong> If gems reach the red line near your paddle, you lose.</li>
+      <li><strong>Speed builds:</strong> The ball speeds up with each paddle hit — keep control.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Breakout (1976, Atari) &rarr; Arkanoid (1986, Taito) &rarr; Puchi Carat (1997, Taito)</p>
+    <p>Puchi Carat (1997) was Taito's ingenious fusion of Breakout with competitive puzzle-game mechanics. Rather than simply clearing bricks, players broke colored gems &mdash; and matching clusters became projectile attacks on the opponent's field. This transformed the solitary Breakout formula into a frantic head-to-head battle, borrowing the "garbage attack" concept from competitive puzzle games like Puyo Puyo and Tetris Attack.</p>
+    <p>The game featured anime-styled characters, each with slightly different paddle sizes and special attacks, adding a fighting-game layer of character selection to the puzzle-action core.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 4 &mdash; Intelligence Explosion (1993&ndash;2005)</p>
+    <p><strong>Contemporary AI:</strong> Deep Blue defeats Kasparov (1997). Neural networks gain traction. Game AI begins using finite state machines and planning algorithms for complex multi-objective decisions.</p>
+    <p><strong>Hidden Intelligence:</strong> Puchi Carat's AI opponent faces a dual-objective problem: it must simultaneously play Breakout competently (keeping the ball alive, aiming at gem clusters) while also managing a defensive puzzle (surviving incoming garbage attacks). This requires the AI to balance short-term ball control with medium-term offensive strategy &mdash; an early example of multi-objective optimization in arcade AI.</p>
+    <p><strong>The Convergence:</strong> Modern competitive game AI (e.g., fighting game bots, RTS agents) must similarly balance offensive and defensive objectives. The multi-objective balancing act in Puchi Carat anticipated the utility-based AI systems that now drive complex game agents.</p>
+    <p><strong>If AI Had Designed This:</strong> Real-time opponent modeling &mdash; the AI would learn which gem colors the human player targets and preemptively reinforce those areas with garbage, turning defense into targeted counter-strategy.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: DEF &mdash; Deflection</h3>
+    <p>Puchi Carat belongs to the deflection lineage: the player redirects a ball to break gems. Breakout, Arkanoid, and Pong are siblings. The competitive element adds a puzzle-game dimension.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Competitive Breakout with gem-attack system.</strong> Mouse-controlled paddle. Ball physics with wall bounces. Match-3 gem clearing sends garbage to opponent. Split-screen versus AI.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Split-screen competitive Breakout &mdash; does the versus format create tension?</li>
+      <li>Gem clustering &mdash; does match-3 clearing feel rewarding and strategic?</li>
+      <li>Garbage attacks &mdash; does sending blocks to the opponent feel impactful?</li>
+      <li>Dual attention &mdash; can players manage their own field while tracking the opponent?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Split-screen competitive Breakout with gem clearing and garbage attacks. Player (left) vs AI (right). Mouse controls paddle. Five gem colors with match-3 mechanics. Garbage rows push gems toward paddle danger line.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+  canvas.style.cursor = infoOpen ? 'default' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+const keys = {};
+window.addEventListener('keydown', e => { if (!infoOpen) keys[e.code] = true; });
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+// Mouse tracking
+let mouseX = 0;
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  mouseX = (e.clientX - rect.left) / rect.width * W;
+});
+
+// --- CONSTANTS ---
+const FIELD_W = 360, FIELD_H = 520;
+const FIELD_Y = 50;
+const P_FIELD_X = 20;           // player field left
+const AI_FIELD_X = W - 20 - FIELD_W; // AI field left
+const GEM_COLS = 10, GEM_ROWS = 8;
+const GEM_W = Math.floor(FIELD_W / GEM_COLS);
+const GEM_H = 20;
+const PADDLE_W = 70, PADDLE_H = 10;
+const BALL_R = 5;
+const DANGER_Y = FIELD_H - 60;  // danger line relative to field top
+const GEM_COLORS = ['#e44', '#4ae', '#4e4', '#ea4', '#c4e']; // red, blue, green, yellow, purple
+const GEM_NAMES = ['R', 'B', 'G', 'Y', 'P'];
+const GARBAGE_COLOR = '#777';
+
+// --- GAME STATE ---
+let gameState, stateTimer, frame;
+let playerField, aiField;
+let playerBall, aiBall;
+let playerPaddle, aiPaddle;
+let playerWins, aiWins;
+let roundMsg;
+let particles;
+let comboText;
+
+function makeField() {
+  const gems = [];
+  for (let r = 0; r < GEM_ROWS; r++) {
+    const row = [];
+    for (let c = 0; c < GEM_COLS; c++) {
+      row.push({ color: Math.floor(Math.random() * 5), alive: true, garbage: false });
+    }
+    row.push(null); // sentinel
+    gems.push(row);
+  }
+  return { gems, pushTimer: 0, pushInterval: 600, garbageQueue: 0 };
+}
+
+function makeBall(fieldX) {
+  return {
+    x: fieldX + FIELD_W / 2, y: FIELD_Y + FIELD_H - 40,
+    vx: (Math.random() > 0.5 ? 1 : -1) * 2, vy: -3.5,
+    speed: 3.5, alive: true, stuck: true
+  };
+}
+
+function makePaddle(fieldX) {
+  return { x: fieldX + FIELD_W / 2 - PADDLE_W / 2, y: FIELD_Y + FIELD_H - 25, fieldX };
+}
+
+function initGame() {
+  playerWins = 0; aiWins = 0;
+  particles = [];
+  comboText = [];
+  startRound();
+}
+
+function startRound() {
+  playerField = makeField();
+  aiField = makeField();
+  playerBall = makeBall(P_FIELD_X);
+  aiBall = makeBall(AI_FIELD_X);
+  playerPaddle = makePaddle(P_FIELD_X);
+  aiPaddle = makePaddle(AI_FIELD_X);
+  playerBall.stuck = true;
+  aiBall.stuck = true;
+  gameState = 'serve';
+  stateTimer = 90;
+  frame = 0;
+  roundMsg = '';
+  particles = [];
+  comboText = [];
+}
+
+initGame();
+
+// --- GEM FIELD LOGIC ---
+function gemScreenPos(fieldX, col, row) {
+  return { x: fieldX + col * GEM_W, y: FIELD_Y + row * GEM_H };
+}
+
+function floodFill(field, r, c, color, visited) {
+  if (r < 0 || r >= field.gems.length || c < 0 || c >= GEM_COLS) return [];
+  if (visited[r * GEM_COLS + c]) return [];
+  const gem = field.gems[r][c];
+  if (!gem || !gem.alive || gem.garbage || gem.color !== color) return [];
+  visited[r * GEM_COLS + c] = true;
+  let cells = [{ r, c }];
+  cells = cells.concat(floodFill(field, r - 1, c, color, visited));
+  cells = cells.concat(floodFill(field, r + 1, c, color, visited));
+  cells = cells.concat(floodFill(field, r, c - 1, color, visited));
+  cells = cells.concat(floodFill(field, r, c + 1, color, visited));
+  return cells;
+}
+
+function clearGems(field, fieldX, opponentField) {
+  let totalCleared = 0;
+  const visited = {};
+  for (let r = 0; r < field.gems.length; r++) {
+    for (let c = 0; c < GEM_COLS; c++) {
+      const gem = field.gems[r][c];
+      if (!gem || !gem.alive || gem.garbage) continue;
+      if (visited[r * GEM_COLS + c]) continue;
+      const group = floodFill(field, r, c, gem.color, visited);
+      if (group.length >= 3) {
+        for (const g of group) {
+          const pos = gemScreenPos(fieldX, g.c, g.r);
+          spawnParticles(pos.x + GEM_W / 2, pos.y + GEM_H / 2, GEM_COLORS[gem.color], 6);
+          field.gems[g.r][g.c].alive = false;
+        }
+        totalCleared += group.length;
+        // Also clear adjacent garbage
+        for (const g of group) {
+          clearAdjacentGarbage(field, fieldX, g.r, g.c);
+        }
+      }
+    }
+  }
+  if (totalCleared >= 3) {
+    const garbageRows = Math.floor(totalCleared / 4);
+    if (garbageRows > 0) {
+      opponentField.garbageQueue += garbageRows;
+      const cx = fieldX + FIELD_W / 2;
+      comboText.push({ x: cx, y: FIELD_Y + 100, text: '+' + garbageRows + ' GARBAGE', timer: 60, color: '#f84' });
+    }
+  }
+  return totalCleared;
+}
+
+function clearAdjacentGarbage(field, fieldX, r, c) {
+  const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+  for (const [dr, dc] of dirs) {
+    const nr = r + dr, nc = c + dc;
+    if (nr < 0 || nr >= field.gems.length || nc < 0 || nc >= GEM_COLS) continue;
+    const gem = field.gems[nr][nc];
+    if (gem && gem.alive && gem.garbage) {
+      gem.alive = false;
+      const pos = gemScreenPos(fieldX, nc, nr);
+      spawnParticles(pos.x + GEM_W / 2, pos.y + GEM_H / 2, GARBAGE_COLOR, 4);
+    }
+  }
+}
+
+function addGarbageRows(field, count) {
+  for (let i = 0; i < count; i++) {
+    // Push all rows up
+    field.gems.push(new Array(GEM_COLS + 1).fill(null));
+    for (let c = 0; c < GEM_COLS; c++) {
+      field.gems[field.gems.length - 1][c] = { color: -1, alive: true, garbage: true };
+    }
+  }
+}
+
+function processGarbage(field) {
+  if (field.garbageQueue > 0) {
+    addGarbageRows(field, field.garbageQueue);
+    field.garbageQueue = 0;
+  }
+}
+
+function pushNewRow(field) {
+  // Add a new row at top, shift everything down
+  const newRow = [];
+  for (let c = 0; c < GEM_COLS; c++) {
+    newRow.push({ color: Math.floor(Math.random() * 5), alive: true, garbage: false });
+  }
+  newRow.push(null);
+  field.gems.unshift(newRow);
+}
+
+function checkFieldDanger(field) {
+  // Check if any alive gem is at or beyond danger line
+  for (let r = 0; r < field.gems.length; r++) {
+    for (let c = 0; c < GEM_COLS; c++) {
+      const gem = field.gems[r][c];
+      if (gem && gem.alive) {
+        const screenY = r * GEM_H;
+        if (screenY + GEM_H >= DANGER_Y) return true;
+      }
+    }
+  }
+  return false;
+}
+
+// --- BALL PHYSICS ---
+function updateBall(ball, paddle, field, fieldX, opponentField) {
+  if (!ball.alive) return;
+  if (ball.stuck) return;
+
+  ball.x += ball.vx;
+  ball.y += ball.vy;
+
+  // Wall bounces (within field)
+  if (ball.x - BALL_R < fieldX) { ball.x = fieldX + BALL_R; ball.vx = Math.abs(ball.vx); }
+  if (ball.x + BALL_R > fieldX + FIELD_W) { ball.x = fieldX + FIELD_W - BALL_R; ball.vx = -Math.abs(ball.vx); }
+  if (ball.y - BALL_R < FIELD_Y) { ball.y = FIELD_Y + BALL_R; ball.vy = Math.abs(ball.vy); }
+
+  // Ball lost (below field)
+  if (ball.y > FIELD_Y + FIELD_H + 20) {
+    ball.alive = false;
+    return;
+  }
+
+  // Paddle collision
+  if (ball.vy > 0 &&
+      ball.y + BALL_R >= paddle.y &&
+      ball.y - BALL_R < paddle.y + PADDLE_H &&
+      ball.x >= paddle.x - 2 &&
+      ball.x <= paddle.x + PADDLE_W + 2) {
+    const hitPos = (ball.x - paddle.x) / PADDLE_W; // 0 to 1
+    const angle = (hitPos - 0.5) * Math.PI * 0.7; // -63 to +63 degrees
+    ball.speed = Math.min(6, ball.speed + 0.05);
+    ball.vx = Math.sin(angle) * ball.speed;
+    ball.vy = -Math.cos(angle) * ball.speed;
+    ball.y = paddle.y - BALL_R;
+  }
+
+  // Gem collision
+  for (let r = 0; r < field.gems.length; r++) {
+    for (let c = 0; c < GEM_COLS; c++) {
+      const gem = field.gems[r][c];
+      if (!gem || !gem.alive) continue;
+      const gx = fieldX + c * GEM_W;
+      const gy = FIELD_Y + r * GEM_H;
+      // AABB vs circle
+      const closestX = Math.max(gx, Math.min(ball.x, gx + GEM_W));
+      const closestY = Math.max(gy, Math.min(ball.y, gy + GEM_H));
+      const dx = ball.x - closestX, dy = ball.y - closestY;
+      if (dx * dx + dy * dy < BALL_R * BALL_R) {
+        gem.alive = false;
+        spawnParticles(gx + GEM_W / 2, gy + GEM_H / 2,
+          gem.garbage ? GARBAGE_COLOR : GEM_COLORS[gem.color], 5);
+        // Reflect ball
+        const overlapX = Math.abs(ball.x - (gx + GEM_W / 2));
+        const overlapY = Math.abs(ball.y - (gy + GEM_H / 2));
+        if (overlapX / GEM_W > overlapY / GEM_H) {
+          ball.vx = -ball.vx;
+        } else {
+          ball.vy = -ball.vy;
+        }
+        // Check for cluster clears
+        clearGems(field, fieldX, opponentField);
+        return; // one gem per frame
+      }
+    }
+  }
+}
+
+// --- AI PADDLE ---
+function updateAIPaddle() {
+  if (!aiBall.alive) return;
+  const targetX = aiBall.x - PADDLE_W / 2;
+  const diff = targetX - aiPaddle.x;
+  // AI tracks ball with slight lag
+  const aiSpeed = 4.5;
+  if (Math.abs(diff) > aiSpeed) {
+    aiPaddle.x += Math.sign(diff) * aiSpeed;
+  } else {
+    aiPaddle.x += diff * 0.5;
+  }
+  // Add slight prediction when ball is heading down
+  if (aiBall.vy > 0) {
+    const framesUntilPaddle = (aiPaddle.y - aiBall.y) / aiBall.vy;
+    if (framesUntilPaddle > 0 && framesUntilPaddle < 40) {
+      const predictedX = aiBall.x + aiBall.vx * framesUntilPaddle;
+      const predDiff = (predictedX - PADDLE_W / 2) - aiPaddle.x;
+      aiPaddle.x += predDiff * 0.08;
+    }
+  }
+  // Clamp
+  aiPaddle.x = Math.max(AI_FIELD_X, Math.min(AI_FIELD_X + FIELD_W - PADDLE_W, aiPaddle.x));
+}
+
+// --- PARTICLES ---
+function spawnParticles(x, y, color, count) {
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 1 + Math.random() * 3;
+    particles.push({
+      x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed - 1,
+      life: 30 + Math.random() * 20, maxLife: 50, color, r: 2 + Math.random() * 2
+    });
+  }
+}
+
+function updateParticles() {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx; p.y += p.vy; p.vy += 0.08; p.life--;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+  for (let i = comboText.length - 1; i >= 0; i--) {
+    comboText[i].y -= 0.5;
+    comboText[i].timer--;
+    if (comboText[i].timer <= 0) comboText.splice(i, 1);
+  }
+}
+
+// --- UPDATE ---
+function update() {
+  if (infoOpen) return;
+  frame++;
+
+  if (keys['KeyR']) { initGame(); keys['KeyR'] = false; return; }
+
+  updateParticles();
+
+  if (gameState === 'over') return;
+
+  if (gameState === 'serve') {
+    stateTimer--;
+    // Position balls on paddles
+    playerBall.x = playerPaddle.x + PADDLE_W / 2;
+    playerBall.y = playerPaddle.y - BALL_R - 2;
+    aiBall.x = aiPaddle.x + PADDLE_W / 2;
+    aiBall.y = aiPaddle.y - BALL_R - 2;
+    if (stateTimer <= 0) {
+      playerBall.stuck = false;
+      playerBall.vx = (Math.random() - 0.5) * 3;
+      playerBall.vy = -playerBall.speed;
+      aiBall.stuck = false;
+      aiBall.vx = (Math.random() - 0.5) * 3;
+      aiBall.vy = -aiBall.speed;
+      gameState = 'play';
+    }
+  }
+
+  // Player paddle follows mouse (clamped to player field)
+  const targetX = mouseX - PADDLE_W / 2;
+  const clampedX = Math.max(P_FIELD_X, Math.min(P_FIELD_X + FIELD_W - PADDLE_W, targetX));
+  playerPaddle.x += (clampedX - playerPaddle.x) * 0.4;
+
+  // AI paddle
+  updateAIPaddle();
+
+  if (gameState !== 'play') return;
+
+  // Update balls
+  updateBall(playerBall, playerPaddle, playerField, P_FIELD_X, aiField);
+  updateBall(aiBall, aiPaddle, aiField, AI_FIELD_X, playerField);
+
+  // Process garbage queues
+  processGarbage(playerField);
+  processGarbage(aiField);
+
+  // Push timer — add new rows periodically
+  playerField.pushTimer++;
+  aiField.pushTimer++;
+  if (playerField.pushTimer >= playerField.pushInterval) {
+    playerField.pushTimer = 0;
+    pushNewRow(playerField);
+  }
+  if (aiField.pushTimer >= aiField.pushInterval) {
+    aiField.pushTimer = 0;
+    pushNewRow(aiField);
+  }
+
+  // Win conditions
+  const playerDanger = checkFieldDanger(playerField);
+  const aiDanger = checkFieldDanger(aiField);
+  let playerLost = !playerBall.alive || playerDanger;
+  let aiLost = !aiBall.alive || aiDanger;
+
+  if (playerLost && aiLost) {
+    // Both lost simultaneously — sudden death draw, AI wins tie
+    aiWins++;
+    roundMsg = 'DRAW — AI WINS TIE!';
+    gameState = 'over';
+  } else if (playerLost) {
+    aiWins++;
+    if (!playerBall.alive) roundMsg = 'BALL LOST!';
+    else roundMsg = 'GEMS REACHED DANGER LINE!';
+    gameState = 'over';
+  } else if (aiLost) {
+    playerWins++;
+    if (!aiBall.alive) roundMsg = 'AI LOST THEIR BALL!';
+    else roundMsg = 'AI GEMS OVERFLOWED!';
+    gameState = 'over';
+  }
+}
+
+// --- DRAW ---
+function draw() {
+  ctx.fillStyle = '#08080f';
+  ctx.fillRect(0, 0, W, H);
+
+  drawField(P_FIELD_X, playerField, playerBall, playerPaddle, 'PLAYER');
+  drawField(AI_FIELD_X, aiField, aiBall, aiPaddle, 'AI');
+
+  // Divider
+  ctx.fillStyle = '#222';
+  ctx.fillRect(W / 2 - 1, FIELD_Y, 2, FIELD_H);
+
+  drawHUD();
+  drawParticles();
+  drawComboText();
+
+  if (gameState === 'over') drawOverlay();
+  if (gameState === 'serve') drawServeCountdown();
+
+  drawTitleBadge();
+}
+
+function drawField(fx, field, ball, paddle, label) {
+  // Field background
+  ctx.fillStyle = '#0c0c18';
+  ctx.fillRect(fx, FIELD_Y, FIELD_W, FIELD_H);
+
+  // Field border
+  ctx.strokeStyle = '#335';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(fx, FIELD_Y, FIELD_W, FIELD_H);
+
+  // Danger line
+  ctx.strokeStyle = 'rgba(255,60,60,0.4)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(fx, FIELD_Y + DANGER_Y);
+  ctx.lineTo(fx + FIELD_W, FIELD_Y + DANGER_Y);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Gems
+  for (let r = 0; r < field.gems.length; r++) {
+    for (let c = 0; c < GEM_COLS; c++) {
+      const gem = field.gems[r][c];
+      if (!gem || !gem.alive) continue;
+      const gx = fx + c * GEM_W;
+      const gy = FIELD_Y + r * GEM_H;
+      if (gy + GEM_H < FIELD_Y || gy > FIELD_Y + FIELD_H) continue;
+
+      if (gem.garbage) {
+        ctx.fillStyle = '#555';
+        ctx.fillRect(gx + 1, gy + 1, GEM_W - 2, GEM_H - 2);
+        ctx.strokeStyle = '#444';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(gx + 1, gy + 1, GEM_W - 2, GEM_H - 2);
+        // Cross pattern
+        ctx.strokeStyle = '#333';
+        ctx.beginPath();
+        ctx.moveTo(gx + 3, gy + 3);
+        ctx.lineTo(gx + GEM_W - 3, gy + GEM_H - 3);
+        ctx.moveTo(gx + GEM_W - 3, gy + 3);
+        ctx.lineTo(gx + 3, gy + GEM_H - 3);
+        ctx.stroke();
+      } else {
+        const baseColor = GEM_COLORS[gem.color];
+        // Gem body
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(gx + 1, gy + 1, GEM_W - 2, GEM_H - 2);
+        // Gem highlight (top-left shine)
+        ctx.fillStyle = 'rgba(255,255,255,0.3)';
+        ctx.fillRect(gx + 2, gy + 2, GEM_W / 2 - 2, GEM_H / 2 - 2);
+        // Gem border
+        ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(gx + 1, gy + 1, GEM_W - 2, GEM_H - 2);
+      }
+    }
+  }
+
+  // Paddle
+  ctx.fillStyle = label === 'PLAYER' ? '#e80' : '#08e';
+  roundRect(ctx, paddle.x, paddle.y, PADDLE_W, PADDLE_H, 4);
+  ctx.fill();
+  // Paddle highlight
+  ctx.fillStyle = label === 'PLAYER' ? '#fa4' : '#4af';
+  roundRect(ctx, paddle.x + 2, paddle.y + 2, PADDLE_W - 4, PADDLE_H / 2, 2);
+  ctx.fill();
+
+  // Ball
+  if (ball.alive) {
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, BALL_R, 0, Math.PI * 2);
+    ctx.fill();
+    // Ball glow
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, BALL_R * 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Label
+  ctx.fillStyle = '#555';
+  ctx.font = '11px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(label, fx + FIELD_W / 2, FIELD_Y + FIELD_H + 16);
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+function drawHUD() {
+  // Score bar at top
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(0, 0, W, 44);
+
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 18px monospace';
+
+  // Player score
+  ctx.fillStyle = '#fa4';
+  ctx.fillText('PLAYER: ' + playerWins, W / 4, 28);
+
+  // VS
+  ctx.fillStyle = '#555';
+  ctx.fillText('VS', W / 2, 28);
+
+  // AI score
+  ctx.fillStyle = '#4af';
+  ctx.fillText('AI: ' + aiWins, 3 * W / 4, 28);
+
+  // Garbage indicators
+  if (playerField.garbageQueue > 0) {
+    ctx.fillStyle = '#f44';
+    ctx.font = '12px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('INCOMING: ' + playerField.garbageQueue, P_FIELD_X + 4, FIELD_Y + FIELD_H + 28);
+  }
+  if (aiField.garbageQueue > 0) {
+    ctx.fillStyle = '#f44';
+    ctx.font = '12px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('INCOMING: ' + aiField.garbageQueue, AI_FIELD_X + 4, FIELD_Y + FIELD_H + 28);
+  }
+}
+
+function drawParticles() {
+  for (const p of particles) {
+    const alpha = p.life / p.maxLife;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r * alpha, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawComboText() {
+  for (const ct of comboText) {
+    const alpha = ct.timer / 60;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = ct.color;
+    ctx.font = 'bold 16px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(ct.text, ct.x, ct.y);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawOverlay() {
+  ctx.fillStyle = 'rgba(0,0,0,0.65)';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 28px monospace';
+  const isPlayerWin = roundMsg.includes('AI ');
+  ctx.fillStyle = isPlayerWin ? '#4f4' : '#f44';
+  ctx.fillText(isPlayerWin ? 'YOU WIN!' : 'YOU LOSE!', W / 2, H / 2 - 30);
+
+  ctx.fillStyle = '#aaa';
+  ctx.font = '16px monospace';
+  ctx.fillText(roundMsg, W / 2, H / 2 + 10);
+
+  ctx.fillStyle = '#666';
+  ctx.font = '14px monospace';
+  ctx.fillText('Press R to play again', W / 2, H / 2 + 50);
+
+  // Score summary
+  ctx.fillStyle = '#888';
+  ctx.font = '13px monospace';
+  ctx.fillText('PLAYER ' + playerWins + ' — AI ' + aiWins, W / 2, H / 2 + 80);
+}
+
+function drawServeCountdown() {
+  const sec = Math.ceil(stateTimer / 30);
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(255,255,255,0.6)';
+  ctx.font = 'bold 40px monospace';
+  ctx.fillText(sec > 0 ? sec : 'GO!', W / 2, H / 2);
+}
+
+function drawTitleBadge() {
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(8, 8, 260, 28);
+  ctx.fillStyle = '#555';
+  ctx.font = '13px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('DEF-006 \u00b7 PUCHI CARAT  [?]', 16, 26);
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+</body>
+</html>

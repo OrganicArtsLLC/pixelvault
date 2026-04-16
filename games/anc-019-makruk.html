@@ -1,0 +1,716 @@
+<!--
+PROTOTYPE: makruk
+SERIES: anc
+NUMBER: 019
+DATE: 2026-03-24
+MECHANIC: Thai chess variant — pawns on 3rd rank at start, promote to weak queens (one diagonal step); no long-range bishops; slower, more positional than Western chess
+ANCESTRY: Chaturanga (~600 CE, India) → Makruk (~1000 CE, Thailand)
+CONTROLS: Mouse — select piece/destination | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 2 (traditional Thai ~1000 CE)
+AI-INSIGHT: Makruk is the closest living relative of the original Indian Chaturanga. Unlike Western chess, it preserved the weak queen and bishop, making it a slower, more positional game where endgame technique is paramount. The lack of long-range diagonal pieces forces close-quarters tactical play.
+NOTES: Makruk is still widely played in Thailand and is recognized by FIDE. The pieces have distinct Thai names and styling.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ANC-019 · MAKRUK</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #1a1410; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: pointer; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>ANC-019 · MAKRUK (Thai Chess)</h1>
+    <p><span class="tag series">ANC — Ancient Games</span> <span class="tag">Prototype #019</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Play Makruk (Thai Chess) against an AI opponent. You are White (bottom). Click a piece to see legal moves highlighted, then click a destination to move.</p>
+    <ul>
+      <li><strong>Bia (Pawn):</strong> Moves forward one square, captures diagonally forward. Starts on 3rd rank. Promotes to Met when reaching the 6th rank (opponent's 3rd rank).</li>
+      <li><strong>Met (Queen):</strong> Moves one square diagonally only. The weakest piece after the pawn.</li>
+      <li><strong>Khon (Bishop):</strong> Moves one square diagonally OR one square straight forward. Cannot move backward or sideways (except diagonally).</li>
+      <li><strong>Ma (Knight):</strong> Moves in an L-shape, same as Western chess. Can jump over pieces.</li>
+      <li><strong>Rua (Rook):</strong> Moves any number of squares horizontally or vertically, same as Western chess.</li>
+      <li><strong>Khun (King):</strong> Moves one square in any direction, same as Western chess.</li>
+      <li><strong>No castling, no en passant, no two-square pawn advance.</strong></li>
+      <li><kbd>R</kbd> — Restart game</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Chaturanga (~600 CE, India) &rarr; Makruk (~1000 CE, Thailand)</p>
+    <p>Makruk is the closest living relative of the original Indian game Chaturanga. While Western chess evolved through Persian Shatranj and gained powerful long-range queens and bishops around 1475, Makruk preserved the ancient weak pieces. The Met (queen) moves only one square diagonally, and the Khon (bishop) moves one square diagonally or one forward &mdash; almost exactly matching Chaturanga's counselor and elephant.</p>
+    <p>The game is still widely played in Thailand and Cambodia (where it is called Ouk Chatrang). It is recognized by FIDE and has an active competitive scene. Makruk's slower pace and emphasis on endgame technique make it a fascinating contrast to the tactical fireworks of modern Western chess.</p>
+    <p><strong>Key Differences from Western Chess:</strong> Pawns start on the 3rd rank (already advanced). Promotion yields only a Met (weak queen). No long-range bishops. No castling. The result is a game where piece coordination and king activity matter far more than in Western chess.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 2 &mdash; Traditional (~1000 CE)</p>
+    <p>Makruk represents a fork in chess evolution where the pieces stayed weak. This makes it an interesting case study for game AI: without powerful long-range pieces, the branching factor is lower but positional understanding becomes more critical. Material advantages are harder to convert because the pieces are less powerful.</p>
+    <p>Modern chess engines can play Makruk at superhuman level, but the game's character &mdash; slow maneuvering, king centralization, pawn structure &mdash; rewards a different style of evaluation than Western chess. The endgame counting rules (similar to the 50-move rule but with specific piece-dependent limits) add unique complexity.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: ANC — Ancient Games</h3>
+    <p>Games with roots stretching back centuries or millennia. Makruk is a living fossil &mdash; a direct window into how chess was played before the European revolution of the 15th century.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Perfect information, turn-based, piece-differentiated movement, capture by replacement.</strong> Weaker pieces create a slower, more positional game than Western chess.</p>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Full Makruk rules including correct starting position (pawns on 3rd rank), Met promotion, and Khon movement. AI uses minimax with alpha-beta pruning at depth 3. Thai-inspired rounded piece styling distinguishes it from Western chess.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+  if (infoOpen) return;
+  if (e.key === 'r' || e.key === 'R') { initGame(); e.preventDefault(); }
+  if ([' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault();
+});
+
+// --- CANVAS SETUP ---
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+canvas.width = 800;
+canvas.height = 600;
+
+// --- CONSTANTS ---
+const SQ = 64;
+const BX = 80;
+const BY = 44;
+const BOARD_SIZE = 8;
+
+const EMPTY = 0;
+const W_BIA = 1, W_MA = 2, W_KHON = 3, W_RUA = 4, W_MET = 5, W_KHUN = 6;
+const B_BIA = -1, B_MA = -2, B_KHON = -3, B_RUA = -4, B_MET = -5, B_KHUN = -6;
+
+const PIECE_NAMES = {
+  1: 'Bia', 2: 'Ma', 3: 'Khon', 4: 'Rua', 5: 'Met', 6: 'Khun',
+  '-1': 'Bia', '-2': 'Ma', '-3': 'Khon', '-4': 'Rua', '-5': 'Met', '-6': 'Khun'
+};
+
+const PIECE_VALUES = { 1: 100, 2: 400, 3: 250, 4: 600, 5: 200, 6: 10000 };
+
+// Colors
+const LIGHT_SQ = '#e8d4a0';
+const DARK_SQ = '#8b6f47';
+const SEL_COLOR = 'rgba(255,220,50,0.5)';
+const MOVE_COLOR = 'rgba(80,200,80,0.5)';
+const CAPTURE_COLOR = 'rgba(220,60,60,0.5)';
+const CHECK_COLOR = 'rgba(255,0,0,0.4)';
+const WHITE_PIECE = '#f5f0e0';
+const RED_PIECE = '#c0392b';
+const WHITE_OUTLINE = '#8b7d5e';
+const RED_OUTLINE = '#7b1a10';
+
+// --- GAME STATE ---
+let board, turn, selected, legalMoves, gameOver, statusMsg, moveHistory, aiThinking, checkSquare;
+
+function initGame() {
+  board = Array.from({length: 8}, () => Array(8).fill(EMPTY));
+  // Red (AI) pieces - top (rows 0-2)
+  // Back rank (row 0): Rua, Ma, Khon, Met, Khun, Khon, Ma, Rua
+  board[0] = [B_RUA, B_MA, B_KHON, B_MET, B_KHUN, B_KHON, B_MA, B_RUA];
+  // Bia on row 2 (3rd rank from top)
+  for (let c = 0; c < 8; c++) board[2][c] = B_BIA;
+
+  // White (player) pieces - bottom (rows 5-7)
+  // Back rank (row 7): Rua, Ma, Khon, Khun, Met, Khon, Ma, Rua
+  board[7] = [W_RUA, W_MA, W_KHON, W_KHUN, W_MET, W_KHON, W_MA, W_RUA];
+  // Bia on row 5 (3rd rank from bottom)
+  for (let c = 0; c < 8; c++) board[5][c] = W_BIA;
+
+  turn = 1; // 1 = white, -1 = red
+  selected = null;
+  legalMoves = [];
+  gameOver = false;
+  statusMsg = 'Your turn — click a piece';
+  moveHistory = [];
+  aiThinking = false;
+  checkSquare = null;
+}
+
+initGame();
+
+// --- MOVE GENERATION ---
+function inBounds(r, c) { return r >= 0 && r < 8 && c >= 0 && c < 8; }
+function sign(p) { return p > 0 ? 1 : (p < 0 ? -1 : 0); }
+
+function getRawMoves(board, r, c) {
+  const piece = board[r][c];
+  if (piece === EMPTY) return [];
+  const color = sign(piece);
+  const type = Math.abs(piece);
+  const moves = [];
+  const fwd = -color; // forward direction
+
+  function addIfValid(nr, nc) {
+    if (!inBounds(nr, nc)) return;
+    const target = board[nr][nc];
+    if (sign(target) === color) return;
+    moves.push([nr, nc]);
+  }
+
+  switch (type) {
+    case 1: // Bia (Pawn)
+      // Move forward one
+      if (inBounds(r + fwd, c) && board[r + fwd][c] === EMPTY)
+        moves.push([r + fwd, c]);
+      // Capture diagonally forward
+      for (const dc of [-1, 1]) {
+        const nr = r + fwd, nc = c + dc;
+        if (inBounds(nr, nc) && board[nr][nc] !== EMPTY && sign(board[nr][nc]) !== color)
+          moves.push([nr, nc]);
+      }
+      break;
+
+    case 2: // Ma (Knight) - same as Western chess
+      for (const [dr, dc] of [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]])
+        addIfValid(r + dr, c + dc);
+      break;
+
+    case 3: // Khon (Bishop) - one square diagonal + one forward
+      for (const [dr, dc] of [[-1,-1],[-1,1],[1,-1],[1,1]])
+        addIfValid(r + dr, c + dc);
+      addIfValid(r + fwd, c); // one step forward
+      break;
+
+    case 4: // Rua (Rook) - same as Western chess
+      for (const [dr, dc] of [[-1,0],[1,0],[0,-1],[0,1]]) {
+        for (let i = 1; i < 8; i++) {
+          const nr = r + dr * i, nc = c + dc * i;
+          if (!inBounds(nr, nc)) break;
+          if (board[nr][nc] !== EMPTY) {
+            if (sign(board[nr][nc]) !== color) moves.push([nr, nc]);
+            break;
+          }
+          moves.push([nr, nc]);
+        }
+      }
+      break;
+
+    case 5: // Met (Queen) - one square diagonal only
+      for (const [dr, dc] of [[-1,-1],[-1,1],[1,-1],[1,1]])
+        addIfValid(r + dr, c + dc);
+      break;
+
+    case 6: // Khun (King) - one square any direction
+      for (const [dr, dc] of [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]])
+        addIfValid(r + dr, c + dc);
+      break;
+  }
+  return moves;
+}
+
+function findKing(board, color) {
+  const king = color > 0 ? W_KHUN : B_KHUN;
+  for (let r = 0; r < 8; r++)
+    for (let c = 0; c < 8; c++)
+      if (board[r][c] === king) return [r, c];
+  return null;
+}
+
+function isInCheck(board, color) {
+  const kp = findKing(board, color);
+  if (!kp) return true;
+  const opp = -color;
+  for (let r = 0; r < 8; r++)
+    for (let c = 0; c < 8; c++)
+      if (sign(board[r][c]) === opp) {
+        const moves = getRawMoves(board, r, c);
+        for (const [mr, mc] of moves)
+          if (mr === kp[0] && mc === kp[1]) return true;
+      }
+  return false;
+}
+
+function makeMove(board, fr, fc, tr, tc) {
+  const nb = board.map(row => row.slice());
+  const piece = nb[fr][fc];
+  nb[tr][tc] = piece;
+  nb[fr][fc] = EMPTY;
+  // Promotion: Bia reaching promotion rank
+  const color = sign(piece);
+  if (Math.abs(piece) === 1) {
+    // White promotes on row 2 (opponent's 3rd rank from their side)
+    // Red promotes on row 5
+    if ((color === 1 && tr <= 2) || (color === -1 && tr >= 5)) {
+      nb[tr][tc] = color * 5; // promote to Met
+    }
+  }
+  return nb;
+}
+
+function getLegalMoves(board, color) {
+  const allMoves = [];
+  for (let r = 0; r < 8; r++)
+    for (let c = 0; c < 8; c++)
+      if (sign(board[r][c]) === color) {
+        const moves = getRawMoves(board, r, c);
+        for (const [tr, tc] of moves) {
+          const nb = makeMove(board, r, c, tr, tc);
+          if (!isInCheck(nb, color))
+            allMoves.push([r, c, tr, tc]);
+        }
+      }
+  return allMoves;
+}
+
+// --- AI (Minimax with Alpha-Beta) ---
+function evaluate(board) {
+  let score = 0;
+  // Positional bonus tables (center control)
+  const centerBonus = [
+    [0,0,0,0,0,0,0,0],
+    [0,1,1,2,2,1,1,0],
+    [0,1,3,4,4,3,1,0],
+    [0,2,4,6,6,4,2,0],
+    [0,2,4,6,6,4,2,0],
+    [0,1,3,4,4,3,1,0],
+    [0,1,1,2,2,1,1,0],
+    [0,0,0,0,0,0,0,0]
+  ];
+  for (let r = 0; r < 8; r++)
+    for (let c = 0; c < 8; c++) {
+      const p = board[r][c];
+      if (p === EMPTY) continue;
+      const color = sign(p);
+      const val = PIECE_VALUES[Math.abs(p)] + centerBonus[r][c] * 3;
+      score += color * val;
+    }
+  // King safety: penalty for exposed king
+  for (const color of [1, -1]) {
+    const kp = findKing(board, color);
+    if (kp && isInCheck(board, color)) score -= color * 50;
+  }
+  return score;
+}
+
+function minimax(board, depth, alpha, beta, maximizing) {
+  const color = maximizing ? 1 : -1;
+  const moves = getLegalMoves(board, color);
+
+  if (depth === 0 || moves.length === 0) {
+    if (moves.length === 0) {
+      if (isInCheck(board, color)) return maximizing ? -99999 : 99999;
+      return 0; // stalemate
+    }
+    return evaluate(board);
+  }
+
+  if (maximizing) {
+    let best = -Infinity;
+    for (const [fr, fc, tr, tc] of moves) {
+      const nb = makeMove(board, fr, fc, tr, tc);
+      const val = minimax(nb, depth - 1, alpha, beta, false);
+      best = Math.max(best, val);
+      alpha = Math.max(alpha, val);
+      if (beta <= alpha) break;
+    }
+    return best;
+  } else {
+    let best = Infinity;
+    for (const [fr, fc, tr, tc] of moves) {
+      const nb = makeMove(board, fr, fc, tr, tc);
+      const val = minimax(nb, depth - 1, alpha, beta, true);
+      best = Math.min(best, val);
+      beta = Math.min(beta, val);
+      if (beta <= alpha) break;
+    }
+    return best;
+  }
+}
+
+function aiMove() {
+  const moves = getLegalMoves(board, -1);
+  if (moves.length === 0) {
+    gameOver = true;
+    statusMsg = isInCheck(board, -1) ? 'Checkmate! You win!' : 'Stalemate — draw';
+    return;
+  }
+
+  let bestScore = Infinity;
+  let bestMoves = [];
+  for (const [fr, fc, tr, tc] of moves) {
+    const nb = makeMove(board, fr, fc, tr, tc);
+    const val = minimax(nb, 2, -Infinity, Infinity, true);
+    if (val < bestScore) { bestScore = val; bestMoves = [[fr, fc, tr, tc]]; }
+    else if (val === bestScore) bestMoves.push([fr, fc, tr, tc]);
+  }
+
+  const chosen = bestMoves[Math.floor(Math.random() * bestMoves.length)];
+  const [fr, fc, tr, tc] = chosen;
+  const captured = board[tr][tc];
+  board = makeMove(board, fr, fc, tr, tc);
+  moveHistory.push({ from: [fr, fc], to: [tr, tc], piece: B_BIA, captured });
+
+  // Check if white is now in check/checkmate
+  const whiteMoves = getLegalMoves(board, 1);
+  if (whiteMoves.length === 0) {
+    gameOver = true;
+    statusMsg = isInCheck(board, 1) ? 'Checkmate! AI wins.' : 'Stalemate — draw';
+  } else if (isInCheck(board, 1)) {
+    statusMsg = 'Check! Your turn';
+    checkSquare = findKing(board, 1);
+  } else {
+    statusMsg = 'Your turn — click a piece';
+    checkSquare = null;
+  }
+  turn = 1;
+  aiThinking = false;
+}
+
+// --- DRAWING ---
+function drawBoard() {
+  // Board background
+  ctx.fillStyle = '#2a1f14';
+  ctx.fillRect(0, 0, 800, 600);
+
+  // Decorative border
+  ctx.strokeStyle = '#c4a55a';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(BX - 6, BY - 6, SQ * 8 + 12, SQ * 8 + 12);
+  ctx.strokeStyle = '#8b6f47';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(BX - 3, BY - 3, SQ * 8 + 6, SQ * 8 + 6);
+
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      const x = BX + c * SQ;
+      const y = BY + r * SQ;
+      const light = (r + c) % 2 === 0;
+      ctx.fillStyle = light ? LIGHT_SQ : DARK_SQ;
+      ctx.fillRect(x, y, SQ, SQ);
+
+      // Highlight check square
+      if (checkSquare && checkSquare[0] === r && checkSquare[1] === c) {
+        ctx.fillStyle = CHECK_COLOR;
+        ctx.fillRect(x, y, SQ, SQ);
+      }
+
+      // Highlight selected square
+      if (selected && selected[0] === r && selected[1] === c) {
+        ctx.fillStyle = SEL_COLOR;
+        ctx.fillRect(x, y, SQ, SQ);
+      }
+
+      // Highlight legal moves
+      for (const [mr, mc] of legalMoves) {
+        if (mr === r && mc === c) {
+          ctx.fillStyle = board[r][c] !== EMPTY ? CAPTURE_COLOR : MOVE_COLOR;
+          ctx.fillRect(x, y, SQ, SQ);
+        }
+      }
+    }
+  }
+
+  // Rank/file labels
+  for (let i = 0; i < 8; i++) {
+    hudText(String(8 - i), BX - 18, BY + i * SQ + 22, '#8b7d5e', 13, 'center');
+    hudText(String.fromCharCode(97 + i), BX + i * SQ + SQ / 2, BY + SQ * 8 + 6, '#8b7d5e', 13, 'center');
+  }
+}
+
+function drawPiece(r, c, piece) {
+  if (piece === EMPTY) return;
+  const x = BX + c * SQ + SQ / 2;
+  const y = BY + r * SQ + SQ / 2;
+  const color = sign(piece);
+  const type = Math.abs(piece);
+  const fill = color > 0 ? WHITE_PIECE : RED_PIECE;
+  const outline = color > 0 ? WHITE_OUTLINE : RED_OUTLINE;
+  const radius = 24;
+
+  ctx.save();
+
+  // Thai-inspired rounded base
+  ctx.beginPath();
+  ctx.arc(x, y + 4, radius, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.fillStyle = fill;
+  ctx.fill();
+  ctx.strokeStyle = outline;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Inner decoration ring
+  ctx.beginPath();
+  ctx.arc(x, y, radius - 5, 0, Math.PI * 2);
+  ctx.strokeStyle = color > 0 ? 'rgba(139,125,94,0.4)' : 'rgba(123,26,16,0.4)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Piece symbol
+  ctx.fillStyle = color > 0 ? '#3a3020' : '#fff';
+  ctx.font = 'bold 18px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  let symbol = '';
+  switch (type) {
+    case 1: symbol = 'B'; break; // Bia
+    case 2: symbol = 'M'; break; // Ma (Knight)
+    case 3: symbol = 'K'; break; // Khon (Bishop)
+    case 4: symbol = 'R'; break; // Rua (Rook)
+    case 5: symbol = 'Q'; break; // Met (Queen) - use Q for clarity
+    case 6: // Khun (King) - draw crown-like top
+      symbol = '\u2654';
+      ctx.font = '22px serif';
+      break;
+  }
+
+  // Draw type-specific decorations
+  switch (type) {
+    case 4: // Rua - tower notches
+      ctx.beginPath();
+      ctx.moveTo(x - 10, y - 16);
+      ctx.lineTo(x - 10, y - 20);
+      ctx.lineTo(x - 5, y - 20);
+      ctx.lineTo(x - 5, y - 16);
+      ctx.moveTo(x + 5, y - 16);
+      ctx.lineTo(x + 5, y - 20);
+      ctx.lineTo(x + 10, y - 20);
+      ctx.lineTo(x + 10, y - 16);
+      ctx.strokeStyle = ctx.fillStyle;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      break;
+    case 6: // King - pointed top
+      ctx.beginPath();
+      ctx.moveTo(x, y - 22);
+      ctx.lineTo(x - 4, y - 16);
+      ctx.lineTo(x + 4, y - 16);
+      ctx.closePath();
+      ctx.fill();
+      break;
+    case 5: // Met - small diamond on top
+      ctx.beginPath();
+      ctx.moveTo(x, y - 20);
+      ctx.lineTo(x - 4, y - 16);
+      ctx.lineTo(x, y - 12);
+      ctx.lineTo(x + 4, y - 16);
+      ctx.closePath();
+      ctx.fill();
+      break;
+    case 2: // Ma - horse ear shapes
+      ctx.beginPath();
+      ctx.moveTo(x - 6, y - 18);
+      ctx.lineTo(x - 3, y - 24);
+      ctx.lineTo(x, y - 18);
+      ctx.moveTo(x, y - 18);
+      ctx.lineTo(x + 3, y - 24);
+      ctx.lineTo(x + 6, y - 18);
+      ctx.strokeStyle = ctx.fillStyle;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      break;
+    case 3: // Khon - dot on top
+      ctx.beginPath();
+      ctx.arc(x, y - 20, 3, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+  }
+
+  // Draw letter
+  if (type !== 6) {
+    ctx.fillText(symbol, x, y + 2);
+  } else {
+    ctx.fillText(symbol, x, y + 1);
+  }
+
+  ctx.restore();
+}
+
+function drawPieces() {
+  for (let r = 0; r < 8; r++)
+    for (let c = 0; c < 8; c++)
+      drawPiece(r, c, board[r][c]);
+}
+
+function drawSidebar() {
+  const sx = BX + SQ * 8 + 24;
+
+  hudText('MAKRUK', sx, 20, '#c4a55a', 20, 'left');
+  hudText('Thai Chess', sx, 44, '#8b7d5e', 12, 'left');
+
+  // Status
+  hudText(statusMsg, sx, 80, gameOver ? '#ff6' : (turn === 1 ? '#8f8' : '#f88'), 13, 'left');
+
+  // Captured pieces / move count
+  hudText('Moves: ' + moveHistory.length, sx, 110, '#aaa', 12, 'left');
+
+  // Piece guide
+  hudText('PIECES:', sx, 150, '#c4a55a', 12, 'left');
+  const guide = [
+    ['B', 'Bia (Pawn)'],
+    ['Q', 'Met (Queen)'],
+    ['K', 'Khon (Bishop)'],
+    ['M', 'Ma (Knight)'],
+    ['R', 'Rua (Rook)'],
+    ['\u2654', 'Khun (King)']
+  ];
+  for (let i = 0; i < guide.length; i++) {
+    hudText(guide[i][0] + ' = ' + guide[i][1], sx, 170 + i * 18, '#bbb', 11, 'left');
+  }
+
+  // Move history (last few)
+  hudText('HISTORY:', sx, 300, '#c4a55a', 12, 'left');
+  const startIdx = Math.max(0, moveHistory.length - 10);
+  for (let i = startIdx; i < moveHistory.length; i++) {
+    const m = moveHistory[i];
+    const fromStr = String.fromCharCode(97 + m.from[1]) + (8 - m.from[0]);
+    const toStr = String.fromCharCode(97 + m.to[1]) + (8 - m.to[0]);
+    const cap = m.captured !== EMPTY ? 'x' : '-';
+    const num = i + 1;
+    hudText(num + '. ' + fromStr + cap + toStr, sx, 320 + (i - startIdx) * 16, '#999', 11, 'left');
+  }
+
+  // Controls
+  hudText('R: Restart  ?: Info', sx, 560, '#666', 11, 'left');
+}
+
+function draw() {
+  drawBoard();
+  drawPieces();
+  drawSidebar();
+  if (aiThinking) {
+    hudText('AI thinking...', BX + SQ * 4, BY + SQ * 4, 'rgba(255,255,100,0.8)', 18, 'center');
+  }
+}
+
+// --- INPUT ---
+canvas.addEventListener('click', e => {
+  if (infoOpen || gameOver || turn !== 1 || aiThinking) return;
+
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  const mx = (e.clientX - rect.left) * scaleX;
+  const my = (e.clientY - rect.top) * scaleY;
+
+  const col = Math.floor((mx - BX) / SQ);
+  const row = Math.floor((my - BY) / SQ);
+  if (!inBounds(row, col)) { selected = null; legalMoves = []; return; }
+
+  // If we have a selection and clicked a legal move, execute it
+  if (selected) {
+    for (const [mr, mc] of legalMoves) {
+      if (mr === row && mc === col) {
+        const [sr, sc] = selected;
+        const captured = board[row][col];
+        board = makeMove(board, sr, sc, row, col);
+        moveHistory.push({ from: [sr, sc], to: [row, col], piece: board[row][col], captured });
+        selected = null;
+        legalMoves = [];
+        checkSquare = null;
+
+        // Check if AI is in checkmate/stalemate
+        const aiMoves = getLegalMoves(board, -1);
+        if (aiMoves.length === 0) {
+          gameOver = true;
+          statusMsg = isInCheck(board, -1) ? 'Checkmate! You win!' : 'Stalemate — draw';
+          return;
+        }
+
+        turn = -1;
+        statusMsg = 'AI thinking...';
+        aiThinking = true;
+        setTimeout(aiMove, 100);
+        return;
+      }
+    }
+  }
+
+  // Select a piece
+  if (board[row][col] !== EMPTY && sign(board[row][col]) === 1) {
+    selected = [row, col];
+    const allLegal = getLegalMoves(board, 1);
+    legalMoves = allLegal
+      .filter(([fr, fc]) => fr === row && fc === col)
+      .map(([, , tr, tc]) => [tr, tc]);
+  } else {
+    selected = null;
+    legalMoves = [];
+  }
+});
+
+// --- RESIZE ---
+function resize() {
+  const scale = Math.min(window.innerWidth / 800, window.innerHeight / 600);
+  canvas.style.width = (800 * scale) + 'px';
+  canvas.style.height = (600 * scale) + 'px';
+}
+window.addEventListener('resize', resize);
+resize();
+
+// --- GAME LOOP ---
+function update() {
+  if (infoOpen) return;
+  draw();
+}
+
+function loop() {
+  update();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>

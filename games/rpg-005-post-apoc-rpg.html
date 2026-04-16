@@ -1,0 +1,1343 @@
+<!--
+PROTOTYPE: post-apoc-rpg
+SERIES: rpg
+NUMBER: 005
+DATE: 2026-03-22
+MECHANIC: post-apocalyptic party RPG with skill checks and tactical combat
+ANCESTRY: Wasteland (1988, Interplay/Brian Fargo), The Bard's Tale (1985, Interplay)
+CONTROLS: Arrow keys — move | Space — interact | A — attack | S — skill | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — skill-based outcome resolution)
+AI-INSIGHT: Wasteland's skill system used probabilistic outcome resolution based on character stats — an early stochastic model where success depended on hidden dice rolls modified by invested skill points. This probability-weighted decision system mirrors the utility functions in decision-theoretic AI planning.
+NOTES: Party-based exploration with permanent consequences was revolutionary for 1988.
+       Skill-based problem solving offered non-combat solutions, broadening RPG vocabulary.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RPG-005 · POST APOC RPG</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #0a0a0a; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #f80; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #432; color: #f80; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>RPG-005 · POST APOC RPG</h1>
+    <p><span class="tag series">RPG — Role-Playing</span> <span class="tag">Prototype #005</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Lead 4 Desert Rangers through a post-apocalyptic wasteland. Fight mutants, use skills, investigate the mutant attacks.</p>
+    <ul>
+      <li><kbd>Arrows</kbd> — Move party</li>
+      <li><kbd>Space</kbd> — Interact / advance dialogue</li>
+      <li><kbd>A</kbd> — Attack | <kbd>S</kbd> — Skill | <kbd>D</kbd> — Defend</li>
+      <li><kbd>I</kbd> — Use item | <kbd>F</kbd> — Flee | <kbd>1-4</kbd> — Select ranger</li>
+      <li><kbd>R</kbd> — Restart | <kbd>?</kbd> — Info panel</li>
+    </ul>
+    <h3>Skills</h3>
+    <p><strong>Combat:</strong> Hit chance/damage. <strong>Medic:</strong> Heal HP. <strong>Lockpick:</strong> Open locks. <strong>Demolitions:</strong> Clear rubble. <strong>Barter:</strong> Better prices. <strong>Perception:</strong> Spot hidden items.</p>
+    <h3>Quest</h3>
+    <p>Visit the <strong>Lab</strong>, <strong>Raider Camp</strong>, <strong>Crater</strong>, then the <strong>Mutant Hive</strong> to stop the threat.</p>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> The Bard's Tale (1985) &#8594; Wasteland (1988) &#8594; Fallout (1997) &#8594; Wasteland 2 (2014)</p>
+    <p>Wasteland (1988), by Brian Fargo at Interplay, was among the first RPGs with a persistent, reactive world. Players controlled Desert Rangers navigating moral dilemmas in post-nuclear Arizona.</p>
+    <p>Its skill system let players bypass combat via lockpicking, demolitions, or persuasion. Wasteland's DNA lives on in Fallout and Wasteland 2 (2014).</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 3 — Knowledge Explosion (1980-1993)</p>
+    <p><strong>Contemporary AI:</strong> Expert systems, probabilistic reasoning, early decision theory.</p>
+    <p><strong>Hidden Intelligence:</strong> Wasteland's skill system is a probabilistic outcome engine: P(success) = f(skill_level, difficulty, roll), mirroring utility functions in decision-theoretic AI. Party skill allocation mirrors the explore-exploit tradeoff in multi-armed bandits.</p>
+    <p><strong>The Convergence:</strong> Modern game AI uses Monte Carlo simulation and RL for difficulty curves — automating what Wasteland's designers calibrated by hand.</p>
+    <p><strong>If AI Had Designed This:</strong> An RL game master would adjust encounters based on party composition. Skill allocation guided by a recommendation system.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: RPG — Role-Playing</h3>
+    <p>Character progression and tactical decisions create emergent narratives.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Post-apocalyptic party RPG with skill checks and tactical combat.</strong> Top-down exploration, 4 rangers, turn-based combat, probabilistic skills, resource management.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Skill variety — do six skills create different approaches?</li>
+      <li>Party management — does skill distribution feel strategic?</li>
+      <li>Combat depth — is turn-based combat engaging?</li>
+      <li>Resource tension — does scarcity create interesting choices?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p><strong>Sketch</strong> rated 4/5. Procedural wasteland with four quest locations, four rangers, six skills, turn-based combat, skill checks for non-combat solutions.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+// --- CANVAS SETUP ---
+const C = document.getElementById('c');
+const W = 800, H = 600;
+C.width = W; C.height = H;
+const ctx = C.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+
+const TW = 20, TH = 20, MW = 60, MH = 50, VW = 25, VH = 25, PANEL_X = 520;
+const T = { SAND:0, ROCK:1, RUIN:2, ROAD:3, RAD:4, WATER:5, WALL:6, TOWN:7, QUEST:8, SHOP:9, NPC:10, LOCK:11, RUBBLE:12 };
+const TCOL = {
+  [T.SAND]:'#c4a44a', [T.ROCK]:'#6b5e3e', [T.RUIN]:'#5a4f3a',
+  [T.ROAD]:'#8a7a5a', [T.RAD]:'#4a6a2a', [T.WATER]:'#2a4a7a',
+  [T.WALL]:'#3a3530', [T.TOWN]:'#7a6a4a', [T.QUEST]:'#8a3030',
+  [T.SHOP]:'#4a7a4a', [T.NPC]:'#5a5aaa', [T.LOCK]:'#8a7a2a', [T.RUBBLE]:'#5a4a3a'
+};
+
+let map=[],mapSeen=[],party=[],activeRanger=0,px=5,py=5;
+let gameState='explore',combatState=null,dialogueState=null,skillState=null;
+let messages=[],turnCount=0,menuIdx=0,locations=[];
+let questFlags={lab:false,camp:false,crater:false,hive:false};
+let inventory={ammo:30,medkits:5,food:10,scrap:0};
+let seed=Date.now();
+
+function rng() { seed = (seed * 16807 + 0) % 2147483647; return (seed - 1) / 2147483646; }
+function rngI(a, b) { return Math.floor(rng() * (b - a + 1)) + a; }
+
+function msg(t) { messages.unshift(t); if (messages.length > 6) messages.pop(); }
+
+function makeRanger(name, cls) {
+  let hp, maxHp, ap, skills;
+  switch(cls) {
+    case 'Assault':
+      hp = 40; skills = { combat:6, medic:1, lockpick:1, demolitions:3, barter:1, perception:2 }; break;
+    case 'Medic':
+      hp = 30; skills = { combat:3, medic:6, lockpick:1, demolitions:1, barter:2, perception:3 }; break;
+    case 'Tech':
+      hp = 28; skills = { combat:2, medic:2, lockpick:6, demolitions:5, barter:1, perception:3 }; break;
+    case 'Scout':
+      hp = 32; skills = { combat:4, medic:1, lockpick:3, demolitions:1, barter:3, perception:6 }; break;
+  }
+  maxHp = hp; ap = 4;
+  return { name, cls, hp, maxHp, ap, maxAp: ap, skills, level: 1, xp: 0, alive: true, defending: false };
+}
+
+function genMap() {
+  map = []; mapSeen = [];
+  for (let y = 0; y < MH; y++) {
+    map[y] = []; mapSeen[y] = [];
+    for (let x = 0; x < MW; x++) {
+      let r = rng();
+      if (r < 0.65) map[y][x] = T.SAND;
+      else if (r < 0.78) map[y][x] = T.ROCK;
+      else if (r < 0.85) map[y][x] = T.RUIN;
+      else if (r < 0.90) map[y][x] = T.ROAD;
+      else if (r < 0.94) map[y][x] = T.RAD;
+      else if (r < 0.97) map[y][x] = T.WATER;
+      else map[y][x] = T.WALL;
+      mapSeen[y][x] = false;
+    }
+  }
+
+  // Clear starting area
+  for (let dy = -2; dy <= 2; dy++)
+    for (let dx = -2; dx <= 2; dx++)
+      if (py+dy>=0&&py+dy<MH&&px+dx>=0&&px+dx<MW) { map[py+dy][px+dx] = T.ROAD; }
+
+  function road(x1,y1,x2,y2) {
+    let cx=x1,cy=y1;
+    while(cx!==x2||cy!==y2) {
+      if(cx>=0&&cx<MW&&cy>=0&&cy<MH&&map[cy][cx]!==T.TOWN&&map[cy][cx]!==T.QUEST) map[cy][cx]=T.ROAD;
+      if(rng()<0.5){if(cx<x2)cx++;else if(cx>x2)cx--;}
+      else{if(cy<y2)cy++;else if(cy>y2)cy--;}
+    }
+  }
+  locations = [
+    { name:'Ranger HQ', type:'town', x:5, y:5, tile:T.TOWN, visited:true, desc:'Home base. Resupply and rest.' },
+    { name:'Dusty Springs', type:'town', x:20, y:8, tile:T.TOWN, visited:false, desc:'Settlement reporting mutant sightings.' },
+    { name:'Junktown Market', type:'shop', x:35, y:15, tile:T.SHOP, visited:false, desc:'Trading post. Buy supplies with scrap.' },
+    { name:'Abandoned Lab', type:'quest', x:50, y:10, tile:T.QUEST, visited:false, desc:'Pre-war research facility.', quest:'lab' },
+    { name:'Raider Camp', type:'quest', x:15, y:35, tile:T.QUEST, visited:false, desc:'Raiders may know about the mutants.', quest:'camp' },
+    { name:'Radiation Crater', type:'quest', x:45, y:38, tile:T.QUEST, visited:false, desc:'Irradiated blast site.', quest:'crater' },
+    { name:'Mutant Hive', type:'quest', x:30, y:45, tile:T.QUEST, visited:false, desc:'Source of the mutant attacks.', quest:'hive' },
+    { name:'Old Bunker', type:'lock', x:10, y:20, tile:T.LOCK, visited:false, desc:'Sealed bunker. Needs Lockpick.' },
+    { name:'Collapsed Bridge', type:'rubble', x:28, y:25, tile:T.RUBBLE, visited:false, desc:'Rubble blocks path. Needs Demolitions.' },
+  ];
+
+  for (let loc of locations) {
+    map[loc.y][loc.x] = loc.tile;
+    // Clear area around location
+    for (let dy=-1;dy<=1;dy++)
+      for (let dx=-1;dx<=1;dx++) {
+        let nx=loc.x+dx, ny=loc.y+dy;
+        if(nx>=0&&nx<MW&&ny>=0&&ny<MH&&map[ny][nx]!==loc.tile)
+          map[ny][nx] = T.SAND;
+      }
+  }
+
+  road(5,5,20,8);road(20,8,35,15);road(35,15,50,10);
+  road(5,5,15,35);road(15,35,28,25);road(28,25,45,38);
+  road(35,15,30,45);road(20,8,10,20);
+  for(let s of [{x:21,y:8},{x:36,y:15},{x:6,y:5}]) if(map[s.y][s.x]===T.SAND||map[s.y][s.x]===T.ROAD) map[s.y][s.x]=T.NPC;
+}
+
+function makeEnemy(type, scale) {
+  scale = scale || 1;
+  switch(type) {
+    case 'raider': return { name:'Raider', hp:15*scale, maxHp:15*scale, atk:5*scale, def:1, xp:10, type };
+    case 'mutant': return { name:'Mutant', hp:25*scale, maxHp:25*scale, atk:8*scale, def:2, xp:20, type };
+    case 'robot': return { name:'Robot', hp:35*scale, maxHp:35*scale, atk:10*scale, def:5, xp:30, type };
+    case 'scorpion': return { name:'Rad Scorpion', hp:18*scale, maxHp:18*scale, atk:6*scale, def:1, xp:12, type };
+    case 'snake': return { name:'Sand Viper', hp:10*scale, maxHp:10*scale, atk:7*scale, def:0, xp:8, type };
+    case 'boss': return { name:'Mutant Overlord', hp:80, maxHp:80, atk:15, def:5, xp:100, type };
+    default: return { name:'Raider', hp:15, maxHp:15, atk:5, def:1, xp:10, type:'raider' };
+  }
+}
+
+function randomEncounter() {
+  let tile = map[py][px];
+  let types, count;
+  if (tile === T.RAD) { types = ['mutant','scorpion']; count = rngI(1,3); }
+  else if (tile === T.RUIN) { types = ['raider','robot']; count = rngI(1,3); }
+  else { types = ['raider','snake','scorpion']; count = rngI(1,2); }
+  let scale = 1 + (turnCount / 200);
+  let enemies = [];
+  for (let i = 0; i < count; i++) {
+    enemies.push(makeEnemy(types[rngI(0,types.length-1)], scale));
+  }
+  return enemies;
+}
+
+function init() {
+  seed = Date.now();
+  gameState = 'title';
+  party = [
+    makeRanger('Ace', 'Assault'),
+    makeRanger('Doc', 'Medic'),
+    makeRanger('Sparks', 'Tech'),
+    makeRanger('Hawk', 'Scout')
+  ];
+  activeRanger = 0;
+  px = 5; py = 5;
+  turnCount = 0;
+  questFlags = { lab:false, camp:false, crater:false, hive:false };
+  inventory = { ammo:30, medkits:5, food:10, scrap:0 };
+  messages = ['Welcome, Desert Rangers.', 'Investigate the mutant attacks.'];
+  combatState = null;
+  dialogueState = null;
+  skillState = null;
+  menuIdx = 0;
+  genMap();
+  revealAround();
+}
+
+function revealAround() {
+  let r = bestSkill('perception') >= 5 ? 4 : 3;
+  for (let dy=-r;dy<=r;dy++)
+    for (let dx=-r;dx<=r;dx++) {
+      let nx=px+dx,ny=py+dy;
+      if(nx>=0&&nx<MW&&ny>=0&&ny<MH) mapSeen[ny][nx]=true;
+    }
+}
+
+function bestSkill(skill) {
+  let best = 0;
+  for (let r of party) if (r.alive) best = Math.max(best, r.skills[skill]);
+  return best;
+}
+
+function bestRangerForSkill(skill) {
+  let best = -1, idx = 0;
+  for (let i = 0; i < party.length; i++) {
+    if (party[i].alive && party[i].skills[skill] > best) { best = party[i].skills[skill]; idx = i; }
+  }
+  return idx;
+}
+
+function skillCheck(skill, difficulty) {
+  let level = party[activeRanger].skills[skill];
+  let roll = rng() * 10;
+  return (level + roll) >= difficulty;
+}
+
+function startCombat(enemies, ambush) {
+  gameState = 'combat';
+  for (let r of party) { r.ap = r.maxAp; r.defending = false; }
+  combatState = {
+    enemies: enemies,
+    phase: 'player', // player, enemy, result
+    activeRanger: 0,
+    targetIdx: 0,
+    action: null, // attack, skill, defend, item, flee
+    selecting: 'action', // action, target, skill
+    turnMsg: ambush ? 'Ambush! Enemies attack first!' : 'Combat begins!',
+    skillMenu: 0,
+    fled: false
+  };
+  if (ambush) combatState.phase = 'enemy';
+  // Skip to first alive ranger
+  while (combatState.activeRanger < 4 && !party[combatState.activeRanger].alive) combatState.activeRanger++;
+  msg(combatState.turnMsg);
+}
+
+function nextCombatRanger() {
+  combatState.activeRanger++;
+  while (combatState.activeRanger < 4 && !party[combatState.activeRanger].alive) combatState.activeRanger++;
+  if (combatState.activeRanger >= 4) {
+    // Enemy turn
+    combatState.phase = 'enemy';
+    enemyTurn();
+  } else {
+    combatState.selecting = 'action';
+    combatState.action = null;
+    menuIdx = 0;
+  }
+}
+
+function doCombatAttack(rangerIdx, targetIdx) {
+  let r = party[rangerIdx];
+  let e = combatState.enemies[targetIdx];
+  if (!e || e.hp <= 0) return;
+  if (inventory.ammo <= 0) { msg(r.name + ' has no ammo!'); return; }
+  inventory.ammo--;
+  let hitChance = 0.5 + r.skills.combat * 0.05;
+  if (rng() < hitChance) {
+    let dmg = Math.max(1, Math.floor((3 + r.skills.combat * 2 + rng()*4) - e.def));
+    e.hp -= dmg;
+    msg(r.name + ' hits ' + e.name + ' for ' + dmg + ' dmg!');
+    if (e.hp <= 0) {
+      e.hp = 0;
+      msg(e.name + ' destroyed!');
+      let xpEach = Math.floor(e.xp / aliveCount());
+      for (let rr of party) if (rr.alive) {
+        rr.xp += xpEach;
+        checkLevelUp(rr);
+      }
+      inventory.scrap += rngI(1, 5);
+    }
+  } else {
+    msg(r.name + ' misses ' + e.name + '!');
+  }
+}
+
+function doCombatHeal(rangerIdx) {
+  let r = party[rangerIdx];
+  if (inventory.medkits <= 0) { msg('No medkits!'); return; }
+  inventory.medkits--;
+  let heal = 5 + r.skills.medic * 3 + rngI(1, 5);
+  // Heal the most injured ranger
+  let target = null, lowestPct = 1;
+  for (let rr of party) {
+    if (rr.alive && rr.hp / rr.maxHp < lowestPct) { lowestPct = rr.hp / rr.maxHp; target = rr; }
+  }
+  if (target) {
+    target.hp = Math.min(target.maxHp, target.hp + heal);
+    msg(r.name + ' heals ' + target.name + ' for ' + heal + ' HP!');
+  }
+}
+
+function enemyTurn() {
+  for (let e of combatState.enemies) {
+    if (e.hp <= 0) continue;
+    // Pick random alive ranger
+    let targets = party.filter(r => r.alive);
+    if (targets.length === 0) break;
+    let target = targets[rngI(0, targets.length - 1)];
+    let hitChance = 0.6;
+    if (rng() < hitChance) {
+      let dmg = Math.max(1, Math.floor(e.atk + rng()*3 - (target.defending ? 3 : 0)));
+      target.hp -= dmg;
+      msg(e.name + ' hits ' + target.name + ' for ' + dmg + '!');
+      if (target.hp <= 0) {
+        target.hp = 0; target.alive = false;
+        msg(target.name + ' is down!');
+      }
+    } else {
+      msg(e.name + ' misses ' + target.name + '!');
+    }
+  }
+  // Check if party wiped
+  if (aliveCount() === 0) {
+    gameState = 'gameover';
+    msg('All rangers are down. Game over.');
+    return;
+  }
+  // Check enemies
+  if (combatState.enemies.every(e => e.hp <= 0)) {
+    endCombat(true);
+    return;
+  }
+  // Reset for player turn
+  combatState.phase = 'player';
+  combatState.activeRanger = 0;
+  while (combatState.activeRanger < 4 && !party[combatState.activeRanger].alive) combatState.activeRanger++;
+  combatState.selecting = 'action';
+  combatState.action = null;
+  menuIdx = 0;
+  for (let r of party) r.defending = false;
+}
+
+function endCombat(won) {
+  gameState = 'explore';
+  combatState = null;
+  if (won) {
+    msg('Victory! +scrap found.');
+    inventory.scrap += rngI(2, 8);
+  }
+}
+
+function aliveCount() { return party.filter(r => r.alive).length; }
+
+function checkLevelUp(r) {
+  let needed = r.level * 30;
+  if (r.xp >= needed) {
+    r.level++;
+    r.xp -= needed;
+    r.maxHp += 5;
+    r.hp = Math.min(r.hp + 5, r.maxHp);
+    // Boost a random skill
+    let skills = Object.keys(r.skills);
+    let sk = skills[rngI(0, skills.length - 1)];
+    r.skills[sk]++;
+    msg(r.name + ' levels up! ' + sk + ' +1');
+  }
+}
+
+function startDialogue(locName) {
+  gameState = 'dialogue';
+  menuIdx = 0;
+  let d;
+  if (locName === 'Dusty Springs') {
+    d = {
+      speaker: 'Elder Mae',
+      text: 'Rangers! The mutants come from the south. We found strange canisters near the Abandoned Lab to the east. Someone is making these creatures. Also, raiders at their camp to the southwest may know more.',
+      choices: [
+        { text: 'We\'ll investigate the lab.', response: 'Be careful. That place is full of old tech.', effect:() => msg('Quest updated: check the lab.') },
+        { text: 'What about the raiders?', response: 'Their camp is southwest. Rough folk, but they trade sometimes.', effect:() => msg('Quest updated: check raider camp.') },
+        { text: 'Any supplies for trade?', response: 'I can spare a few medkits for some scrap.', effect:() => { if(inventory.scrap>=5){inventory.scrap-=5;inventory.medkits+=3;msg('+3 medkits');} else msg('Not enough scrap.');} },
+      ]
+    };
+  } else if (locName === 'Junktown Market') {
+    d = {
+      speaker: 'Trader Vic',
+      text: 'Welcome to Junktown. I got ammo, medkits, and food. Everything\'s got a price in scrap.',
+      choices: [
+        { text: 'Buy ammo (5 scrap = 15 rounds)', response: 'Good choice.', effect:() => { if(inventory.scrap>=5){inventory.scrap-=5;inventory.ammo+=15;msg('+15 ammo');} else msg('Not enough scrap.');} },
+        { text: 'Buy medkits (8 scrap = 3 kits)', response: 'Keep your rangers patched up.', effect:() => { if(inventory.scrap>=8){inventory.scrap-=8;inventory.medkits+=3;msg('+3 medkits');} else msg('Not enough scrap.');} },
+        { text: 'Buy food (3 scrap = 5 food)', response: 'Can\'t fight on an empty stomach.', effect:() => { if(inventory.scrap>=3){inventory.scrap-=3;inventory.food+=5;msg('+5 food');} else msg('Not enough scrap.');} },
+        { text: 'Leave', response: 'Come back anytime.', effect:() => {} },
+      ]
+    };
+    // Barter bonus
+    if (bestSkill('barter') >= 4) {
+      d.text += ' Your barter skills impress me — I\'ll throw in a discount.';
+      d.choices[0].effect = () => { if(inventory.scrap>=3){inventory.scrap-=3;inventory.ammo+=15;msg('+15 ammo (discount!)');} else msg('Not enough scrap.'); };
+      d.choices[1].effect = () => { if(inventory.scrap>=5){inventory.scrap-=5;inventory.medkits+=3;msg('+3 medkits (discount!)');} else msg('Not enough scrap.'); };
+    }
+  } else if (locName === 'Ranger HQ') {
+    d = {
+      speaker: 'Commander',
+      text: questComplete() ? 'You\'ve found the source. All quest locations visited. Excellent work, Rangers!' :
+        'Rangers, investigate the mutant attacks. Visit the key locations marked on your map. Report back when you\'ve checked them all.',
+      choices: [
+        { text: 'Rest and resupply', response: 'Take what you need.', effect:() => {
+          for(let r of party){if(r.alive){r.hp=r.maxHp;}} inventory.ammo+=10; inventory.food+=5; msg('Party rested. +ammo +food');
+        }},
+        { text: 'Status report', response: questStatus(), effect:() => {} },
+        { text: 'Head out', response: 'Good luck out there.', effect:() => {} },
+      ]
+    };
+  } else {
+    d = {
+      speaker: 'Wasteland NPC',
+      text: 'Dangerous times. Watch out for radiation zones — they\'ll drain your health.',
+      choices: [
+        { text: 'Thanks.', response: 'Stay safe, Ranger.', effect:() => {} },
+      ]
+    };
+  }
+  dialogueState = d;
+}
+
+function questStatus() {
+  let s = '';
+  if (questFlags.lab) s += 'Lab: done. '; else s += 'Lab: unvisited. ';
+  if (questFlags.camp) s += 'Camp: done. '; else s += 'Camp: unvisited. ';
+  if (questFlags.crater) s += 'Crater: done. '; else s += 'Crater: unvisited. ';
+  if (questFlags.hive) s += 'Hive: done. '; else s += 'Hive: unvisited. ';
+  return s;
+}
+
+function questComplete() { return questFlags.lab && questFlags.camp && questFlags.crater && questFlags.hive; }
+
+function handleQuestLocation(loc) {
+  if (!loc.quest) return;
+  if (loc.quest === 'lab' && !questFlags.lab) {
+    questFlags.lab = true;
+    msg('Abandoned Lab explored!');
+    startCombat([makeEnemy('robot',1.2), makeEnemy('robot',1)], false);
+    combatState.turnMsg = 'Lab defense robots activate!';
+    msg('Lab robots attack! Found evidence of mutagen research.');
+    inventory.scrap += 10;
+  } else if (loc.quest === 'camp' && !questFlags.camp) {
+    questFlags.camp = true;
+    msg('Raider Camp infiltrated!');
+    if (bestSkill('barter') >= 4) {
+      msg('Your barter skill convinces the raiders to talk.');
+      msg('Raiders say: "The mutants come from a hive to the south."');
+      inventory.scrap += 8;
+    } else {
+      startCombat([makeEnemy('raider',1.2), makeEnemy('raider',1), makeEnemy('raider',1)], false);
+      combatState.turnMsg = 'Raiders attack! Fight for the intel!';
+    }
+  } else if (loc.quest === 'crater' && !questFlags.crater) {
+    questFlags.crater = true;
+    msg('Radiation Crater surveyed!');
+    // Radiation damage
+    for (let r of party) if (r.alive) { r.hp = Math.max(1, r.hp - 5); }
+    msg('Radiation burns! Party takes 5 damage each.');
+    msg('Found mutagen canisters linked to the lab.');
+    startCombat([makeEnemy('mutant',1.3), makeEnemy('scorpion',1.2)], false);
+    inventory.scrap += 6;
+  } else if (loc.quest === 'hive' && !questFlags.hive) {
+    if (!questFlags.lab || !questFlags.camp || !questFlags.crater) {
+      msg('The hive is too dangerous without more intel.');
+      msg('Visit the Lab, Camp, and Crater first.');
+      questFlags.hive = false;
+      return;
+    }
+    questFlags.hive = true;
+    msg('Entering the Mutant Hive!');
+    startCombat([makeEnemy('mutant',1.5), makeEnemy('mutant',1.3), makeEnemy('boss',1)], false);
+    combatState.turnMsg = 'The Mutant Overlord awaits!';
+  }
+  // Check victory after hive
+  if (questFlags.hive && combatState === null) {
+    gameState = 'victory';
+    msg('All threats neutralized! Rangers win!');
+  }
+}
+
+function handleLockLocation(loc) {
+  if (loc.visited) return;
+  let diff = 7;
+  activeRanger = bestRangerForSkill('lockpick');
+  if (skillCheck('lockpick', diff)) {
+    loc.visited = true;
+    msg(party[activeRanger].name + ' picks the lock!');
+    inventory.ammo += 20; inventory.medkits += 3; inventory.scrap += 15;
+    msg('Found a cache! +ammo +medkits +scrap');
+  } else {
+    msg(party[activeRanger].name + ' fails the lock (Lockpick too low).');
+  }
+}
+
+function handleRubbleLocation(loc) {
+  if (loc.visited) return;
+  let diff = 6;
+  activeRanger = bestRangerForSkill('demolitions');
+  if (skillCheck('demolitions', diff)) {
+    loc.visited = true;
+    msg(party[activeRanger].name + ' clears the rubble!');
+    map[loc.y][loc.x] = T.ROAD;
+    inventory.scrap += 10;
+    msg('Path cleared! Found scrap in the debris.');
+  } else {
+    msg(party[activeRanger].name + ' can\'t clear this (Demolitions too low).');
+  }
+}
+
+function consumeResources() {
+  turnCount++;
+  // Food consumption every 20 turns
+  if (turnCount % 20 === 0) {
+    if (inventory.food > 0) {
+      inventory.food--;
+    } else {
+      for (let r of party) if (r.alive) r.hp = Math.max(1, r.hp - 3);
+      msg('Starving! Party loses HP.');
+    }
+  }
+  // Radiation damage
+  if (map[py][px] === T.RAD) {
+    for (let r of party) if (r.alive) {
+      let dmg = Math.max(1, 3 - Math.floor(r.skills.perception / 3));
+      r.hp -= dmg;
+      if (r.hp <= 0) { r.hp = 0; r.alive = false; msg(r.name + ' succumbs to radiation!'); }
+    }
+    if (aliveCount() === 0) { gameState = 'gameover'; msg('Party wiped by radiation.'); }
+  }
+  // Perception: spot hidden items
+  if (turnCount % 15 === 0 && bestSkill('perception') >= 4 && rng() < 0.3) {
+    let found = ['ammo','medkits','scrap'][rngI(0,2)];
+    let amt = found==='scrap'?rngI(2,6):rngI(1,3);
+    inventory[found] += amt;
+    msg('Perception! Found ' + amt + ' ' + found + '!');
+  }
+}
+
+let keys = {}, keyQueue = [];
+window.addEventListener('keydown', e => {
+  if (infoOpen) return;
+  if (!keys[e.key]) keyQueue.push(e.key);
+  keys[e.key] = true;
+  e.preventDefault();
+});
+window.addEventListener('keyup', e => { keys[e.key] = false; });
+
+function processInput() {
+  if (keyQueue.length === 0) return;
+  let key = keyQueue.shift();
+
+  if (key === 'r' || key === 'R') {
+    if (gameState === 'gameover' || gameState === 'victory') { init(); gameState = 'title'; return; }
+  }
+
+  if (gameState === 'title') {
+    if (key === ' ') { gameState = 'explore'; msg('Move with arrow keys. Space to interact.'); }
+    return;
+  }
+
+  if (gameState === 'gameover' || gameState === 'victory') return;
+
+  // Select ranger
+  if (key >= '1' && key <= '4') {
+    let idx = parseInt(key) - 1;
+    if (party[idx].alive) activeRanger = idx;
+    return;
+  }
+
+  if (gameState === 'explore') {
+    let dx = 0, dy = 0;
+    if (key === 'ArrowUp') dy = -1;
+    else if (key === 'ArrowDown') dy = 1;
+    else if (key === 'ArrowLeft') dx = -1;
+    else if (key === 'ArrowRight') dx = 1;
+    else if (key === ' ') {
+      // Interact
+      let loc = locations.find(l => l.x === px && l.y === py);
+      if (loc) {
+        if (loc.type === 'town' || loc.type === 'shop') {
+          startDialogue(loc.name);
+        } else if (loc.type === 'quest') {
+          handleQuestLocation(loc);
+        } else if (loc.type === 'lock') {
+          handleLockLocation(loc);
+        } else if (loc.type === 'rubble') {
+          handleRubbleLocation(loc);
+        }
+      } else if (map[py][px] === T.NPC) {
+        startDialogue('NPC');
+      }
+      return;
+    } else if (key === 's' || key === 'S') {
+      // Use skill on map
+      gameState = 'skill';
+      skillState = { skills: ['medic','perception','lockpick','demolitions','barter','combat'], idx: 0 };
+      return;
+    }
+
+    if (dx !== 0 || dy !== 0) {
+      let nx = px + dx, ny = py + dy;
+      if (nx >= 0 && nx < MW && ny >= 0 && ny < MH && map[ny][nx] !== T.WALL && map[ny][nx] !== T.WATER) {
+        px = nx; py = ny;
+        revealAround();
+        consumeResources();
+        // Random encounter
+        let tile = map[py][px];
+        let encChance = tile === T.RAD ? 0.15 : tile === T.RUIN ? 0.12 : tile === T.SAND ? 0.05 : 0.03;
+        if (rng() < encChance && gameState === 'explore') {
+          let enemies = randomEncounter();
+          let ambush = bestSkill('perception') < 3 && rng() < 0.3;
+          startCombat(enemies, ambush);
+        }
+        // Location arrival
+        let loc = locations.find(l => l.x === px && l.y === py);
+        if (loc && !loc.visited) {
+          loc.visited = true;
+          msg('Arrived: ' + loc.name);
+          msg(loc.desc);
+        }
+      }
+    }
+  } else if (gameState === 'combat') {
+    handleCombatInput(key);
+  } else if (gameState === 'dialogue') {
+    handleDialogueInput(key);
+  } else if (gameState === 'skill') {
+    handleSkillInput(key);
+  }
+}
+
+function handleCombatInput(key) {
+  if (combatState.phase === 'enemy') return;
+  let aliveEnemies = combatState.enemies.filter(e => e.hp > 0);
+
+  if (combatState.selecting === 'action') {
+    if (key === 'a' || key === 'A') {
+      combatState.action = 'attack';
+      combatState.selecting = 'target';
+      combatState.targetIdx = 0;
+      // Find first alive enemy
+      while (combatState.targetIdx < combatState.enemies.length && combatState.enemies[combatState.targetIdx].hp <= 0) combatState.targetIdx++;
+    } else if (key === 's' || key === 'S') {
+      combatState.action = 'skill';
+      combatState.selecting = 'skill';
+      combatState.skillMenu = 0;
+    } else if (key === 'd' || key === 'D') {
+      party[combatState.activeRanger].defending = true;
+      msg(party[combatState.activeRanger].name + ' defends.');
+      nextCombatRanger();
+    } else if (key === 'i' || key === 'I') {
+      doCombatHeal(combatState.activeRanger);
+      nextCombatRanger();
+    } else if (key === 'f' || key === 'F') {
+      if (rng() < 0.5) {
+        msg('Fled successfully!');
+        combatState.fled = true;
+        endCombat(false);
+      } else {
+        msg('Can\'t escape!');
+        nextCombatRanger();
+      }
+    }
+  } else if (combatState.selecting === 'target') {
+    if (key === 'ArrowUp' || key === 'ArrowLeft') {
+      do { combatState.targetIdx--; if(combatState.targetIdx<0) combatState.targetIdx=combatState.enemies.length-1; }
+      while (combatState.enemies[combatState.targetIdx].hp <= 0 && aliveEnemies.length > 0);
+    } else if (key === 'ArrowDown' || key === 'ArrowRight') {
+      do { combatState.targetIdx++; if(combatState.targetIdx>=combatState.enemies.length) combatState.targetIdx=0; }
+      while (combatState.enemies[combatState.targetIdx].hp <= 0 && aliveEnemies.length > 0);
+    } else if (key === ' ' || key === 'a' || key === 'A') {
+      doCombatAttack(combatState.activeRanger, combatState.targetIdx);
+      if (combatState && combatState.enemies.every(e => e.hp <= 0)) {
+        endCombat(true);
+        // Check if hive quest just completed
+        if (questFlags.hive && gameState === 'explore') {
+          gameState = 'victory';
+          msg('The mutant threat is eliminated!');
+          msg('Rangers, you have saved the wasteland!');
+        }
+      } else if (combatState) {
+        nextCombatRanger();
+      }
+    } else if (key === 'Escape') {
+      combatState.selecting = 'action';
+    }
+  } else if (combatState.selecting === 'skill') {
+    let skills = ['combat','medic'];
+    if (key === 'ArrowUp' || key === 'ArrowLeft') { combatState.skillMenu = (combatState.skillMenu - 1 + skills.length) % skills.length; }
+    else if (key === 'ArrowDown' || key === 'ArrowRight') { combatState.skillMenu = (combatState.skillMenu + 1) % skills.length; }
+    else if (key === ' ' || key === 's' || key === 'S') {
+      let sk = skills[combatState.skillMenu];
+      if (sk === 'medic') {
+        doCombatHeal(combatState.activeRanger);
+        nextCombatRanger();
+      } else if (sk === 'combat') {
+        // Combat skill: AoE attack (weaker)
+        let r = party[combatState.activeRanger];
+        if (inventory.ammo < 2) { msg('Not enough ammo for burst!'); return; }
+        inventory.ammo -= 2;
+        let hitChance = 0.3 + r.skills.combat * 0.05;
+        for (let e of combatState.enemies) {
+          if (e.hp <= 0) continue;
+          if (rng() < hitChance) {
+            let dmg = Math.max(1, Math.floor(2 + r.skills.combat + rng()*3 - e.def));
+            e.hp -= dmg;
+            msg(r.name + ' bursts ' + e.name + ' for ' + dmg + '!');
+            if (e.hp <= 0) {
+              e.hp = 0; msg(e.name + ' destroyed!');
+              let xpEach = Math.floor(e.xp / aliveCount());
+              for (let rr of party) if(rr.alive) { rr.xp+=xpEach; checkLevelUp(rr); }
+              inventory.scrap += rngI(1,3);
+            }
+          }
+        }
+        if (combatState.enemies.every(e => e.hp <= 0)) {
+          endCombat(true);
+          if (questFlags.hive && gameState === 'explore') { gameState = 'victory'; msg('Rangers win!'); }
+        } else {
+          nextCombatRanger();
+        }
+      }
+    } else if (key === 'Escape') {
+      combatState.selecting = 'action';
+    }
+  }
+}
+
+function handleDialogueInput(key) {
+  if (!dialogueState) return;
+  let nc = dialogueState.choices.length;
+  if (key === 'ArrowUp') { menuIdx = (menuIdx - 1 + nc) % nc; }
+  else if (key === 'ArrowDown') { menuIdx = (menuIdx + 1) % nc; }
+  else if (key === ' ') {
+    let choice = dialogueState.choices[menuIdx];
+    choice.effect();
+    dialogueState.text = choice.response;
+    dialogueState.choices = [{ text: 'OK', response: '', effect: () => { gameState = 'explore'; dialogueState = null; menuIdx = 0; } }];
+    menuIdx = 0;
+  }
+}
+
+function handleSkillInput(key) {
+  if (!skillState) return;
+  let ns = skillState.skills.length;
+  if (key === 'ArrowUp') { skillState.idx = (skillState.idx - 1 + ns) % ns; }
+  else if (key === 'ArrowDown') { skillState.idx = (skillState.idx + 1) % ns; }
+  else if (key === ' ' || key === 's' || key === 'S') {
+    let sk = skillState.skills[skillState.idx];
+    if (sk === 'medic') {
+      if (inventory.medkits > 0) {
+        inventory.medkits--;
+        let heal = 5 + party[activeRanger].skills.medic * 3;
+        let target = null, lowestPct = 1;
+        for (let r of party) if (r.alive && r.hp/r.maxHp < lowestPct) { lowestPct = r.hp/r.maxHp; target = r; }
+        if (target) { target.hp = Math.min(target.maxHp, target.hp + heal); msg('Healed ' + target.name + ' for ' + heal + ' HP.'); }
+      } else { msg('No medkits!'); }
+    } else if (sk === 'perception') {
+      if (skillCheck('perception', 5)) {
+        let found = ['ammo','scrap','food'][rngI(0,2)];
+        let amt = rngI(1,4);
+        inventory[found] += amt;
+        msg('Found ' + amt + ' ' + found + '!');
+      } else {
+        msg('Nothing found.');
+      }
+    } else {
+      msg('Use ' + sk + ' on a location (Space to interact).');
+    }
+    gameState = 'explore'; skillState = null;
+  } else if (key === 'Escape') {
+    gameState = 'explore'; skillState = null;
+  }
+}
+
+function update() {
+  if (infoOpen) return;
+  processInput();
+}
+
+function draw() {
+  ctx.fillStyle = '#0a0a0a';
+  ctx.fillRect(0, 0, W, H);
+
+  if (gameState === 'title') {
+    drawTitle();
+    return;
+  }
+
+  drawMap();
+  drawPanel();
+  drawMessages();
+  drawBadge();
+
+  if (gameState === 'combat') drawCombat();
+  else if (gameState === 'dialogue') drawDialogue();
+  else if (gameState === 'skill') drawSkillMenu();
+  else if (gameState === 'gameover') drawGameOver();
+  else if (gameState === 'victory') drawVictory();
+}
+
+function drawTitle() {
+  ctx.fillStyle = '#1a1008';
+  ctx.fillRect(0, 0, W, H);
+
+  // Wasteland title art
+  ctx.fillStyle = '#f80';
+  ctx.font = 'bold 48px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('D U S T   L A N D S', W/2, 160);
+
+  ctx.fillStyle = '#c84';
+  ctx.font = '16px monospace';
+  ctx.fillText('POST-APOCALYPTIC RANGER RPG', W/2, 200);
+
+  ctx.fillStyle = '#886';
+  ctx.font = '14px monospace';
+  ctx.fillText('A Desert Rangers Tactical Mission', W/2, 240);
+
+  ctx.fillStyle = '#4a3a1a';
+  ctx.fillRect(0, 420, W, 180);
+  ctx.fillStyle = '#3a2a10';
+  for (let i = 0; i < 15; i++) {
+    ctx.fillRect((i*47+10)%W, 420-(10+(i*11)%30), 15+(i*7)%20, 10+(i*11)%30);
+  }
+  ctx.fillStyle = '#c84';
+  ctx.fillRect(0, 418, W, 3);
+
+  let names = ['ACE (Assault)', 'DOC (Medic)', 'SPARKS (Tech)', 'HAWK (Scout)'];
+  ctx.fillStyle = '#aa8';
+  ctx.font = '13px monospace';
+  for (let i = 0; i < 4; i++) ctx.fillText(names[i], W/2, 300 + i * 22);
+
+  ctx.fillStyle = '#ff0';
+  ctx.font = 'bold 18px monospace';
+  let blink = Math.floor(Date.now() / 500) % 2;
+  if (blink) ctx.fillText('PRESS SPACE TO BEGIN', W/2, 530);
+
+  ctx.fillStyle = '#666';
+  ctx.font = '12px monospace';
+  ctx.fillText('Arrow keys: move | Space: interact | A: attack | S: skill | ?: info', W/2, 570);
+  ctx.textAlign = 'left';
+}
+
+function drawMap() {
+  let camX = px - Math.floor(VW/2);
+  let camY = py - Math.floor(VH/2);
+
+  for (let vy = 0; vy < VH; vy++) {
+    for (let vx = 0; vx < VW; vx++) {
+      let mx = camX + vx, my = camY + vy;
+      let sx = vx * TW, sy = vy * TH + 20;
+
+      if (mx < 0 || mx >= MW || my < 0 || my >= MH) {
+        ctx.fillStyle = '#111';
+        ctx.fillRect(sx, sy, TW, TH);
+        continue;
+      }
+
+      if (!mapSeen[my][mx]) {
+        ctx.fillStyle = '#1a1a1a';
+        ctx.fillRect(sx, sy, TW, TH);
+        continue;
+      }
+
+      let tile = map[my][mx];
+      ctx.fillStyle = TCOL[tile] || '#333';
+      ctx.fillRect(sx, sy, TW, TH);
+
+      let loc = locations.find(l => l.x === mx && l.y === my);
+      if (loc) {
+        let col;
+        if (loc.type === 'town') col = '#ff0';
+        else if (loc.type === 'shop') col = '#0f0';
+        else if (loc.type === 'quest') col = loc.quest && questFlags[loc.quest] ? '#666' : '#f44';
+        else if (loc.type === 'lock') col = loc.visited ? '#666' : '#fa0';
+        else if (loc.type === 'rubble') col = loc.visited ? '#666' : '#a80';
+        ctx.fillStyle = col;
+        ctx.fillRect(sx+4, sy+4, TW-8, TH-8);
+        ctx.fillStyle = '#000';
+        ctx.font = '10px monospace';
+        let icon = loc.type==='town'?'T':loc.type==='shop'?'$':loc.type==='quest'?'!':loc.type==='lock'?'L':'X';
+        ctx.fillText(icon, sx+6, sy+15);
+      }
+
+      // NPC markers
+      if (tile === T.NPC) {
+        ctx.fillStyle = '#aaf';
+        ctx.fillRect(sx+5, sy+3, TW-10, TH-6);
+        ctx.fillStyle = '#000';
+        ctx.font = '10px monospace';
+        ctx.fillText('N', sx+6, sy+15);
+      }
+
+      // Radiation shimmer
+      if (tile === T.RAD) {
+        ctx.fillStyle = 'rgba(0,255,0,' + (0.1 + 0.05*Math.sin(Date.now()/300+mx*3+my*5)) + ')';
+        ctx.fillRect(sx, sy, TW, TH);
+      }
+    }
+  }
+
+  // Draw party
+  let partyScreenX = Math.floor(VW/2) * TW;
+  let partyScreenY = Math.floor(VH/2) * TH + 20;
+  ctx.fillStyle = '#0af';
+  ctx.fillRect(partyScreenX+2, partyScreenY+2, TW-4, TH-4);
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 12px monospace';
+  ctx.fillText('R', partyScreenX+5, partyScreenY+15);
+
+  let loc = locations.find(l => l.x === px && l.y === py);
+  if (loc) {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(10, VH*TH+22, 490, 18);
+    ctx.fillStyle = '#ff0';
+    ctx.font = '12px monospace';
+    ctx.fillText(loc.name + ' — Press SPACE to interact', 15, VH*TH+36);
+  }
+}
+
+function drawPanel() {
+  let px0 = PANEL_X;
+  ctx.fillStyle = '#111';
+  ctx.fillRect(px0, 0, W - px0, H);
+  ctx.strokeStyle = '#333';
+  ctx.strokeRect(px0, 0, W - px0, H);
+
+  ctx.font = '11px monospace';
+  let y = 25;
+
+  // Party header
+  ctx.fillStyle = '#f80';
+  ctx.font = 'bold 13px monospace';
+  ctx.fillText('DESERT RANGERS', px0 + 10, y); y += 18;
+
+  for (let i = 0; i < 4; i++) {
+    let r = party[i];
+    let selected = (gameState === 'combat' && combatState) ? combatState.activeRanger === i : activeRanger === i;
+
+    // Background
+    ctx.fillStyle = selected ? '#1a2a1a' : '#0a0a0a';
+    ctx.fillRect(px0 + 4, y - 10, W - px0 - 8, 72);
+    if (selected) { ctx.strokeStyle = '#4a4'; ctx.strokeRect(px0 + 4, y - 10, W - px0 - 8, 72); }
+
+    // Name and class
+    ctx.fillStyle = r.alive ? (selected ? '#ff0' : '#ccc') : '#633';
+    ctx.font = 'bold 11px monospace';
+    ctx.fillText((i+1) + '. ' + r.name + ' [' + r.cls + ']', px0 + 10, y + 2);
+    ctx.fillText('Lv' + r.level, px0 + 220, y + 2);
+
+    if (!r.alive) {
+      ctx.fillStyle = '#f44';
+      ctx.font = '11px monospace';
+      ctx.fillText('** DOWN **', px0 + 10, y + 16);
+      y += 78;
+      continue;
+    }
+
+    // HP bar
+    ctx.font = '10px monospace';
+    ctx.fillStyle = '#888';
+    ctx.fillText('HP', px0 + 10, y + 16);
+    let hpPct = r.hp / r.maxHp;
+    ctx.fillStyle = '#300';
+    ctx.fillRect(px0 + 30, y + 8, 120, 10);
+    ctx.fillStyle = hpPct > 0.5 ? '#0a0' : hpPct > 0.25 ? '#aa0' : '#a00';
+    ctx.fillRect(px0 + 30, y + 8, Math.floor(120 * hpPct), 10);
+    ctx.fillStyle = '#fff';
+    ctx.fillText(r.hp + '/' + r.maxHp, px0 + 160, y + 17);
+
+    // XP
+    ctx.fillStyle = '#668';
+    ctx.fillText('XP:' + r.xp + '/' + (r.level*30), px0 + 210, y + 17);
+
+    // Skills (compact)
+    let skillAbbr = ['CMB','MED','LCK','DEM','BAR','PER'];
+    let skillKeys = ['combat','medic','lockpick','demolitions','barter','perception'];
+    ctx.fillStyle = '#777';
+    let sx = px0 + 10;
+    for (let s = 0; s < 6; s++) {
+      ctx.fillStyle = '#666';
+      ctx.fillText(skillAbbr[s], sx, y + 30);
+      ctx.fillStyle = '#aaf';
+      ctx.fillText(r.skills[skillKeys[s]], sx + 28, y + 30);
+      sx += 46;
+    }
+
+    // Status
+    if (r.defending) {
+      ctx.fillStyle = '#4af';
+      ctx.fillText('DEFENDING', px0 + 10, y + 45);
+    }
+
+    y += 78;
+  }
+
+  // Inventory
+  y += 5;
+  ctx.fillStyle = '#f80';
+  ctx.font = 'bold 12px monospace';
+  ctx.fillText('SUPPLIES', px0 + 10, y); y += 16;
+  ctx.font = '11px monospace';
+  ctx.fillStyle = '#cc4';
+  ctx.fillText('Ammo: ' + inventory.ammo, px0 + 10, y);
+  ctx.fillText('MedKits: ' + inventory.medkits, px0 + 130, y); y += 14;
+  ctx.fillText('Food: ' + inventory.food, px0 + 10, y);
+  ctx.fillText('Scrap: ' + inventory.scrap, px0 + 130, y); y += 20;
+
+  // Quest progress
+  ctx.fillStyle = '#f80';
+  ctx.font = 'bold 12px monospace';
+  ctx.fillText('MISSION', px0 + 10, y); y += 16;
+  ctx.font = '11px monospace';
+  let qItems = [
+    ['Lab', questFlags.lab],
+    ['Camp', questFlags.camp],
+    ['Crater', questFlags.crater],
+    ['Hive', questFlags.hive]
+  ];
+  for (let q of qItems) {
+    ctx.fillStyle = q[1] ? '#4a4' : '#844';
+    ctx.fillText((q[1] ? '[X] ' : '[ ] ') + q[0], px0 + 10, y);
+    y += 14;
+  }
+
+  // Mini-map guide
+  y += 8;
+  ctx.fillStyle = '#666';
+  ctx.font = '10px monospace';
+  ctx.fillText('T=Town $=Shop !=Quest', px0+10, y); y+=12;
+  ctx.fillText('L=Locked X=Rubble N=NPC', px0+10, y);
+}
+
+function drawMessages() {
+  let y0 = VH * TH + 42;
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0, y0, PANEL_X, H - y0);
+  ctx.strokeStyle = '#333';
+  ctx.strokeRect(0, y0, PANEL_X, H - y0);
+
+  ctx.font = '11px monospace';
+  for (let i = 0; i < messages.length && i < 6; i++) {
+    ctx.fillStyle = i === 0 ? '#ff0' : '#888';
+    ctx.fillText(messages[i], 10, y0 + 16 + i * 14);
+  }
+}
+
+function drawBadge() {
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(0, 0, 340, 20);
+  ctx.fillStyle = '#f80';
+  ctx.font = 'bold 12px monospace';
+  ctx.fillText('RPG-005 \u00b7 DUST LANDS  [?]', 8, 14);
+  ctx.fillStyle = '#666';
+  ctx.font = '10px monospace';
+  ctx.fillText('Turn:' + turnCount, 260, 14);
+}
+
+function drawCombat() {
+  if (!combatState) return;
+  let ox = 40, oy = 60;
+  let cw = 420, ch = 340;
+
+  // Combat overlay
+  ctx.fillStyle = 'rgba(10,0,0,0.85)';
+  ctx.fillRect(ox, oy, cw, ch);
+  ctx.strokeStyle = '#a44';
+  ctx.strokeRect(ox, oy, cw, ch);
+
+  ctx.fillStyle = '#f44';
+  ctx.font = 'bold 14px monospace';
+  ctx.fillText('-- COMBAT --', ox + 150, oy + 20);
+
+  // Enemies
+  ctx.fillStyle = '#f80';
+  ctx.font = 'bold 12px monospace';
+  ctx.fillText('ENEMIES:', ox + 10, oy + 45);
+  ctx.font = '11px monospace';
+  for (let i = 0; i < combatState.enemies.length; i++) {
+    let e = combatState.enemies[i];
+    let selected = combatState.selecting === 'target' && combatState.targetIdx === i;
+    ctx.fillStyle = e.hp <= 0 ? '#444' : (selected ? '#ff0' : '#faa');
+    let eIcon = e.type==='raider'?'R':e.type==='mutant'?'M':e.type==='robot'?'B':e.type==='boss'?'X':'S';
+    ctx.fillText((selected ? '> ' : '  ') + eIcon + ' ' + e.name + '  HP:' + Math.max(0,e.hp) + '/' + e.maxHp, ox + 15, oy + 62 + i * 18);
+    // HP bar
+    if (e.hp > 0) {
+      let bx = ox + 280, by = oy + 52 + i * 18;
+      ctx.fillStyle = '#300';
+      ctx.fillRect(bx, by, 80, 8);
+      ctx.fillStyle = '#f44';
+      ctx.fillRect(bx, by, Math.floor(80 * e.hp / e.maxHp), 8);
+    }
+  }
+
+  // Active ranger info
+  let ar = party[combatState.activeRanger];
+  if (ar && ar.alive && combatState.phase === 'player') {
+    let ay = oy + 160;
+    ctx.fillStyle = '#0af';
+    ctx.font = 'bold 12px monospace';
+    ctx.fillText(ar.name + '\'s turn', ox + 10, ay);
+
+    if (combatState.selecting === 'action') {
+      ctx.fillStyle = '#ccc';
+      ctx.font = '12px monospace';
+      ctx.fillText('[A] Attack    [S] Skill    [D] Defend', ox + 15, ay + 20);
+      ctx.fillText('[I] Use Item  [F] Flee', ox + 15, ay + 36);
+    } else if (combatState.selecting === 'target') {
+      ctx.fillStyle = '#ff0';
+      ctx.font = '12px monospace';
+      ctx.fillText('Select target: Arrows + Space', ox + 15, ay + 20);
+      ctx.fillText('[Esc] Back', ox + 15, ay + 36);
+    } else if (combatState.selecting === 'skill') {
+      ctx.fillStyle = '#ff0';
+      ctx.font = '12px monospace';
+      let skills = ['combat (burst fire)', 'medic (heal)'];
+      for (let i = 0; i < skills.length; i++) {
+        ctx.fillStyle = combatState.skillMenu === i ? '#ff0' : '#888';
+        ctx.fillText((combatState.skillMenu===i?'> ':'  ') + skills[i], ox + 15, ay + 20 + i * 16);
+      }
+      ctx.fillStyle = '#666';
+      ctx.fillText('[Esc] Back', ox + 15, ay + 56);
+    }
+  }
+
+  // Combat log (last 4 messages)
+  ctx.fillStyle = '#666';
+  ctx.font = '10px monospace';
+  for (let i = 0; i < Math.min(4, messages.length); i++) {
+    ctx.fillStyle = i === 0 ? '#ee0' : '#666';
+    ctx.fillText(messages[i], ox + 10, oy + ch - 60 + i * 14);
+  }
+}
+
+function drawDialogue() {
+  if (!dialogueState) return;
+  let ox = 30, oy = 150;
+  let dw = 450, dh = 260;
+
+  ctx.fillStyle = 'rgba(0,0,20,0.9)';
+  ctx.fillRect(ox, oy, dw, dh);
+  ctx.strokeStyle = '#48f';
+  ctx.strokeRect(ox, oy, dw, dh);
+
+  ctx.fillStyle = '#4af';
+  ctx.font = 'bold 13px monospace';
+  ctx.fillText(dialogueState.speaker, ox + 15, oy + 22);
+
+  // Word wrap text
+  ctx.fillStyle = '#ccc';
+  ctx.font = '12px monospace';
+  let words = dialogueState.text.split(' ');
+  let line = '', ty = oy + 45, maxW = dw - 30;
+  for (let w of words) {
+    let test = line + w + ' ';
+    if (ctx.measureText(test).width > maxW) {
+      ctx.fillText(line, ox + 15, ty);
+      line = w + ' '; ty += 16;
+    } else { line = test; }
+  }
+  ctx.fillText(line, ox + 15, ty); ty += 26;
+
+  // Choices
+  for (let i = 0; i < dialogueState.choices.length; i++) {
+    ctx.fillStyle = menuIdx === i ? '#ff0' : '#888';
+    ctx.fillText((menuIdx===i?'> ':'  ') + dialogueState.choices[i].text, ox + 15, ty + i * 18);
+  }
+
+  ctx.fillStyle = '#555';
+  ctx.font = '10px monospace';
+  ctx.fillText('Arrows to choose, Space to select', ox + 15, oy + dh - 12);
+}
+
+function drawSkillMenu() {
+  if (!skillState) return;
+  let ox = 30, oy = 150, sw = 300, sh = 180;
+
+  ctx.fillStyle = 'rgba(0,20,0,0.9)';
+  ctx.fillRect(ox, oy, sw, sh);
+  ctx.strokeStyle = '#4a4';
+  ctx.strokeRect(ox, oy, sw, sh);
+
+  ctx.fillStyle = '#4f4';
+  ctx.font = 'bold 13px monospace';
+  ctx.fillText('USE SKILL (' + party[activeRanger].name + ')', ox + 15, oy + 20);
+
+  ctx.font = '12px monospace';
+  for (let i = 0; i < skillState.skills.length; i++) {
+    let sk = skillState.skills[i];
+    let val = party[activeRanger].skills[sk];
+    ctx.fillStyle = skillState.idx === i ? '#ff0' : '#888';
+    ctx.fillText((skillState.idx===i?'> ':'  ') + sk + ' [' + val + ']', ox + 15, oy + 42 + i * 16);
+  }
+
+  ctx.fillStyle = '#555';
+  ctx.font = '10px monospace';
+  ctx.fillText('Arrows + Space | Esc to cancel', ox + 15, oy + sh - 12);
+}
+
+function drawGameOver() {
+  ctx.fillStyle = 'rgba(40,0,0,0.85)';
+  ctx.fillRect(100, 200, 400, 150);
+  ctx.strokeStyle = '#f44';
+  ctx.strokeRect(100, 200, 400, 150);
+
+  ctx.fillStyle = '#f44';
+  ctx.font = 'bold 24px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('GAME OVER', W/2, 255);
+  ctx.fillStyle = '#ccc';
+  ctx.font = '14px monospace';
+  ctx.fillText('All Rangers have fallen.', W/2, 285);
+  ctx.fillText('Turns survived: ' + turnCount, W/2, 305);
+  ctx.fillStyle = '#ff0';
+  ctx.fillText('Press R to restart', W/2, 335);
+  ctx.textAlign = 'left';
+}
+
+function drawVictory() {
+  ctx.fillStyle = 'rgba(0,30,0,0.85)';
+  ctx.fillRect(80, 150, 440, 220);
+  ctx.strokeStyle = '#4f4';
+  ctx.strokeRect(80, 150, 440, 220);
+
+  ctx.fillStyle = '#4f4';
+  ctx.font = 'bold 24px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('MISSION COMPLETE', W/2, 200);
+
+  ctx.fillStyle = '#ff0';
+  ctx.font = '16px monospace';
+  ctx.fillText('The mutant threat is neutralized!', W/2, 235);
+
+  ctx.fillStyle = '#ccc';
+  ctx.font = '13px monospace';
+  ctx.fillText('The Desert Rangers saved the wasteland.', W/2, 265);
+  ctx.fillText('Turns: ' + turnCount + '  Surviving: ' + aliveCount() + '/4', W/2, 290);
+  ctx.fillText('Levels gained: ' + (party.reduce((s,r) => s+r.level, 0)-4), W/2, 310);
+
+  ctx.fillStyle = '#ff0';
+  ctx.font = 'bold 14px monospace';
+  ctx.fillText('Press R to play again', W/2, 360);
+  ctx.textAlign = 'left';
+}
+
+init();
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+</body>
+</html>

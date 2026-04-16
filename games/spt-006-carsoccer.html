@@ -1,0 +1,813 @@
+<!--
+PROTOTYPE: carsoccer
+SERIES: spt
+NUMBER: 006
+DATE: 2026-03-23
+MECHANIC: drive car to hit ball into goal with boost physics
+ANCESTRY: Rocket League (2015, Psyonix), Soccar/SARPBC (2008, Psyonix), Micro Machines (1991, Codemasters)
+CONTROLS: Up/Down — accelerate/brake | Left/Right — steer | Shift — boost | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 6 (Transformer Era — physics prediction, trajectory planning)
+AI-INSIGHT: Rocket League's genius was combining two solved problems — driving physics and ball physics — into an emergent whole greater than either part. The car-ball interaction creates a control problem so rich that even deep RL agents struggle to master aerial play.
+NOTES: Car soccer distills vehicular sports to pure physics interaction.
+       Boost management adds resource layer to spatial skill.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPT-006 · CAR SOCCER</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SPT-006 · CAR SOCCER</h1>
+    <p><span class="tag series">SPT — Sports</span> <span class="tag">Prototype #006</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Drive your car into the ball to knock it into the opponent's goal. First to 5 goals wins!</p>
+    <ul>
+      <li><kbd>&#8593;</kbd> — Accelerate forward</li>
+      <li><kbd>&#8595;</kbd> — Brake / Reverse</li>
+      <li><kbd>&#8592;</kbd> <kbd>&#8594;</kbd> — Steer left / right</li>
+      <li><kbd>Shift</kbd> — Boost (uses boost meter)</li>
+      <li><kbd>R</kbd> — Restart match</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <p>Drive over glowing boost pads on the field to refill your boost meter faster.</p>
+
+    <h2>History</h2>
+    <p>Car soccer traces back to <em>Soccar</em> (later <em>Supersonic Acrobatic Rocket-Powered Battle-Cars</em>, 2008) by Psyonix, which evolved into <em>Rocket League</em> (2015) — one of the most successful esports titles ever. The concept of vehicular ball sports appeared earlier in games like <em>Excite Truck</em>'s soccer mode and various <em>Micro Machines</em> minigames.</p>
+    <p>Rocket League proved that physics-based emergent gameplay could sustain a competitive scene, with its skill ceiling growing as players discovered aerial play, wave dashes, and flip resets — none of which were explicitly designed.</p>
+
+    <h2>AI Archaeology</h2>
+    <h3>Era 6 — Transformer Era</h3>
+    <p>Rocket League's AI challenge is extraordinary: agents must predict ball trajectories, plan car positioning in 3D, manage boost resources, and coordinate with teammates — all in real-time continuous control space. OpenAI and others have trained deep RL agents that achieve superhuman play, but the emergent mechanical skill (aerials, dribbles) required years of training compute.</p>
+    <p>The car-ball interaction creates a control problem so rich that even deep RL agents struggle to master aerial play. This prototype's top-down 2D simplification removes the aerial dimension but preserves the core physics interaction puzzle.</p>
+
+    <h3>Classification</h3>
+    <p><span class="tag">vehicular sports</span> <span class="tag">physics sandbox</span> <span class="tag">boost management</span> <span class="tag">momentum transfer</span> <span class="tag">competitive 1v1</span></p>
+
+    <h2>Prototype Notes</h2>
+    <ul>
+      <li>Top-down birds-eye view simplifies Rocket League to 2D plane</li>
+      <li>Tank-style steering: turn rate scales with speed for weighty feel</li>
+      <li>Ball physics: elastic collision with momentum transfer from car velocity</li>
+      <li>AI uses simple chase-and-position behavior — beatable but competitive</li>
+      <li>Boost pads on field recharge meter; strategic resource management</li>
+    </ul>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+var canvas = document.getElementById('c');
+var ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+canvas.width = 800;
+canvas.height = 600;
+
+// --- State ---
+var infoOpen = false;
+var keys = {};
+var gameState = 'playing'; // playing, goalScored, gameOver
+var goalTimer = 0;
+var winScore = 5;
+var lastGoalBy = '';
+
+// Field dimensions
+var FIELD = { x: 60, y: 40, w: 680, h: 520 };
+var GOAL_W = 16;
+var GOAL_H = 120;
+var GOAL_Y = FIELD.y + (FIELD.h - GOAL_H) / 2;
+
+// Boost pads
+var boostPads = [];
+var BOOST_PAD_R = 12;
+var BOOST_PAD_RESPAWN = 300; // frames
+
+function initBoostPads() {
+  boostPads = [
+    { x: 250, y: 150, timer: 0 },
+    { x: 250, y: 450, timer: 0 },
+    { x: 400, y: 300, timer: 0 },
+    { x: 550, y: 150, timer: 0 },
+    { x: 550, y: 450, timer: 0 }
+  ];
+}
+
+// Car class
+function Car(x, y, angle, color, isAI) {
+  this.x = x;
+  this.y = y;
+  this.angle = angle;
+  this.speed = 0;
+  this.color = color;
+  this.isAI = isAI;
+  this.w = 30;
+  this.h = 18;
+  this.boost = 100;
+  this.maxBoost = 100;
+  this.boostRate = 0.15; // recharge per frame
+  this.boosting = false;
+}
+
+Car.prototype.radius = function() { return 16; };
+
+// Ball
+var ball = { x: 400, y: 300, vx: 0, vy: 0, r: 10 };
+var BALL_FRICTION = 0.995;
+var BALL_MAX_SPEED = 8;
+var BALL_WALL_DAMP = 0.8;
+
+var player, ai;
+var playerScore = 0, aiScore = 0;
+
+function resetPositions() {
+  player = new Car(250, 300, 0, '#3af', false);
+  ai = new Car(550, 300, Math.PI, '#f44', true);
+  ball.x = 400; ball.y = 300; ball.vx = 0; ball.vy = 0;
+  initBoostPads();
+}
+
+function restart() {
+  playerScore = 0;
+  aiScore = 0;
+  gameState = 'playing';
+  goalTimer = 0;
+  resetPositions();
+}
+
+resetPositions();
+initBoostPads();
+
+// --- Input ---
+window.addEventListener('keydown', function(e) {
+  keys[e.key] = true;
+  if (e.key === '?' || e.key === '/') { toggleInfo(); e.preventDefault(); }
+  if (e.key === 'r' || e.key === 'R') { restart(); }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); }
+  if (e.key === 'Shift' || e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+    e.preventDefault();
+  }
+});
+window.addEventListener('keyup', function(e) { keys[e.key] = false; });
+
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// --- Physics helpers ---
+function dist(a, b) { return Math.sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y)); }
+function clamp(v, mn, mx) { return Math.max(mn, Math.min(mx, v)); }
+
+function updateCar(car, accel, brake, turnL, turnR, boosting, dt) {
+  var maxSpeed = 3.5;
+  var accelRate = 0.08;
+  var brakeRate = 0.12;
+  var friction = 0.97;
+  var turnSpeed = 0.04;
+
+  // Boost
+  car.boosting = false;
+  if (boosting && car.boost > 0) {
+    car.boosting = true;
+    car.boost -= 0.6;
+    if (car.boost < 0) car.boost = 0;
+    maxSpeed = 6;
+    accelRate = 0.16;
+  }
+
+  // Recharge boost slowly
+  if (!car.boosting) {
+    car.boost = Math.min(car.maxBoost, car.boost + car.boostRate);
+  }
+
+  // Acceleration
+  if (accel) {
+    car.speed += accelRate;
+  } else if (brake) {
+    car.speed -= brakeRate;
+  } else {
+    car.speed *= friction;
+  }
+  car.speed = clamp(car.speed, -2, maxSpeed);
+
+  // Turn — scales with speed for weighty feel
+  var turnFactor = Math.min(Math.abs(car.speed) / 1.5, 1);
+  if (Math.abs(car.speed) < 0.1) turnFactor = 0;
+  if (turnL) car.angle -= turnSpeed * turnFactor;
+  if (turnR) car.angle += turnSpeed * turnFactor;
+
+  // Move
+  car.x += Math.cos(car.angle) * car.speed;
+  car.y += Math.sin(car.angle) * car.speed;
+
+  // Keep car in field bounds
+  var cr = car.radius();
+  car.x = clamp(car.x, FIELD.x + cr, FIELD.x + FIELD.w - cr);
+  car.y = clamp(car.y, FIELD.y + cr, FIELD.y + FIELD.h - cr);
+}
+
+function carBallCollision(car) {
+  var dx = ball.x - car.x;
+  var dy = ball.y - car.y;
+  var d = Math.sqrt(dx * dx + dy * dy);
+  var minDist = car.radius() + ball.r;
+  if (d < minDist && d > 0) {
+    // Normalize
+    var nx = dx / d;
+    var ny = dy / d;
+    // Car velocity
+    var cvx = Math.cos(car.angle) * car.speed;
+    var cvy = Math.sin(car.angle) * car.speed;
+    // Relative velocity dot normal
+    var relV = (cvx - ball.vx) * nx + (cvy - ball.vy) * ny;
+    if (relV > 0) {
+      // Momentum transfer — car is heavier
+      var impulse = relV * 1.4;
+      if (car.boosting) impulse *= 1.5;
+      ball.vx += nx * impulse;
+      ball.vy += ny * impulse;
+      // Small pushback on car
+      car.speed *= 0.7;
+    }
+    // Separate
+    var overlap = minDist - d;
+    ball.x += nx * overlap;
+    ball.y += ny * overlap;
+  }
+}
+
+function carCarCollision(a, b) {
+  var dx = b.x - a.x;
+  var dy = b.y - a.y;
+  var d = Math.sqrt(dx * dx + dy * dy);
+  var minDist = a.radius() + b.radius();
+  if (d < minDist && d > 0) {
+    var nx = dx / d;
+    var ny = dy / d;
+    var overlap = minDist - d;
+    a.x -= nx * overlap * 0.5;
+    a.y -= ny * overlap * 0.5;
+    b.x += nx * overlap * 0.5;
+    b.y += ny * overlap * 0.5;
+    // Bounce speeds
+    a.speed *= 0.5;
+    b.speed *= 0.5;
+  }
+}
+
+function updateBall() {
+  ball.x += ball.vx;
+  ball.y += ball.vy;
+  ball.vx *= BALL_FRICTION;
+  ball.vy *= BALL_FRICTION;
+
+  // Clamp speed
+  var spd = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+  if (spd > BALL_MAX_SPEED) {
+    ball.vx = (ball.vx / spd) * BALL_MAX_SPEED;
+    ball.vy = (ball.vy / spd) * BALL_MAX_SPEED;
+  }
+
+  // Wall bounces — top and bottom
+  if (ball.y - ball.r < FIELD.y) { ball.y = FIELD.y + ball.r; ball.vy = Math.abs(ball.vy) * BALL_WALL_DAMP; }
+  if (ball.y + ball.r > FIELD.y + FIELD.h) { ball.y = FIELD.y + FIELD.h - ball.r; ball.vy = -Math.abs(ball.vy) * BALL_WALL_DAMP; }
+
+  // Left wall (with goal opening)
+  if (ball.x - ball.r < FIELD.x) {
+    if (ball.y > GOAL_Y && ball.y < GOAL_Y + GOAL_H) {
+      // GOAL for AI (scored on player's side)
+      if (ball.x < FIELD.x - 10) {
+        aiScore++;
+        lastGoalBy = 'ai';
+        onGoal();
+      }
+    } else {
+      ball.x = FIELD.x + ball.r;
+      ball.vx = Math.abs(ball.vx) * BALL_WALL_DAMP;
+    }
+  }
+
+  // Right wall (with goal opening)
+  if (ball.x + ball.r > FIELD.x + FIELD.w) {
+    if (ball.y > GOAL_Y && ball.y < GOAL_Y + GOAL_H) {
+      // GOAL for Player (scored on AI's side)
+      if (ball.x > FIELD.x + FIELD.w + 10) {
+        playerScore++;
+        lastGoalBy = 'player';
+        onGoal();
+      }
+    } else {
+      ball.x = FIELD.x + FIELD.w - ball.r;
+      ball.vx = -Math.abs(ball.vx) * BALL_WALL_DAMP;
+    }
+  }
+}
+
+function onGoal() {
+  if (playerScore >= winScore || aiScore >= winScore) {
+    gameState = 'gameOver';
+  } else {
+    gameState = 'goalScored';
+    goalTimer = 120;
+  }
+}
+
+// Boost pad pickup
+function checkBoostPads(car) {
+  for (var i = 0; i < boostPads.length; i++) {
+    var pad = boostPads[i];
+    if (pad.timer > 0) continue;
+    var d = dist(car, pad);
+    if (d < car.radius() + BOOST_PAD_R) {
+      car.boost = Math.min(car.maxBoost, car.boost + 30);
+      pad.timer = BOOST_PAD_RESPAWN;
+    }
+  }
+}
+
+// --- AI ---
+function updateAI() {
+  var targetX, targetY;
+  var playerGoalX = FIELD.x; // AI wants to push ball left (into player's goal)
+  var aiGoalX = FIELD.x + FIELD.w;
+  var goalCenterY = GOAL_Y + GOAL_H / 2;
+
+  // Simple strategy: position behind ball relative to player's goal, then push
+  var ballToGoalX = ball.x - playerGoalX;
+  var behindBallX = ball.x + 40; // get behind ball (to the right of it)
+  var behindBallY = ball.y;
+
+  // If ball is behind AI (closer to AI goal), rush to defend
+  if (ball.x > ai.x + 30) {
+    targetX = ball.x + 20;
+    targetY = ball.y;
+  }
+  // If ball is near player goal area, push it in
+  else if (ball.x < 250) {
+    targetX = ball.x;
+    targetY = ball.y;
+  }
+  // Normal: get behind ball and push toward player goal
+  else {
+    targetX = behindBallX;
+    targetY = behindBallY;
+    // If already behind ball, charge at it
+    if (ai.x > ball.x + 20) {
+      targetX = ball.x;
+      targetY = ball.y;
+    }
+  }
+
+  // Steer toward target
+  var dx = targetX - ai.x;
+  var dy = targetY - ai.y;
+  var targetAngle = Math.atan2(dy, dx);
+  var angleDiff = targetAngle - ai.angle;
+  // Normalize angle diff
+  while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+  while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+
+  var turnL = false, turnR = false, accel = true, brake = false, boost = false;
+
+  if (angleDiff < -0.1) turnL = true;
+  else if (angleDiff > 0.1) turnR = true;
+
+  // Brake if facing wrong way
+  var facingTarget = Math.abs(angleDiff) < Math.PI / 2;
+  if (!facingTarget) {
+    accel = false;
+    brake = true;
+  }
+
+  // Boost when charging at ball and facing it
+  var distToBall = dist(ai, ball);
+  if (distToBall < 150 && facingTarget && ai.boost > 20) {
+    boost = true;
+  }
+
+  updateCar(ai, accel, brake, turnL, turnR, boost, 1);
+}
+
+// --- Update ---
+function update() {
+  if (infoOpen) return;
+
+  if (gameState === 'goalScored') {
+    goalTimer--;
+    if (goalTimer <= 0) {
+      gameState = 'playing';
+      resetPositions();
+    }
+    return;
+  }
+
+  if (gameState === 'gameOver') return;
+
+  // Player input
+  var accel = keys['ArrowUp'];
+  var brake = keys['ArrowDown'];
+  var turnL = keys['ArrowLeft'];
+  var turnR = keys['ArrowRight'];
+  var boosting = keys['Shift'];
+
+  updateCar(player, accel, brake, turnL, turnR, boosting, 1);
+  updateAI();
+
+  // Collisions
+  carBallCollision(player);
+  carBallCollision(ai);
+  carCarCollision(player, ai);
+
+  updateBall();
+
+  // Boost pads
+  checkBoostPads(player);
+  checkBoostPads(ai);
+  for (var i = 0; i < boostPads.length; i++) {
+    if (boostPads[i].timer > 0) boostPads[i].timer--;
+  }
+}
+
+// --- Draw ---
+function drawField() {
+  // Pitch background
+  ctx.fillStyle = '#1a5c1a';
+  ctx.fillRect(FIELD.x, FIELD.y, FIELD.w, FIELD.h);
+
+  // Center line
+  ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([8, 8]);
+  ctx.beginPath();
+  ctx.moveTo(400, FIELD.y);
+  ctx.lineTo(400, FIELD.y + FIELD.h);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Center circle
+  ctx.beginPath();
+  ctx.arc(400, 300, 50, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Field border
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 3;
+  // Top line
+  ctx.beginPath(); ctx.moveTo(FIELD.x, FIELD.y); ctx.lineTo(FIELD.x + FIELD.w, FIELD.y); ctx.stroke();
+  // Bottom line
+  ctx.beginPath(); ctx.moveTo(FIELD.x, FIELD.y + FIELD.h); ctx.lineTo(FIELD.x + FIELD.w, FIELD.y + FIELD.h); ctx.stroke();
+  // Left wall (top part above goal)
+  ctx.beginPath(); ctx.moveTo(FIELD.x, FIELD.y); ctx.lineTo(FIELD.x, GOAL_Y); ctx.stroke();
+  // Left wall (bottom part below goal)
+  ctx.beginPath(); ctx.moveTo(FIELD.x, GOAL_Y + GOAL_H); ctx.lineTo(FIELD.x, FIELD.y + FIELD.h); ctx.stroke();
+  // Right wall (top part)
+  ctx.beginPath(); ctx.moveTo(FIELD.x + FIELD.w, FIELD.y); ctx.lineTo(FIELD.x + FIELD.w, GOAL_Y); ctx.stroke();
+  // Right wall (bottom part)
+  ctx.beginPath(); ctx.moveTo(FIELD.x + FIELD.w, GOAL_Y + GOAL_H); ctx.lineTo(FIELD.x + FIELD.w, FIELD.y + FIELD.h); ctx.stroke();
+
+  // Goals
+  // Left goal (player's goal — AI scores here)
+  ctx.strokeStyle = '#f44';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(FIELD.x, GOAL_Y);
+  ctx.lineTo(FIELD.x - GOAL_W, GOAL_Y);
+  ctx.lineTo(FIELD.x - GOAL_W, GOAL_Y + GOAL_H);
+  ctx.lineTo(FIELD.x, GOAL_Y + GOAL_H);
+  ctx.stroke();
+  // Goal net fill
+  ctx.fillStyle = 'rgba(255, 68, 68, 0.15)';
+  ctx.fillRect(FIELD.x - GOAL_W, GOAL_Y, GOAL_W, GOAL_H);
+
+  // Right goal (AI's goal — Player scores here)
+  ctx.strokeStyle = '#3af';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(FIELD.x + FIELD.w, GOAL_Y);
+  ctx.lineTo(FIELD.x + FIELD.w + GOAL_W, GOAL_Y);
+  ctx.lineTo(FIELD.x + FIELD.w + GOAL_W, GOAL_Y + GOAL_H);
+  ctx.lineTo(FIELD.x + FIELD.w, GOAL_Y + GOAL_H);
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(51, 170, 255, 0.15)';
+  ctx.fillRect(FIELD.x + FIELD.w, GOAL_Y, GOAL_W, GOAL_H);
+}
+
+function drawBoostPads() {
+  for (var i = 0; i < boostPads.length; i++) {
+    var pad = boostPads[i];
+    if (pad.timer > 0) {
+      // Depleted pad — dim circle
+      ctx.fillStyle = 'rgba(255, 200, 0, 0.1)';
+      ctx.beginPath();
+      ctx.arc(pad.x, pad.y, BOOST_PAD_R, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      // Active pad — glowing
+      var pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.005 + i);
+      ctx.fillStyle = 'rgba(255, 200, 0, ' + (0.3 + 0.3 * pulse) + ')';
+      ctx.beginPath();
+      ctx.arc(pad.x, pad.y, BOOST_PAD_R + 2 * pulse, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fc0';
+      ctx.beginPath();
+      ctx.arc(pad.x, pad.y, 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+function drawCar(car) {
+  ctx.save();
+  ctx.translate(car.x, car.y);
+  ctx.rotate(car.angle);
+
+  // Boost flame
+  if (car.boosting) {
+    var flicker = 3 + Math.random() * 5;
+    ctx.fillStyle = '#f80';
+    ctx.beginPath();
+    ctx.moveTo(-car.w / 2, -4);
+    ctx.lineTo(-car.w / 2 - flicker, 0);
+    ctx.lineTo(-car.w / 2, 4);
+    ctx.fill();
+    ctx.fillStyle = '#ff0';
+    ctx.beginPath();
+    ctx.moveTo(-car.w / 2, -2);
+    ctx.lineTo(-car.w / 2 - flicker * 0.6, 0);
+    ctx.lineTo(-car.w / 2, 2);
+    ctx.fill();
+  }
+
+  // Car body
+  ctx.fillStyle = car.color;
+  ctx.fillRect(-car.w / 2, -car.h / 2, car.w, car.h);
+
+  // Windshield
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  ctx.fillRect(car.w / 2 - 6, -car.h / 2 + 2, 5, car.h - 4);
+
+  // Wheels
+  ctx.fillStyle = '#222';
+  ctx.fillRect(-car.w / 2 + 2, -car.h / 2 - 2, 8, 3);
+  ctx.fillRect(-car.w / 2 + 2, car.h / 2 - 1, 8, 3);
+  ctx.fillRect(car.w / 2 - 10, -car.h / 2 - 2, 8, 3);
+  ctx.fillRect(car.w / 2 - 10, car.h / 2 - 1, 8, 3);
+
+  ctx.restore();
+}
+
+function drawBall() {
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath();
+  ctx.arc(ball.x + 2, ball.y + 2, ball.r, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Ball
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Pentagon pattern
+  ctx.fillStyle = '#333';
+  ctx.beginPath();
+  ctx.arc(ball.x, ball.y, ball.r * 0.4, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawHUD() {
+  // Score
+  ctx.font = '28px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#3af';
+  ctx.fillText(playerScore, 320, 28);
+  ctx.fillStyle = '#888';
+  ctx.fillText('-', 400, 28);
+  ctx.fillStyle = '#f44';
+  ctx.fillText(aiScore, 480, 28);
+
+  // Labels
+  ctx.font = '12px monospace';
+  ctx.fillStyle = '#3af';
+  ctx.fillText('YOU', 320, 14);
+  ctx.fillStyle = '#f44';
+  ctx.fillText('CPU', 480, 14);
+
+  // Boost meter — player
+  ctx.fillStyle = '#333';
+  ctx.fillRect(10, 580, 104, 12);
+  var boostPct = player.boost / player.maxBoost;
+  var boostColor = player.boosting ? '#ff0' : '#f80';
+  ctx.fillStyle = boostColor;
+  ctx.fillRect(12, 582, 100 * boostPct, 8);
+  ctx.font = '10px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#aaa';
+  ctx.fillText('BOOST', 12, 576);
+
+  // Controls hint
+  ctx.font = '10px monospace';
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#555';
+  ctx.fillText('? — info | R — restart', 790, 594);
+}
+
+function drawGoalMessage() {
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(0, 0, 800, 600);
+  ctx.font = 'bold 48px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#fff';
+  ctx.fillText('GOAL!', 400, 280);
+  ctx.font = '20px monospace';
+  if (lastGoalBy === 'player') {
+    ctx.fillStyle = '#3af';
+    ctx.fillText('You scored!', 400, 320);
+  } else {
+    ctx.fillStyle = '#f44';
+    ctx.fillText('CPU scored!', 400, 320);
+  }
+}
+
+function drawGameOver() {
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(0, 0, 800, 600);
+  ctx.font = 'bold 40px monospace';
+  ctx.textAlign = 'center';
+  if (playerScore >= winScore) {
+    ctx.fillStyle = '#3af';
+    ctx.fillText('YOU WIN!', 400, 270);
+  } else {
+    ctx.fillStyle = '#f44';
+    ctx.fillText('CPU WINS!', 400, 270);
+  }
+  ctx.font = '24px monospace';
+  ctx.fillStyle = '#fff';
+  ctx.fillText(playerScore + ' - ' + aiScore, 400, 320);
+  ctx.font = '16px monospace';
+  ctx.fillStyle = '#888';
+  ctx.fillText('Press R to play again', 400, 370);
+}
+
+function drawTitle() {
+  ctx.font = '12px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#444';
+  ctx.fillText('SPT-006 · CAR SOCCER', 10, 16);
+}
+
+function draw() {
+  // Background
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0, 0, 800, 600);
+
+  drawField();
+  drawBoostPads();
+  drawCar(player);
+  drawCar(ai);
+  drawBall();
+  drawHUD();
+  drawTitle();
+
+  if (gameState === 'goalScored') drawGoalMessage();
+  if (gameState === 'gameOver') drawGameOver();
+}
+
+// --- Main loop ---
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: dpad4 ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("dpad4");
+</script>
+</body>
+</html>

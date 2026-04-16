@@ -1,0 +1,744 @@
+<!--
+PROTOTYPE: okada
+SERIES: maz
+NUMBER: 014
+DATE: 2026-03-24
+MECHANIC: traffic runner — dodge danfo buses, hawkers, potholes, and pedestrians while riding a motorcycle taxi (okada) through Lagos streets; collect passengers for points
+ANCESTRY: Frogger (1981, Konami), Road Fighter (1984, Konami), Okada Ride (2018, Maliyo Games, Lagos, Nigeria)
+CONTROLS: Left/Right Arrow — change lane | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 6 (Generative — procedural traffic patterns, cultural context generation)
+AI-INSIGHT: Traffic runner games model flow dynamics and obstacle avoidance in constrained lanes. The Lagos traffic setting introduces culturally specific obstacle types and behavioral patterns that challenge AI systems trained on Western traffic assumptions.
+NOTES: The streets of Lagos as gameplay — vibrant colors, busy market atmosphere.
+       Maliyo Games pioneered African-themed mobile games from Lagos.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MAZ-014 · OKADA RIDE</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>MAZ-014 · OKADA RIDE</h1>
+    <p><span class="tag series">MAZ — Maze</span> <span class="tag">Prototype #014</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Ride your okada (motorcycle taxi) through the bustling streets of Lagos! Dodge traffic and pick up passengers to earn points.</p>
+    <ul>
+      <li><kbd>&larr;</kbd> <kbd>&rarr;</kbd> — Switch lanes (3 lanes)</li>
+      <li>Dodge yellow danfo buses, pedestrians, potholes, and hawkers</li>
+      <li>Pick up passengers standing on the roadside for +100 points</li>
+      <li>Speed increases as you travel farther</li>
+      <li>3 lives — hitting an obstacle costs one life</li>
+      <li><kbd>R</kbd> — Restart after game over</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+
+    <h2>History</h2>
+    <p>Okada (commercial motorcycle taxis) are a vital part of Lagos transportation, weaving through the legendary traffic jams (go-slow) of Africa's largest city. Maliyo Games, founded in Lagos in 2012 by Hugo Obi, was one of the first African game studios to create games rooted in African culture and daily life. Their work helped establish the Nigerian game development scene, proving that games about local experiences resonate with players worldwide. The danfo — Lagos's iconic yellow minibuses — are as much a part of the city's identity as the okada riders who navigate around them.</p>
+
+    <h2>AI Archaeology</h2>
+    <h3>AI Era 6 — Generative</h3>
+    <p>Traffic runner games model flow dynamics and obstacle avoidance in constrained lanes. The Lagos traffic setting introduces culturally specific obstacle types and behavioral patterns — danfo buses that stop unpredictably, hawkers weaving between vehicles, pedestrians crossing without warning — that challenge AI systems trained primarily on Western traffic assumptions. Procedural generation of culturally authentic urban environments is an emerging frontier in generative AI.</p>
+
+    <h2>Classification</h2>
+    <p><span class="tag series">Series: MAZ (Maze)</span> <span class="tag">Traffic Runner</span> <span class="tag">Lane Dodge</span> <span class="tag">Nigerian Culture</span> <span class="tag">Endless Runner</span></p>
+
+    <h2>Prototype Notes</h2>
+    <p>Top-down vertical scrolling with 3-lane road. Market stalls and street signs decorate the roadsides. Obstacles include danfo buses (wide, slow), pedestrians (cross lanes), potholes (instant damage), and hawkers with head-carried trays. Nigerian flag colors (green-white-green) appear in UI elements. Score combines distance traveled and passengers collected.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+var C = document.getElementById('c'), X = C.getContext('2d');
+C.width = 800; C.height = 600;
+
+var infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// Resize
+function resize() {
+  var s = Math.min(window.innerWidth / 800, window.innerHeight / 600);
+  C.style.width = (800 * s) + 'px';
+  C.style.height = (600 * s) + 'px';
+}
+window.addEventListener('resize', resize);
+resize();
+
+// Constants
+var W = 800, H = 600;
+var ROAD_LEFT = 160, ROAD_RIGHT = 640, ROAD_W = ROAD_RIGHT - ROAD_LEFT;
+var LANE_W = ROAD_W / 3;
+var LANES = [ROAD_LEFT + LANE_W * 0.5, ROAD_LEFT + LANE_W * 1.5, ROAD_LEFT + LANE_W * 2.5];
+
+// Colors — Nigerian theme
+var COL_ROAD = '#3a3a3a';
+var COL_SIDEWALK = '#8B7355';
+var COL_MARKET = '#6B4226';
+var COL_GREEN = '#008751'; // Nigerian green
+var COL_WHITE = '#FFFFFF';
+var COL_DANFO = '#FFD700'; // Yellow danfo
+var COL_POTHOLE = '#222';
+var COL_HAWKER = '#D2691E';
+var COL_PASSENGER = '#00BFFF';
+var COL_OKADA = '#E03030';
+var COL_PED = '#C0C0C0';
+
+// Game state
+var state = 'playing'; // playing, dead, gameover
+var lives, score, distance, speed, lane, okadaX, okadaY;
+var obstacles, passengers, decorations;
+var spawnTimer, decSpawnTimer, flashTimer, invincible, invTimer;
+var lineOffset;
+var keys = {};
+var laneMoving = false, targetLane;
+
+function init() {
+  lives = 3;
+  score = 0;
+  distance = 0;
+  speed = 3;
+  lane = 1;
+  okadaX = LANES[1];
+  okadaY = H - 100;
+  obstacles = [];
+  passengers = [];
+  decorations = [];
+  spawnTimer = 0;
+  decSpawnTimer = 0;
+  flashTimer = 0;
+  invincible = false;
+  invTimer = 0;
+  lineOffset = 0;
+  laneMoving = false;
+  state = 'playing';
+  // Initial decorations
+  for (var y = 0; y < H; y += 80) {
+    spawnDecoration(y);
+  }
+}
+
+// Decoration types: market stalls, signs
+function spawnDecoration(y) {
+  // Left side
+  var lt = Math.random();
+  decorations.push({
+    x: 20 + Math.random() * 100, y: y,
+    type: lt < 0.4 ? 'stall' : lt < 0.7 ? 'sign' : 'tree',
+    side: 'left', color: randomMarketColor()
+  });
+  // Right side
+  var rt = Math.random();
+  decorations.push({
+    x: ROAD_RIGHT + 20 + Math.random() * 100, y: y,
+    type: rt < 0.4 ? 'stall' : rt < 0.7 ? 'sign' : 'tree',
+    side: 'right', color: randomMarketColor()
+  });
+}
+
+function randomMarketColor() {
+  var colors = ['#E04040', '#40A040', '#D0A020', '#C06030', '#8040C0', '#E07020', '#2080C0'];
+  return colors[(Math.random() * colors.length) | 0];
+}
+
+// Obstacle types
+function spawnObstacle() {
+  var type, ln, w, h, spd, crossDir;
+  var r = Math.random();
+  if (r < 0.3) {
+    // Danfo bus — wide, slow
+    type = 'danfo';
+    ln = (Math.random() * 3) | 0;
+    w = 50; h = 80;
+    spd = speed * 0.3;
+  } else if (r < 0.5) {
+    // Pedestrian — crosses lanes
+    type = 'pedestrian';
+    ln = (Math.random() * 3) | 0;
+    w = 16; h = 16;
+    spd = speed * 0.5;
+    crossDir = Math.random() < 0.5 ? -1 : 1;
+  } else if (r < 0.7) {
+    // Pothole — static on road
+    type = 'pothole';
+    ln = (Math.random() * 3) | 0;
+    w = 24; h = 12;
+    spd = 0;
+  } else {
+    // Hawker
+    type = 'hawker';
+    ln = (Math.random() * 3) | 0;
+    w = 20; h = 20;
+    spd = speed * 0.4;
+    crossDir = Math.random() < 0.5 ? -0.5 : 0.5;
+  }
+  obstacles.push({
+    x: LANES[ln], y: -60,
+    w: w, h: h,
+    type: type, speed: spd,
+    lane: ln, crossDir: crossDir || 0
+  });
+}
+
+function spawnPassenger() {
+  var side = Math.random() < 0.5 ? 'left' : 'right';
+  var px = side === 'left' ? ROAD_LEFT - 30 : ROAD_RIGHT + 30;
+  var targetLn = side === 'left' ? 0 : 2;
+  passengers.push({
+    x: px, y: -30,
+    collected: false,
+    targetLane: targetLn,
+    side: side
+  });
+}
+
+// Input
+document.addEventListener('keydown', function(e) {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
+    toggleInfo();
+    e.preventDefault();
+    return;
+  }
+  if (e.key === 'Escape' && infoOpen) {
+    toggleInfo();
+    e.preventDefault();
+    return;
+  }
+  keys[e.key] = true;
+  if (state === 'gameover' && (e.key === 'r' || e.key === 'R')) {
+    init();
+    return;
+  }
+  if (state === 'playing' && !laneMoving) {
+    if (e.key === 'ArrowLeft' && lane > 0) {
+      lane--;
+      laneMoving = true;
+    } else if (e.key === 'ArrowRight' && lane < 2) {
+      lane++;
+      laneMoving = true;
+    }
+  }
+  e.preventDefault();
+});
+document.addEventListener('keyup', function(e) { keys[e.key] = false; });
+
+function update() {
+  if (infoOpen) return;
+  if (state === 'gameover') return;
+
+  distance += speed;
+  score = ((distance / 10) | 0);
+
+  // Speed increase
+  speed = 3 + distance / 3000;
+  if (speed > 10) speed = 10;
+
+  // Smooth lane movement
+  var targetX = LANES[lane];
+  var dx = targetX - okadaX;
+  if (Math.abs(dx) < 4) {
+    okadaX = targetX;
+    laneMoving = false;
+  } else {
+    okadaX += dx * 0.2;
+  }
+
+  // Invincibility timer
+  if (invincible) {
+    invTimer--;
+    if (invTimer <= 0) invincible = false;
+  }
+
+  // Road line offset
+  lineOffset = (lineOffset + speed) % 40;
+
+  // Spawn obstacles
+  spawnTimer++;
+  var spawnRate = Math.max(25, 60 - distance / 500);
+  if (spawnTimer >= spawnRate) {
+    spawnTimer = 0;
+    spawnObstacle();
+    if (Math.random() < 0.3) spawnPassenger();
+  }
+
+  // Spawn decorations
+  decSpawnTimer += speed;
+  if (decSpawnTimer >= 80) {
+    decSpawnTimer = 0;
+    spawnDecoration(-40);
+  }
+
+  // Update obstacles
+  for (var i = obstacles.length - 1; i >= 0; i--) {
+    var o = obstacles[i];
+    o.y += speed - o.speed;
+    o.x += o.crossDir * speed * 0.3;
+
+    // Keep pedestrians/hawkers on road
+    if (o.x < ROAD_LEFT + 20) o.crossDir = Math.abs(o.crossDir);
+    if (o.x > ROAD_RIGHT - 20) o.crossDir = -Math.abs(o.crossDir);
+
+    if (o.y > H + 60) { obstacles.splice(i, 1); continue; }
+
+    // Collision
+    if (!invincible) {
+      var hw = o.w / 2, hh = o.h / 2;
+      if (Math.abs(okadaX - o.x) < hw + 12 && Math.abs(okadaY - o.y) < hh + 18) {
+        lives--;
+        if (lives <= 0) {
+          state = 'gameover';
+        } else {
+          invincible = true;
+          invTimer = 90;
+        }
+        obstacles.splice(i, 1);
+      }
+    }
+  }
+
+  // Update passengers
+  for (var j = passengers.length - 1; j >= 0; j--) {
+    var p = passengers[j];
+    p.y += speed;
+    if (p.y > H + 40) { passengers.splice(j, 1); continue; }
+    if (!p.collected) {
+      var pdx = Math.abs(okadaX - p.x);
+      var pdy = Math.abs(okadaY - p.y);
+      if (pdx < 40 && pdy < 30) {
+        p.collected = true;
+        score += 100;
+        flashTimer = 20;
+      }
+    }
+  }
+
+  // Update decorations
+  for (var k = decorations.length - 1; k >= 0; k--) {
+    decorations[k].y += speed;
+    if (decorations[k].y > H + 60) decorations.splice(k, 1);
+  }
+
+  if (flashTimer > 0) flashTimer--;
+}
+
+function draw() {
+  // Sky / ground
+  X.fillStyle = '#5a4a3a';
+  X.fillRect(0, 0, W, H);
+
+  // Sidewalks
+  X.fillStyle = COL_SIDEWALK;
+  X.fillRect(0, 0, ROAD_LEFT, H);
+  X.fillRect(ROAD_RIGHT, 0, W - ROAD_RIGHT, H);
+
+  // Road
+  X.fillStyle = COL_ROAD;
+  X.fillRect(ROAD_LEFT, 0, ROAD_W, H);
+
+  // Road edges — Nigerian green
+  X.fillStyle = COL_GREEN;
+  X.fillRect(ROAD_LEFT - 4, 0, 4, H);
+  X.fillRect(ROAD_RIGHT, 0, 4, H);
+
+  // Lane dividers (dashed)
+  X.strokeStyle = '#999';
+  X.lineWidth = 2;
+  X.setLineDash([20, 20]);
+  for (var l = 1; l < 3; l++) {
+    var lx = ROAD_LEFT + l * LANE_W;
+    X.beginPath();
+    X.moveTo(lx, -lineOffset);
+    X.lineTo(lx, H + 40);
+    X.stroke();
+  }
+  X.setLineDash([]);
+
+  // Center line dashes scrolling
+  X.strokeStyle = '#FFD700';
+  X.lineWidth = 3;
+  X.setLineDash([15, 25]);
+  X.lineDashOffset = -lineOffset;
+  X.beginPath();
+  X.moveTo(ROAD_LEFT + ROAD_W / 2, 0);
+  X.lineTo(ROAD_LEFT + ROAD_W / 2, H);
+  X.stroke();
+  X.setLineDash([]);
+  X.lineDashOffset = 0;
+
+  // Decorations
+  for (var di = 0; di < decorations.length; di++) {
+    drawDecoration(decorations[di]);
+  }
+
+  // Passengers
+  for (var pi = 0; pi < passengers.length; pi++) {
+    drawPassenger(passengers[pi]);
+  }
+
+  // Obstacles
+  for (var oi = 0; oi < obstacles.length; oi++) {
+    drawObstacle(obstacles[oi]);
+  }
+
+  // Okada (player)
+  if (!invincible || (invTimer % 6 < 3)) {
+    drawOkada(okadaX, okadaY);
+  }
+
+  // HUD
+  drawHUD();
+
+  // Flash effect for passenger pickup
+  if (flashTimer > 0) {
+    X.fillStyle = 'rgba(0, 255, 100, ' + (flashTimer / 40) + ')';
+    X.fillRect(0, 0, W, H);
+  }
+
+  // Game over
+  if (state === 'gameover') {
+    X.fillStyle = 'rgba(0,0,0,0.7)';
+    X.fillRect(0, 0, W, H);
+    X.fillStyle = '#FFD700';
+    X.font = 'bold 48px monospace';
+    X.textAlign = 'center';
+    X.fillText('GAME OVER', W / 2, H / 2 - 40);
+    X.fillStyle = '#fff';
+    X.font = '24px monospace';
+    X.fillText('Score: ' + score, W / 2, H / 2 + 10);
+    X.fillStyle = '#aaa';
+    X.font = '18px monospace';
+    X.fillText('Press R to ride again', W / 2, H / 2 + 50);
+    X.textAlign = 'left';
+  }
+}
+
+function drawOkada(x, y) {
+  // Motorcycle body
+  X.fillStyle = COL_OKADA;
+  X.fillRect(x - 8, y - 18, 16, 36);
+  // Wheels
+  X.fillStyle = '#222';
+  X.beginPath();
+  X.arc(x, y - 20, 6, 0, Math.PI * 2);
+  X.fill();
+  X.beginPath();
+  X.arc(x, y + 18, 6, 0, Math.PI * 2);
+  X.fill();
+  // Rider head
+  X.fillStyle = '#8B6914';
+  X.beginPath();
+  X.arc(x, y - 8, 6, 0, Math.PI * 2);
+  X.fill();
+  // Helmet
+  X.fillStyle = '#FF4040';
+  X.beginPath();
+  X.arc(x, y - 10, 5, Math.PI, 0);
+  X.fill();
+  // Handlebars
+  X.strokeStyle = '#888';
+  X.lineWidth = 2;
+  X.beginPath();
+  X.moveTo(x - 12, y - 2);
+  X.lineTo(x + 12, y - 2);
+  X.stroke();
+}
+
+function drawObstacle(o) {
+  switch (o.type) {
+    case 'danfo':
+      // Yellow danfo bus
+      X.fillStyle = COL_DANFO;
+      X.fillRect(o.x - o.w / 2, o.y - o.h / 2, o.w, o.h);
+      // Windows
+      X.fillStyle = '#333';
+      X.fillRect(o.x - o.w / 2 + 4, o.y - o.h / 2 + 4, o.w - 8, 14);
+      // Stripe
+      X.fillStyle = '#333';
+      X.fillRect(o.x - o.w / 2, o.y, o.w, 3);
+      // Wheels
+      X.fillStyle = '#111';
+      X.fillRect(o.x - o.w / 2 - 3, o.y - 10, 5, 10);
+      X.fillRect(o.x + o.w / 2 - 2, o.y - 10, 5, 10);
+      X.fillRect(o.x - o.w / 2 - 3, o.y + 20, 5, 10);
+      X.fillRect(o.x + o.w / 2 - 2, o.y + 20, 5, 10);
+      break;
+    case 'pedestrian':
+      // Person walking across
+      X.fillStyle = COL_PED;
+      X.beginPath();
+      X.arc(o.x, o.y - 4, 6, 0, Math.PI * 2);
+      X.fill();
+      X.fillStyle = '#777';
+      X.fillRect(o.x - 4, o.y + 2, 8, 12);
+      break;
+    case 'pothole':
+      // Dark circle on road
+      X.fillStyle = COL_POTHOLE;
+      X.beginPath();
+      X.ellipse(o.x, o.y, o.w / 2, o.h / 2, 0, 0, Math.PI * 2);
+      X.fill();
+      X.strokeStyle = '#444';
+      X.lineWidth = 2;
+      X.beginPath();
+      X.ellipse(o.x, o.y, o.w / 2, o.h / 2, 0, 0, Math.PI * 2);
+      X.stroke();
+      break;
+    case 'hawker':
+      // Person with tray on head
+      X.fillStyle = COL_HAWKER;
+      X.beginPath();
+      X.arc(o.x, o.y, 7, 0, Math.PI * 2);
+      X.fill();
+      // Tray on head
+      X.fillStyle = '#E8C840';
+      X.fillRect(o.x - 12, o.y - 14, 24, 6);
+      // Items on tray
+      X.fillStyle = '#FF6347';
+      X.fillRect(o.x - 8, o.y - 18, 5, 4);
+      X.fillStyle = '#98FB98';
+      X.fillRect(o.x - 1, o.y - 18, 5, 4);
+      X.fillStyle = '#DEB887';
+      X.fillRect(o.x + 5, o.y - 18, 5, 4);
+      break;
+  }
+}
+
+function drawPassenger(p) {
+  if (p.collected) return;
+  // Waiting passenger with wave animation
+  var wave = Math.sin(Date.now() / 200) * 3;
+  X.fillStyle = COL_PASSENGER;
+  X.beginPath();
+  X.arc(p.x, p.y - 4, 7, 0, Math.PI * 2);
+  X.fill();
+  X.fillStyle = '#0090C0';
+  X.fillRect(p.x - 5, p.y + 3, 10, 14);
+  // Waving hand
+  X.strokeStyle = COL_PASSENGER;
+  X.lineWidth = 2;
+  X.beginPath();
+  X.moveTo(p.x + (p.side === 'left' ? 5 : -5), p.y + 4);
+  X.lineTo(p.x + (p.side === 'left' ? 14 : -14), p.y - 4 + wave);
+  X.stroke();
+  // "+100" label
+  X.fillStyle = '#0f0';
+  X.font = '10px monospace';
+  X.textAlign = 'center';
+  X.fillText('RIDE?', p.x, p.y - 16);
+  X.textAlign = 'left';
+}
+
+function drawDecoration(d) {
+  switch (d.type) {
+    case 'stall':
+      // Market stall
+      X.fillStyle = d.color;
+      X.fillRect(d.x - 18, d.y - 10, 36, 20);
+      // Roof
+      X.fillStyle = '#444';
+      X.fillRect(d.x - 20, d.y - 14, 40, 6);
+      // Goods
+      X.fillStyle = '#FFD700';
+      for (var g = 0; g < 3; g++) {
+        X.fillRect(d.x - 12 + g * 10, d.y - 6, 6, 6);
+      }
+      break;
+    case 'sign':
+      // Street sign
+      X.fillStyle = '#666';
+      X.fillRect(d.x - 1, d.y - 20, 3, 30);
+      X.fillStyle = COL_GREEN;
+      X.fillRect(d.x - 18, d.y - 24, 36, 14);
+      X.fillStyle = COL_WHITE;
+      X.font = '7px monospace';
+      X.textAlign = 'center';
+      var signs = ['LAGOS', 'IKEJA', 'LEKKI', 'SURULERE', 'YABA', 'OSHODI', 'AGEGE', 'MUSHIN'];
+      X.fillText(signs[(d.y * 7 + d.x) % signs.length | 0], d.x, d.y - 15);
+      X.textAlign = 'left';
+      break;
+    case 'tree':
+      // Palm tree
+      X.fillStyle = '#5a3a1a';
+      X.fillRect(d.x - 3, d.y - 5, 6, 20);
+      X.fillStyle = '#2a7a2a';
+      X.beginPath();
+      X.arc(d.x, d.y - 10, 14, 0, Math.PI * 2);
+      X.fill();
+      break;
+  }
+}
+
+function drawHUD() {
+  // Top bar background
+  X.fillStyle = 'rgba(0,0,0,0.7)';
+  X.fillRect(0, 0, W, 36);
+
+  // Nigerian flag stripe at top
+  X.fillStyle = COL_GREEN;
+  X.fillRect(0, 0, W / 3, 4);
+  X.fillStyle = COL_WHITE;
+  X.fillRect(W / 3, 0, W / 3, 4);
+  X.fillStyle = COL_GREEN;
+  X.fillRect(W * 2 / 3, 0, W / 3, 4);
+
+  // Score
+  X.fillStyle = '#FFD700';
+  X.font = 'bold 16px monospace';
+  X.textAlign = 'left';
+  X.fillText('SCORE: ' + score, 12, 26);
+
+  // Lives
+  X.fillStyle = '#FF4444';
+  X.textAlign = 'center';
+  X.fillText('LIVES: ', W / 2 - 30, 26);
+  for (var i = 0; i < lives; i++) {
+    X.fillStyle = COL_OKADA;
+    X.beginPath();
+    X.arc(W / 2 + i * 20, 22, 6, 0, Math.PI * 2);
+    X.fill();
+  }
+
+  // Speed
+  X.fillStyle = '#aaa';
+  X.font = '14px monospace';
+  X.textAlign = 'right';
+  X.fillText('SPEED: ' + ((speed * 10) | 0) + ' km/h', W - 12, 26);
+  X.textAlign = 'left';
+
+  // Title bar
+  X.fillStyle = COL_GREEN;
+  X.font = 'bold 11px monospace';
+  X.textAlign = 'center';
+  X.fillText('OKADA RIDE — Lagos Traffic', W / 2, H - 8);
+  X.textAlign = 'left';
+
+  // ? hint
+  X.fillStyle = '#555';
+  X.font = '12px monospace';
+  X.fillText('[?] Info', 12, H - 8);
+}
+
+// Game loop
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+init();
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: dpad4 ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("dpad4");
+</script>
+</body>
+</html>

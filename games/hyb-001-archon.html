@@ -1,0 +1,1269 @@
+<!--
+PROTOTYPE: archon
+SERIES: hyb
+NUMBER: 001
+DATE: 2026-03-22
+MECHANIC: chess-like board strategy with real-time arena combat for captures
+ANCESTRY: Archon: The Light and the Dark (1983, Free Fall Associates/EA), Battle Chess (1988, Interplay)
+CONTROLS: Arrow keys — move/aim | Space — select/attack | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — hybrid strategic and tactical AI)
+AI-INSIGHT: Archon requires two fundamentally different AI competencies in one game — strategic board evaluation (like chess engines) and real-time combat reflexes (like action game AI). This dual-reasoning architecture prefigures modern hierarchical AI systems that combine strategic planners with reactive controllers.
+NOTES: The genre hybrid creates a game where chess skill and action skill both matter.
+       Power squares that cycle between light and dark add dynamic board evaluation.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HYB-001 · ARCHON</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #0a0a12; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>HYB-001 · ARCHON</h1>
+    <p><span class="tag series">HYB — Hybrid</span> <span class="tag">Prototype #001</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <h3>Board Phase</h3>
+    <p>Light and Dark armies face off on a 9&times;9 board. Players take turns moving one piece.</p>
+    <ul>
+      <li><kbd>Arrow keys</kbd> &mdash; Move cursor on the board</li>
+      <li><kbd>Space</kbd> &mdash; Select a piece, then move to a destination</li>
+      <li>Move to an empty square to reposition; move onto an enemy to initiate combat</li>
+      <li>Each piece can move a set number of squares (shown when selected)</li>
+    </ul>
+    <h3>Combat Phase</h3>
+    <p>When two pieces contest a square, they enter a real-time arena and fight to the death.</p>
+    <ul>
+      <li><kbd>Arrow keys</kbd> &mdash; Move your piece around the arena</li>
+      <li><kbd>Space</kbd> &mdash; Fire projectile / melee attack (cooldown-based)</li>
+      <li>Each piece type has unique speed, HP, and attack style</li>
+      <li>The winner returns to the board; the loser is eliminated</li>
+    </ul>
+    <h3>Power Squares</h3>
+    <ul>
+      <li>5 special squares cycle between light and dark over time</li>
+      <li>Pieces on a power square matching their alignment get an HP bonus in combat</li>
+      <li>Occupy all 5 power squares to win instantly</li>
+    </ul>
+    <h3>Victory</h3>
+    <ul>
+      <li>Eliminate all enemy pieces, OR</li>
+      <li>Occupy all 5 power squares simultaneously</li>
+    </ul>
+    <p><kbd>R</kbd> &mdash; Restart &nbsp; <kbd>?</kbd> &mdash; Toggle this panel</p>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Archon: The Light and the Dark (1983, Free Fall Associates/EA) &rarr; Battle Chess (1988, Interplay)</p>
+    <p>Archon was created by Jon Freeman and Anne Westfall of Free Fall Associates, published by Electronic Arts in 1983 &mdash; one of EA's earliest titles. It asked a radical question: what if chess captures weren't automatic? What if the attacking piece had to actually <em>fight</em> for the square?</p>
+    <p>The result was a genre hybrid that required both strategic thinking (board positioning, piece management) and action skill (arena combat reflexes). The light/dark cycling power squares added a temporal dimension to strategy &mdash; a square that favors you now might betray you in three turns.</p>
+    <p>Battle Chess (1988) took a different approach to animated captures, but Archon's true legacy lives in games like Fire Emblem, XCOM, and any strategy game where unit encounters resolve through skill-based sub-games rather than dice rolls.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 3 &mdash; Knowledge Explosion (hybrid strategic and tactical AI)</p>
+    <p><strong>Dual Cognition:</strong> Archon requires two fundamentally different AI competencies in one game. The board phase demands strategic evaluation &mdash; piece value, positional advantage, power square control &mdash; similar to chess engines. The combat phase demands reactive control &mdash; dodging, aiming, timing &mdash; similar to action game AI.</p>
+    <p><strong>Hierarchical Architecture:</strong> This dual-reasoning structure prefigures modern hierarchical AI systems that combine high-level strategic planners with low-level reactive controllers. A robot that plans a path across a room (strategy) while avoiding unexpected obstacles (tactics) uses the same architecture Archon demands.</p>
+    <p><strong>If AI Had Designed This:</strong> It might have made the combat outcomes partially influence future board evaluations &mdash; a piece that barely survived combat should be treated differently than a fresh one. Modern AI would add damage persistence as an information channel.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: HYB &mdash; Hybrid</h3>
+    <p>Games that combine two or more distinct gameplay systems into a unified experience. Archon is the founding example: strategy board + action arena.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Chess-like board strategy with real-time arena combat for captures.</strong> Two complete game systems joined at the point of conflict. Every capture is earned, not given.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Phase transitions &mdash; does switching between board and arena feel natural?</li>
+      <li>Piece differentiation &mdash; do different piece types feel distinct in combat?</li>
+      <li>Power square dynamics &mdash; does the cycling mechanic create strategic tension?</li>
+      <li>AI dual-competency &mdash; can a simple AI be fun in both phases?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. The 9&times;9 board with 8 pieces per side captures the core Archon experience. Piece types are differentiated by speed, HP, attack range, and cooldown. The AI uses random valid moves on the board and simple chase/shoot behavior in combat. Power squares cycle every 8 turns between light, neutral, and dark.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+// --- INPUT ---
+const keys = {};
+window.addEventListener('keydown', e => {
+  if (infoOpen) return;
+  keys[e.key] = true;
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
+  if (e.key === 'r' || e.key === 'R') initGame();
+});
+window.addEventListener('keyup', e => { keys[e.key] = false; });
+
+// --- CONSTANTS ---
+const BOARD_SIZE = 9;
+const CELL = 56;
+const BOARD_X = 20;
+const BOARD_Y = 40;
+const BOARD_PX = BOARD_SIZE * CELL;
+
+// Power square positions (5 squares forming a cross/diamond pattern)
+const POWER_SQUARES = [
+  {r: 0, c: 4}, {r: 4, c: 0}, {r: 4, c: 4}, {r: 4, c: 8}, {r: 8, c: 4}
+];
+function isPowerSquare(r, c) { return POWER_SQUARES.some(p => p.r === r && p.c === c); }
+
+// Piece definitions: name, symbol, speed, hp, atkDmg, atkRange, atkCooldown, moveRange, type
+// Light pieces
+const PIECE_TYPES = {
+  // Light side
+  wizard:   { name: 'Wizard',   sym: 'W', spd: 2.2, hp: 10, dmg: 3, range: 140, cd: 30, moveR: 3, side: 1, projSpd: 5, melee: false },
+  knight:   { name: 'Knight',   sym: 'K', spd: 3.0, hp: 8,  dmg: 4, range: 30,  cd: 18, moveR: 3, side: 1, projSpd: 0, melee: true },
+  archer:   { name: 'Archer',   sym: 'A', spd: 2.5, hp: 6,  dmg: 2, range: 160, cd: 22, moveR: 3, side: 1, projSpd: 6, melee: false },
+  golem:    { name: 'Golem',    sym: 'G', spd: 1.4, hp: 14, dmg: 5, range: 28,  cd: 28, moveR: 2, side: 1, projSpd: 0, melee: true },
+  phoenix:  { name: 'Phoenix',  sym: 'P', spd: 3.5, hp: 7,  dmg: 3, range: 100, cd: 25, moveR: 4, side: 1, projSpd: 5, melee: false },
+  unicorn:  { name: 'Unicorn',  sym: 'U', spd: 2.8, hp: 8,  dmg: 3, range: 80,  cd: 20, moveR: 3, side: 1, projSpd: 4, melee: false },
+  valkyrie: { name: 'Valkyrie', sym: 'V', spd: 2.6, hp: 7,  dmg: 3, range: 30,  cd: 16, moveR: 3, side: 1, projSpd: 0, melee: true },
+  djinn:    { name: 'Djinn',    sym: 'D', spd: 3.0, hp: 6,  dmg: 2, range: 120, cd: 18, moveR: 4, side: 1, projSpd: 5, melee: false },
+  // Dark side
+  sorceress:{ name: 'Sorceress',sym: 'S', spd: 2.2, hp: 10, dmg: 3, range: 140, cd: 30, moveR: 3, side: 2, projSpd: 5, melee: false },
+  goblin:   { name: 'Goblin',   sym: 'g', spd: 3.0, hp: 8,  dmg: 4, range: 30,  cd: 18, moveR: 3, side: 2, projSpd: 0, melee: true },
+  banshee:  { name: 'Banshee',  sym: 'b', spd: 2.5, hp: 6,  dmg: 2, range: 160, cd: 22, moveR: 3, side: 2, projSpd: 6, melee: false },
+  troll:    { name: 'Troll',    sym: 't', spd: 1.4, hp: 14, dmg: 5, range: 28,  cd: 28, moveR: 2, side: 2, projSpd: 0, melee: true },
+  dragon:   { name: 'Dragon',   sym: 'd', spd: 3.5, hp: 7,  dmg: 3, range: 100, cd: 25, moveR: 4, side: 2, projSpd: 5, melee: false },
+  basilisk: { name: 'Basilisk', sym: 'k', spd: 2.8, hp: 8,  dmg: 3, range: 80,  cd: 20, moveR: 3, side: 2, projSpd: 4, melee: false },
+  manticore:{ name: 'Manticore',sym: 'm', spd: 2.6, hp: 7,  dmg: 3, range: 30,  cd: 16, moveR: 3, side: 2, projSpd: 0, melee: true },
+  shapeshf: { name: 'Shapeshifter',sym: 'x', spd: 3.0, hp: 6, dmg: 2, range: 120, cd: 18, moveR: 4, side: 2, projSpd: 5, melee: false }
+};
+
+// --- GAME STATE ---
+const PHASE_BOARD = 0, PHASE_COMBAT = 1, PHASE_OVER = 2, PHASE_TRANSITION = 3;
+let phase, board, cursorR, cursorC, selected, validMoves, turn, turnCount;
+let powerCycle; // 0=light, 1=neutral, 2=dark
+let gameOverMsg;
+let aiThinkTimer;
+let combatState;
+let transTimer;
+let transMsg;
+
+function createPiece(type, owner) {
+  const def = PIECE_TYPES[type];
+  return { type, owner, hp: def.hp, maxHp: def.hp };
+}
+
+function initGame() {
+  phase = PHASE_BOARD;
+  board = [];
+  for (let r = 0; r < BOARD_SIZE; r++) {
+    board[r] = [];
+    for (let c = 0; c < BOARD_SIZE; c++) board[r][c] = null;
+  }
+  cursorR = 7; cursorC = 4;
+  selected = null;
+  validMoves = [];
+  turn = 1; // 1=light(player), 2=dark(AI)
+  turnCount = 0;
+  powerCycle = 0;
+  gameOverMsg = '';
+  aiThinkTimer = 0;
+  combatState = null;
+  transTimer = 0;
+  transMsg = '';
+
+  // Place light pieces (bottom rows)
+  const lightLayout = [
+    { type: 'valkyrie', r: 8, c: 1 },
+    { type: 'golem',    r: 8, c: 2 },
+    { type: 'knight',   r: 8, c: 3 },
+    { type: 'wizard',   r: 8, c: 4 },
+    { type: 'knight',   r: 8, c: 5 },
+    { type: 'golem',    r: 8, c: 6 },
+    { type: 'valkyrie', r: 8, c: 7 },
+    { type: 'archer',   r: 7, c: 0 },
+    { type: 'phoenix',  r: 7, c: 2 },
+    { type: 'unicorn',  r: 7, c: 4 },
+    { type: 'phoenix',  r: 7, c: 6 },
+    { type: 'archer',   r: 7, c: 8 },
+    { type: 'djinn',    r: 6, c: 4 }
+  ];
+
+  // Place dark pieces (top rows)
+  const darkLayout = [
+    { type: 'manticore', r: 0, c: 1 },
+    { type: 'troll',     r: 0, c: 2 },
+    { type: 'goblin',    r: 0, c: 3 },
+    { type: 'sorceress', r: 0, c: 4 },
+    { type: 'goblin',    r: 0, c: 5 },
+    { type: 'troll',     r: 0, c: 6 },
+    { type: 'manticore', r: 0, c: 7 },
+    { type: 'banshee',   r: 1, c: 0 },
+    { type: 'dragon',    r: 1, c: 2 },
+    { type: 'basilisk',  r: 1, c: 4 },
+    { type: 'dragon',    r: 1, c: 6 },
+    { type: 'banshee',   r: 1, c: 8 },
+    { type: 'shapeshf',  r: 2, c: 4 }
+  ];
+
+  for (const p of lightLayout) board[p.r][p.c] = createPiece(p.type, 1);
+  for (const p of darkLayout)  board[p.r][p.c] = createPiece(p.type, 2);
+}
+initGame();
+
+// --- BOARD LOGIC ---
+function getValidMoves(r, c) {
+  const piece = board[r][c];
+  if (!piece) return [];
+  const def = PIECE_TYPES[piece.type];
+  const range = def.moveR;
+  const moves = [];
+  // BFS for reachable squares within move range
+  const visited = {};
+  const queue = [{r, c, dist: 0}];
+  visited[r + ',' + c] = true;
+  while (queue.length > 0) {
+    const cur = queue.shift();
+    if (cur.dist > 0) {
+      const target = board[cur.r][cur.c];
+      if (!target) {
+        moves.push({r: cur.r, c: cur.c, attack: false});
+      } else if (target.owner !== piece.owner) {
+        moves.push({r: cur.r, c: cur.c, attack: true});
+        continue; // can't pass through enemies
+      } else {
+        continue; // can't pass through friendlies
+      }
+    }
+    if (cur.dist < range) {
+      const dirs = [[0,1],[0,-1],[1,0],[-1,0]];
+      for (const [dr, dc] of dirs) {
+        const nr = cur.r + dr, nc = cur.c + dc;
+        if (nr < 0 || nr >= BOARD_SIZE || nc < 0 || nc >= BOARD_SIZE) continue;
+        const key = nr + ',' + nc;
+        if (visited[key]) continue;
+        visited[key] = true;
+        queue.push({r: nr, c: nc, dist: cur.dist + 1});
+      }
+    }
+  }
+  return moves;
+}
+
+function getPowerSquareState(r, c) {
+  if (!isPowerSquare(r, c)) return 0; // not a power square
+  // Returns: 1=light, 0=neutral, 2=dark
+  if (powerCycle === 0) return 1;
+  if (powerCycle === 2) return 2;
+  return 0;
+}
+
+function checkPowerSquareVictory() {
+  // Check if one side occupies all 5 power squares
+  let light = 0, dark = 0;
+  for (const ps of POWER_SQUARES) {
+    const p = board[ps.r][ps.c];
+    if (p && p.owner === 1) light++;
+    else if (p && p.owner === 2) dark++;
+  }
+  if (light === 5) return 1;
+  if (dark === 5) return 2;
+  return 0;
+}
+
+function countPieces(owner) {
+  let count = 0;
+  for (let r = 0; r < BOARD_SIZE; r++)
+    for (let c = 0; c < BOARD_SIZE; c++)
+      if (board[r][c] && board[r][c].owner === owner) count++;
+  return count;
+}
+
+// --- COMBAT SYSTEM ---
+const ARENA_W = 340, ARENA_H = 280;
+const ARENA_X = (W - ARENA_W) / 2;
+const ARENA_Y = (H - ARENA_H) / 2;
+
+function initCombat(attR, attC, defR, defC) {
+  const attacker = board[attR][attC];
+  const defender = board[defR][defC];
+  const attDef = PIECE_TYPES[attacker.type];
+  const defDef = PIECE_TYPES[defender.type];
+
+  // HP bonus from power square
+  let attBonus = 0, defBonus = 0;
+  const psState = getPowerSquareState(defR, defC);
+  if (psState === 1) attBonus = attacker.owner === 1 ? 3 : 0;
+  else if (psState === 2) attBonus = attacker.owner === 2 ? 3 : 0;
+  if (psState === 1) defBonus = defender.owner === 1 ? 3 : 0;
+  else if (psState === 2) defBonus = defender.owner === 2 ? 3 : 0;
+
+  combatState = {
+    attR, attC, defR, defC,
+    attacker: {
+      type: attacker.type, owner: attacker.owner,
+      x: ARENA_X + 60, y: ARENA_Y + ARENA_H / 2,
+      hp: attacker.hp + attBonus, maxHp: attDef.hp + attBonus,
+      cooldown: 0, def: attDef, dx: 0, dy: 0
+    },
+    defender: {
+      type: defender.type, owner: defender.owner,
+      x: ARENA_X + ARENA_W - 60, y: ARENA_Y + ARENA_H / 2,
+      hp: defender.hp + defBonus, maxHp: defDef.hp + defBonus,
+      cooldown: 0, def: defDef, dx: 0, dy: 0
+    },
+    projectiles: [],
+    timer: 0,
+    result: null, // 'att', 'def', null
+    endTimer: 0
+  };
+  phase = PHASE_COMBAT;
+}
+
+function updateCombat() {
+  const cs = combatState;
+  if (!cs) return;
+  cs.timer++;
+
+  const att = cs.attacker;
+  const def = cs.defender;
+
+  // Determine which combatant the player controls
+  const player = att.owner === 1 ? att : def;
+  const ai = att.owner === 1 ? def : att;
+
+  // --- Result phase: wait then return to board ---
+  if (cs.result) {
+    cs.endTimer++;
+    if (cs.endTimer > 90) {
+      finishCombat();
+    }
+    return;
+  }
+
+  // --- Player movement ---
+  player.dx = 0; player.dy = 0;
+  if (keys['ArrowLeft'])  player.dx = -player.def.spd;
+  if (keys['ArrowRight']) player.dx = player.def.spd;
+  if (keys['ArrowUp'])    player.dy = -player.def.spd;
+  if (keys['ArrowDown'])  player.dy = player.def.spd;
+  player.x += player.dx;
+  player.y += player.dy;
+  clampArena(player);
+
+  // Player attack
+  if (player.cooldown > 0) player.cooldown--;
+  if (keys[' '] && player.cooldown <= 0) {
+    fireAttack(player, ai, cs);
+    player.cooldown = player.def.cd;
+  }
+
+  // --- AI movement: chase and shoot ---
+  aiCombatBehavior(ai, player, cs);
+
+  // AI attack
+  if (ai.cooldown > 0) ai.cooldown--;
+
+  // --- Update projectiles ---
+  for (let i = cs.projectiles.length - 1; i >= 0; i--) {
+    const p = cs.projectiles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.life--;
+
+    // Check bounds
+    if (p.x < ARENA_X || p.x > ARENA_X + ARENA_W || p.y < ARENA_Y || p.y > ARENA_Y + ARENA_H || p.life <= 0) {
+      cs.projectiles.splice(i, 1);
+      continue;
+    }
+
+    // Check hit
+    const target = p.owner === att.owner ? def : att;
+    const dx = p.x - target.x, dy = p.y - target.y;
+    if (dx * dx + dy * dy < 18 * 18) {
+      target.hp -= p.dmg;
+      cs.projectiles.splice(i, 1);
+    }
+  }
+
+  // --- Check melee hits ---
+  // (handled in fireAttack for melee types)
+
+  // --- Check death ---
+  if (att.hp <= 0 && !cs.result) {
+    cs.result = 'def';
+  }
+  if (def.hp <= 0 && !cs.result) {
+    cs.result = 'att';
+  }
+}
+
+function clampArena(entity) {
+  const margin = 12;
+  if (entity.x < ARENA_X + margin) entity.x = ARENA_X + margin;
+  if (entity.x > ARENA_X + ARENA_W - margin) entity.x = ARENA_X + ARENA_W - margin;
+  if (entity.y < ARENA_Y + margin) entity.y = ARENA_Y + margin;
+  if (entity.y > ARENA_Y + ARENA_H - margin) entity.y = ARENA_Y + ARENA_H - margin;
+}
+
+function fireAttack(attacker, target, cs) {
+  if (attacker.def.melee) {
+    // Melee: check distance and deal damage directly
+    const dx = target.x - attacker.x, dy = target.y - attacker.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < attacker.def.range + 16) {
+      target.hp -= attacker.def.dmg;
+    }
+  } else {
+    // Ranged: fire projectile toward target
+    const dx = target.x - attacker.x, dy = target.y - attacker.y;
+    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+    cs.projectiles.push({
+      x: attacker.x, y: attacker.y,
+      vx: (dx / dist) * attacker.def.projSpd,
+      vy: (dy / dist) * attacker.def.projSpd,
+      owner: attacker.owner,
+      dmg: attacker.def.dmg,
+      life: 80
+    });
+  }
+}
+
+function aiCombatBehavior(ai, target, cs) {
+  const dx = target.x - ai.x, dy = target.y - ai.y;
+  const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+
+  if (ai.def.melee) {
+    // Melee AI: chase directly
+    ai.x += (dx / dist) * ai.def.spd * 0.85;
+    ai.y += (dy / dist) * ai.def.spd * 0.85;
+    // Attack when close
+    if (dist < ai.def.range + 20 && ai.cooldown <= 0) {
+      target.hp -= ai.def.dmg;
+      ai.cooldown = ai.def.cd;
+    }
+  } else {
+    // Ranged AI: maintain distance, strafe, shoot
+    const idealDist = ai.def.range * 0.6;
+    if (dist < idealDist - 20) {
+      // Too close, back away
+      ai.x -= (dx / dist) * ai.def.spd * 0.7;
+      ai.y -= (dy / dist) * ai.def.spd * 0.7;
+    } else if (dist > idealDist + 40) {
+      // Too far, approach
+      ai.x += (dx / dist) * ai.def.spd * 0.6;
+      ai.y += (dy / dist) * ai.def.spd * 0.6;
+    } else {
+      // Strafe
+      const strafeDir = (cs.timer % 200 < 100) ? 1 : -1;
+      ai.x += (-dy / dist) * ai.def.spd * 0.5 * strafeDir;
+      ai.y += (dx / dist) * ai.def.spd * 0.5 * strafeDir;
+    }
+
+    // Shoot
+    if (ai.cooldown <= 0 && dist < ai.def.range + 40) {
+      fireAttack(ai, target, cs);
+      ai.cooldown = ai.def.cd + Math.floor(Math.random() * 15);
+    }
+  }
+  clampArena(ai);
+}
+
+function finishCombat() {
+  const cs = combatState;
+  const attPiece = board[cs.attR][cs.attC];
+  const defPiece = board[cs.defR][cs.defC];
+
+  if (cs.result === 'att') {
+    // Attacker wins: move to defender's square
+    attPiece.hp = cs.attacker.owner === attPiece.owner ? cs.attacker.hp : cs.defender.hp;
+    board[cs.defR][cs.defC] = attPiece;
+    board[cs.attR][cs.attC] = null;
+  } else if (cs.result === 'def') {
+    // Defender wins: attacker removed
+    defPiece.hp = cs.defender.owner === defPiece.owner ? cs.defender.hp : cs.attacker.hp;
+    board[cs.attR][cs.attC] = null;
+  }
+
+  combatState = null;
+  phase = PHASE_BOARD;
+
+  // Check victory conditions
+  checkVictory();
+
+  if (phase !== PHASE_OVER) {
+    // Next turn
+    turn = turn === 1 ? 2 : 1;
+    turnCount++;
+    if (turnCount % 8 === 0) {
+      powerCycle = (powerCycle + 1) % 3;
+    }
+    if (turn === 2) aiThinkTimer = 0;
+  }
+}
+
+function checkVictory() {
+  const psWinner = checkPowerSquareVictory();
+  if (psWinner) {
+    phase = PHASE_OVER;
+    gameOverMsg = psWinner === 1 ? 'LIGHT WINS! (Power Squares)' : 'DARK WINS! (Power Squares)';
+    return;
+  }
+  if (countPieces(1) === 0) { phase = PHASE_OVER; gameOverMsg = 'DARK WINS!'; return; }
+  if (countPieces(2) === 0) { phase = PHASE_OVER; gameOverMsg = 'LIGHT WINS!'; return; }
+}
+
+// --- BOARD AI ---
+function aiBoardTurn() {
+  // Gather all AI pieces with valid moves
+  const candidates = [];
+  for (let r = 0; r < BOARD_SIZE; r++) {
+    for (let c = 0; c < BOARD_SIZE; c++) {
+      const p = board[r][c];
+      if (p && p.owner === 2) {
+        const moves = getValidMoves(r, c);
+        if (moves.length > 0) candidates.push({r, c, piece: p, moves});
+      }
+    }
+  }
+  if (candidates.length === 0) {
+    // AI can't move, player wins
+    phase = PHASE_OVER;
+    gameOverMsg = 'LIGHT WINS! (No AI moves)';
+    return;
+  }
+
+  // Score each possible move
+  let bestScore = -Infinity, bestFrom = null, bestTo = null;
+  for (const cand of candidates) {
+    for (const move of cand.moves) {
+      let score = Math.random() * 5; // base randomness
+
+      if (move.attack) {
+        const target = board[move.r][move.c];
+        const tDef = PIECE_TYPES[target.type];
+        const aDef = PIECE_TYPES[cand.piece.type];
+        // Prefer attacking weaker pieces
+        score += 20;
+        if (aDef.hp > tDef.hp) score += 10;
+        // Avoid attacking with low HP
+        if (cand.piece.hp <= 3) score -= 15;
+        // Value capturing power squares
+        if (isPowerSquare(move.r, move.c)) score += 8;
+      } else {
+        // Positional scoring
+        // Move toward center
+        const centerDist = Math.abs(move.r - 4) + Math.abs(move.c - 4);
+        score += (8 - centerDist) * 0.5;
+        // Move toward power squares
+        if (isPowerSquare(move.r, move.c)) score += 6;
+        // Advance toward player side slightly
+        score += move.r * 0.3;
+      }
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestFrom = {r: cand.r, c: cand.c};
+        bestTo = move;
+      }
+    }
+  }
+
+  if (bestFrom && bestTo) {
+    if (bestTo.attack) {
+      // Transition to combat
+      transMsg = PIECE_TYPES[board[bestFrom.r][bestFrom.c].type].name + ' attacks ' +
+                 PIECE_TYPES[board[bestTo.r][bestTo.c].type].name + '!';
+      transTimer = 60;
+      phase = PHASE_TRANSITION;
+      // Store pending combat
+      combatState = { pendingAttR: bestFrom.r, pendingAttC: bestFrom.c, pendingDefR: bestTo.r, pendingDefC: bestTo.c };
+    } else {
+      board[bestTo.r][bestTo.c] = board[bestFrom.r][bestFrom.c];
+      board[bestFrom.r][bestFrom.c] = null;
+      turn = 1;
+      turnCount++;
+      if (turnCount % 8 === 0) powerCycle = (powerCycle + 1) % 3;
+      checkVictory();
+    }
+  }
+}
+
+// --- BOARD INPUT ---
+let spacePressed = false;
+let boardInputDelay = 0;
+
+function handleBoardInput() {
+  if (boardInputDelay > 0) { boardInputDelay--; return; }
+
+  let moved = false;
+  if (keys['ArrowUp'] && cursorR > 0)    { cursorR--; moved = true; }
+  if (keys['ArrowDown'] && cursorR < BOARD_SIZE - 1) { cursorR++; moved = true; }
+  if (keys['ArrowLeft'] && cursorC > 0)   { cursorC--; moved = true; }
+  if (keys['ArrowRight'] && cursorC < BOARD_SIZE - 1) { cursorC++; moved = true; }
+  if (moved) boardInputDelay = 8;
+
+  // Space handling (press, not hold)
+  if (keys[' '] && !spacePressed) {
+    spacePressed = true;
+    if (selected) {
+      // Check if cursor is a valid move
+      const vm = validMoves.find(m => m.r === cursorR && m.c === cursorC);
+      if (vm) {
+        if (vm.attack) {
+          // Initiate combat
+          transMsg = PIECE_TYPES[board[selected.r][selected.c].type].name + ' attacks ' +
+                     PIECE_TYPES[board[cursorR][cursorC].type].name + '!';
+          transTimer = 60;
+          phase = PHASE_TRANSITION;
+          combatState = { pendingAttR: selected.r, pendingAttC: selected.c, pendingDefR: cursorR, pendingDefC: cursorC };
+          selected = null;
+          validMoves = [];
+        } else {
+          // Move piece
+          board[vm.r][vm.c] = board[selected.r][selected.c];
+          board[selected.r][selected.c] = null;
+          selected = null;
+          validMoves = [];
+          turn = 2;
+          turnCount++;
+          if (turnCount % 8 === 0) powerCycle = (powerCycle + 1) % 3;
+          aiThinkTimer = 0;
+          checkVictory();
+        }
+      } else if (board[cursorR][cursorC] && board[cursorR][cursorC].owner === 1) {
+        // Select a different piece
+        selected = {r: cursorR, c: cursorC};
+        validMoves = getValidMoves(cursorR, cursorC);
+      } else {
+        // Deselect
+        selected = null;
+        validMoves = [];
+      }
+    } else {
+      // Select piece
+      const piece = board[cursorR][cursorC];
+      if (piece && piece.owner === turn) {
+        selected = {r: cursorR, c: cursorC};
+        validMoves = getValidMoves(cursorR, cursorC);
+      }
+    }
+  }
+  if (!keys[' ']) spacePressed = false;
+}
+
+// --- UPDATE ---
+function update() {
+  if (infoOpen) return;
+
+  if (phase === PHASE_BOARD) {
+    if (turn === 1) {
+      handleBoardInput();
+    } else {
+      // AI turn
+      aiThinkTimer++;
+      if (aiThinkTimer > 40) {
+        aiBoardTurn();
+      }
+    }
+  } else if (phase === PHASE_COMBAT) {
+    updateCombat();
+  } else if (phase === PHASE_TRANSITION) {
+    transTimer--;
+    if (transTimer <= 0) {
+      const pAR = combatState.pendingAttR;
+      const pAC = combatState.pendingAttC;
+      const pDR = combatState.pendingDefR;
+      const pDC = combatState.pendingDefC;
+      combatState = null;
+      initCombat(pAR, pAC, pDR, pDC);
+    }
+  }
+}
+
+// --- DRAWING ---
+function getCellColor(r, c) {
+  const ps = isPowerSquare(r, c);
+  if (ps) {
+    const state = getPowerSquareState(r, c);
+    if (state === 1) return '#3a3a60'; // light-favored
+    if (state === 2) return '#60303a'; // dark-favored
+    return '#4a4a4a'; // neutral
+  }
+  return (r + c) % 2 === 0 ? '#2a2a3a' : '#1a1a28';
+}
+
+function drawBoard() {
+  for (let r = 0; r < BOARD_SIZE; r++) {
+    for (let c = 0; c < BOARD_SIZE; c++) {
+      const x = BOARD_X + c * CELL;
+      const y = BOARD_Y + r * CELL;
+
+      // Cell fill
+      ctx.fillStyle = getCellColor(r, c);
+      ctx.fillRect(x, y, CELL, CELL);
+
+      // Power square glow
+      if (isPowerSquare(r, c)) {
+        const state = getPowerSquareState(r, c);
+        let glowColor = 'rgba(200,200,200,0.12)';
+        if (state === 1) glowColor = 'rgba(100,150,255,0.18)';
+        if (state === 2) glowColor = 'rgba(255,80,80,0.18)';
+        ctx.fillStyle = glowColor;
+        ctx.fillRect(x + 2, y + 2, CELL - 4, CELL - 4);
+        // Diamond marker
+        ctx.strokeStyle = state === 1 ? '#557' : state === 2 ? '#755' : '#555';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x + CELL / 2, y + 4);
+        ctx.lineTo(x + CELL - 4, y + CELL / 2);
+        ctx.lineTo(x + CELL / 2, y + CELL - 4);
+        ctx.lineTo(x + 4, y + CELL / 2);
+        ctx.closePath();
+        ctx.stroke();
+      }
+
+      // Grid lines
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x, y, CELL, CELL);
+    }
+  }
+
+  // Cursor
+  if (phase === PHASE_BOARD && turn === 1) {
+    const cx = BOARD_X + cursorC * CELL;
+    const cy = BOARD_Y + cursorR * CELL;
+    ctx.strokeStyle = '#ff0';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(cx + 1, cy + 1, CELL - 2, CELL - 2);
+  }
+
+  // Selected highlight
+  if (selected) {
+    const sx = BOARD_X + selected.c * CELL;
+    const sy = BOARD_Y + selected.r * CELL;
+    ctx.fillStyle = 'rgba(255,255,0,0.2)';
+    ctx.fillRect(sx, sy, CELL, CELL);
+  }
+
+  // Valid moves
+  for (const vm of validMoves) {
+    const vx = BOARD_X + vm.c * CELL + CELL / 2;
+    const vy = BOARD_Y + vm.r * CELL + CELL / 2;
+    if (vm.attack) {
+      ctx.strokeStyle = 'rgba(255,60,60,0.7)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(vx, vy, CELL * 0.35, 0, Math.PI * 2);
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = 'rgba(60,200,60,0.4)';
+      ctx.beginPath();
+      ctx.arc(vx, vy, 8, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+function drawPieces() {
+  for (let r = 0; r < BOARD_SIZE; r++) {
+    for (let c = 0; c < BOARD_SIZE; c++) {
+      const piece = board[r][c];
+      if (!piece) continue;
+      const x = BOARD_X + c * CELL + CELL / 2;
+      const y = BOARD_Y + r * CELL + CELL / 2;
+      const sz = CELL * 0.38;
+      const def = PIECE_TYPES[piece.type];
+
+      // Piece body
+      ctx.beginPath();
+      ctx.arc(x, y, sz, 0, Math.PI * 2);
+      if (piece.owner === 1) {
+        ctx.fillStyle = '#4466cc';
+        ctx.fill();
+        ctx.strokeStyle = '#6688ee'; ctx.lineWidth = 2; ctx.stroke();
+      } else {
+        ctx.fillStyle = '#aa3333';
+        ctx.fill();
+        ctx.strokeStyle = '#dd5555'; ctx.lineWidth = 2; ctx.stroke();
+      }
+
+      // HP bar
+      if (piece.hp < piece.maxHp) {
+        const barW = CELL * 0.6;
+        const barH = 3;
+        const barX = x - barW / 2;
+        const barY = y + sz + 4;
+        ctx.fillStyle = '#333';
+        ctx.fillRect(barX, barY, barW, barH);
+        const ratio = Math.max(0, piece.hp / piece.maxHp);
+        ctx.fillStyle = ratio > 0.5 ? '#4a4' : ratio > 0.25 ? '#aa4' : '#a44';
+        ctx.fillRect(barX, barY, barW * ratio, barH);
+      }
+
+      // Symbol
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 18px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(def.sym, x, y + 1);
+    }
+  }
+}
+
+function drawSidebar() {
+  const sx = BOARD_X + BOARD_PX + 14;
+  let sy = BOARD_Y;
+
+  // Turn indicator
+  ctx.fillStyle = turn === 1 ? '#6688ee' : '#dd5555';
+  ctx.font = 'bold 14px monospace';
+  ctx.textAlign = 'left';
+  const turnLabel = turn === 1 ? 'YOUR TURN (Light)' : 'AI THINKING...';
+  ctx.fillText(turnLabel, sx, sy);
+  sy += 24;
+
+  // Turn count
+  ctx.fillStyle = '#888';
+  ctx.font = '12px monospace';
+  ctx.fillText('Turn: ' + Math.floor(turnCount / 2 + 1), sx, sy);
+  sy += 18;
+
+  // Power square state
+  const psLabels = ['LIGHT', 'NEUTRAL', 'DARK'];
+  const psColors = ['#6688ee', '#999', '#dd5555'];
+  ctx.fillStyle = psColors[powerCycle];
+  ctx.fillText('Power: ' + psLabels[powerCycle], sx, sy);
+  sy += 8;
+  ctx.fillStyle = '#555';
+  ctx.font = '10px monospace';
+  ctx.fillText('(cycles every 8 turns)', sx, sy);
+  sy += 22;
+
+  // Army counts
+  ctx.fillStyle = '#6688ee';
+  ctx.font = '12px monospace';
+  ctx.fillText('Light: ' + countPieces(1) + ' pieces', sx, sy);
+  sy += 16;
+  ctx.fillStyle = '#dd5555';
+  ctx.fillText('Dark:  ' + countPieces(2) + ' pieces', sx, sy);
+  sy += 24;
+
+  // Piece legend
+  ctx.fillStyle = '#777';
+  ctx.font = '11px monospace';
+  ctx.fillText('LIGHT   DARK', sx, sy);
+  sy += 16;
+
+  const legend = [
+    ['W Wizard',   'S Sorceress'],
+    ['K Knight',   'g Goblin'],
+    ['A Archer',   'b Banshee'],
+    ['G Golem',    't Troll'],
+    ['P Phoenix',  'd Dragon'],
+    ['U Unicorn',  'k Basilisk'],
+    ['V Valkyrie', 'm Manticore'],
+    ['D Djinn',    'x Shapeshifter']
+  ];
+
+  ctx.font = '10px monospace';
+  for (const [light, dark] of legend) {
+    ctx.fillStyle = '#88aaee';
+    ctx.fillText(light, sx, sy);
+    ctx.fillStyle = '#ee8888';
+    ctx.fillText(dark, sx + 96, sy);
+    sy += 13;
+  }
+
+  sy += 10;
+
+  // Selected piece info
+  if (selected && board[selected.r][selected.c]) {
+    const p = board[selected.r][selected.c];
+    const d = PIECE_TYPES[p.type];
+    ctx.fillStyle = '#ff0';
+    ctx.font = '12px monospace';
+    ctx.fillText('SELECTED:', sx, sy); sy += 16;
+    ctx.fillStyle = '#ddd';
+    ctx.fillText(d.name, sx, sy); sy += 14;
+    ctx.fillStyle = '#aaa';
+    ctx.font = '10px monospace';
+    ctx.fillText('HP: ' + p.hp + '/' + d.hp, sx, sy); sy += 13;
+    ctx.fillText('Move: ' + d.moveR, sx, sy); sy += 13;
+    ctx.fillText(d.melee ? 'Melee' : 'Ranged', sx, sy); sy += 13;
+    ctx.fillText('Spd: ' + d.spd + ' Dmg: ' + d.dmg, sx, sy);
+  } else if (phase === PHASE_BOARD) {
+    // Show piece at cursor
+    const cp = board[cursorR][cursorC];
+    if (cp) {
+      const d = PIECE_TYPES[cp.type];
+      ctx.fillStyle = cp.owner === 1 ? '#88aaee' : '#ee8888';
+      ctx.font = '12px monospace';
+      ctx.fillText(d.name, sx, sy); sy += 14;
+      ctx.fillStyle = '#aaa';
+      ctx.font = '10px monospace';
+      ctx.fillText('HP: ' + cp.hp + '/' + d.hp, sx, sy); sy += 13;
+      ctx.fillText('Move: ' + d.moveR, sx, sy); sy += 13;
+      ctx.fillText(d.melee ? 'Melee' : 'Ranged', sx, sy);
+    }
+  }
+}
+
+function drawCombatArena() {
+  const cs = combatState;
+  if (!cs || cs.pendingAttR !== undefined) return;
+
+  // Darken background
+  ctx.fillStyle = 'rgba(0,0,0,0.8)';
+  ctx.fillRect(0, 0, W, H);
+
+  // Arena border
+  ctx.fillStyle = '#1a1a2a';
+  ctx.fillRect(ARENA_X - 4, ARENA_Y - 4, ARENA_W + 8, ARENA_H + 8);
+  ctx.fillStyle = '#0d0d1a';
+  ctx.fillRect(ARENA_X, ARENA_Y, ARENA_W, ARENA_H);
+  ctx.strokeStyle = '#444';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(ARENA_X, ARENA_Y, ARENA_W, ARENA_H);
+
+  // Grid pattern in arena
+  ctx.strokeStyle = '#1a1a28';
+  ctx.lineWidth = 0.5;
+  for (let gx = ARENA_X; gx <= ARENA_X + ARENA_W; gx += 20) {
+    ctx.beginPath(); ctx.moveTo(gx, ARENA_Y); ctx.lineTo(gx, ARENA_Y + ARENA_H); ctx.stroke();
+  }
+  for (let gy = ARENA_Y; gy <= ARENA_Y + ARENA_H; gy += 20) {
+    ctx.beginPath(); ctx.moveTo(ARENA_X, gy); ctx.lineTo(ARENA_X + ARENA_W, gy); ctx.stroke();
+  }
+
+  // Header
+  const attDef = cs.attacker.def;
+  const defDef = cs.defender.def;
+  ctx.font = 'bold 14px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = cs.attacker.owner === 1 ? '#6688ee' : '#dd5555';
+  ctx.fillText(attDef.name, ARENA_X + 80, ARENA_Y - 28);
+  ctx.fillStyle = '#888';
+  ctx.fillText('VS', ARENA_X + ARENA_W / 2, ARENA_Y - 28);
+  ctx.fillStyle = cs.defender.owner === 1 ? '#6688ee' : '#dd5555';
+  ctx.fillText(defDef.name, ARENA_X + ARENA_W - 80, ARENA_Y - 28);
+
+  // HP bars at top
+  const barW = 120, barH = 8;
+  // Attacker HP
+  const aBarX = ARENA_X + 20;
+  const aBarY = ARENA_Y - 14;
+  ctx.fillStyle = '#333';
+  ctx.fillRect(aBarX, aBarY, barW, barH);
+  const aRatio = Math.max(0, cs.attacker.hp / cs.attacker.maxHp);
+  ctx.fillStyle = cs.attacker.owner === 1 ? '#4466cc' : '#aa3333';
+  ctx.fillRect(aBarX, aBarY, barW * aRatio, barH);
+  ctx.strokeStyle = '#555'; ctx.lineWidth = 1; ctx.strokeRect(aBarX, aBarY, barW, barH);
+  ctx.fillStyle = '#aaa'; ctx.font = '10px monospace'; ctx.textAlign = 'left';
+  ctx.fillText(Math.max(0, Math.ceil(cs.attacker.hp)) + '/' + cs.attacker.maxHp, aBarX + barW + 6, aBarY + 8);
+
+  // Defender HP
+  const dBarX = ARENA_X + ARENA_W - barW - 20;
+  ctx.fillStyle = '#333';
+  ctx.fillRect(dBarX, aBarY, barW, barH);
+  const dRatio = Math.max(0, cs.defender.hp / cs.defender.maxHp);
+  ctx.fillStyle = cs.defender.owner === 1 ? '#4466cc' : '#aa3333';
+  ctx.fillRect(dBarX, aBarY, barW * dRatio, barH);
+  ctx.strokeStyle = '#555'; ctx.lineWidth = 1; ctx.strokeRect(dBarX, aBarY, barW, barH);
+  ctx.textAlign = 'right';
+  ctx.fillText(Math.max(0, Math.ceil(cs.defender.hp)) + '/' + cs.defender.maxHp, dBarX - 6, aBarY + 8);
+
+  // Draw projectiles
+  for (const p of cs.projectiles) {
+    ctx.fillStyle = p.owner === 1 ? '#88ccff' : '#ff8844';
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Draw combatants
+  drawCombatant(cs.attacker);
+  drawCombatant(cs.defender);
+
+  // Cooldown indicator for player
+  const player = cs.attacker.owner === 1 ? cs.attacker : cs.defender;
+  if (player.cooldown > 0) {
+    const cdRatio = player.cooldown / player.def.cd;
+    ctx.fillStyle = 'rgba(255,255,0,0.6)';
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('COOLDOWN', player.x, player.y + 28);
+  }
+
+  // Result overlay
+  if (cs.result) {
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(ARENA_X, ARENA_Y + ARENA_H / 2 - 20, ARENA_W, 40);
+    ctx.font = 'bold 18px monospace';
+    ctx.textAlign = 'center';
+    if (cs.result === 'att') {
+      ctx.fillStyle = cs.attacker.owner === 1 ? '#6688ee' : '#dd5555';
+      ctx.fillText(cs.attacker.def.name + ' WINS!', ARENA_X + ARENA_W / 2, ARENA_Y + ARENA_H / 2 + 6);
+    } else {
+      ctx.fillStyle = cs.defender.owner === 1 ? '#6688ee' : '#dd5555';
+      ctx.fillText(cs.defender.def.name + ' WINS!', ARENA_X + ARENA_W / 2, ARENA_Y + ARENA_H / 2 + 6);
+    }
+  }
+
+  // Controls hint
+  ctx.fillStyle = '#555';
+  ctx.font = '10px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('Arrows: move | Space: attack', ARENA_X + ARENA_W / 2, ARENA_Y + ARENA_H + 16);
+}
+
+function drawCombatant(c) {
+  const sz = 14;
+  // Body
+  ctx.beginPath();
+  ctx.arc(c.x, c.y, sz, 0, Math.PI * 2);
+  if (c.owner === 1) {
+    ctx.fillStyle = '#4466cc';
+    ctx.fill();
+    ctx.strokeStyle = '#6688ee';
+  } else {
+    ctx.fillStyle = '#aa3333';
+    ctx.fill();
+    ctx.strokeStyle = '#dd5555';
+  }
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Symbol
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 14px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(c.def.sym, c.x, c.y + 1);
+
+  // Melee indicator
+  if (c.def.melee) {
+    ctx.strokeStyle = c.owner === 1 ? 'rgba(100,150,255,0.3)' : 'rgba(255,80,80,0.3)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, c.def.range + 16, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+}
+
+function drawTransition() {
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.font = 'bold 22px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ff0';
+
+  const pulse = Math.sin(transTimer * 0.15) * 0.3 + 0.7;
+  ctx.globalAlpha = pulse;
+  ctx.fillText('COMBAT!', W / 2, H / 2 - 20);
+  ctx.font = '14px monospace';
+  ctx.fillStyle = '#ddd';
+  ctx.fillText(transMsg, W / 2, H / 2 + 15);
+  ctx.globalAlpha = 1;
+}
+
+function drawGameOver() {
+  ctx.fillStyle = 'rgba(0,0,0,0.75)';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 36px monospace';
+  if (gameOverMsg.includes('LIGHT')) {
+    ctx.fillStyle = '#6688ee';
+  } else {
+    ctx.fillStyle = '#dd5555';
+  }
+  ctx.fillText(gameOverMsg, W / 2, H / 2 - 20);
+
+  ctx.fillStyle = '#aaa';
+  ctx.font = '16px monospace';
+  ctx.fillText('Press R to restart', W / 2, H / 2 + 25);
+}
+
+function drawHUD() {
+  // Title badge
+  ctx.fillStyle = '#111';
+  ctx.fillRect(6, 6, 260, 26);
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(6, 6, 260, 26);
+  ctx.fillStyle = '#667';
+  ctx.font = '13px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('HYB-001 \u00b7 ARCHON  [?]', 14, 24);
+}
+
+function draw() {
+  ctx.fillStyle = '#0a0a12';
+  ctx.fillRect(0, 0, W, H);
+
+  if (phase === PHASE_BOARD || phase === PHASE_OVER) {
+    drawBoard();
+    drawPieces();
+    drawSidebar();
+    drawHUD();
+    if (phase === PHASE_OVER) drawGameOver();
+  } else if (phase === PHASE_COMBAT) {
+    drawBoard();
+    drawPieces();
+    drawHUD();
+    drawCombatArena();
+  } else if (phase === PHASE_TRANSITION) {
+    drawBoard();
+    drawPieces();
+    drawHUD();
+    drawTransition();
+  }
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

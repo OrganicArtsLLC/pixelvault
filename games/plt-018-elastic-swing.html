@@ -1,0 +1,965 @@
+<!--
+PROTOTYPE: elastic-swing
+SERIES: plt
+NUMBER: 018
+DATE: 2026-03-24
+MECHANIC: rubber grapple physics — a fishing rod acts as an elastic grappling hook; swing, stretch, bounce off surfaces; the rubber physics create unique trajectories
+ANCESTRY: Umihara Kawase (1994, TNN, Super Famicom, Japan cult classic) ← Bionic Commando (1987, Capcom) ← Pitfall! (1982, Activision)
+CONTROLS: Mouse aim + Click/Space — cast rod | A/D or Left/Right — move | W or Up — aim up | Release rod — fling | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Expert Systems — elastic physics simulation requires precise constraint solving and spring dynamics)
+AI-INSIGHT: Umihara Kawase's rubber-band grappling physics emerged from careful spring-damper simulation — the same differential equations that underpin modern physics engines and soft-body AI research.
+NOTES: Side-view platformer with elastic fishing-rod grappling hook. The rubber feel is everything —
+       springy, alive, momentum-preserving. 6 levels of increasing complexity.
+       Pink-haired girl character. Fish enemies. Reach the exit door.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PLT-018 · ELASTIC SWING</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #f7a; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+#info-panel .notice { background: #1a1a2e; border-left: 3px solid #f7a; padding: 10px 14px; margin: 16px 0; font-size: 12px; color: #aaa; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>PLT-018 · ELASTIC SWING</h1>
+    <p><span class="tag series">PLT — Platformer</span> <span class="tag">Prototype #018</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>You are a pink-haired girl with a magical rubber fishing rod. Cast your line to grapple surfaces, swing with elastic momentum, and fling yourself to the exit door.</p>
+    <ul>
+      <li><kbd>A</kbd> / <kbd>D</kbd> or <kbd>&#8592;</kbd> / <kbd>&#8594;</kbd> &mdash; Move left/right</li>
+      <li><kbd>Mouse</kbd> &mdash; Aim the fishing rod</li>
+      <li><kbd>Click</kbd> or <kbd>Space</kbd> &mdash; Cast rod / attach to surface</li>
+      <li><kbd>Click</kbd> or <kbd>Space</kbd> again &mdash; Release rod (fling!)</li>
+      <li><kbd>W</kbd> or <kbd>&#8593;</kbd> &mdash; Reel in (shorten line)</li>
+      <li><kbd>S</kbd> or <kbd>&#8595;</kbd> &mdash; Let out (lengthen line)</li>
+      <li><kbd>R</kbd> &mdash; Restart level</li>
+      <li><kbd>?</kbd> &mdash; Toggle this info panel</li>
+    </ul>
+    <h3>Rubber Physics Tips</h3>
+    <ul>
+      <li><strong>Swing:</strong> Build momentum by moving left/right while attached.</li>
+      <li><strong>Stretch &amp; Fling:</strong> Fall away from the anchor to stretch the line, then release for a massive launch.</li>
+      <li><strong>Reel In:</strong> Hold Up to shorten the line and pull yourself toward the anchor.</li>
+      <li><strong>Bounce:</strong> The elastic line naturally bounces — use it to reach tricky spots.</li>
+      <li><strong>Fish enemies:</strong> Avoid the walking fish. Touch them and you lose a life.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Umihara Kawase (1994, TNN) &larr; Bionic Commando (1987, Capcom) &larr; Pitfall! (1982, Activision)</p>
+    <p>Umihara Kawase debuted on the Super Famicom in 1994, developed by TNN (now Success). It became a Japanese cult classic, beloved for its unprecedented rubber-band grappling physics. While Bionic Commando introduced grappling to platformers, Umihara Kawase made the line <em>elastic</em> — a fishing rod that stretches, contracts, and bounces like a rubber band. This created an entirely new movement vocabulary where mastery of spring physics replaced traditional jumping. The series has had several sequels and remains a speedrunner favorite.</p>
+
+    <h2>AI Archaeology</h2>
+    <h3>Classification</h3>
+    <p><strong>AI-ERA 3 — Expert Systems.</strong> The rubber-band physics at the heart of Umihara Kawase are essentially a real-time spring-damper simulation — the same Hooke's Law and differential equations that modern physics engines use. Each frame solves spring force, damping, and constraint satisfaction, making this an early example of the kind of continuous physics simulation that underpins modern AI-driven soft-body and cloth simulation research.</p>
+
+    <h3>Prototype Notes</h3>
+    <p>This prototype focuses on capturing the elastic feel of the original — the springy, alive quality of the fishing rod. The rubber physics use a spring-damper model with configurable stiffness and damping. Six hand-crafted levels showcase different grappling challenges: simple swings, vertical climbs, bouncing traversals, and fish-dodging gauntlets.</p>
+
+    <div class="notice">
+      <strong>Educational Notice:</strong> This prototype is a non-commercial, educational reconstruction created to study game design history and AI-relevant mechanics. It is not affiliated with or endorsed by TNN, Success, or any rights holders. All original intellectual property belongs to its respective owners.
+    </div>
+  </div>
+</div>
+
+<script>
+// --- Info Panel ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// --- Canvas Setup ---
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+
+function resize() {
+  const s = Math.min(innerWidth / W, innerHeight / H);
+  canvas.style.width = (W * s) + 'px';
+  canvas.style.height = (H * s) + 'px';
+}
+resize();
+addEventListener('resize', resize);
+
+// --- HUD Text Helper ---
+function hudText(text, x, y, size, color, align) {
+  ctx.save();
+  ctx.font = size + 'px monospace';
+  ctx.fillStyle = color || '#fff';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+// --- Input ---
+const keys = {};
+let mouseX = W / 2, mouseY = 0;
+let mouseClick = false;
+let spacePressed = false;
+
+addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); return; }
+  keys[e.key.toLowerCase()] = true;
+  if (e.key === ' ') { e.preventDefault(); spacePressed = true; }
+  if (e.key.toLowerCase() === 'r') restartLevel();
+});
+addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  mouseX = (e.clientX - rect.left) * (W / rect.width);
+  mouseY = (e.clientY - rect.top) * (H / rect.height);
+});
+canvas.addEventListener('mousedown', e => { mouseClick = true; });
+
+// --- Constants ---
+const GRAVITY = 0.4;
+const MOVE_SPEED = 3;
+const JUMP_VEL = -7;
+const SPRING_K = 0.015;
+const SPRING_DAMP = 0.97;
+const REST_LENGTH = 80;
+const MAX_LINE_LEN = 250;
+const MIN_LINE_LEN = 30;
+const REEL_SPEED = 2;
+const TILE = 32;
+
+// --- Level Data ---
+// Each level: { platforms, enemies, start, exit, bg }
+// Platforms: [x, y, w, h] — solid rectangles
+// Enemies: {x, y, dir, speed, minX, maxX} — walking fish
+const COLS = 25, ROWS = 19; // 800/32, 608/32
+
+function tilesFromMap(map) {
+  const plats = [];
+  const enemies = [];
+  let start = [64, 500];
+  let exit = [700, 100];
+  for (let r = 0; r < map.length; r++) {
+    for (let c = 0; c < map[r].length; c++) {
+      const ch = map[r][c];
+      const x = c * TILE, y = r * TILE;
+      if (ch === '#') plats.push([x, y, TILE, TILE]);
+      if (ch === 'S') start = [x + 8, y];
+      if (ch === 'E') exit = [x, y];
+      if (ch === 'F') enemies.push({ x: x, y: y, w: 28, h: 24, dir: 1, speed: 1, minX: x - 96, maxX: x + 96 });
+    }
+  }
+  return { platforms: plats, enemies, start, exit };
+}
+
+const levelMaps = [
+  // Level 1: Simple introduction — swing across a gap
+  [
+    '                         ',
+    '                         ',
+    '       ######            ',
+    '                   ####  ',
+    '   ########             E',
+    '                   ######',
+    '                         ',
+    '  #####                  ',
+    '           #####         ',
+    '                         ',
+    '                  ####   ',
+    '     #####               ',
+    '                         ',
+    '                ####     ',
+    '                         ',
+    '  ####                   ',
+    ' S                       ',
+    ' ##        ########    ##',
+    '#########################',
+  ],
+  // Level 2: Vertical climb
+  [
+    '                         ',
+    '  E                      ',
+    ' ###                     ',
+    '          ###            ',
+    '                   ###   ',
+    '   ###                   ',
+    '                         ',
+    '              ###        ',
+    '    ###                  ',
+    '                  ###    ',
+    '                         ',
+    '          ###            ',
+    '  ###           F        ',
+    '           ##########    ',
+    '                         ',
+    '     ######              ',
+    '                         ',
+    ' S          #####        ',
+    '#########################',
+  ],
+  // Level 3: Fish gauntlet
+  [
+    '                         ',
+    '                       E ',
+    '                    #####',
+    '                         ',
+    '             ###         ',
+    '   F                F    ',
+    ' ##########    ##########',
+    '                         ',
+    '        ####             ',
+    '                  ####   ',
+    '    F                    ',
+    '  ########     ########  ',
+    '                         ',
+    '          #####          ',
+    '                         ',
+    '   F            F        ',
+    ' S       ###         ### ',
+    ' ##                      ',
+    '#########################',
+  ],
+  // Level 4: Long swings — wide gaps with ceiling hooks
+  [
+    '#########################',
+    '#     #     #     #     #',
+    '#                       #',
+    '#                       #',
+    '#                       #',
+    '#                       #',
+    '#                       #',
+    '#                       #',
+    '#                       #',
+    '#  F                 F  #',
+    '##   ##           ##   ##',
+    '#       F               #',
+    '#        ####           #',
+    '#                       #',
+    '#              ###     E#',
+    '#                  ######',
+    '#S                      #',
+    '###    ###    ###    ####',
+    '#########################',
+  ],
+  // Level 5: Bouncing maze
+  [
+    '#########################',
+    '#E          #           #',
+    '####        #           #',
+    '#           #     ###   #',
+    '#   ###     #           #',
+    '#           #           #',
+    '#     ####  #   F       #',
+    '#           #  ####     #',
+    '#  F  #######           #',
+    '####                    #',
+    '#         ########      #',
+    '#                  #### #',
+    '#   #####               #',
+    '#               ###     #',
+    '#    F                  #',
+    '#   #####    ########   #',
+    '#                      S#',
+    '#    ########        ####',
+    '#########################',
+  ],
+  // Level 6: The gauntlet — everything combined
+  [
+    '#########################',
+    '#E                      #',
+    '###                     #',
+    '#      ###              #',
+    '#              ##  F    #',
+    '#            ########   #',
+    '#   F                   #',
+    '####                    #',
+    '#        ####    ###    #',
+    '#                       #',
+    '#   ###          F      #',
+    '#             #######   #',
+    '#    F                  #',
+    '#  ######        ###    #',
+    '#                       #',
+    '#         ####          #',
+    '#                    S  #',
+    '#  ####    ######   ####',
+    '#########################',
+  ],
+];
+
+const levels = levelMaps.map(m => tilesFromMap(m));
+
+// --- Game State ---
+let level = 0;
+let lives = 5;
+let gameState = 'play'; // play, dead, win, gameover
+
+let player, grapple, particles, camera;
+
+function initPlayer(lv) {
+  const l = levels[lv];
+  player = {
+    x: l.start[0], y: l.start[1],
+    vx: 0, vy: 0,
+    w: 16, h: 24,
+    onGround: false,
+    facing: 1,
+  };
+  grapple = {
+    active: false,
+    attached: false,
+    ax: 0, ay: 0, // anchor point
+    lineLen: REST_LENGTH,
+    bx: 0, by: 0, // projectile pos when casting
+    bvx: 0, bvy: 0,
+    castTimer: 0,
+  };
+  particles = [];
+  camera = { x: 0, y: 0 };
+}
+
+function restartLevel() {
+  if (gameState === 'gameover') {
+    level = 0;
+    lives = 5;
+    gameState = 'play';
+  }
+  if (gameState === 'win') {
+    level = 0;
+    lives = 5;
+    gameState = 'play';
+  }
+  gameState = 'play';
+  initPlayer(level);
+  // Reset enemies
+  const map = levelMaps[level];
+  const lv = levels[level];
+  lv.enemies = [];
+  for (let r = 0; r < map.length; r++) {
+    for (let c = 0; c < map[r].length; c++) {
+      if (map[r][c] === 'F') {
+        const x = c * TILE, y = r * TILE;
+        lv.enemies.push({ x, y, w: 28, h: 24, dir: 1, speed: 1, minX: x - 96, maxX: x + 96 });
+      }
+    }
+  }
+}
+
+initPlayer(0);
+
+// --- Collision ---
+function rectOverlap(a, b) {
+  return a.x < b[0] + b[2] && a.x + a.w > b[0] && a.y < b[1] + b[3] && a.y + a.h > b[1];
+}
+
+function pointInRect(px, py, r) {
+  return px >= r[0] && px <= r[0] + r[2] && py >= r[1] && py <= r[1] + r[3];
+}
+
+function lineRectIntersect(x1, y1, x2, y2, r) {
+  // Check if line segment intersects rectangle, return closest hit point
+  const rx = r[0], ry = r[1], rw = r[2], rh = r[3];
+  const edges = [
+    [rx, ry, rx + rw, ry],         // top
+    [rx, ry + rh, rx + rw, ry + rh], // bottom
+    [rx, ry, rx, ry + rh],         // left
+    [rx + rw, ry, rx + rw, ry + rh], // right
+  ];
+  let closest = null, minD = Infinity;
+  for (const e of edges) {
+    const hit = segSeg(x1, y1, x2, y2, e[0], e[1], e[2], e[3]);
+    if (hit) {
+      const d = (hit.x - x1) ** 2 + (hit.y - y1) ** 2;
+      if (d < minD) { minD = d; closest = hit; }
+    }
+  }
+  return closest;
+}
+
+function segSeg(x1, y1, x2, y2, x3, y3, x4, y4) {
+  const d = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+  if (Math.abs(d) < 0.001) return null;
+  const t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / d;
+  const u = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / d;
+  if (t >= 0 && t <= 1 && u >= 0 && u <= 1) {
+    return { x: x1 + t * (x2 - x1), y: y1 + t * (y2 - y1) };
+  }
+  return null;
+}
+
+function resolveCollisions(p, plats) {
+  p.onGround = false;
+  for (const pl of plats) {
+    if (!rectOverlap(p, pl)) continue;
+    const overlapLeft = (p.x + p.w) - pl[0];
+    const overlapRight = (pl[0] + pl[2]) - p.x;
+    const overlapTop = (p.y + p.h) - pl[1];
+    const overlapBot = (pl[1] + pl[3]) - p.y;
+    const minOverlap = Math.min(overlapLeft, overlapRight, overlapTop, overlapBot);
+    if (minOverlap === overlapTop && p.vy >= 0) {
+      p.y = pl[1] - p.h;
+      p.vy = 0;
+      p.onGround = true;
+    } else if (minOverlap === overlapBot && p.vy <= 0) {
+      p.y = pl[1] + pl[3];
+      p.vy = 0;
+    } else if (minOverlap === overlapLeft) {
+      p.x = pl[0] - p.w;
+      p.vx = 0;
+    } else if (minOverlap === overlapRight) {
+      p.x = pl[0] + pl[2];
+      p.vx = 0;
+    }
+  }
+}
+
+// --- Particles ---
+function spawnParticles(x, y, color, count) {
+  for (let i = 0; i < count; i++) {
+    particles.push({
+      x, y,
+      vx: (Math.random() - 0.5) * 6,
+      vy: (Math.random() - 0.5) * 6,
+      life: 30 + Math.random() * 20,
+      color,
+      r: 2 + Math.random() * 3,
+    });
+  }
+}
+
+// --- Cast Rod ---
+function castRod() {
+  if (grapple.active) {
+    // Release
+    grapple.active = false;
+    grapple.attached = false;
+    return;
+  }
+  // Aim toward mouse
+  const pcx = player.x + player.w / 2 - camera.x;
+  const pcy = player.y + player.h / 2 - camera.y;
+  let dx = mouseX - pcx;
+  let dy = mouseY - pcy;
+  const len = Math.sqrt(dx * dx + dy * dy);
+  if (len < 1) { dx = 0; dy = -1; } else { dx /= len; dy /= len; }
+
+  grapple.active = true;
+  grapple.attached = false;
+  grapple.bx = player.x + player.w / 2;
+  grapple.by = player.y + player.h / 4;
+  grapple.bvx = dx * 14;
+  grapple.bvy = dy * 14;
+  grapple.castTimer = 0;
+  grapple.lineLen = REST_LENGTH;
+}
+
+// --- Update ---
+function update() {
+  if (infoOpen) return;
+  if (gameState === 'dead') {
+    if (lives <= 0) { gameState = 'gameover'; return; }
+    initPlayer(level);
+    gameState = 'play';
+    return;
+  }
+  if (gameState === 'gameover' || gameState === 'win') return;
+
+  const lv = levels[level];
+  const plats = lv.platforms;
+
+  // Handle cast input
+  if (mouseClick || spacePressed) {
+    castRod();
+    mouseClick = false;
+    spacePressed = false;
+  }
+
+  // Horizontal movement
+  if (keys['a'] || keys['arrowleft']) {
+    player.vx = -MOVE_SPEED;
+    player.facing = -1;
+  } else if (keys['d'] || keys['arrowright']) {
+    player.vx = MOVE_SPEED;
+    player.facing = 1;
+  } else {
+    player.vx *= 0.8;
+  }
+
+  // Gravity
+  player.vy += GRAVITY;
+
+  // Grapple casting
+  if (grapple.active && !grapple.attached) {
+    grapple.bx += grapple.bvx;
+    grapple.by += grapple.bvy;
+    grapple.castTimer++;
+
+    // Check if projectile hits a platform
+    for (const pl of plats) {
+      if (pointInRect(grapple.bx, grapple.by, pl)) {
+        grapple.attached = true;
+        grapple.ax = grapple.bx;
+        grapple.ay = grapple.by;
+        const dx = grapple.ax - (player.x + player.w / 2);
+        const dy = grapple.ay - (player.y + player.h / 2);
+        grapple.lineLen = Math.sqrt(dx * dx + dy * dy);
+        if (grapple.lineLen > MAX_LINE_LEN) grapple.lineLen = MAX_LINE_LEN;
+        if (grapple.lineLen < MIN_LINE_LEN) grapple.lineLen = MIN_LINE_LEN;
+        spawnParticles(grapple.ax, grapple.ay, '#ff0', 5);
+        break;
+      }
+    }
+    // Timeout
+    if (grapple.castTimer > 30) {
+      grapple.active = false;
+    }
+  }
+
+  // Rubber band physics when attached
+  if (grapple.active && grapple.attached) {
+    const px = player.x + player.w / 2;
+    const py = player.y + player.h / 2;
+    const dx = grapple.ax - px;
+    const dy = grapple.ay - py;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    // Reel in / let out
+    if (keys['w'] || keys['arrowup']) {
+      grapple.lineLen = Math.max(MIN_LINE_LEN, grapple.lineLen - REEL_SPEED);
+    }
+    if (keys['s'] || keys['arrowdown']) {
+      grapple.lineLen = Math.min(MAX_LINE_LEN, grapple.lineLen + REEL_SPEED);
+    }
+
+    // Spring force when stretched beyond rest length
+    if (dist > grapple.lineLen) {
+      const stretch = dist - grapple.lineLen;
+      const force = stretch * SPRING_K;
+      const nx = dx / dist;
+      const ny = dy / dist;
+      player.vx += nx * force * 3;
+      player.vy += ny * force * 3;
+      // Damping
+      player.vx *= SPRING_DAMP;
+      player.vy *= SPRING_DAMP;
+    }
+
+    // Constraint: don't let line exceed max
+    if (dist > grapple.lineLen * 1.5) {
+      const nx = dx / dist;
+      const ny = dy / dist;
+      const excess = dist - grapple.lineLen * 1.5;
+      player.x += nx * excess;
+      player.y += ny * excess;
+    }
+  }
+
+  // Apply velocity
+  player.x += player.vx;
+  player.y += player.vy;
+
+  // Resolve platform collisions
+  resolveCollisions(player, plats);
+
+  // If on ground and grapple stretching down, bounce a little
+  if (player.onGround && grapple.active && grapple.attached) {
+    const py = player.y + player.h / 2;
+    if (grapple.ay < py) {
+      // Anchor is above, pull up
+      player.vy = Math.min(player.vy, -2);
+    }
+  }
+
+  // Enemy movement
+  for (const en of lv.enemies) {
+    en.x += en.dir * en.speed;
+    if (en.x <= en.minX || en.x >= en.maxX) en.dir *= -1;
+    // Enemy-player collision
+    if (player.x + player.w > en.x && player.x < en.x + en.w &&
+        player.y + player.h > en.y && player.y < en.y + en.h) {
+      lives--;
+      spawnParticles(player.x + player.w / 2, player.y + player.h / 2, '#f55', 15);
+      gameState = 'dead';
+      return;
+    }
+  }
+
+  // Exit door check
+  const ex = lv.exit;
+  if (player.x + player.w > ex[0] && player.x < ex[0] + TILE &&
+      player.y + player.h > ex[1] && player.y < ex[1] + TILE) {
+    spawnParticles(ex[0] + TILE / 2, ex[1] + TILE / 2, '#0f0', 20);
+    level++;
+    if (level >= levels.length) {
+      gameState = 'win';
+    } else {
+      initPlayer(level);
+    }
+    return;
+  }
+
+  // Fall off screen
+  if (player.y > ROWS * TILE + 50) {
+    lives--;
+    gameState = 'dead';
+    return;
+  }
+
+  // Update particles
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx; p.y += p.vy;
+    p.vy += 0.1;
+    p.life--;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+}
+
+// --- Draw ---
+function draw() {
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fillRect(0, 0, W, H);
+
+  if (gameState === 'gameover') {
+    hudText('GAME OVER', W / 2, H / 2 - 30, 36, '#f55', 'center');
+    hudText('Press R to restart', W / 2, H / 2 + 20, 16, '#aaa', 'center');
+    return;
+  }
+
+  if (gameState === 'win') {
+    hudText('YOU WIN!', W / 2, H / 2 - 30, 36, '#0f0', 'center');
+    hudText('All 6 levels cleared!', W / 2, H / 2 + 20, 16, '#aaa', 'center');
+    hudText('Press R to play again', W / 2, H / 2 + 50, 14, '#888', 'center');
+    return;
+  }
+
+  const lv = levels[level];
+
+  ctx.save();
+
+  // Draw platforms
+  for (const pl of lv.platforms) {
+    ctx.fillStyle = '#557';
+    ctx.fillRect(pl[0], pl[1], pl[2], pl[3]);
+    ctx.strokeStyle = '#779';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(pl[0] + 0.5, pl[1] + 0.5, pl[2] - 1, pl[3] - 1);
+  }
+
+  // Draw exit door
+  const ex = lv.exit;
+  ctx.fillStyle = '#2a2';
+  ctx.fillRect(ex[0] + 4, ex[1], TILE - 8, TILE);
+  ctx.fillStyle = '#4f4';
+  ctx.fillRect(ex[0] + 6, ex[1] + 2, TILE - 12, TILE - 4);
+  // Door handle
+  ctx.fillStyle = '#ff0';
+  ctx.fillRect(ex[0] + TILE - 12, ex[1] + TILE / 2 - 2, 3, 4);
+  // Arrow above door
+  ctx.fillStyle = '#4f4';
+  ctx.beginPath();
+  ctx.moveTo(ex[0] + TILE / 2, ex[1] - 14);
+  ctx.lineTo(ex[0] + TILE / 2 - 6, ex[1] - 6);
+  ctx.lineTo(ex[0] + TILE / 2 + 6, ex[1] - 6);
+  ctx.fill();
+
+  // Draw enemies (fish)
+  for (const en of lv.enemies) {
+    ctx.save();
+    ctx.translate(en.x + en.w / 2, en.y + en.h / 2);
+    if (en.dir < 0) ctx.scale(-1, 1);
+    // Fish body
+    ctx.fillStyle = '#f84';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, en.w / 2, en.h / 2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Tail
+    ctx.fillStyle = '#f62';
+    ctx.beginPath();
+    ctx.moveTo(-en.w / 2, 0);
+    ctx.lineTo(-en.w / 2 - 10, -8);
+    ctx.lineTo(-en.w / 2 - 10, 8);
+    ctx.fill();
+    // Eye
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(en.w / 4, -3, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.arc(en.w / 4 + 1, -3, 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Draw grapple line
+  if (grapple.active) {
+    const px = player.x + player.w / 2;
+    const py = player.y + player.h / 4;
+    let tx, ty;
+    if (grapple.attached) {
+      tx = grapple.ax; ty = grapple.ay;
+    } else {
+      tx = grapple.bx; ty = grapple.by;
+    }
+
+    // Draw rubber line with sag/elasticity visualization
+    if (grapple.attached) {
+      const dx = tx - px, dy = ty - py;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const sag = Math.max(0, dist - grapple.lineLen) * 0.3;
+      const midX = (px + tx) / 2;
+      const midY = (py + ty) / 2 + sag * 0.5;
+
+      // Thicker rubber line
+      ctx.strokeStyle = '#f7a';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(px, py);
+      ctx.quadraticCurveTo(midX + sag * 0.3, midY, tx, ty);
+      ctx.stroke();
+
+      // Inner line
+      ctx.strokeStyle = '#fac';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(px, py);
+      ctx.quadraticCurveTo(midX + sag * 0.3, midY, tx, ty);
+      ctx.stroke();
+
+      // Anchor point sparkle
+      ctx.fillStyle = '#ff0';
+      ctx.beginPath();
+      ctx.arc(tx, ty, 3 + Math.sin(Date.now() * 0.01) * 1.5, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      // Casting line
+      ctx.strokeStyle = '#fac';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(px, py);
+      ctx.lineTo(tx, ty);
+      ctx.stroke();
+      // Hook
+      ctx.fillStyle = '#ff0';
+      ctx.beginPath();
+      ctx.arc(tx, ty, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // Draw player (pink-haired girl)
+  const px = player.x, py = player.y;
+  ctx.save();
+  ctx.translate(px + player.w / 2, py + player.h / 2);
+  if (player.facing < 0) ctx.scale(-1, 1);
+
+  // Body
+  ctx.fillStyle = '#48f';
+  ctx.fillRect(-6, 2, 12, 10);
+
+  // Head
+  ctx.fillStyle = '#fdb';
+  ctx.beginPath();
+  ctx.arc(0, -4, 7, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Pink hair
+  ctx.fillStyle = '#f7a';
+  ctx.beginPath();
+  ctx.arc(0, -6, 7, -Math.PI, -0.1);
+  ctx.fill();
+  // Hair strands
+  ctx.fillRect(-7, -8, 3, 6);
+  ctx.fillRect(4, -8, 3, 5);
+  ctx.fillRect(-2, -11, 5, 4);
+
+  // Eyes
+  ctx.fillStyle = '#000';
+  ctx.fillRect(2, -5, 2, 2);
+  ctx.fillRect(-3, -5, 2, 2);
+
+  // Legs
+  ctx.fillStyle = '#fdb';
+  ctx.fillRect(-5, 12, 4, 5);
+  ctx.fillRect(1, 12, 4, 5);
+
+  // Shoes
+  ctx.fillStyle = '#a33';
+  ctx.fillRect(-6, 15, 5, 3);
+  ctx.fillRect(0, 15, 5, 3);
+
+  // Fishing rod (in hand)
+  ctx.strokeStyle = '#a86';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(5, 0);
+  ctx.lineTo(12, -8);
+  ctx.stroke();
+
+  ctx.restore();
+
+  // Draw particles
+  for (const p of particles) {
+    ctx.globalAlpha = p.life / 50;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  ctx.restore();
+
+  // HUD
+  hudText('Level ' + (level + 1) + '/6', 10, 10, 16, '#fff');
+  hudText('Lives: ' + lives, 10, 32, 14, '#f88');
+
+  // Aim indicator when not grappled
+  if (!grapple.active) {
+    const pcx = player.x + player.w / 2;
+    const pcy = player.y + player.h / 4;
+    let dx = mouseX - pcx;
+    let dy = mouseY - pcy;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (len > 1) {
+      dx /= len; dy /= len;
+      ctx.strokeStyle = 'rgba(255,170,200,0.3)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(pcx, pcy);
+      ctx.lineTo(pcx + dx * 60, pcy + dy * 60);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+
+  // Bottom text
+  hudText('? = info', W - 80, H - 20, 11, '#555');
+
+  // Educational notice
+  ctx.save();
+  ctx.font = '10px monospace';
+  ctx.fillStyle = '#333';
+  ctx.textAlign = 'center';
+  ctx.fillText('Educational reconstruction — not affiliated with TNN/Success', W / 2, H - 6);
+  ctx.restore();
+}
+
+// --- Loop ---
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

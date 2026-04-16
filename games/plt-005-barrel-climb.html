@@ -1,0 +1,1134 @@
+<!--
+PROTOTYPE: barrel-climb
+SERIES: plt
+NUMBER: 005
+DATE: 2026-03-22
+MECHANIC: climb ladders, dodge barrels, reach the top to rescue
+ANCESTRY: Donkey Kong (1981, Shigeru Miyamoto, Nintendo), Space Panic (1980, Universal)
+CONTROLS: Arrow keys — move/climb | Space — jump | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — goal-directed platforming)
+AI-INSIGHT: Donkey Kong introduced narrative goal structure to arcade games — the player has a visible objective (rescue) beyond score maximization. This goal-directed behavior model parallels the shift from reactive to planning-based AI agents.
+NOTES: The single-screen level design creates readable obstacle patterns.
+       Barrel physics on sloped girders create emergent timing puzzles.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PLT-005 · BARREL CLIMB</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>PLT-005 · BARREL CLIMB</h1>
+    <p><span class="tag series">PLT — Platformer</span> <span class="tag">Prototype #005</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Climb to the top of the construction site to rescue Pauline. Dodge or jump over barrels thrown by Donkey Kong. Grab hammers to smash barrels for bonus points.</p>
+    <ul>
+      <li><kbd>&#8592;</kbd> <kbd>&#8594;</kbd> — Move left / right</li>
+      <li><kbd>&#8593;</kbd> <kbd>&#8595;</kbd> — Climb up / down ladders</li>
+      <li><kbd>Space</kbd> — Jump</li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Jump barrels:</strong> Time your jumps to clear rolling barrels for 100 points each.</li>
+      <li><strong>Ladders:</strong> You can only climb when directly overlapping a ladder. Press up or down.</li>
+      <li><strong>Hammers:</strong> Collect the flashing hammer to smash barrels for 300 points. The power wears off quickly.</li>
+      <li><strong>Barrel paths:</strong> Barrels follow sloped girders and sometimes descend ladders randomly.</li>
+      <li><strong>Reach Pauline:</strong> Get to the very top platform to clear the level. Each level is faster.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Space Panic (1980, Universal) &rarr; Donkey Kong (1981, Nintendo) &rarr; Mario Bros. (1983) &rarr; Super Mario Bros. (1985)</p>
+    <p>Donkey Kong (1981) was Shigeru Miyamoto's first major game design, created when Nintendo needed to repurpose unsold Radar Scope cabinets for the North American market. Miyamoto, a young industrial designer with no programming experience, conceived a narrative scenario — a gorilla kidnaps a carpenter's girlfriend — that gave the player a visible goal beyond high scores.</p>
+    <p>The game introduced "Jumpman" (later Mario), who became gaming's most recognizable character. The single-screen level design with sloped girders, ladders, and rolling barrels created a spatial puzzle where timing and pathfinding interleave. Each of the four original screens presented a distinct mechanical challenge.</p>
+    <p>Space Panic (1980) is often cited as the first platform game — it featured ladders and platforms but no jumping. Donkey Kong added the jump mechanic, cementing the platformer genre.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 3 — Knowledge Explosion (1980-1987)</p>
+    <p><strong>Contemporary AI:</strong> Expert systems boom. MYCIN, R1/XCON. Rule-based reasoning with goal structures.</p>
+    <p><strong>Hidden Intelligence:</strong> Donkey Kong's design embodies goal-directed behavior — the player has a visible objective (Pauline at the top) and must plan a path through dynamic obstacles. This mirrors the shift from reactive AI (respond to stimuli) to planning-based AI (pursue goals through obstacle navigation). The barrel-throwing pattern creates a stochastic obstacle field requiring real-time path replanning.</p>
+    <p><strong>The Convergence:</strong> The game's level structure — four distinct screens with escalating complexity — anticipates curriculum learning in modern ML. Each screen teaches a mechanic (dodging, hammering, elevators, rivets) before combining them. The barrel's random ladder-descent creates a partially observable planning problem.</p>
+    <p><strong>If AI Had Designed This:</strong> Adaptive barrel-throw timing calibrated to player skill. Dynamic ladder placement that maximizes the number of "close call" moments. Difficulty curves shaped by reinforcement learning from player death data.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: PLT — Platformer</h3>
+    <p>Donkey Kong is the archetypal single-screen platformer. Gravity, jumping, ladders, and rolling obstacles on sloped surfaces. Goal-directed traversal rather than score-chasing.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Climb-and-dodge on sloped girders with ladder traversal.</strong> Rolling barrels as dynamic obstacles. Jump for evasion and points. Hammer power-up for temporary offense. Single-screen level with visible goal.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Sloped girder physics — do barrels roll convincingly on angled platforms?</li>
+      <li>Ladder mechanics — does climbing feel responsive and fair?</li>
+      <li>Barrel timing — do barrel patterns create learnable-but-challenging rhythms?</li>
+      <li>Goal-directed flow — does the visible rescue objective create forward momentum?</li>
+      <li>Hammer power fantasy — does the temporary invincibility feel rewarding?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Single-screen level with six sloped girders, ladders, barrel spawning from Donkey Kong at top. Hammer power-up on two platforms. Levels repeat with increasing barrel frequency.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+const keys = {};
+window.addEventListener('keydown', e => { if (!infoOpen) keys[e.code] = true; e.preventDefault(); });
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+// --- LEVEL LAYOUT ---
+// Six girders (platforms) sloping alternately, connected by ladders
+// Y positions from bottom to top, each girder ~75px apart
+// Girders slope: even rows slope right-to-left, odd rows left-to-right
+const GIRDER_H = 8;
+const PLAYER_W = 20, PLAYER_H = 28;
+const BARREL_R = 10;
+const GRAVITY = 0.55;
+const JUMP_VEL = -7.5;
+const MOVE_SPD = 2.8;
+const CLIMB_SPD = 2.2;
+
+// Build level geometry
+function buildLevel() {
+  // Girders: {x1, y1, x2, y2} — left point and right point (may differ in y for slope)
+  // The classic DK layout: 6 girders, bottom is flat, rest slope alternately
+  const girders = [];
+  const ladders = [];
+  const hammers = [];
+
+  const leftEdge = 60;
+  const rightEdge = 740;
+  const gWidth = rightEdge - leftEdge;
+  const baseY = 555;
+  const gapY = 78;
+  const slope = 14; // total vertical drop across a girder
+
+  for (let i = 0; i < 7; i++) {
+    const topY = baseY - i * gapY;
+    if (i === 0) {
+      // Bottom girder — flat
+      girders.push({ x1: leftEdge, y1: topY, x2: rightEdge, y2: topY, index: i });
+    } else if (i === 6) {
+      // Top platform — short, where DK and Pauline are
+      girders.push({ x1: leftEdge, y1: topY, x2: leftEdge + 220, y2: topY, index: i });
+    } else {
+      // Alternating slope
+      if (i % 2 === 1) {
+        // Slopes down to right
+        girders.push({ x1: leftEdge, y1: topY, x2: rightEdge, y2: topY + slope, index: i });
+      } else {
+        // Slopes down to left
+        girders.push({ x1: leftEdge, y1: topY + slope, x2: rightEdge, y2: topY, index: i });
+      }
+    }
+  }
+
+  // Ladders connecting girders
+  // Each ladder: {x, y1 (top), y2 (bottom), broken: bool}
+  // We need ladders at strategic positions
+
+  function girderYAt(g, x) {
+    if (x <= g.x1) return g.y1;
+    if (x >= g.x2) return g.y2;
+    const t = (x - g.x1) / (g.x2 - g.x1);
+    return g.y1 + t * (g.y2 - g.y1);
+  }
+
+  // Ladder positions (x coord) for each gap between girders
+  const ladderDefs = [
+    // Between girder 0 and 1
+    [{ x: 700, broken: false }, { x: 380, broken: true }],
+    // Between girder 1 and 2
+    [{ x: 120, broken: false }, { x: 480, broken: true }],
+    // Between girder 2 and 3
+    [{ x: 680, broken: false }, { x: 300, broken: true }],
+    // Between girder 3 and 4
+    [{ x: 140, broken: false }, { x: 540, broken: true }],
+    // Between girder 4 and 5
+    [{ x: 660, broken: false }, { x: 250, broken: true }],
+    // Between girder 5 and 6 (to top platform)
+    [{ x: 140, broken: false }],
+  ];
+
+  for (let gap = 0; gap < ladderDefs.length; gap++) {
+    const lower = girders[gap];
+    const upper = girders[gap + 1];
+    for (const ld of ladderDefs[gap]) {
+      const lx = ld.x;
+      const bottomY = girderYAt(lower, lx);
+      const topY = girderYAt(upper, lx);
+      ladders.push({ x: lx, y1: topY, y2: bottomY, broken: ld.broken, lw: 20 });
+    }
+  }
+
+  // Hammers (two per level, on girders 2 and 4)
+  hammers.push({ x: leftEdge + 30, y: girderYAt(girders[2], leftEdge + 30) - 20, active: true });
+  hammers.push({ x: rightEdge - 30, y: girderYAt(girders[4], rightEdge - 30) - 20, active: true });
+
+  return { girders, ladders, hammers, girderYAt };
+}
+
+// --- GAME STATE ---
+let level, player, barrels, dk, pauline, score, lives, levelNum, gameOver, frame;
+let hammerTimer, hammerActive;
+let winTimer, titleScreen;
+
+function initGame() {
+  score = 0;
+  lives = 3;
+  levelNum = 1;
+  gameOver = false;
+  titleScreen = true;
+  frame = 0;
+  startLevel();
+}
+
+function startLevel() {
+  level = buildLevel();
+  // Player starts at bottom-left
+  const g0 = level.girders[0];
+  player = {
+    x: 100,
+    y: g0.y1 - PLAYER_H,
+    vx: 0,
+    vy: 0,
+    onGround: true,
+    climbing: false,
+    climbLadder: null,
+    facing: 1, // 1 right, -1 left
+    walkFrame: 0,
+    jumpGrace: 0
+  };
+  barrels = [];
+  hammerTimer = 0;
+  hammerActive = false;
+  winTimer = 0;
+
+  // Reset hammers
+  for (const h of level.hammers) h.active = true;
+
+  // DK position — top-left area
+  dk = {
+    x: 110,
+    y: level.girders[6].y1 - 60,
+    throwTimer: 120,
+    frame: 0,
+    chestBeat: 0
+  };
+
+  // Pauline — near DK on the top platform
+  pauline = {
+    x: 230,
+    y: level.girders[6].y1 - 22
+  };
+}
+
+initGame();
+
+function girderYAt(g, x) {
+  if (x <= g.x1) return g.y1;
+  if (x >= g.x2) return g.y2;
+  const t = (x - g.x1) / (g.x2 - g.x1);
+  return g.y1 + t * (g.y2 - g.y1);
+}
+
+function isOnGirder(px, py, pw, ph) {
+  // Check if bottom of entity rests on a girder
+  const footY = py + ph;
+  const footL = px - pw / 2 + 4;
+  const footR = px + pw / 2 - 4;
+  for (const g of level.girders) {
+    // Check if foot is at girder level
+    const yL = girderYAt(g, footL);
+    const yR = girderYAt(g, footR);
+    const yM = girderYAt(g, px);
+    // Must be horizontally within girder
+    if (px >= g.x1 - 5 && px <= g.x2 + 5) {
+      // Foot within a few pixels of girder surface
+      if (footY >= yM - 4 && footY <= yM + 8) {
+        return { girder: g, surfaceY: yM };
+      }
+    }
+  }
+  return null;
+}
+
+function getLadderAt(px, py, ph) {
+  // Check if player overlaps a ladder
+  const cx = px;
+  const footY = py + ph;
+  const headY = py;
+  for (const l of level.ladders) {
+    if (Math.abs(cx - l.x) < l.lw) {
+      // Vertically overlapping
+      if (footY > l.y1 && headY < l.y2) {
+        return l;
+      }
+    }
+  }
+  return null;
+}
+
+function spawnBarrel() {
+  // Barrel spawns from DK's position, rolls right on girder 6 then down
+  barrels.push({
+    x: dk.x + 40,
+    y: level.girders[5].y1 - BARREL_R,
+    vx: 2,
+    vy: 0,
+    onGround: true,
+    currentGirder: 5,
+    rolling: true,
+    frame: 0
+  });
+}
+
+function update() {
+  if (infoOpen) return;
+  if (gameOver) { if (keys['KeyR']) initGame(); return; }
+  if (titleScreen) {
+    if (keys['Space'] || keys['ArrowUp'] || keys['ArrowLeft'] || keys['ArrowRight']) {
+      titleScreen = false;
+    }
+    return;
+  }
+  frame++;
+
+  // Win animation
+  if (winTimer > 0) {
+    winTimer--;
+    if (winTimer <= 0) {
+      levelNum++;
+      score += 1000;
+      startLevel();
+    }
+    return;
+  }
+
+  // --- DK barrel throwing ---
+  dk.frame = (dk.frame + 1) % 60;
+  const throwInterval = Math.max(50, 150 - levelNum * 15);
+  dk.throwTimer--;
+  if (dk.throwTimer <= 0) {
+    spawnBarrel();
+    dk.throwTimer = throwInterval + Math.floor(Math.random() * 60);
+    dk.chestBeat = 30;
+  }
+  if (dk.chestBeat > 0) dk.chestBeat--;
+
+  // --- Player movement ---
+  const onLadder = getLadderAt(player.x, player.y, PLAYER_H);
+
+  // Climbing
+  if (player.climbing) {
+    player.vy = 0;
+    player.vx = 0;
+    if (keys['ArrowUp']) {
+      player.y -= CLIMB_SPD;
+      player.walkFrame += 0.15;
+    }
+    if (keys['ArrowDown']) {
+      player.y += CLIMB_SPD;
+      player.walkFrame += 0.15;
+    }
+
+    // Check if still on ladder
+    const stillOnLadder = getLadderAt(player.x, player.y, PLAYER_H);
+    if (!stillOnLadder) {
+      player.climbing = false;
+      player.climbLadder = null;
+    }
+
+    // Check if reached a girder (top or bottom of ladder)
+    const grnd = isOnGirder(player.x, player.y, PLAYER_W, PLAYER_H);
+    if (grnd && !keys['ArrowUp'] && !keys['ArrowDown']) {
+      player.climbing = false;
+      player.climbLadder = null;
+      player.y = grnd.surfaceY - PLAYER_H;
+      player.onGround = true;
+    }
+
+    // Snap to ladder x
+    if (player.climbLadder) {
+      player.x += (player.climbLadder.x - player.x) * 0.3;
+    }
+  } else {
+    // Horizontal movement
+    if (keys['ArrowLeft']) {
+      player.vx = -MOVE_SPD;
+      player.facing = -1;
+      player.walkFrame += 0.2;
+    } else if (keys['ArrowRight']) {
+      player.vx = MOVE_SPD;
+      player.facing = 1;
+      player.walkFrame += 0.2;
+    } else {
+      player.vx = 0;
+    }
+
+    // Start climbing
+    if (onLadder && keys['ArrowUp']) {
+      // Check we're not already at the top of the ladder
+      if (player.y + PLAYER_H > onLadder.y1 + 10) {
+        player.climbing = true;
+        player.climbLadder = onLadder;
+        player.onGround = false;
+        player.vy = 0;
+      }
+    }
+    if (onLadder && keys['ArrowDown']) {
+      if (player.y + PLAYER_H < onLadder.y2 - 5) {
+        player.climbing = true;
+        player.climbLadder = onLadder;
+        player.onGround = false;
+        player.vy = 0;
+      }
+    }
+
+    // Jump
+    if (keys['Space'] && player.onGround && player.jumpGrace <= 0) {
+      player.vy = JUMP_VEL;
+      player.onGround = false;
+      player.jumpGrace = 12;
+    }
+    if (player.jumpGrace > 0) player.jumpGrace--;
+
+    // Gravity
+    if (!player.onGround) {
+      player.vy += GRAVITY;
+    }
+
+    // Move
+    player.x += player.vx;
+    player.y += player.vy;
+
+    // Clamp horizontal
+    if (player.x < 55) player.x = 55;
+    if (player.x > 745) player.x = 745;
+
+    // Ground check
+    const grnd = isOnGirder(player.x, player.y, PLAYER_W, PLAYER_H);
+    if (grnd && player.vy >= 0) {
+      player.y = grnd.surfaceY - PLAYER_H;
+      // Fall death check - if fell more than ~2 girder heights
+      if (player.vy > 12) {
+        die();
+        return;
+      }
+      player.vy = 0;
+      player.onGround = true;
+
+      // Slope walking — adjust y to girder surface each frame
+    } else if (!player.climbing) {
+      player.onGround = false;
+    }
+
+    // If on ground, stick to slope
+    if (player.onGround) {
+      const g2 = isOnGirder(player.x, player.y, PLAYER_W, PLAYER_H);
+      if (g2) {
+        player.y = g2.surfaceY - PLAYER_H;
+      }
+    }
+  }
+
+  // Fall off bottom
+  if (player.y > H + 50) {
+    die();
+    return;
+  }
+
+  // --- Hammer pickup ---
+  for (const h of level.hammers) {
+    if (!h.active) continue;
+    const dx = player.x - h.x;
+    const dy = (player.y + PLAYER_H / 2) - h.y;
+    if (Math.abs(dx) < 20 && Math.abs(dy) < 20) {
+      h.active = false;
+      hammerActive = true;
+      hammerTimer = 300; // ~5 seconds
+    }
+  }
+  if (hammerTimer > 0) {
+    hammerTimer--;
+    if (hammerTimer <= 0) {
+      hammerActive = false;
+    }
+  }
+
+  // --- Barrel update ---
+  const barrelSpeed = 1.8 + levelNum * 0.25;
+  for (let i = barrels.length - 1; i >= 0; i--) {
+    const b = barrels[i];
+    b.frame++;
+
+    if (b.rolling) {
+      const g = level.girders[b.currentGirder];
+      if (!g) { barrels.splice(i, 1); continue; }
+
+      // Determine roll direction based on girder slope
+      // On flat girders (bottom), maintain current direction
+      if (g.y1 === g.y2) {
+        // Keep the direction the barrel had when it arrived
+        b.vx = (b.vx >= 0 ? 1 : -1) * barrelSpeed;
+      } else {
+        // Roll downhill along sloped girder
+        const slopeDir = g.y2 > g.y1 ? 1 : -1;
+        b.vx = slopeDir * barrelSpeed;
+      }
+
+      b.x += b.vx;
+      // Snap to girder surface
+      b.y = girderYAt(g, b.x) - BARREL_R;
+
+      // Check if barrel reached edge of girder
+      if (b.x < g.x1 - 5 || b.x > g.x2 + 5) {
+        if (b.currentGirder > 0) {
+          // Drop to next girder below — clamp x to that girder's bounds
+          const nextG = level.girders[b.currentGirder - 1];
+          b.currentGirder--;
+          // Clamp barrel x within the next girder's horizontal range
+          if (b.x < nextG.x1) b.x = nextG.x1 + 5;
+          if (b.x > nextG.x2) b.x = nextG.x2 - 5;
+          // Snap to the girder surface and keep rolling
+          b.y = girderYAt(nextG, b.x) - BARREL_R;
+          b.rolling = true;
+          b.vy = 0;
+        } else {
+          // Fell off bottom — remove
+          barrels.splice(i, 1);
+          continue;
+        }
+      }
+
+      // Random ladder descent
+      if (Math.random() < 0.008 && b.currentGirder > 0) {
+        for (const l of level.ladders) {
+          if (Math.abs(b.x - l.x) < 15) {
+            // Check this ladder goes to the girder below
+            const lowerG = level.girders[b.currentGirder - 1];
+            if (lowerG) {
+              b.rolling = false;
+              b.vy = 2;
+              b.x = l.x;
+              b.targetGirder = b.currentGirder - 1;
+              b.onLadder = true;
+              break;
+            }
+          }
+        }
+      }
+    } else {
+      // Falling or on ladder
+      b.vy += 0.3;
+      b.y += b.vy;
+      if (b.onLadder) b.x += 0; // stay on ladder x
+
+      // Check if landed on target girder or any lower girder
+      for (let gi = b.currentGirder; gi >= 0; gi--) {
+        const tg = level.girders[gi];
+        if (b.x >= tg.x1 - 5 && b.x <= tg.x2 + 5) {
+          const surfY = girderYAt(tg, b.x) - BARREL_R;
+          if (b.y >= surfY - 2) {
+            b.y = surfY;
+            b.vy = 0;
+            b.rolling = true;
+            b.currentGirder = gi;
+            b.onLadder = false;
+            break;
+          }
+        }
+      }
+
+      // Remove if fell off screen
+      if (b.y > H + 30) {
+        barrels.splice(i, 1);
+        continue;
+      }
+    }
+
+    // --- Barrel-player collision ---
+    const bdx = player.x - b.x;
+    const bdy = (player.y + PLAYER_H / 2) - b.y;
+    const bDist = Math.sqrt(bdx * bdx + bdy * bdy);
+
+    if (hammerActive && bDist < 30) {
+      // Smash barrel
+      barrels.splice(i, 1);
+      score += 300;
+      continue;
+    }
+
+    if (bDist < 18) {
+      die();
+      return;
+    }
+
+    // Jump over barrel for points
+    if (!b.jumped && player.vy < 0 && bDist < 40 && player.y + PLAYER_H < b.y + 5) {
+      b.jumped = true;
+      score += 100;
+    }
+  }
+
+  // --- Win check: reach Pauline ---
+  const pdx = player.x - pauline.x;
+  const pdy = (player.y + PLAYER_H / 2) - pauline.y;
+  if (Math.abs(pdx) < 30 && Math.abs(pdy) < 30) {
+    winTimer = 90;
+  }
+}
+
+function die() {
+  lives--;
+  if (lives <= 0) {
+    gameOver = true;
+  } else {
+    // Reset level but keep score
+    startLevel();
+  }
+}
+
+function draw() {
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, H);
+
+  if (titleScreen) {
+    drawTitleScreen();
+    return;
+  }
+
+  // --- Draw girders ---
+  for (const g of level.girders) {
+    ctx.strokeStyle = '#d44';
+    ctx.lineWidth = GIRDER_H;
+    ctx.beginPath();
+    ctx.moveTo(g.x1, g.y1);
+    ctx.lineTo(g.x2, g.y2);
+    ctx.stroke();
+
+    // Rivet details
+    ctx.fillStyle = '#f66';
+    const segments = Math.floor((g.x2 - g.x1) / 30);
+    for (let s = 0; s <= segments; s++) {
+      const t = s / Math.max(segments, 1);
+      const rx = g.x1 + t * (g.x2 - g.x1);
+      const ry = g.y1 + t * (g.y2 - g.y1);
+      ctx.fillRect(rx - 2, ry - 2, 4, 4);
+    }
+  }
+
+  // --- Draw ladders ---
+  for (const l of level.ladders) {
+    const color = l.broken ? '#558' : '#aaf';
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    // Left rail
+    ctx.beginPath();
+    ctx.moveTo(l.x - 8, l.y1);
+    ctx.lineTo(l.x - 8, l.y2);
+    ctx.stroke();
+    // Right rail
+    ctx.beginPath();
+    ctx.moveTo(l.x + 8, l.y1);
+    ctx.lineTo(l.x + 8, l.y2);
+    ctx.stroke();
+    // Rungs
+    const rungCount = Math.floor((l.y2 - l.y1) / 12);
+    for (let r = 0; r <= rungCount; r++) {
+      const ry = l.y1 + r * 12;
+      ctx.beginPath();
+      ctx.moveTo(l.x - 8, ry);
+      ctx.lineTo(l.x + 8, ry);
+      ctx.stroke();
+    }
+  }
+
+  // --- Draw hammers ---
+  for (const h of level.hammers) {
+    if (!h.active) continue;
+    const flash = Math.sin(frame * 0.15) > 0;
+    ctx.fillStyle = flash ? '#ff0' : '#fa0';
+    // Hammer head
+    ctx.fillRect(h.x - 8, h.y - 6, 16, 10);
+    // Handle
+    ctx.fillStyle = '#a64';
+    ctx.fillRect(h.x - 2, h.y + 4, 4, 14);
+  }
+
+  // --- Draw Donkey Kong ---
+  drawDK();
+
+  // --- Draw Pauline ---
+  drawPauline();
+
+  // --- Draw barrels ---
+  for (const b of barrels) {
+    const rot = b.frame * 0.1;
+    ctx.save();
+    ctx.translate(b.x, b.y);
+    ctx.rotate(rot);
+    // Barrel body
+    ctx.fillStyle = '#c84';
+    ctx.beginPath();
+    ctx.arc(0, 0, BARREL_R, 0, Math.PI * 2);
+    ctx.fill();
+    // Barrel bands
+    ctx.strokeStyle = '#852';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-BARREL_R, 0);
+    ctx.lineTo(BARREL_R, 0);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, -BARREL_R);
+    ctx.lineTo(0, BARREL_R);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // --- Draw player (Jumpman/Mario) ---
+  drawPlayer();
+
+  // --- Hammer active indicator ---
+  if (hammerActive) {
+    const flash = frame % 6 < 3;
+    if (flash) {
+      ctx.fillStyle = '#ff0';
+      ctx.font = 'bold 14px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('HAMMER!', player.x, player.y - 10);
+    }
+  }
+
+  // --- Win animation ---
+  if (winTimer > 0) {
+    ctx.fillStyle = '#ff0';
+    ctx.font = 'bold 32px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('LEVEL CLEAR!', W / 2, H / 2 - 20);
+    ctx.fillStyle = '#fff';
+    ctx.font = '18px monospace';
+    ctx.fillText('+1000 BONUS', W / 2, H / 2 + 16);
+  }
+
+  // --- HUD ---
+  ctx.fillStyle = '#f44';
+  ctx.font = '16px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('SCORE: ' + score, 10, 22);
+  ctx.textAlign = 'center';
+  ctx.fillText('LEVEL ' + levelNum, W / 2, 22);
+  ctx.textAlign = 'right';
+  // Lives as small figures
+  ctx.fillText('LIVES: ', W - 80, 22);
+  for (let i = 0; i < lives; i++) {
+    ctx.fillStyle = '#f44';
+    ctx.fillRect(W - 70 + i * 20, 12, 10, 14);
+  }
+
+  // --- Game Over ---
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.75)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.font = 'bold 48px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#f55';
+    ctx.fillText('GAME OVER', W / 2, H / 2 - 20);
+    ctx.fillStyle = '#aaa';
+    ctx.font = '18px monospace';
+    ctx.fillText('R to restart   SCORE: ' + score, W / 2, H / 2 + 24);
+  }
+
+  // --- Title badge ---
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(8, 32, 280, 24);
+  ctx.fillStyle = '#555';
+  ctx.font = '13px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('PLT-005 \u00B7 BARREL CLIMB  [?]', 16, 48);
+}
+
+function drawPlayer() {
+  const px = player.x;
+  const py = player.y;
+
+  if (player.climbing) {
+    // Climbing sprite
+    const climbOff = Math.sin(player.walkFrame * 3) * 3;
+    // Body
+    ctx.fillStyle = '#f44';
+    ctx.fillRect(px - 8, py + 4, 16, 14);
+    // Head
+    ctx.fillStyle = '#fca';
+    ctx.fillRect(px - 6, py, 12, 8);
+    // Hat
+    ctx.fillStyle = '#f44';
+    ctx.fillRect(px - 7, py - 3, 14, 4);
+    // Arms on ladder
+    ctx.fillStyle = '#fca';
+    ctx.fillRect(px - 14, py + 6 + climbOff, 6, 4);
+    ctx.fillRect(px + 8, py + 6 - climbOff, 6, 4);
+    // Legs
+    ctx.fillStyle = '#44f';
+    ctx.fillRect(px - 6, py + 18 + climbOff, 5, 10);
+    ctx.fillRect(px + 1, py + 18 - climbOff, 5, 10);
+  } else {
+    const f = player.facing;
+    const walk = Math.sin(player.walkFrame * 3);
+
+    if (hammerActive) {
+      // Holding hammer overhead
+      const hammerSwing = Math.sin(frame * 0.3) > 0;
+      // Hammer
+      ctx.fillStyle = '#ff0';
+      if (hammerSwing) {
+        ctx.fillRect(px - 4 + f * 8, py - 20, 16, 10);
+        ctx.fillStyle = '#a64';
+        ctx.fillRect(px + f * 8, py - 10, 4, 12);
+      } else {
+        ctx.fillRect(px + f * 14, py - 4, 10, 16);
+        ctx.fillStyle = '#a64';
+        ctx.fillRect(px + f * 10, py, 4, 12);
+      }
+    }
+
+    // Hat
+    ctx.fillStyle = '#f44';
+    ctx.fillRect(px - 7 + f * 2, py - 2, 14, 4);
+    // Head
+    ctx.fillStyle = '#fca';
+    ctx.fillRect(px - 6, py + 2, 12, 8);
+    // Eyes
+    ctx.fillStyle = '#000';
+    ctx.fillRect(px + f * 2, py + 4, 2, 2);
+    // Body / overalls
+    ctx.fillStyle = '#f44';
+    ctx.fillRect(px - 8, py + 10, 16, 10);
+    // Arms
+    ctx.fillStyle = '#fca';
+    if (player.onGround && player.vx !== 0) {
+      ctx.fillRect(px - 13 + walk * 2, py + 10, 5, 4);
+      ctx.fillRect(px + 8 - walk * 2, py + 10, 5, 4);
+    } else {
+      ctx.fillRect(px - 13, py + 10, 5, 4);
+      ctx.fillRect(px + 8, py + 10, 5, 4);
+    }
+    // Legs
+    ctx.fillStyle = '#44f';
+    if (player.onGround && player.vx !== 0) {
+      ctx.fillRect(px - 6, py + 20 + walk * 3, 5, 8);
+      ctx.fillRect(px + 1, py + 20 - walk * 3, 5, 8);
+    } else if (!player.onGround) {
+      // Jump pose
+      ctx.fillRect(px - 8, py + 20, 5, 8);
+      ctx.fillRect(px + 3, py + 20, 5, 8);
+    } else {
+      ctx.fillRect(px - 5, py + 20, 5, 8);
+      ctx.fillRect(px + 1, py + 20, 5, 8);
+    }
+    // Shoes
+    ctx.fillStyle = '#840';
+    if (player.onGround && player.vx !== 0) {
+      ctx.fillRect(px - 7, py + 26 + walk * 3, 6, 3);
+      ctx.fillRect(px + 1, py + 26 - walk * 3, 6, 3);
+    } else {
+      ctx.fillRect(px - 6, py + 26, 5, 3);
+      ctx.fillRect(px + 1, py + 26, 5, 3);
+    }
+  }
+}
+
+function drawDK() {
+  const x = dk.x;
+  const y = dk.y;
+  const beat = dk.chestBeat > 0;
+  const armOff = beat ? Math.sin(frame * 0.5) * 6 : 0;
+
+  // Body
+  ctx.fillStyle = '#a52';
+  ctx.fillRect(x - 22, y - 10, 44, 40);
+  // Belly
+  ctx.fillStyle = '#c84';
+  ctx.fillRect(x - 14, y + 5, 28, 20);
+
+  // Head
+  ctx.fillStyle = '#a52';
+  ctx.fillRect(x - 18, y - 35, 36, 28);
+  // Face
+  ctx.fillStyle = '#c84';
+  ctx.fillRect(x - 12, y - 28, 24, 18);
+  // Eyes
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(x - 10, y - 26, 7, 6);
+  ctx.fillRect(x + 3, y - 26, 7, 6);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(x - 7, y - 24, 3, 4);
+  ctx.fillRect(x + 6, y - 24, 3, 4);
+  // Mouth
+  ctx.fillStyle = '#000';
+  ctx.fillRect(x - 8, y - 16, 16, 4);
+  // Brow
+  ctx.fillStyle = '#a52';
+  ctx.fillRect(x - 12, y - 30, 24, 4);
+
+  // Arms
+  ctx.fillStyle = '#a52';
+  ctx.fillRect(x - 34, y - 8 + armOff, 14, 28);
+  ctx.fillRect(x + 20, y - 8 - armOff, 14, 28);
+  // Hands
+  ctx.fillStyle = '#c84';
+  ctx.fillRect(x - 34, y + 16 + armOff, 14, 8);
+  ctx.fillRect(x + 20, y + 16 - armOff, 14, 8);
+
+  // Legs
+  ctx.fillStyle = '#a52';
+  ctx.fillRect(x - 18, y + 30, 14, 14);
+  ctx.fillRect(x + 4, y + 30, 14, 14);
+
+  // Tie (iconic)
+  ctx.fillStyle = '#f44';
+  ctx.fillRect(x - 4, y + 2, 8, 12);
+  ctx.fillStyle = '#c22';
+  ctx.fillRect(x - 2, y + 4, 4, 8);
+}
+
+function drawPauline() {
+  const x = pauline.x;
+  const y = pauline.y;
+  const bob = Math.sin(frame * 0.06) * 2;
+
+  // Dress
+  ctx.fillStyle = '#f4a';
+  ctx.fillRect(x - 6, y - 4, 12, 18);
+  // Head
+  ctx.fillStyle = '#fca';
+  ctx.fillRect(x - 5, y - 14 + bob, 10, 10);
+  // Hair
+  ctx.fillStyle = '#a40';
+  ctx.fillRect(x - 6, y - 16 + bob, 12, 5);
+  // "HELP!" text
+  if (frame % 120 < 80) {
+    ctx.fillStyle = '#fff';
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('HELP!', x, y - 22 + bob);
+  }
+}
+
+function drawTitleScreen() {
+  // DK ASCII art style title
+  ctx.fillStyle = '#f44';
+  ctx.font = 'bold 52px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('BARREL CLIMB', W / 2, 160);
+
+  ctx.fillStyle = '#c84';
+  ctx.font = '18px monospace';
+  ctx.fillText('PLT-005 \u00B7 PIXEL VAULT', W / 2, 200);
+
+  // Draw a small DK
+  ctx.save();
+  ctx.translate(W / 2, 310);
+  ctx.fillStyle = '#a52';
+  ctx.fillRect(-22, -30, 44, 40);
+  ctx.fillStyle = '#c84';
+  ctx.fillRect(-14, -15, 28, 20);
+  ctx.fillStyle = '#a52';
+  ctx.fillRect(-18, -55, 36, 28);
+  ctx.fillStyle = '#c84';
+  ctx.fillRect(-12, -48, 24, 18);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(-10, -46, 7, 6);
+  ctx.fillRect(3, -46, 7, 6);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(-7, -44, 3, 4);
+  ctx.fillRect(6, -44, 3, 4);
+  ctx.fillStyle = '#f44';
+  ctx.fillRect(-4, -18, 8, 12);
+  ctx.fillStyle = '#a52';
+  ctx.fillRect(-34, -28, 14, 28);
+  ctx.fillRect(20, -28, 14, 28);
+  ctx.fillRect(-18, 10, 14, 14);
+  ctx.fillRect(4, 10, 14, 14);
+  ctx.restore();
+
+  // Instructions
+  ctx.fillStyle = '#aaa';
+  ctx.font = '16px monospace';
+  ctx.fillText('Arrow Keys: Move / Climb', W / 2, 400);
+  ctx.fillText('Space: Jump', W / 2, 424);
+  ctx.fillText('Dodge barrels, reach Pauline!', W / 2, 460);
+
+  const blink = Math.sin(frame * 0.08) > 0;
+  if (blink) {
+    ctx.fillStyle = '#ff0';
+    ctx.font = 'bold 20px monospace';
+    ctx.fillText('PRESS ANY KEY TO START', W / 2, 520);
+  }
+
+  // Title badge
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(8, 8, 280, 24);
+  ctx.fillStyle = '#555';
+  ctx.font = '13px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('PLT-005 \u00B7 BARREL CLIMB  [?]', 16, 26);
+
+  frame++;
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

@@ -1,0 +1,590 @@
+<!--
+PROTOTYPE: nonogram
+SERIES: puz
+NUMBER: 012
+DATE: 2026-03-23
+MECHANIC: picture logic — use row and column number clues to deduce which cells to fill, revealing a hidden pixel image
+ANCESTRY: Nonograms (1987), Picross (1995 Nintendo), Paint It Back (2015)
+CONTROLS: Left click — fill cell | Right click — mark X | R — restart | N — next puzzle | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 4 (Expert Boom — constraint propagation, line solving)
+AI-INSIGHT: Nonogram solving is NP-complete in general, but most published puzzles are designed to be solvable by constraint propagation alone — line solving without backtracking. The puzzle teaches players systematic constraint reasoning: each row/column is an independent constraint that must agree with all orthogonal constraints.
+NOTES: Invented independently by Non Ishida (Japan) and Gwynneth Flower (UK) in 1987. Nintendo's Picross series made it mainstream. The hidden picture reveal provides a uniquely satisfying payoff for logical deduction.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PUZ-012 · NONOGRAM</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: pointer; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>PUZ-012 · NONOGRAM</h1>
+    <p><span class="tag series">PUZ — Puzzle</span> <span class="tag">Prototype #012</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Deduce which cells to fill using the number clues along each row and column. The numbers indicate consecutive groups of filled cells in that line, separated by at least one empty cell.</p>
+    <ul>
+      <li><strong>Left click</strong> — Fill a cell (dark blue)</li>
+      <li><strong>Right click</strong> — Mark a cell with X (definitely empty)</li>
+      <li><strong>Click again</strong> — Clear a filled or marked cell</li>
+      <li><kbd>R</kbd> — Restart current puzzle</li>
+      <li><kbd>N</kbd> — Next puzzle</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Reading Clues</h3>
+    <ul>
+      <li>A clue of <strong>3 1</strong> means: a run of 3 filled cells, at least one gap, then 1 filled cell</li>
+      <li>A clue of <strong>10</strong> means the entire row/column is filled</li>
+      <li>A clue of <strong>0</strong> means the entire row/column is empty</li>
+      <li>Completed lines have their clues dimmed</li>
+    </ul>
+    <h3>Strategy Tips</h3>
+    <ul>
+      <li>Start with the largest clues — they have the fewest possible positions</li>
+      <li>Mark cells you know are empty with X to avoid mistakes</li>
+      <li>Look for overlapping possibilities to find guaranteed fills</li>
+      <li>Cross-reference row and column clues to narrow down cells</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p>Nonograms were invented independently in 1987 by <strong>Non Ishida</strong> in Japan and <strong>Gwynneth Flower</strong> in the UK. Ishida won a competition in a Tokyo newspaper with a picture puzzle inspired by skyscraper-lit windows. The name "nonogram" combines Non's name with "gram" (something drawn).</p>
+    <p>Nintendo's <strong>Picross</strong> series, developed by <strong>Jupiter Corporation</strong>, popularized the format starting with <strong>Mario's Picross</strong> (1995, Game Boy), which introduced the concept to Western audiences. The series has continued for decades across Nintendo platforms. The genre found new life on mobile platforms and in games like <strong>Paint It Back</strong> (2015) and <strong>Pictopix</strong> (2017).</p>
+    <p>The puzzle format has been adapted into color variants (multiple colors with separate clue sets), triddlers (triangular grids), and massive puzzles exceeding 100×100 cells.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>Era 4 — Expert Boom</strong>: Nonogram solving demonstrates constraint propagation, a core AI technique. Each line (row or column) is treated as an independent constraint. A "line solver" enumerates valid arrangements for each line and identifies cells that must be filled or empty in all valid arrangements.</p>
+    <p>While the general nonogram problem is NP-complete (proven by Ueda and Nagao, 1996), well-designed puzzles are solvable by iterative line solving alone — no backtracking required. This makes them an excellent teaching tool for constraint satisfaction concepts.</p>
+    <p>The relationship between puzzle design and solvability is itself an interesting AI problem: generating puzzles that are uniquely solvable, aesthetically pleasing, and achievable without trial-and-error requires careful constraint engineering.</p>
+
+    <h2>Classification</h2>
+    <p><span class="tag series">PUZ — Puzzle</span> <span class="tag">Logic Deduction</span> <span class="tag">Constraint Satisfaction</span> <span class="tag">Grid-Based</span> <span class="tag">Single Player</span></p>
+
+    <h2>Prototype Notes</h2>
+    <ul>
+      <li>10×10 grid with 8 hand-crafted puzzles revealing pixel art</li>
+      <li>Left/right click fill/mark mechanic matches standard Picross conventions</li>
+      <li>Completed line detection dims solved clues for visual feedback</li>
+      <li>Timer tracks solve time for each puzzle</li>
+      <li>All puzzles designed to be solvable by line-solving logic alone</li>
+    </ul>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+'use strict';
+const C = document.getElementById('c');
+const X = C.getContext('2d');
+C.width = 800; C.height = 600;
+
+// --- State ---
+let infoOpen = false;
+let grid = [];       // 0=empty, 1=filled, 2=marked-X
+let solution = [];
+let rowClues = [];
+let colClues = [];
+let puzzleIndex = 0;
+let won = false;
+let timer = 0;
+let timerStart = 0;
+let hoverR = -1, hoverC = -1;
+let dragMode = -1; // -1=none, 0=clear, 1=fill, 2=mark
+let dragButton = -1;
+
+// --- Layout ---
+const GRID_SIZE = 10;
+const CELL = 32;
+const CLUE_W = 120; // space for row clues
+const CLUE_H = 100; // space for col clues
+const GRID_X = 240;
+const GRID_Y = 160;
+
+// --- Puzzles (10x10 grids, 1=filled) ---
+const PUZZLES = [
+  { name: 'Heart', data: [
+    [0,0,0,0,0,0,0,0,0,0],
+    [0,0,1,1,0,0,1,1,0,0],
+    [0,1,1,1,1,1,1,1,1,0],
+    [0,1,1,1,1,1,1,1,1,0],
+    [0,1,1,1,1,1,1,1,1,0],
+    [0,0,1,1,1,1,1,1,0,0],
+    [0,0,0,1,1,1,1,0,0,0],
+    [0,0,0,0,1,1,0,0,0,0],
+    [0,0,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,0,0,0]
+  ]},
+  { name: 'Star', data: [
+    [0,0,0,0,1,1,0,0,0,0],
+    [0,0,0,0,1,1,0,0,0,0],
+    [0,0,0,1,1,1,1,0,0,0],
+    [1,1,1,1,1,1,1,1,1,1],
+    [0,1,1,1,1,1,1,1,1,0],
+    [0,0,1,1,1,1,1,1,0,0],
+    [0,0,1,1,0,0,1,1,0,0],
+    [0,1,1,0,0,0,0,1,1,0],
+    [0,1,0,0,0,0,0,0,1,0],
+    [0,0,0,0,0,0,0,0,0,0]
+  ]},
+  { name: 'House', data: [
+    [0,0,0,0,1,1,0,0,0,0],
+    [0,0,0,1,1,1,1,0,0,0],
+    [0,0,1,1,1,1,1,1,0,0],
+    [0,1,1,1,1,1,1,1,1,0],
+    [1,1,1,1,1,1,1,1,1,1],
+    [1,1,0,0,1,1,0,0,1,1],
+    [1,1,0,0,1,1,0,0,1,1],
+    [1,1,0,0,1,1,0,0,1,1],
+    [1,1,0,0,0,0,0,0,1,1],
+    [1,1,1,1,1,1,1,1,1,1]
+  ]},
+  { name: 'Tree', data: [
+    [0,0,0,0,1,1,0,0,0,0],
+    [0,0,0,1,1,1,1,0,0,0],
+    [0,0,1,1,1,1,1,1,0,0],
+    [0,1,1,1,1,1,1,1,1,0],
+    [0,0,1,1,1,1,1,1,0,0],
+    [0,1,1,1,1,1,1,1,1,0],
+    [1,1,1,1,1,1,1,1,1,1],
+    [0,0,0,0,1,1,0,0,0,0],
+    [0,0,0,0,1,1,0,0,0,0],
+    [0,0,0,1,1,1,1,0,0,0]
+  ]},
+  { name: 'Cat', data: [
+    [1,0,0,0,0,0,0,0,0,1],
+    [1,1,0,0,0,0,0,0,1,1],
+    [1,1,1,0,0,0,0,1,1,1],
+    [1,1,1,1,1,1,1,1,1,1],
+    [1,1,0,1,1,1,1,0,1,1],
+    [1,1,1,1,0,0,1,1,1,1],
+    [1,1,1,1,1,1,1,1,1,1],
+    [0,1,1,1,1,1,1,1,1,0],
+    [0,0,1,0,0,0,0,1,0,0],
+    [0,0,1,0,0,0,0,1,0,0]
+  ]},
+  { name: 'Boat', data: [
+    [0,0,0,0,1,0,0,0,0,0],
+    [0,0,0,0,1,1,0,0,0,0],
+    [0,0,0,0,1,0,1,0,0,0],
+    [0,0,0,0,1,0,0,1,0,0],
+    [0,0,0,0,1,0,0,0,0,0],
+    [0,1,1,1,1,1,1,1,1,0],
+    [0,0,1,1,1,1,1,1,0,0],
+    [0,0,0,1,1,1,1,0,0,0],
+    [1,1,1,1,1,1,1,1,1,1],
+    [0,0,0,0,0,0,0,0,0,0]
+  ]},
+  { name: 'Skull', data: [
+    [0,0,1,1,1,1,1,1,0,0],
+    [0,1,1,1,1,1,1,1,1,0],
+    [1,1,1,1,1,1,1,1,1,1],
+    [1,1,0,0,1,1,0,0,1,1],
+    [1,1,0,0,1,1,0,0,1,1],
+    [1,1,1,1,1,1,1,1,1,1],
+    [0,1,1,0,1,1,0,1,1,0],
+    [0,0,1,1,1,1,1,1,0,0],
+    [0,0,0,1,0,1,0,1,0,0],
+    [0,0,0,0,0,0,0,0,0,0]
+  ]},
+  { name: 'Cup', data: [
+    [0,0,0,0,0,0,0,0,0,0],
+    [0,0,0,1,0,1,0,0,0,0],
+    [0,0,1,0,1,0,1,0,0,0],
+    [0,1,1,1,1,1,1,1,1,0],
+    [0,1,1,1,1,1,1,1,1,0],
+    [0,1,1,1,1,1,1,0,1,0],
+    [0,1,1,1,1,1,1,0,1,0],
+    [0,0,1,1,1,1,1,1,0,0],
+    [0,0,0,1,1,1,1,0,0,0],
+    [0,1,1,1,1,1,1,1,1,0]
+  ]}
+];
+
+function computeClues(line) {
+  const clues = [];
+  let run = 0;
+  for (let i = 0; i < line.length; i++) {
+    if (line[i] === 1) { run++; }
+    else { if (run > 0) clues.push(run); run = 0; }
+  }
+  if (run > 0) clues.push(run);
+  return clues.length > 0 ? clues : [0];
+}
+
+function loadPuzzle(idx) {
+  puzzleIndex = idx % PUZZLES.length;
+  solution = PUZZLES[puzzleIndex].data;
+  grid = [];
+  for (let r = 0; r < GRID_SIZE; r++) {
+    grid[r] = [];
+    for (let c = 0; c < GRID_SIZE; c++) grid[r][c] = 0;
+  }
+  rowClues = [];
+  for (let r = 0; r < GRID_SIZE; r++) {
+    rowClues.push(computeClues(solution[r]));
+  }
+  colClues = [];
+  for (let c = 0; c < GRID_SIZE; c++) {
+    const col = [];
+    for (let r = 0; r < GRID_SIZE; r++) col.push(solution[r][c]);
+    colClues.push(computeClues(col));
+  }
+  won = false;
+  timer = 0;
+  timerStart = performance.now();
+  dragMode = -1;
+}
+
+function isLineComplete(lineGrid, lineSolution) {
+  for (let i = 0; i < lineSolution.length; i++) {
+    if (lineSolution[i] === 1 && lineGrid[i] !== 1) return false;
+    if (lineSolution[i] === 0 && lineGrid[i] === 1) return false;
+  }
+  return true;
+}
+
+function checkWin() {
+  for (let r = 0; r < GRID_SIZE; r++) {
+    for (let c = 0; c < GRID_SIZE; c++) {
+      if (solution[r][c] === 1 && grid[r][c] !== 1) return false;
+      if (solution[r][c] === 0 && grid[r][c] === 1) return false;
+    }
+  }
+  return true;
+}
+
+function getGridCell(mx, my) {
+  const gx = mx - GRID_X;
+  const gy = my - GRID_Y;
+  if (gx < 0 || gy < 0) return null;
+  const c = Math.floor(gx / CELL);
+  const r = Math.floor(gy / CELL);
+  if (r < 0 || r >= GRID_SIZE || c < 0 || c >= GRID_SIZE) return null;
+  return { r, c };
+}
+
+function formatTime(ms) {
+  const s = Math.floor(ms / 1000);
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return m + ':' + (sec < 10 ? '0' : '') + sec;
+}
+
+// --- Input ---
+function getMousePos(e) {
+  const rect = C.getBoundingClientRect();
+  const scaleX = C.width / rect.width;
+  const scaleY = C.height / rect.height;
+  return {
+    x: (e.clientX - rect.left) * scaleX,
+    y: (e.clientY - rect.top) * scaleY
+  };
+}
+
+C.addEventListener('mousedown', function(e) {
+  e.preventDefault();
+  if (won || infoOpen) return;
+  const pos = getMousePos(e);
+  const cell = getGridCell(pos.x, pos.y);
+  if (!cell) return;
+  const { r, c } = cell;
+  dragButton = e.button;
+  if (e.button === 0) { // left click — fill
+    if (grid[r][c] === 1) { dragMode = 0; grid[r][c] = 0; }
+    else { dragMode = 1; grid[r][c] = 1; }
+  } else if (e.button === 2) { // right click — mark X
+    if (grid[r][c] === 2) { dragMode = 0; grid[r][c] = 0; }
+    else { dragMode = 2; grid[r][c] = 2; }
+  }
+  if (checkWin()) { won = true; timer = performance.now() - timerStart; }
+});
+
+C.addEventListener('mousemove', function(e) {
+  const pos = getMousePos(e);
+  const cell = getGridCell(pos.x, pos.y);
+  hoverR = cell ? cell.r : -1;
+  hoverC = cell ? cell.c : -1;
+  if (dragMode >= 0 && !won && !infoOpen && cell) {
+    const { r, c } = cell;
+    if (dragMode === 0) grid[r][c] = 0;
+    else if (dragMode === 1) grid[r][c] = 1;
+    else if (dragMode === 2) grid[r][c] = 2;
+    if (checkWin()) { won = true; timer = performance.now() - timerStart; }
+  }
+});
+
+C.addEventListener('mouseup', function(e) { dragMode = -1; dragButton = -1; });
+C.addEventListener('mouseleave', function() { hoverR = -1; hoverC = -1; dragMode = -1; });
+
+C.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); return; }
+  if (infoOpen) return;
+  if (e.key === 'r' || e.key === 'R') { loadPuzzle(puzzleIndex); return; }
+  if (e.key === 'n' || e.key === 'N') { loadPuzzle(puzzleIndex + 1); return; }
+});
+
+// --- Rendering ---
+function draw() {
+  const W = C.width, H = C.height;
+  X.fillStyle = '#1a1a2e';
+  X.fillRect(0, 0, W, H);
+
+  // Title
+  X.fillStyle = '#7bf';
+  X.font = 'bold 18px monospace';
+  X.textAlign = 'center';
+  X.fillText('PUZ-012 \u00B7 NONOGRAM', W / 2, 30);
+
+  // Puzzle name and number
+  X.fillStyle = '#888';
+  X.font = '14px monospace';
+  X.fillText('Puzzle ' + (puzzleIndex + 1) + '/' + PUZZLES.length + ' — ' + PUZZLES[puzzleIndex].name, W / 2, 50);
+
+  // Timer
+  const elapsed = won ? timer : (performance.now() - timerStart);
+  X.fillStyle = '#aaa';
+  X.font = '14px monospace';
+  X.textAlign = 'right';
+  X.fillText(formatTime(elapsed), W - 30, 30);
+
+  // Controls hint
+  X.fillStyle = '#555';
+  X.font = '12px monospace';
+  X.textAlign = 'left';
+  X.fillText('R: restart  N: next  ?: info', 20, 30);
+
+  // --- Draw column clues ---
+  X.textAlign = 'center';
+  X.textBaseline = 'bottom';
+  for (let c = 0; c < GRID_SIZE; c++) {
+    const cx = GRID_X + c * CELL + CELL / 2;
+    const clues = colClues[c];
+    // Check if column is complete
+    const colGrid = [];
+    const colSol = [];
+    for (let r = 0; r < GRID_SIZE; r++) { colGrid.push(grid[r][c]); colSol.push(solution[r][c]); }
+    const complete = isLineComplete(colGrid, colSol);
+
+    for (let i = 0; i < clues.length; i++) {
+      const cy = GRID_Y - (clues.length - i) * 14 - 4;
+      X.fillStyle = complete ? '#444' : (hoverC === c ? '#fff' : '#ccc');
+      X.font = (complete ? '' : 'bold ') + '12px monospace';
+      X.fillText('' + clues[i], cx, cy + 12);
+    }
+  }
+
+  // --- Draw row clues ---
+  X.textAlign = 'right';
+  X.textBaseline = 'middle';
+  for (let r = 0; r < GRID_SIZE; r++) {
+    const ry = GRID_Y + r * CELL + CELL / 2;
+    const clues = rowClues[r];
+    const complete = isLineComplete(grid[r], solution[r]);
+
+    const clueStr = clues.join(' ');
+    X.fillStyle = complete ? '#444' : (hoverR === r ? '#fff' : '#ccc');
+    X.font = (complete ? '' : 'bold ') + '12px monospace';
+    X.fillText(clueStr, GRID_X - 10, ry);
+  }
+
+  // --- Draw grid ---
+  for (let r = 0; r < GRID_SIZE; r++) {
+    for (let c = 0; c < GRID_SIZE; c++) {
+      const gx = GRID_X + c * CELL;
+      const gy = GRID_Y + r * CELL;
+
+      // Cell background
+      if (grid[r][c] === 1) {
+        X.fillStyle = won ? '#2a6' : '#1a3a6a';
+      } else if (hoverR === r && hoverC === c && !won) {
+        X.fillStyle = '#2a2a4a';
+      } else {
+        X.fillStyle = '#e8e8e8';
+      }
+      X.fillRect(gx + 1, gy + 1, CELL - 2, CELL - 2);
+
+      // X mark
+      if (grid[r][c] === 2) {
+        X.strokeStyle = '#c44';
+        X.lineWidth = 2;
+        X.beginPath();
+        X.moveTo(gx + 8, gy + 8);
+        X.lineTo(gx + CELL - 8, gy + CELL - 8);
+        X.moveTo(gx + CELL - 8, gy + 8);
+        X.lineTo(gx + 8, gy + CELL - 8);
+        X.stroke();
+      }
+    }
+  }
+
+  // Grid lines
+  X.strokeStyle = '#444';
+  X.lineWidth = 1;
+  for (let i = 0; i <= GRID_SIZE; i++) {
+    const heavy = (i % 5 === 0);
+    X.strokeStyle = heavy ? '#666' : '#444';
+    X.lineWidth = heavy ? 2 : 1;
+    // Vertical
+    X.beginPath();
+    X.moveTo(GRID_X + i * CELL, GRID_Y);
+    X.lineTo(GRID_X + i * CELL, GRID_Y + GRID_SIZE * CELL);
+    X.stroke();
+    // Horizontal
+    X.beginPath();
+    X.moveTo(GRID_X, GRID_Y + i * CELL);
+    X.lineTo(GRID_X + GRID_SIZE * CELL, GRID_Y + i * CELL);
+    X.stroke();
+  }
+
+  // Highlight current row/col
+  if (hoverR >= 0 && hoverC >= 0 && !won) {
+    X.strokeStyle = 'rgba(120,180,255,0.3)';
+    X.lineWidth = 2;
+    // Row highlight
+    X.strokeRect(GRID_X, GRID_Y + hoverR * CELL, GRID_SIZE * CELL, CELL);
+    // Col highlight
+    X.strokeRect(GRID_X + hoverC * CELL, GRID_Y, CELL, GRID_SIZE * CELL);
+  }
+
+  // --- Win message ---
+  if (won) {
+    X.fillStyle = '#2a6';
+    X.font = 'bold 24px monospace';
+    X.textAlign = 'center';
+    X.textBaseline = 'middle';
+    X.fillText('PUZZLE COMPLETE!', W / 2, GRID_Y + GRID_SIZE * CELL + 40);
+    X.fillStyle = '#aaa';
+    X.font = '14px monospace';
+    X.fillText('Time: ' + formatTime(timer) + '  |  Press N for next puzzle', W / 2, GRID_Y + GRID_SIZE * CELL + 65);
+  }
+}
+
+// --- Main loop ---
+function loop() {
+  if (infoOpen) { requestAnimationFrame(loop); return; }
+  draw();
+  requestAnimationFrame(loop);
+}
+
+loadPuzzle(0);
+requestAnimationFrame(loop);
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: dpad4 ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("dpad4");
+</script>
+</body>
+</html>

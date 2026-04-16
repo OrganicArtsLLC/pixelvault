@@ -1,0 +1,705 @@
+<!--
+PROTOTYPE: globe-detective
+SERIES: adv
+NUMBER: 006
+DATE: 2026-03-22
+MECHANIC: geography detective — gather clues, travel between cities, issue warrant, catch thief
+ANCESTRY: Where in the World Is Carmen Sandiego? (1985, Broderbund), Where in Time Is Carmen Sandiego? (1989, Broderbund)
+CONTROLS: 1-4 — menu choices | Mouse — click options | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — database-driven educational gameplay)
+AI-INSIGHT: Carmen Sandiego combined a geographic knowledge database with deductive reasoning gameplay — the player essentially performs a search algorithm through a graph of cities, using clue constraints to prune the suspect space. This is constraint satisfaction in game form.
+NOTES: Geography detective game. Travel between world cities gathering clues.
+       Issue warrant when you know the suspect. Race against the clock.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ADV-006 · GLOBE DETECTIVE</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: pointer; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>ADV-006 · GLOBE DETECTIVE</h1>
+    <p><span class="tag series">ADV — Adventure</span> <span class="tag">Prototype #006</span> <span class="tag">★★★★☆</span></p>
+
+    <h2>How to Play</h2>
+    <p>A treasure has been stolen! Travel the world gathering clues to identify the thief and track them down. Issue a warrant when you know who did it, then catch them.</p>
+    <ul>
+      <li><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd> — Select menu options</li>
+      <li><strong>Mouse click</strong> — Click on menu options</li>
+      <li><kbd>R</kbd> — Restart game</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Gather clues:</strong> Visit locations in each city to learn about the suspect and their next destination.</li>
+      <li><strong>Issue warrant:</strong> Once you know the suspect's features, issue a warrant from the travel menu. You must have a warrant to make an arrest.</li>
+      <li><strong>Follow the trail:</strong> Destination clues tell you where the suspect went next. Follow quickly!</li>
+      <li><strong>Watch the clock:</strong> Each flight costs hours. Run out of time and the suspect escapes.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Where in the World Is Carmen Sandiego? (1985, Broderbund) &rarr; Where in Time (1989) &rarr; Carmen Sandiego franchise</p>
+    <p>Where in the World Is Carmen Sandiego? (1985) was a landmark educational game that made geography fun through detective gameplay. Players traveled the world following clues, using a reference book (included with the game) to decode hints about destinations and suspects.</p>
+    <p>The game spawned a massive franchise including TV shows, sequels, and reboots. Its core loop — gather clues, narrow suspects, chase the thief — remains a template for educational detective games.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 3 — Knowledge Explosion (1980–1995)</p>
+    <p><strong>Contemporary AI:</strong> Expert systems, knowledge databases, early natural language processing.</p>
+    <p><strong>Hidden Intelligence:</strong> Carmen Sandiego is constraint satisfaction in game form. Each clue eliminates suspects from the possibility space. The player performs a search through a graph of cities, using clue constraints to prune branches. This is exactly how AI constraint solvers work — reduce the search space through logical elimination until only one solution remains.</p>
+    <p><strong>The Convergence:</strong> The game's database of geographic facts anticipates modern knowledge graphs. The suspect-elimination mechanic is a manual version of Bayesian inference — each clue updates the probability distribution over suspects.</p>
+    <p><strong>If AI Had Designed This:</strong> Adaptive clue difficulty based on player knowledge. Dynamic suspect generation. Clues calibrated to the minimum information needed to uniquely identify the suspect at each stage.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: ADV — Adventure</h3>
+    <p>Carmen Sandiego blends adventure exploration with deductive reasoning. The player navigates a world graph, gathering information to solve a mystery.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Geography detective with constraint satisfaction.</strong> Travel between cities. Gather clues at locations. Eliminate suspects. Issue warrant. Catch the thief before time runs out.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Clue-gathering loop — does investigating locations feel rewarding?</li>
+      <li>Suspect elimination — does narrowing down the suspect feel like detective work?</li>
+      <li>Time pressure — does the hour limit create urgency without frustration?</li>
+      <li>World navigation — does traveling between cities feel like a meaningful choice?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Procedurally generated cases with 8 suspects and 14 world cities. Clues are generated from suspect features and destination geography. Each case creates a trail of 4-6 cities.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+const keys = {};
+window.addEventListener('keydown', e => { if (!infoOpen) keys[e.key] = true; });
+window.addEventListener('keyup', e => { keys[e.key] = false; });
+
+// --- CITY DATA ---
+const CITIES = [
+  { name:'Paris', cont:'Europe', clr:'#48f', lm:'Eiffel Tower', cur:'francs' },
+  { name:'London', cont:'Europe', clr:'#88f', lm:'Big Ben', cur:'pounds' },
+  { name:'Tokyo', cont:'Asia', clr:'#f48', lm:'Mt. Fuji', cur:'yen' },
+  { name:'Cairo', cont:'Africa', clr:'#fa4', lm:'Pyramids', cur:'pounds' },
+  { name:'Rio', cont:'S. America', clr:'#4f4', lm:'Christ the Redeemer', cur:'reais' },
+  { name:'Sydney', cont:'Oceania', clr:'#ff4', lm:'Opera House', cur:'dollars' },
+  { name:'New York', cont:'N. America', clr:'#4ff', lm:'Statue of Liberty', cur:'dollars' },
+  { name:'Moscow', cont:'Europe', clr:'#c4f', lm:'Kremlin', cur:'rubles' },
+  { name:'Delhi', cont:'Asia', clr:'#f84', lm:'Taj Mahal', cur:'rupees' },
+  { name:'Mexico City', cont:'N. America', clr:'#8f4', lm:'Aztec ruins', cur:'pesos' },
+  { name:'Rome', cont:'Europe', clr:'#f4f', lm:'Colosseum', cur:'euros' },
+  { name:'Beijing', cont:'Asia', clr:'#f44', lm:'Great Wall', cur:'yuan' },
+  { name:'Nairobi', cont:'Africa', clr:'#4f8', lm:'national park', cur:'shillings' },
+  { name:'Lima', cont:'S. America', clr:'#ff8', lm:'Machu Picchu', cur:'soles' }
+];
+
+const LOCS = ['Airport','Hotel','Museum'];
+
+// --- SUSPECT DATA ---
+const SUSPECTS = [
+  { name:'Carmen Sandiego', hair:'black', feat:'scar', hobby:'tennis', vehicle:'convertible', sex:'F' },
+  { name:'Vic the Slick', hair:'brown', feat:'tattoo', hobby:'skiing', vehicle:'motorcycle', sex:'M' },
+  { name:'Patty Larceny', hair:'blonde', feat:'rings', hobby:'surfing', vehicle:'limousine', sex:'F' },
+  { name:'Top Grunge', hair:'red', feat:'mustache', hobby:'chess', vehicle:'sports car', sex:'M' },
+  { name:'Contessa', hair:'gray', feat:'monocle', hobby:'polo', vehicle:'helicopter', sex:'F' },
+  { name:'Dazzle Annie', hair:'blonde', feat:'earrings', hobby:'painting', vehicle:'yacht', sex:'F' },
+  { name:'Fast Eddie', hair:'black', feat:'glasses', hobby:'boxing', vehicle:'pickup truck', sex:'M' },
+  { name:'Robo Crook', hair:'bald', feat:'metal arm', hobby:'hacking', vehicle:'van', sex:'M' }
+];
+
+const HAIR_COLORS = ['black','brown','blonde','red','gray','bald'];
+const FEATURES = ['scar','tattoo','rings','mustache','monocle','earrings','glasses','metal arm'];
+const HOBBIES = ['tennis','skiing','surfing','chess','polo','painting','boxing','hacking'];
+const VEHICLES = ['convertible','motorcycle','limousine','sports car','helicopter','yacht','pickup truck','van'];
+
+// --- STOLEN ITEMS ---
+const TREASURES = [
+  'the Crown Jewels','the Mona Lisa','the Rosetta Stone','a golden idol',
+  'an ancient scroll','the Hope Diamond','a royal scepter','a pharaoh\'s mask',
+  'a samurai sword','a jade dragon','an Aztec calendar','a Viking helmet'
+];
+
+// --- GAME STATE ---
+let state, caseData, playerCity, hoursLeft, cluesFound, warrantIssued, warrant;
+let menuItems, selectedItem, message, msgTimer, gameResult, caseNum;
+let screenState; // 'city','investigate','travel','warrant_hair','warrant_feat','warrant_hobby','warrant_vehicle','warrant_sex'
+
+function seededRand(seed) {
+  let s = seed|0;
+  return function() { s = (s * 16807 + 0) % 2147483647; return (s - 1) / 2147483646; };
+}
+
+function genCase(seed) {
+  const rng = seededRand(seed);
+  const pick = a => a[Math.floor(rng() * a.length)];
+  const shuffled = arr => { const a = arr.slice(); for (let i = a.length-1; i > 0; i--) { const j = Math.floor(rng()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; };
+
+  const suspect = SUSPECTS[Math.floor(rng() * SUSPECTS.length)];
+  const treasure = pick(TREASURES);
+  const startCity = Math.floor(rng() * CITIES.length);
+
+  // Build trail: 4-6 cities
+  const trailLen = 4 + Math.floor(rng() * 3);
+  const trail = [startCity];
+  const used = new Set([startCity]);
+  for (let i = 1; i < trailLen; i++) {
+    const avail = [];
+    for (let j = 0; j < CITIES.length; j++) if (!used.has(j)) avail.push(j);
+    const next = avail[Math.floor(rng() * avail.length)];
+    trail.push(next);
+    used.add(next);
+  }
+
+  // Generate clues for each city on the trail
+  const cityClues = {};
+  for (let i = 0; i < trail.length; i++) {
+    const ci = trail[i];
+    const nextCI = i < trail.length - 1 ? trail[i + 1] : -1;
+    const nextCity = nextCI >= 0 ? CITIES[nextCI] : null;
+    const clues = [];
+
+    // Destination clues (if not last city)
+    if (nextCity) {
+      const destClues = [
+        'Said they needed ' + nextCity.cur + ' for the trip.',
+        'Bought a ticket heading toward ' + nextCity.cont + '.',
+        'Had a guidebook about ' + nextCity.lm + '.',
+        'Asked about flights to somewhere with ' + nextCity.lm + '.',
+        'Mentioned visiting ' + nextCity.cont + ' next.',
+        'Was studying a map of ' + nextCity.cont + '.',
+        'Changed money into ' + nextCity.cur + '.',
+        'Wanted to see ' + nextCity.lm + '.'
+      ];
+      clues.push(destClues[Math.floor(rng() * destClues.length)]);
+      clues.push(destClues[Math.floor(rng() * destClues.length)]);
+    } else {
+      clues.push('Nobody has seen anyone suspicious lately.');
+      clues.push('It\'s quiet here. No strangers around.');
+    }
+
+    // Suspect feature clues
+    const suspClues = [
+      suspect.sex === 'F' ? 'The suspect was a woman.' : 'The suspect was a man.',
+      'Had ' + suspect.hair + ' hair.',
+      'Noticed they had ' + suspect.feat + '.',
+      'They mentioned they enjoy ' + suspect.hobby + '.',
+      'Drove off in a ' + suspect.vehicle + '.',
+      'Someone with ' + suspect.hair + ' hair was asking around.',
+      'Spotted a ' + suspect.vehicle + ' parked outside.',
+      'They were carrying ' + suspect.hobby + ' equipment.'
+    ];
+    clues.push(suspClues[Math.floor(rng() * suspClues.length)]);
+
+    cityClues[ci] = shuffled(clues);
+  }
+
+  return { suspect, treasure, startCity, trail, cityClues };
+}
+
+function initGame() {
+  caseNum = (caseNum || 0) + 1;
+  const seed = Date.now() + caseNum * 777;
+  caseData = genCase(seed);
+  playerCity = caseData.startCity;
+  hoursLeft = 100;
+  cluesFound = {};
+  warrantIssued = false;
+  warrant = { hair:null, feat:null, hobby:null, vehicle:null, sex:null };
+  message = '';
+  msgTimer = 0;
+  gameResult = '';
+  screenState = 'city';
+  selectedItem = 0;
+  buildCityMenu();
+}
+
+function buildCityMenu() {
+  screenState = 'city';
+  menuItems = [];
+  for (let i = 0; i < LOCS.length; i++) {
+    menuItems.push({ label: 'Investigate ' + LOCS[i], action: 'investigate', loc: i });
+  }
+  menuItems.push({ label: 'Travel to another city', action: 'travel' });
+  menuItems.push({ label: 'Issue warrant', action: 'warrant' });
+  if (warrantIssued) {
+    menuItems.push({ label: 'Attempt arrest!', action: 'arrest' });
+  }
+  selectedItem = 0;
+}
+
+function buildTravelMenu() {
+  screenState = 'travel';
+  menuItems = [];
+  for (let i = 0; i < CITIES.length; i++) {
+    if (i !== playerCity) {
+      menuItems.push({ label: CITIES[i].name, action: 'fly', dest: i });
+    }
+  }
+  menuItems.push({ label: 'Cancel', action: 'cancel' });
+  selectedItem = 0;
+}
+
+function getFlightCost(from, to) {
+  // Cheap same-continent, expensive cross
+  const c1 = CITIES[from].cont, c2 = CITIES[to].cont;
+  return c1 === c2 ? 4 : 8;
+}
+
+function showMessage(msg) { message = msg; msgTimer = 180; }
+
+function doAction(item) {
+  if (item.action === 'investigate') {
+    screenState = 'investigate';
+    const ci = playerCity;
+    if (!cluesFound[ci]) cluesFound[ci] = 0;
+    const clueSet = caseData.cityClues[ci];
+    if (clueSet && cluesFound[ci] < clueSet.length) {
+      const clue = clueSet[cluesFound[ci]];
+      cluesFound[ci]++;
+      hoursLeft -= 1;
+      showMessage('At the ' + LOCS[item.loc] + ': "' + clue + '"');
+    } else if (clueSet) {
+      showMessage('At the ' + LOCS[item.loc] + ': No new clues here.');
+    } else {
+      showMessage('At the ' + LOCS[item.loc] + ': Nobody suspicious has been here.');
+    }
+    setTimeout(() => { if (screenState === 'investigate') buildCityMenu(); }, 10);
+    checkTime();
+  } else if (item.action === 'travel') {
+    buildTravelMenu();
+  } else if (item.action === 'fly') {
+    const cost = getFlightCost(playerCity, item.dest);
+    hoursLeft -= cost;
+    playerCity = item.dest;
+    showMessage('Flew to ' + CITIES[playerCity].name + ' (-' + cost + ' hrs)');
+    buildCityMenu();
+    checkTime();
+  } else if (item.action === 'cancel') {
+    buildCityMenu();
+  } else if (item.action === 'warrant') {
+    screenState = 'warrant_sex';
+    menuItems = [
+      { label: 'Male', action: 'set_sex', val: 'M' },
+      { label: 'Female', action: 'set_sex', val: 'F' }
+    ];
+    selectedItem = 0;
+  } else if (item.action === 'set_sex') {
+    warrant.sex = item.val;
+    screenState = 'warrant_hair';
+    menuItems = HAIR_COLORS.map(h => ({ label: h + ' hair', action: 'set_hair', val: h }));
+    selectedItem = 0;
+  } else if (item.action === 'set_hair') {
+    warrant.hair = item.val;
+    screenState = 'warrant_feat';
+    menuItems = FEATURES.map(f => ({ label: f, action: 'set_feat', val: f }));
+    selectedItem = 0;
+  } else if (item.action === 'set_feat') {
+    warrant.feat = item.val;
+    screenState = 'warrant_hobby';
+    menuItems = HOBBIES.map(h => ({ label: h, action: 'set_hobby', val: h }));
+    selectedItem = 0;
+  } else if (item.action === 'set_hobby') {
+    warrant.hobby = item.val;
+    screenState = 'warrant_vehicle';
+    menuItems = VEHICLES.map(v => ({ label: v, action: 'set_vehicle', val: v }));
+    selectedItem = 0;
+  } else if (item.action === 'set_vehicle') {
+    warrant.vehicle = item.val;
+    warrantIssued = true;
+    showMessage('Warrant issued!');
+    buildCityMenu();
+  } else if (item.action === 'arrest') {
+    const s = caseData.suspect;
+    const lastCity = caseData.trail[caseData.trail.length - 1];
+    const correctWarrant = warrant.hair === s.hair && warrant.feat === s.feat &&
+      warrant.hobby === s.hobby && warrant.vehicle === s.vehicle && warrant.sex === s.sex;
+    if (playerCity === lastCity && correctWarrant) {
+      gameResult = 'win';
+    } else if (playerCity !== lastCity) {
+      showMessage('The suspect is not in this city!');
+      hoursLeft -= 5;
+      checkTime();
+    } else {
+      gameResult = 'wrong_warrant';
+    }
+  }
+}
+
+function checkTime() {
+  if (hoursLeft <= 0) {
+    hoursLeft = 0;
+    gameResult = 'timeout';
+  }
+}
+
+initGame();
+
+// --- MOUSE ---
+let mouseX = 0, mouseY = 0, mouseClick = false;
+canvas.addEventListener('mousemove', e => {
+  const r = canvas.getBoundingClientRect();
+  mouseX = (e.clientX - r.left) * (W / r.width);
+  mouseY = (e.clientY - r.top) * (H / r.height);
+});
+canvas.addEventListener('click', e => {
+  if (infoOpen) return;
+  const r = canvas.getBoundingClientRect();
+  const mx = (e.clientX - r.left) * (W / r.width);
+  const my = (e.clientY - r.top) * (H / r.height);
+  if (gameResult) { if (my > 340 && my < 380) initGame(); return; }
+  // Check menu item clicks
+  const menuStartY = getMenuStartY();
+  for (let i = 0; i < getVisibleCount(); i++) {
+    const iy = menuStartY + i * 28;
+    if (mx > 80 && mx < 720 && my > iy - 12 && my < iy + 16) {
+      const idx = scrollOffset + i;
+      if (idx < menuItems.length) {
+        selectedItem = idx;
+        doAction(menuItems[idx]);
+      }
+      return;
+    }
+  }
+  // Scroll arrows
+  if (menuItems.length > getMaxVisible()) {
+    if (my > menuStartY - 30 && my < menuStartY - 10 && mx > 380 && mx < 420) {
+      if (scrollOffset > 0) scrollOffset--;
+    }
+    const bottomY = menuStartY + getMaxVisible() * 28;
+    if (my > bottomY && my < bottomY + 20 && mx > 380 && mx < 420) {
+      if (scrollOffset < menuItems.length - getMaxVisible()) scrollOffset++;
+    }
+  }
+});
+
+let scrollOffset = 0;
+function getMaxVisible() { return screenState === 'travel' ? 8 : 7; }
+function getVisibleCount() { return Math.min(menuItems.length - scrollOffset, getMaxVisible()); }
+function getMenuStartY() {
+  if (screenState === 'travel') return 200;
+  return 310;
+}
+
+function update() {
+  if (infoOpen) return;
+  if (gameResult) {
+    if (keys['r'] || keys['R']) initGame();
+    return;
+  }
+
+  if (msgTimer > 0) msgTimer--;
+
+  // Keyboard menu selection
+  for (let i = 1; i <= 9; i++) {
+    if (keys[String(i)]) {
+      keys[String(i)] = false;
+      const idx = scrollOffset + (i - 1);
+      if (idx < menuItems.length) {
+        selectedItem = idx;
+        doAction(menuItems[idx]);
+      }
+      return;
+    }
+  }
+
+  if (keys['r'] || keys['R']) { keys['r'] = false; keys['R'] = false; initGame(); }
+}
+
+function drawGlobe(cx, cy, r) {
+  ctx.strokeStyle = '#246';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.stroke();
+  // Longitude lines
+  for (let i = -2; i <= 2; i++) {
+    ctx.beginPath();
+    ctx.ellipse(cx + i * r * 0.3, cy, Math.abs(r * 0.15), r, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  // Latitude lines
+  for (let i = -1; i <= 1; i++) {
+    const ly = cy + i * r * 0.4;
+    const lr = r * Math.cos(Math.asin(i * 0.4));
+    ctx.beginPath();
+    ctx.moveTo(cx - lr, ly);
+    ctx.lineTo(cx + lr, ly);
+    ctx.stroke();
+  }
+}
+
+function draw() {
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+
+  if (gameResult) {
+    drawEndScreen();
+    return;
+  }
+
+  const city = CITIES[playerCity];
+
+  // Background - city color tint
+  ctx.fillStyle = city.clr + '11';
+  ctx.fillRect(0, 40, W, H - 40);
+
+  // Globe decoration (top right)
+  drawGlobe(720, 100, 50);
+
+  // HUD bar
+  ctx.fillStyle = '#111'; ctx.fillRect(0, 0, W, 40);
+  ctx.fillStyle = '#4f4'; ctx.font = 'bold 14px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('CASE #' + caseNum, 10, 27);
+  ctx.fillStyle = '#ff4'; ctx.textAlign = 'center';
+  ctx.fillText('HOURS: ' + hoursLeft, W / 2, 27);
+  ctx.fillStyle = warrantIssued ? '#4f4' : '#f44'; ctx.textAlign = 'right';
+  ctx.fillText(warrantIssued ? 'WARRANT: ISSUED' : 'WARRANT: NONE', W - 10, 27);
+
+  if (screenState === 'travel') {
+    drawTravelScreen();
+  } else if (screenState.startsWith('warrant_')) {
+    drawWarrantScreen();
+  } else {
+    drawCityScreen(city);
+  }
+
+  // Message overlay
+  if (msgTimer > 0 && message) {
+    const alpha = Math.min(1, msgTimer / 30);
+    ctx.fillStyle = 'rgba(0,0,40,' + (0.85 * alpha) + ')';
+    const mw = Math.min(680, ctx.measureText(message).width + 60);
+    ctx.fillRect((W - mw) / 2, 240, mw, 40);
+    ctx.strokeStyle = '#48f'; ctx.lineWidth = 1;
+    ctx.strokeRect((W - mw) / 2, 240, mw, 40);
+    ctx.fillStyle = '#fff'; ctx.font = '13px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(message, W / 2, 265);
+  }
+
+  // Title badge
+  ctx.fillStyle = '#1a1a1a'; ctx.fillRect(8, 44, 280, 22);
+  ctx.fillStyle = '#555'; ctx.font = '12px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('ADV-006 · WORLD DETECTIVE  [?]', 14, 60);
+}
+
+function drawCityScreen(city) {
+  // City name and info
+  ctx.fillStyle = city.clr; ctx.font = 'bold 28px monospace'; ctx.textAlign = 'center';
+  ctx.fillText(city.name.toUpperCase(), W / 2, 110);
+  ctx.fillStyle = '#888'; ctx.font = '14px monospace';
+  ctx.fillText(city.cont + '  |  ' + city.lm, W / 2, 135);
+
+  // Case briefing
+  ctx.fillStyle = '#ccc'; ctx.font = '13px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('Stolen: ' + caseData.treasure, 80, 175);
+  ctx.fillStyle = '#888'; ctx.font = '12px monospace';
+  ctx.fillText('Last seen in ' + CITIES[caseData.startCity].name + '. Track the thief!', 80, 195);
+
+  // Cityscape silhouette
+  drawCityscape(city, 215, 70);
+
+  // Menu
+  drawMenu(310);
+}
+
+function drawCityscape(city, y, h) {
+  ctx.fillStyle = city.clr + '33';
+  const seed = city.name.charCodeAt(0) * 100 + city.name.charCodeAt(1);
+  const rng = seededRand(seed);
+  for (let i = 0; i < 12; i++) {
+    const bw = 30 + rng() * 40;
+    const bh = 20 + rng() * h;
+    const bx = 60 + i * 58 + rng() * 10;
+    ctx.fillRect(bx, y + h - bh, bw, bh);
+  }
+  ctx.fillStyle = city.clr + '22';
+  ctx.fillRect(60, y + h, 680, 4);
+}
+
+function drawTravelScreen() {
+  ctx.fillStyle = '#4ff'; ctx.font = 'bold 22px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('SELECT DESTINATION', W / 2, 100);
+  ctx.fillStyle = '#888'; ctx.font = '13px monospace';
+  ctx.fillText('From: ' + CITIES[playerCity].name + '  |  Hours remaining: ' + hoursLeft, W / 2, 130);
+
+  // Flight cost info
+  ctx.fillStyle = '#666'; ctx.font = '11px monospace';
+  ctx.fillText('Same continent: 4 hrs  |  Different continent: 8 hrs', W / 2, 155);
+
+  drawMenu(200, true);
+}
+
+function drawWarrantScreen() {
+  ctx.fillStyle = '#f84'; ctx.font = 'bold 22px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('ISSUE WARRANT', W / 2, 100);
+
+  const labels = {
+    warrant_sex: 'Select suspect gender:',
+    warrant_hair: 'Select hair color:',
+    warrant_feat: 'Select distinguishing feature:',
+    warrant_hobby: 'Select known hobby:',
+    warrant_vehicle: 'Select vehicle:'
+  };
+  ctx.fillStyle = '#ccc'; ctx.font = '14px monospace';
+  ctx.fillText(labels[screenState] || '', W / 2, 140);
+
+  // Show current warrant progress
+  let wy = 170;
+  ctx.font = '11px monospace'; ctx.fillStyle = '#666'; ctx.textAlign = 'left';
+  if (warrant.sex) { ctx.fillText('Gender: ' + (warrant.sex === 'M' ? 'Male' : 'Female'), 100, wy); wy += 16; }
+  if (warrant.hair) { ctx.fillText('Hair: ' + warrant.hair, 100, wy); wy += 16; }
+  if (warrant.feat) { ctx.fillText('Feature: ' + warrant.feat, 100, wy); wy += 16; }
+  if (warrant.hobby) { ctx.fillText('Hobby: ' + warrant.hobby, 100, wy); wy += 16; }
+
+  drawMenu(Math.max(220, wy + 20));
+}
+
+function drawMenu(startY, showCost) {
+  scrollOffset = Math.max(0, Math.min(scrollOffset, menuItems.length - getMaxVisible()));
+  const vis = getVisibleCount();
+
+  // Scroll arrows
+  if (scrollOffset > 0) {
+    ctx.fillStyle = '#888'; ctx.font = '14px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('^ more ^', W / 2, startY - 10);
+  }
+
+  for (let i = 0; i < vis; i++) {
+    const idx = scrollOffset + i;
+    const item = menuItems[idx];
+    const iy = startY + i * 28;
+    const hover = mouseX > 80 && mouseX < 720 && mouseY > iy - 12 && mouseY < iy + 16;
+    const sel = idx === selectedItem || hover;
+
+    ctx.fillStyle = sel ? '#234' : '#111';
+    ctx.fillRect(80, iy - 12, 640, 26);
+    if (sel) { ctx.strokeStyle = '#48f'; ctx.lineWidth = 1; ctx.strokeRect(80, iy - 12, 640, 26); }
+
+    ctx.fillStyle = sel ? '#fff' : '#aaa';
+    ctx.font = '14px monospace'; ctx.textAlign = 'left';
+    const num = (i + 1);
+    ctx.fillText((num <= 9 ? num + '. ' : '   ') + item.label, 95, iy + 5);
+
+    // Show flight cost
+    if (showCost && item.action === 'fly') {
+      const cost = getFlightCost(playerCity, item.dest);
+      ctx.fillStyle = '#888'; ctx.textAlign = 'right'; ctx.font = '12px monospace';
+      ctx.fillText(cost + ' hrs | ' + CITIES[item.dest].cont, 710, iy + 5);
+    }
+  }
+
+  if (scrollOffset + vis < menuItems.length) {
+    ctx.fillStyle = '#888'; ctx.font = '14px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('v more v', W / 2, startY + vis * 28 + 5);
+  }
+}
+
+function drawEndScreen() {
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+
+  if (gameResult === 'win') {
+    ctx.fillStyle = '#4f4'; ctx.font = 'bold 36px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('CASE CLOSED!', W / 2, 150);
+    ctx.fillStyle = '#fff'; ctx.font = '16px monospace';
+    ctx.fillText('You caught ' + caseData.suspect.name + '!', W / 2, 200);
+    ctx.fillStyle = '#ff4';
+    ctx.fillText('Recovered: ' + caseData.treasure, W / 2, 230);
+    ctx.fillStyle = '#aaa'; ctx.font = '14px monospace';
+    ctx.fillText('Hours remaining: ' + hoursLeft, W / 2, 270);
+    const rank = hoursLeft > 60 ? 'ACE DETECTIVE' : hoursLeft > 30 ? 'SENIOR DETECTIVE' : 'ROOKIE';
+    ctx.fillStyle = '#4ff';
+    ctx.fillText('Rank: ' + rank, W / 2, 300);
+  } else if (gameResult === 'timeout') {
+    ctx.fillStyle = '#f55'; ctx.font = 'bold 36px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('TIME\'S UP!', W / 2, 150);
+    ctx.fillStyle = '#ccc'; ctx.font = '16px monospace';
+    ctx.fillText(caseData.suspect.name + ' escaped with', W / 2, 200);
+    ctx.fillText(caseData.treasure + '!', W / 2, 225);
+  } else if (gameResult === 'wrong_warrant') {
+    ctx.fillStyle = '#fa4'; ctx.font = 'bold 36px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('WRONG WARRANT!', W / 2, 150);
+    ctx.fillStyle = '#ccc'; ctx.font = '16px monospace';
+    ctx.fillText('Your warrant didn\'t match the suspect.', W / 2, 200);
+    ctx.fillStyle = '#aaa'; ctx.font = '14px monospace';
+    ctx.fillText('It was ' + caseData.suspect.name + ': ' + caseData.suspect.hair + ' hair,', W / 2, 240);
+    ctx.fillText(caseData.suspect.feat + ', ' + caseData.suspect.hobby + ', ' + caseData.suspect.vehicle, W / 2, 260);
+  }
+
+  ctx.fillStyle = '#888'; ctx.font = '14px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('Press R or click to start a new case', W / 2, 360);
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+</body>
+</html>

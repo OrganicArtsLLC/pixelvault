@@ -1,0 +1,888 @@
+<!--
+PROTOTYPE: march-rescue
+SERIES: puz
+NUMBER: 005
+DATE: 2026-03-22
+MECHANIC: assign jobs to guide mindless walkers to exit safely
+ANCESTRY: Lemmings (1991, DMA Design), Humans (1992, Imagitec Design)
+CONTROLS: Mouse — click lemming to assign job | 1-8 — select job type | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 4 (Statistical Learning — emergent behavior from simple agent rules)
+AI-INSIGHT: Lemmings are autonomous agents with minimal AI — they walk, turn at walls, and fall off edges. The player's role is essentially programming behavior modifications (dig, build, block) onto individual agents, making this one of the first mainstream agent-programming puzzles.
+NOTES: Lemmings walk mindlessly. Player assigns jobs to save them.
+       Jobs: climber, floater, bomber, blocker, builder, basher, miner, digger.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PUZ-005 · MARCH RESCUE</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: crosshair; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>PUZ-005 · MARCH RESCUE</h1>
+    <p><span class="tag series">PUZ — Puzzle</span> <span class="tag">Prototype #005</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Lemmings drop from the trapdoor and walk mindlessly. Assign jobs to guide enough of them to the exit. Save the required percentage to advance.</p>
+    <ul>
+      <li><kbd>1</kbd> Climber — walks up vertical walls</li>
+      <li><kbd>2</kbd> Floater — opens umbrella, survives any fall</li>
+      <li><kbd>3</kbd> Bomber — explodes after 5 seconds, destroying terrain</li>
+      <li><kbd>4</kbd> Blocker — stands still, redirects other lemmings</li>
+      <li><kbd>5</kbd> Builder — builds a diagonal staircase upward</li>
+      <li><kbd>6</kbd> Basher — digs horizontally through terrain</li>
+      <li><kbd>7</kbd> Miner — digs diagonally downward through terrain</li>
+      <li><kbd>8</kbd> Digger — digs straight down through terrain</li>
+      <li><strong>Click</strong> a lemming to assign the selected job</li>
+      <li><kbd>R</kbd> — Restart level</li>
+      <li><kbd>N</kbd> — Next level (after winning)</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Timing matters:</strong> Assign jobs at the right moment — a basher started too early or late wastes a skill use.</li>
+      <li><strong>Blockers redirect:</strong> Place blockers to funnel lemmings toward the exit.</li>
+      <li><strong>Builders bridge gaps:</strong> Builders place 12 steps diagonally upward. Time them to span pits.</li>
+      <li><strong>Bombers clear terrain:</strong> Use bombers to blast through thick walls when no other job works.</li>
+      <li><strong>Floaters save lives:</strong> Assign floater before a lemming reaches a long drop.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Lemmings (1991, DMA Design) &rarr; Oh No! More Lemmings (1991) &rarr; Lemmings 2: The Tribes (1993)</p>
+    <p>Lemmings (1991) by DMA Design (later Rockstar North) is one of the most influential puzzle games ever made. Inspired by a pixel animation of tiny creatures walking off cliffs, the game tasks players with saving mindless walkers by assigning them specialized jobs. Each lemming is an autonomous agent that walks, turns at walls, and falls — the player acts as a behavior programmer, modifying individual agents to solve each level.</p>
+    <p>The game sold millions across virtually every platform of its era and spawned numerous sequels and clones. Its designer, David Jones, went on to create Grand Theft Auto.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 4 — Statistical Learning (emergent behavior from simple agent rules)</p>
+    <p><strong>Contemporary AI:</strong> Multi-agent systems research was exploring emergent behavior from simple rules — flocking (Boids, 1986), cellular automata, artificial life.</p>
+    <p><strong>Hidden Intelligence:</strong> Each lemming is a simple finite-state automaton — walk, turn at walls, fall, die. But the player modifies their state machines in real-time by assigning jobs. This is one of the earliest mainstream examples of agent programming as gameplay. The emergent complexity comes not from individual lemming intelligence but from interactions between multiple agents and destructible terrain.</p>
+    <p><strong>The Convergence:</strong> Lemmings anticipates modern multi-agent reinforcement learning, where simple agents with modified reward functions can collectively solve complex problems. The "assign a job" mechanic is essentially reward shaping — changing an agent's objective function.</p>
+    <p><strong>If AI Had Designed This:</strong> An AI level designer could use evolutionary algorithms to generate levels with optimal difficulty curves — finding terrain configurations where exactly one job-assignment sequence works, maximizing the "aha moment."</p>
+
+    <h2>Classification</h2>
+    <h3>Series: PUZ — Puzzle</h3>
+    <p>Lemmings is a real-time puzzle game where the challenge is spatial reasoning and timing under pressure. Each level is a puzzle with limited resources (job counts) and a required save percentage.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Agent behavior programming on destructible terrain.</strong> Mindless walkers. Eight assignable jobs. Pixel-destructible terrain. Save percentage goals. Limited job counts per level.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Agent autonomy — do lemmings feel alive and mindless simultaneously?</li>
+      <li>Job assignment — does clicking to assign jobs feel responsive and clear?</li>
+      <li>Destructible terrain — do diggers, bashers, and miners carve satisfyingly?</li>
+      <li>Emergent solutions — can players find creative job combinations?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Pixel-based destructible terrain stored as ImageData. Eight jobs implemented as finite-state behaviors. Multiple levels with escalating complexity. Lemmings rendered as small animated sprites.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+const keys = {};
+window.addEventListener('keydown', e => {
+  if (!infoOpen) keys[e.key] = true;
+  if (e.key >= '1' && e.key <= '8') { selectedJob = parseInt(e.key) - 1; e.preventDefault(); }
+  if (e.key === 'r' || e.key === 'R') { if (!infoOpen) { initLevel(currentLevel); } e.preventDefault(); }
+  if ((e.key === 'n' || e.key === 'N') && levelWon) { currentLevel = (currentLevel + 1) % levels.length; initLevel(currentLevel); e.preventDefault(); }
+});
+window.addEventListener('keyup', e => { keys[e.key] = false; });
+
+// --- TERRAIN ---
+// Terrain is a Uint8Array: 0=air, 1=dirt, 2=steel (indestructible)
+const TW = 800, TH = 500; // terrain area (bottom of canvas, top 100px for HUD)
+const HUD_H = 60;
+const TERRAIN_Y = HUD_H;
+let terrain;
+
+function tGet(x, y) {
+  if (x < 0 || x >= TW || y < 0 || y >= TH) return y >= TH ? 2 : 0;
+  return terrain[y * TW + x];
+}
+function tSet(x, y, v) {
+  if (x >= 0 && x < TW && y >= 0 && y < TH) terrain[y * TW + x] = v;
+}
+function tSolid(x, y) { return tGet(x, y) > 0; }
+
+// Carve circle in terrain (for bombers)
+function carveTerrain(cx, cy, r) {
+  for (let dy = -r; dy <= r; dy++) {
+    for (let dx = -r; dx <= r; dx++) {
+      if (dx * dx + dy * dy <= r * r) {
+        const tx = cx + dx, ty = cy + dy;
+        if (tGet(tx, ty) === 1) tSet(tx, ty, 0);
+      }
+    }
+  }
+}
+
+// Carve rect in terrain
+function carveRect(x, y, w, h) {
+  for (let dy = 0; dy < h; dy++)
+    for (let dx = 0; dx < w; dx++)
+      if (tGet(x + dx, y + dy) === 1) tSet(x + dx, y + dy, 0);
+}
+
+// --- LEVELS ---
+const JOB_NAMES = ['Climber','Floater','Bomber','Blocker','Builder','Basher','Miner','Digger'];
+const JOB_COLORS = ['#0cf','#aaf','#f44','#fa0','#ff0','#8f4','#c6f','#4af'];
+
+const levels = [
+  { name: 'Just Dig!', required: 5, total: 10, rate: 50,
+    jobs: [0,0,0,0,0,0,0,10],
+    entrance: {x:200, y:40}, exit: {x:200, y:420},
+    build: function(t) {
+      fillRect(t, 0, 140, 800, 30, 1);   // top platform
+      fillRect(t, 0, 300, 800, 30, 1);   // mid platform
+      fillRect(t, 100, 440, 200, 20, 2); // exit floor (steel)
+    }
+  },
+  { name: 'Bash Through', required: 8, total: 10, rate: 45,
+    jobs: [0,0,0,0,0,10,0,5],
+    entrance: {x:100, y:50}, exit: {x:680, y:400},
+    build: function(t) {
+      fillRect(t, 0, 150, 800, 25, 1);
+      fillRect(t, 300, 60, 30, 150, 1);  // wall to bash
+      fillRect(t, 0, 350, 500, 25, 1);   // lower shelf
+      fillRect(t, 500, 150, 30, 230, 1); // wall to bash
+      fillRect(t, 600, 420, 160, 20, 2);
+    }
+  },
+  { name: 'Bridge the Gap', required: 7, total: 10, rate: 50,
+    jobs: [0,2,0,2,10,0,0,0],
+    entrance: {x:100, y:50}, exit: {x:650, y:340},
+    build: function(t) {
+      fillRect(t, 0, 150, 300, 25, 1);
+      // gap from 300-450
+      fillRect(t, 450, 200, 350, 25, 1);
+      fillRect(t, 580, 360, 150, 20, 2);
+    }
+  },
+  { name: 'Mine Your Way', required: 6, total: 10, rate: 50,
+    jobs: [0,0,0,2,0,0,10,5],
+    entrance: {x:400, y:30}, exit: {x:650, y:420},
+    build: function(t) {
+      fillRect(t, 100, 120, 600, 100, 1); // thick block
+      fillRect(t, 100, 280, 600, 80, 1);  // another block
+      fillRect(t, 580, 440, 150, 20, 2);
+    }
+  },
+  { name: 'Block and Build', required: 8, total: 10, rate: 40,
+    jobs: [0,2,0,4,8,5,0,3],
+    entrance: {x:100, y:40}, exit: {x:700, y:380},
+    build: function(t) {
+      fillRect(t, 0, 140, 250, 20, 1);
+      fillRect(t, 350, 200, 250, 20, 1);
+      fillRect(t, 100, 300, 300, 20, 1);
+      fillRect(t, 500, 300, 30, 120, 1); // wall
+      fillRect(t, 630, 400, 150, 20, 2);
+    }
+  },
+  { name: 'Climb and Float', required: 8, total: 10, rate: 40,
+    jobs: [10,10,0,2,5,0,0,0],
+    entrance: {x:400, y:30}, exit: {x:100, y:400},
+    build: function(t) {
+      fillRect(t, 200, 120, 400, 20, 1);
+      fillRect(t, 350, 120, 20, 140, 1); // wall to climb
+      fillRect(t, 150, 250, 250, 20, 1);
+      fillRect(t, 50, 420, 150, 20, 2);
+    }
+  },
+  { name: 'Bomber Run', required: 5, total: 10, rate: 50,
+    jobs: [0,0,10,2,0,0,0,0],
+    entrance: {x:100, y:50}, exit: {x:650, y:400},
+    build: function(t) {
+      fillRect(t, 0, 150, 800, 20, 1);
+      fillRect(t, 250, 150, 60, 130, 2); // steel wall (must bomb around)
+      fillRect(t, 250, 130, 60, 20, 1);  // dirt cap on steel
+      fillRect(t, 500, 150, 60, 130, 2); // another steel wall
+      fillRect(t, 500, 130, 60, 20, 1);
+      fillRect(t, 580, 420, 150, 20, 2);
+    }
+  },
+  { name: 'Grand Finale', required: 9, total: 10, rate: 35,
+    jobs: [5,5,3,3,8,5,5,5],
+    entrance: {x:50, y:30}, exit: {x:740, y:430},
+    build: function(t) {
+      fillRect(t, 0, 120, 200, 20, 1);
+      fillRect(t, 180, 120, 20, 100, 1);
+      fillRect(t, 280, 200, 250, 20, 1);
+      fillRect(t, 280, 200, 20, 80, 2);  // steel wall
+      fillRect(t, 550, 150, 250, 20, 1);
+      fillRect(t, 550, 150, 20, 130, 1);
+      fillRect(t, 400, 330, 400, 20, 1);
+      fillRect(t, 680, 450, 120, 15, 2);
+    }
+  }
+];
+
+function fillRect(t, x, y, w, h, v) {
+  for (let dy = 0; dy < h; dy++)
+    for (let dx = 0; dx < w; dx++)
+      if (x+dx >= 0 && x+dx < TW && y+dy >= 0 && y+dy < TH)
+        t[(y+dy) * TW + (x+dx)] = v;
+}
+
+// --- MARCH RESCUE ---
+const ST_FALL = 0, ST_WALK = 1, ST_DIG = 2, ST_BASH = 3, ST_BUILD = 4;
+const ST_MINE = 5, ST_CLIMB = 6, ST_BLOCK = 7, ST_BOMB = 8, ST_FLOAT = 9;
+const ST_DEAD = 10, ST_SAVED = 11;
+
+let lemmings, spawnTimer, spawned, saved, dead, selectedJob, currentLevel;
+let levelWon, levelLost, frame, jobCounts;
+let entranceX, entranceY, exitX, exitY;
+
+function initLevel(lvl) {
+  currentLevel = lvl;
+  const L = levels[lvl];
+  terrain = new Uint8Array(TW * TH);
+  L.build(terrain);
+  lemmings = [];
+  spawnTimer = 0;
+  spawned = 0; saved = 0; dead = 0;
+  selectedJob = 7; // digger default
+  levelWon = false; levelLost = false;
+  frame = 0;
+  jobCounts = L.jobs.slice();
+  entranceX = L.entrance.x;
+  entranceY = L.entrance.y;
+  exitX = L.exit.x;
+  exitY = L.exit.y;
+  terrainDirty = true;
+}
+
+initLevel(0);
+
+// --- MOUSE ---
+let mouseX = 0, mouseY = 0;
+canvas.addEventListener('mousemove', e => {
+  const r = canvas.getBoundingClientRect();
+  mouseX = (e.clientX - r.left) * (W / r.width);
+  mouseY = (e.clientY - r.top) * (H / r.height);
+});
+
+canvas.addEventListener('click', e => {
+  if (infoOpen) return;
+  const mx = mouseX, my = mouseY;
+  // Click on lemming to assign job
+  let closest = null, closestD = 15;
+  for (const lem of lemmings) {
+    if (lem.state >= ST_DEAD) continue;
+    if (lem.state === ST_BLOCK) continue; // can't reassign blockers
+    const dx = mx - lem.x, dy = (my - TERRAIN_Y) - lem.y;
+    const d = Math.sqrt(dx*dx + dy*dy);
+    if (d < closestD) { closest = lem; closestD = d; }
+  }
+  if (closest && jobCounts[selectedJob] > 0) {
+    assignJob(closest, selectedJob);
+  }
+});
+
+function assignJob(lem, jobIdx) {
+  // Don't reassign same persistent job
+  if (jobIdx === 0 && lem.canClimb) return;
+  if (jobIdx === 1 && lem.canFloat) return;
+
+  if (jobIdx === 0) { lem.canClimb = true; jobCounts[0]--; return; }
+  if (jobIdx === 1) { lem.canFloat = true; jobCounts[1]--; return; }
+  if (jobIdx === 2) { lem.state = ST_BOMB; lem.bombTimer = 300; jobCounts[2]--; return; }
+  if (jobIdx === 3) { lem.state = ST_BLOCK; jobCounts[3]--; return; }
+  if (jobIdx === 4) { lem.state = ST_BUILD; lem.buildCount = 0; jobCounts[4]--; return; }
+  if (jobIdx === 5) { lem.state = ST_BASH; jobCounts[5]--; return; }
+  if (jobIdx === 6) { lem.state = ST_MINE; jobCounts[6]--; return; }
+  if (jobIdx === 7) { lem.state = ST_DIG; jobCounts[7]--; return; }
+}
+
+function spawnLemming() {
+  lemmings.push({
+    x: entranceX, y: entranceY,
+    dir: 1, // 1=right, -1=left
+    state: ST_FALL,
+    fallDist: 0,
+    canClimb: false,
+    canFloat: false,
+    bombTimer: 0,
+    buildCount: 0,
+    animFrame: 0
+  });
+  spawned++;
+}
+
+// --- UPDATE ---
+function update() {
+  if (infoOpen) return;
+  if (levelWon || levelLost) return;
+  frame++;
+
+  const L = levels[currentLevel];
+
+  // Spawn lemmings
+  if (spawned < L.total) {
+    spawnTimer--;
+    if (spawnTimer <= 0) {
+      spawnLemming();
+      spawnTimer = L.rate;
+    }
+  }
+
+  // Check win/loss
+  const allDone = (saved + dead >= L.total) && spawned >= L.total;
+  const allSpawnedAndProcessed = lemmings.every(l => l.state === ST_DEAD || l.state === ST_SAVED);
+  if (allDone && allSpawnedAndProcessed) {
+    if (saved >= L.required) levelWon = true;
+    else levelLost = true;
+    return;
+  }
+
+  // Update each lemming
+  for (const lem of lemmings) {
+    if (lem.state === ST_DEAD || lem.state === ST_SAVED) continue;
+    lem.animFrame++;
+
+    // Check exit
+    const dx = lem.x - exitX, dy = lem.y - exitY;
+    if (dx*dx + dy*dy < 400) {
+      lem.state = ST_SAVED; saved++; continue;
+    }
+
+    // Bomber countdown (runs in parallel with other states)
+    if (lem.state === ST_BOMB) {
+      lem.bombTimer--;
+      if (lem.bombTimer <= 0) {
+        carveTerrain(Math.floor(lem.x), Math.floor(lem.y), 20);
+        lem.state = ST_DEAD; dead++; continue;
+      }
+      // While counting down, still walk
+      updateWalker(lem);
+      continue;
+    }
+
+    // Gravity check (except climbing, blocking, building on solid)
+    if (lem.state !== ST_CLIMB && lem.state !== ST_BLOCK) {
+      const onGround = tSolid(Math.floor(lem.x), Math.floor(lem.y + 1)) ||
+                        tSolid(Math.floor(lem.x - 2), Math.floor(lem.y + 1)) ||
+                        tSolid(Math.floor(lem.x + 2), Math.floor(lem.y + 1));
+      if (!onGround && lem.state !== ST_FLOAT) {
+        if (lem.state !== ST_FALL) {
+          lem.state = ST_FALL;
+          lem.fallDist = 0;
+          lem.prevState = lem.state;
+        }
+      }
+    }
+
+    switch (lem.state) {
+      case ST_FALL: updateFall(lem); break;
+      case ST_FLOAT: updateFloat(lem); break;
+      case ST_WALK: updateWalker(lem); break;
+      case ST_DIG: updateDigger(lem); break;
+      case ST_BASH: updateBasher(lem); break;
+      case ST_BUILD: updateBuilder(lem); break;
+      case ST_MINE: updateMiner(lem); break;
+      case ST_CLIMB: updateClimber(lem); break;
+      case ST_BLOCK: break; // blocker just stands
+    }
+
+    // Out of bounds check
+    if (lem.x < 0 || lem.x >= TW || lem.y >= TH) {
+      lem.state = ST_DEAD; dead++;
+    }
+  }
+}
+
+function updateFall(lem) {
+  const speed = (lem.canFloat && lem.fallDist > 20) ? 1 : 3;
+  if (lem.canFloat && lem.fallDist > 20) lem.state = ST_FLOAT;
+
+  for (let i = 0; i < speed; i++) {
+    if (tSolid(Math.floor(lem.x), Math.floor(lem.y + 1))) {
+      // Landed
+      if (lem.fallDist > 80 && !lem.canFloat) {
+        lem.state = ST_DEAD; dead++; return;
+      }
+      lem.state = ST_WALK;
+      lem.fallDist = 0;
+      return;
+    }
+    lem.y++;
+    lem.fallDist++;
+  }
+}
+
+function updateFloat(lem) {
+  // Slow fall with umbrella
+  if (lem.animFrame % 2 === 0) {
+    if (tSolid(Math.floor(lem.x), Math.floor(lem.y + 1))) {
+      lem.state = ST_WALK;
+      lem.fallDist = 0;
+      return;
+    }
+    lem.y++;
+  }
+}
+
+function updateWalker(lem) {
+  const fx = Math.floor(lem.x + lem.dir * 4);
+  const fy = Math.floor(lem.y);
+
+  // Check blocker collision
+  for (const other of lemmings) {
+    if (other === lem || other.state !== ST_BLOCK) continue;
+    const bx = Math.abs(lem.x - other.x);
+    const by = Math.abs(lem.y - other.y);
+    if (bx < 8 && by < 12) {
+      lem.dir = (lem.x < other.x) ? -1 : 1;
+    }
+  }
+
+  // Check wall ahead
+  const wallAhead = tSolid(fx, fy) || tSolid(fx, fy - 3) || tSolid(fx, fy - 6);
+
+  if (wallAhead) {
+    // Can we step up? (max 6px step)
+    let canStep = false;
+    for (let step = 1; step <= 6; step++) {
+      if (!tSolid(fx, fy - step - 6) && !tSolid(fx, fy - step - 3) && !tSolid(fx, fy - step)) {
+        lem.y -= step;
+        canStep = true;
+        break;
+      }
+    }
+    if (!canStep) {
+      if (lem.canClimb) {
+        lem.state = ST_CLIMB;
+        return;
+      }
+      lem.dir *= -1; // turn around
+    }
+  }
+
+  lem.x += lem.dir * 0.8;
+
+  // Fall check
+  if (!tSolid(Math.floor(lem.x), Math.floor(lem.y + 1)) &&
+      !tSolid(Math.floor(lem.x - 2), Math.floor(lem.y + 1)) &&
+      !tSolid(Math.floor(lem.x + 2), Math.floor(lem.y + 1))) {
+    lem.state = ST_FALL;
+    lem.fallDist = 0;
+  }
+}
+
+function updateClimber(lem) {
+  const fx = Math.floor(lem.x + lem.dir * 4);
+  // Move up along wall
+  lem.y -= 1;
+
+  // Check if we've reached the top of the wall
+  if (!tSolid(fx, Math.floor(lem.y)) && !tSolid(fx, Math.floor(lem.y - 4))) {
+    // Climb over the top
+    lem.x += lem.dir * 5;
+    lem.state = ST_WALK;
+    return;
+  }
+
+  // Check if ceiling blocks us
+  if (tSolid(Math.floor(lem.x), Math.floor(lem.y - 5))) {
+    lem.dir *= -1;
+    lem.state = ST_FALL;
+    lem.fallDist = 0;
+  }
+}
+
+function updateDigger(lem) {
+  if (lem.animFrame % 4 !== 0) return;
+  const cx = Math.floor(lem.x);
+  const cy = Math.floor(lem.y + 1);
+
+  let dugSomething = false;
+  for (let dx = -4; dx <= 4; dx++) {
+    if (tGet(cx + dx, cy) === 1) {
+      tSet(cx + dx, cy, 0);
+      dugSomething = true;
+    }
+    if (tGet(cx + dx, cy + 1) === 1) {
+      tSet(cx + dx, cy + 1, 0);
+      dugSomething = true;
+    }
+  }
+
+  if (dugSomething) {
+    lem.y += 2;
+  } else {
+    // Hit steel or air, stop digging
+    lem.state = ST_WALK;
+  }
+}
+
+function updateBasher(lem) {
+  if (lem.animFrame % 3 !== 0) return;
+  const cx = Math.floor(lem.x + lem.dir * 5);
+  const cy = Math.floor(lem.y);
+
+  let dugSomething = false;
+  for (let dy = -8; dy <= 0; dy++) {
+    for (let dx = 0; dx < 3; dx++) {
+      const tx = cx + lem.dir * dx;
+      if (tGet(tx, cy + dy) === 1) {
+        tSet(tx, cy + dy, 0);
+        dugSomething = true;
+      }
+    }
+  }
+
+  if (dugSomething) {
+    lem.x += lem.dir * 2;
+  } else {
+    lem.state = ST_WALK;
+  }
+}
+
+function updateBuilder(lem) {
+  if (lem.animFrame % 6 !== 0) return;
+  if (lem.buildCount >= 12) {
+    lem.state = ST_WALK;
+    return;
+  }
+
+  const bx = Math.floor(lem.x + lem.dir * 3);
+  const by = Math.floor(lem.y);
+
+  // Place brick
+  for (let dx = 0; dx < 5; dx++) {
+    tSet(bx + lem.dir * dx, by, 1);
+  }
+
+  lem.x += lem.dir * 3;
+  lem.y -= 2;
+  lem.buildCount++;
+
+  // Check ceiling
+  if (tSolid(Math.floor(lem.x), Math.floor(lem.y - 6))) {
+    lem.state = ST_WALK;
+  }
+}
+
+function updateMiner(lem) {
+  if (lem.animFrame % 4 !== 0) return;
+  const cx = Math.floor(lem.x + lem.dir * 3);
+  const cy = Math.floor(lem.y + 2);
+
+  let dugSomething = false;
+  for (let dy = 0; dy < 4; dy++) {
+    for (let dx = 0; dx < 3; dx++) {
+      const tx = cx + lem.dir * dx;
+      if (tGet(tx, cy + dy) === 1) {
+        tSet(tx, cy + dy, 0);
+        dugSomething = true;
+      }
+    }
+  }
+
+  if (dugSomething) {
+    lem.x += lem.dir * 2;
+    lem.y += 2;
+  } else {
+    lem.state = ST_WALK;
+  }
+}
+
+// --- DRAW ---
+// Off-screen canvas for terrain rendering
+const tCanvas = document.createElement('canvas');
+tCanvas.width = TW; tCanvas.height = TH;
+const tCtx = tCanvas.getContext('2d');
+let terrainDirty = true;
+
+// Mark terrain dirty when modified
+const origTSet = tSet;
+tSet = function(x, y, v) { origTSet(x, y, v); terrainDirty = true; };
+const origCarveTerrain = carveTerrain;
+carveTerrain = function(cx, cy, r) { origCarveTerrain(cx, cy, r); terrainDirty = true; };
+
+function drawTerrain() {
+  if (terrainDirty) {
+    const imgData = tCtx.createImageData(TW, TH);
+    const d = imgData.data;
+    for (let i = 0; i < TW * TH; i++) {
+      const v = terrain[i];
+      const idx = i * 4;
+      if (v === 1) {
+        const x = i % TW, y = (i / TW) | 0;
+        const n = ((x * 7 + y * 13) % 30);
+        d[idx]     = 60 + n;
+        d[idx + 1] = 120 + n;
+        d[idx + 2] = 30;
+        d[idx + 3] = 255;
+      } else if (v === 2) {
+        const x = i % TW, y = (i / TW) | 0;
+        const n = ((x * 3 + y * 7) % 15);
+        d[idx]     = 100 + n;
+        d[idx + 1] = 100 + n;
+        d[idx + 2] = 110 + n;
+        d[idx + 3] = 255;
+      }
+    }
+    tCtx.putImageData(imgData, 0, 0);
+    terrainDirty = false;
+  }
+  ctx.drawImage(tCanvas, 0, TERRAIN_Y);
+}
+
+function drawLemming(lem) {
+  const sx = lem.x, sy = lem.y + TERRAIN_Y;
+
+  if (lem.state === ST_DEAD || lem.state === ST_SAVED) return;
+
+  // Body
+  let bodyColor = '#4f4';
+  if (lem.state === ST_BOMB) bodyColor = (lem.bombTimer % 30 < 15) ? '#f44' : '#fa0';
+  else if (lem.state === ST_DIG) bodyColor = '#4af';
+  else if (lem.state === ST_BASH) bodyColor = '#8f4';
+  else if (lem.state === ST_BUILD) bodyColor = '#ff0';
+  else if (lem.state === ST_MINE) bodyColor = '#c6f';
+  else if (lem.state === ST_CLIMB) bodyColor = '#0cf';
+  else if (lem.state === ST_BLOCK) bodyColor = '#fa0';
+  else if (lem.state === ST_FLOAT) bodyColor = '#aaf';
+
+  // Hair
+  ctx.fillStyle = '#0a0';
+  ctx.fillRect(sx - 3, sy - 10, 6, 3);
+
+  // Body
+  ctx.fillStyle = bodyColor;
+  ctx.fillRect(sx - 3, sy - 7, 6, 8);
+
+  // Legs with walk animation
+  const legAnim = Math.floor(lem.animFrame / 6) % 2;
+  ctx.fillRect(sx - 3, sy + 1, 2, 3);
+  ctx.fillRect(sx + 1, sy + 1, 2, 3);
+
+  // Direction indicator (face)
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(sx + lem.dir * 1, sy - 6, 2, 2);
+
+  // Floater umbrella
+  if (lem.state === ST_FLOAT) {
+    ctx.strokeStyle = '#aaf';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(sx, sy - 10);
+    ctx.lineTo(sx, sy - 18);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(sx, sy - 18, 8, Math.PI, 0);
+    ctx.stroke();
+  }
+
+  // Builder brick indicator
+  if (lem.state === ST_BUILD) {
+    ctx.fillStyle = '#aa0';
+    ctx.fillRect(sx + lem.dir * 4, sy - 2, 3, 2);
+  }
+
+  // Bomber countdown
+  if (lem.state === ST_BOMB) {
+    ctx.fillStyle = '#fff';
+    ctx.font = '8px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(Math.ceil(lem.bombTimer / 60), sx, sy - 13);
+  }
+
+  // Climber indicator
+  if (lem.canClimb && lem.state !== ST_CLIMB) {
+    ctx.fillStyle = '#0cf';
+    ctx.fillRect(sx - 1, sy - 12, 2, 2);
+  }
+}
+
+function draw() {
+  ctx.fillStyle = '#111'; ctx.fillRect(0, 0, W, H);
+
+  // Sky gradient in terrain area
+  ctx.fillStyle = '#0a0a2a'; ctx.fillRect(0, TERRAIN_Y, TW, TH);
+
+  // Terrain
+  drawTerrain();
+
+  // Entrance (trapdoor)
+  ctx.fillStyle = '#888';
+  ctx.fillRect(entranceX - 15, entranceY + TERRAIN_Y - 15, 30, 8);
+  ctx.fillStyle = '#aa0';
+  ctx.fillRect(entranceX - 10, entranceY + TERRAIN_Y - 14, 20, 6);
+  // Arrow
+  ctx.fillStyle = '#ff0';
+  ctx.font = '12px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('V', entranceX, entranceY + TERRAIN_Y - 18);
+
+  // Exit (door)
+  ctx.fillStyle = '#444';
+  ctx.fillRect(exitX - 10, exitY + TERRAIN_Y - 20, 20, 22);
+  ctx.fillStyle = '#2a2';
+  ctx.fillRect(exitX - 8, exitY + TERRAIN_Y - 18, 16, 18);
+  ctx.fillStyle = '#4f4';
+  ctx.font = '10px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('EXIT', exitX, exitY + TERRAIN_Y - 5);
+
+  // Lemmings
+  for (const lem of lemmings) drawLemming(lem);
+
+  // Mouse highlight - show which lemming would be selected
+  if (!infoOpen && !levelWon && !levelLost) {
+    let closest = null, closestD = 15;
+    for (const lem of lemmings) {
+      if (lem.state >= ST_DEAD) continue;
+      if (lem.state === ST_BLOCK) continue;
+      const dx = mouseX - lem.x, dy = (mouseY - TERRAIN_Y) - lem.y;
+      const d = Math.sqrt(dx*dx + dy*dy);
+      if (d < closestD) { closest = lem; closestD = d; }
+    }
+    if (closest) {
+      ctx.strokeStyle = '#ff0';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(closest.x - 6, closest.y + TERRAIN_Y - 12, 12, 16);
+    }
+  }
+
+  // --- HUD ---
+  ctx.fillStyle = '#111'; ctx.fillRect(0, 0, W, HUD_H);
+  ctx.strokeStyle = '#333'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, HUD_H); ctx.lineTo(W, HUD_H); ctx.stroke();
+
+  const L = levels[currentLevel];
+
+  // Job buttons
+  for (let i = 0; i < 8; i++) {
+    const bx = 10 + i * 72, by = 4;
+    const isSelected = (i === selectedJob);
+    ctx.fillStyle = isSelected ? '#333' : '#1a1a1a';
+    ctx.fillRect(bx, by, 66, 22);
+    if (isSelected) { ctx.strokeStyle = '#ff0'; ctx.lineWidth = 2; ctx.strokeRect(bx, by, 66, 22); }
+    ctx.fillStyle = jobCounts[i] > 0 ? JOB_COLORS[i] : '#555';
+    ctx.font = '10px monospace'; ctx.textAlign = 'left';
+    ctx.fillText((i+1) + ':' + JOB_NAMES[i].substring(0,4), bx + 3, by + 10);
+    ctx.fillStyle = '#aaa'; ctx.font = '9px monospace';
+    ctx.fillText('x' + jobCounts[i], bx + 3, by + 19);
+  }
+
+  // Stats
+  ctx.fillStyle = '#4f4'; ctx.font = '13px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('IN:' + spawned + '/' + L.total, 600, 14);
+  ctx.fillStyle = '#0cf';
+  ctx.fillText('OUT:' + saved + '/' + L.required, 600, 30);
+  ctx.fillStyle = '#f55';
+  ctx.fillText('DEAD:' + dead, 600, 46);
+
+  // Level name
+  ctx.fillStyle = '#aaa'; ctx.font = '12px monospace'; ctx.textAlign = 'right';
+  ctx.fillText('Lv' + (currentLevel+1) + ': ' + L.name, W - 10, 14);
+  ctx.fillStyle = '#666'; ctx.font = '11px monospace';
+  ctx.fillText('Need ' + L.required + '/' + L.total + ' (' + Math.floor(L.required/L.total*100) + '%)', W - 10, 30);
+
+  // Level won/lost
+  if (levelWon) {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, 0, W, H);
+    ctx.font = 'bold 36px monospace'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#4f4';
+    ctx.fillText('LEVEL COMPLETE!', W/2, H/2 - 30);
+    ctx.fillStyle = '#aaa'; ctx.font = '18px monospace';
+    ctx.fillText('Saved ' + saved + '/' + L.total + ' (needed ' + L.required + ')', W/2, H/2 + 10);
+    ctx.fillStyle = '#ff0'; ctx.font = '16px monospace';
+    if (currentLevel < levels.length - 1)
+      ctx.fillText('Press N for next level   R to replay', W/2, H/2 + 50);
+    else
+      ctx.fillText('ALL LEVELS COMPLETE!  R to replay', W/2, H/2 + 50);
+  }
+  if (levelLost) {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, 0, W, H);
+    ctx.font = 'bold 36px monospace'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#f55';
+    ctx.fillText('LEVEL FAILED', W/2, H/2 - 30);
+    ctx.fillStyle = '#aaa'; ctx.font = '18px monospace';
+    ctx.fillText('Saved ' + saved + '/' + L.total + ' (needed ' + L.required + ')', W/2, H/2 + 10);
+    ctx.fillStyle = '#ff0'; ctx.font = '16px monospace';
+    ctx.fillText('Press R to retry', W/2, H/2 + 50);
+  }
+
+  // Title badge
+  ctx.fillStyle = '#1a1a1a'; ctx.fillRect(8, H - 28, 250, 22);
+  ctx.fillStyle = '#555'; ctx.font = '13px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('PUZ-005 \u00b7 MARCH RESCUE  [?]', 16, H - 12);
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+</body>
+</html>

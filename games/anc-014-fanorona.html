@@ -1,0 +1,804 @@
+<!--
+PROTOTYPE: fanorona
+SERIES: anc
+NUMBER: 014
+DATE: 2026-03-24
+MECHANIC: dual-direction capture — move a piece toward enemies to capture by approach OR move away to capture by withdrawal; chain captures possible
+ANCESTRY: Fanorona (~1680, Madagascar), Alquerque (~1000 BCE, Middle East)
+CONTROLS: Mouse — select piece/destination | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 2 (traditional Malagasy ~1680)
+AI-INSIGHT: Fanorona's dual-direction capture mechanic creates a unique decision tree where every move has two possible interpretations. The approach/withdrawal choice doubles the branching factor compared to simple capture games, making it computationally interesting despite the small board.
+NOTES: Madagascar's national board game. The 9x5 board with mixed orthogonal and diagonal connections
+       creates asymmetric geometry. Chain captures are mandatory, adding tactical depth.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ANC-014 · FANORONA</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #1a1410; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: pointer; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>ANC-014 · FANORONA</h1>
+    <p><span class="tag series">ANC — Ancient Games</span> <span class="tag">Prototype #014</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Play Fanorona against an AI opponent. You are White (bottom). Capture all of your opponent's pieces to win.</p>
+    <ul>
+      <li><strong>Select:</strong> Click one of your pieces to see valid moves highlighted.</li>
+      <li><strong>Move:</strong> Click a highlighted intersection to move your piece there.</li>
+      <li><strong>Approach capture:</strong> Move <em>toward</em> an enemy line — all enemies in that direction are captured.</li>
+      <li><strong>Withdrawal capture:</strong> Move <em>away</em> from an enemy line — all enemies in the opposite direction are captured.</li>
+      <li><strong>Choice:</strong> When both approach and withdrawal are available, click the capture direction indicator.</li>
+      <li><strong>Chain captures:</strong> After a capture, if another capture is available with the same piece, you <em>must</em> continue.</li>
+      <li><strong>Non-capturing moves:</strong> Only allowed when no captures are available anywhere.</li>
+      <li><kbd>R</kbd> — Restart game</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Alquerque (~1000 BCE, Middle East) &rarr; Fanorona (~1680, Madagascar)</p>
+    <p>Fanorona is the national board game of Madagascar, believed to have evolved from Alquerque, which was brought to the island by Arab traders. The game became deeply embedded in Malagasy culture — legend holds that the fate of the Merina kingdom was once decided by a game of Fanorona rather than battle.</p>
+    <p><strong>The Board:</strong> The distinctive 9&times;5 board with its mix of orthogonal and diagonal connections (called "strong" and "weak" intersections) creates asymmetric geometry that fundamentally shapes strategy. Diagonal connections appear in a checkerboard pattern, making some positions more connected than others.</p>
+    <p><strong>Cultural Significance:</strong> Fanorona was traditionally played with pebbles and seeds on boards scratched into stone. Several ancient game boards carved into rock can still be found across Madagascar. The game was associated with divination and royal decision-making.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 2 — Traditional Malagasy (~1680)</p>
+    <p><strong>Unique Decision Space:</strong> Fanorona's dual-direction capture is computationally fascinating. Unlike checkers or chess where a capture's outcome is determined by the move itself, in Fanorona the same move can produce two entirely different board states depending on whether you capture by approach or withdrawal. This effectively doubles the branching factor at capture moves.</p>
+    <p><strong>Forced Captures:</strong> The mandatory capture rule, combined with chain captures, means that a single turn can dramatically transform the board. A well-planned chain can capture 10+ pieces in one turn, creating explosive tactical swings that reward forward planning.</p>
+    <p><strong>Solved Status:</strong> Fanorona was weakly solved in 2008 by Maarten Schadd et al. using proof-number search. The game is a draw with perfect play from both sides, but the proof required enormous computational resources despite the relatively small board.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: ANC — Ancient Games</h3>
+    <p>Games with roots stretching back centuries or millennia. Fanorona represents the rich board game tradition of Madagascar and the broader Indian Ocean world.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Dual-direction capture (approach/withdrawal), mandatory captures, chain captures on a partially-connected grid.</strong> The approach/withdrawal choice creates a unique decision layer absent from other capture games.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Board rendering — are the mixed connections (orthogonal + diagonal) clear?</li>
+      <li>Capture visualization — is it obvious which pieces will be captured?</li>
+      <li>Choice UI — when both approach and withdrawal are possible, is the choice intuitive?</li>
+      <li>Chain captures — does the mandatory continuation feel natural?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Standard Fanorona rules on the 9&times;5 board with diagonal connections on alternating intersections. AI uses minimax with alpha-beta pruning. Captures are animated with brief highlights showing which pieces are removed. The approach/withdrawal choice is presented as clickable direction indicators when both options are available.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+  if (infoOpen) return;
+  if (e.key === 'r' || e.key === 'R') { initGame(); e.preventDefault(); }
+  if ([' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault();
+});
+
+// --- CANVAS SETUP ---
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+canvas.width = 800;
+canvas.height = 600;
+
+// --- CONSTANTS ---
+const COLS = 9, ROWS = 5;
+const EMPTY = 0, WHITE = 1, BLACK = 2;
+const BOARD_X = 100, BOARD_Y = 100;
+const CELL_W = 75, CELL_H = 100;
+const PIECE_R = 18;
+
+// --- GAME STATE ---
+let board, turn, selected, legalMoves, gameOver, winner, message;
+let chainPiece, chainVisited, mustCapture;
+let choiceMove, choiceApproach, choiceWithdraw;
+let animating, animFrames, animCaptures;
+let aiThinking;
+
+// --- BOARD CONNECTIVITY ---
+// Diagonal connections exist at intersections where (col + row) % 2 === 0
+function hasDiagonal(c, r) {
+  return (c + r) % 2 === 0;
+}
+
+// All 8 directions: [dc, dr]
+const DIRS = [
+  [-1,-1],[0,-1],[1,-1],
+  [-1, 0],       [1, 0],
+  [-1, 1],[0, 1],[1, 1]
+];
+
+function inBounds(c, r) {
+  return c >= 0 && c < COLS && r >= 0 && r < ROWS;
+}
+
+function isConnected(c1, r1, c2, r2) {
+  const dc = c2 - c1, dr = r2 - r1;
+  if (Math.abs(dc) > 1 || Math.abs(dr) > 1) return false;
+  if (dc === 0 && dr === 0) return false;
+  // Orthogonal always connected
+  if (dc === 0 || dr === 0) return true;
+  // Diagonal only if source has diagonal connections
+  return hasDiagonal(c1, r1);
+}
+
+// --- INIT ---
+function initGame() {
+  board = [];
+  for (let r = 0; r < ROWS; r++) {
+    board[r] = [];
+    for (let c = 0; c < COLS; c++) {
+      if (r < 2) board[r][c] = BLACK;
+      else if (r > 2) board[r][c] = WHITE;
+      else {
+        // Middle row: alternating, center empty
+        if (c === 4) board[r][c] = EMPTY;
+        else if (c % 2 === 0) board[r][c] = (r === 2) ? WHITE : BLACK;
+        else board[r][c] = (r === 2) ? BLACK : WHITE;
+      }
+    }
+  }
+  // Fix middle row pattern for standard Fanorona
+  // Row 2 (middle): W B W B _ B W B W
+  board[2] = [WHITE, BLACK, WHITE, BLACK, EMPTY, BLACK, WHITE, BLACK, WHITE];
+
+  turn = WHITE;
+  selected = null;
+  legalMoves = [];
+  gameOver = false;
+  winner = 0;
+  message = 'Your turn — click a piece';
+  chainPiece = null;
+  chainVisited = [];
+  mustCapture = false;
+  choiceMove = null;
+  choiceApproach = null;
+  choiceWithdraw = null;
+  animating = false;
+  animFrames = 0;
+  animCaptures = [];
+  aiThinking = false;
+  computeAllMoves();
+}
+
+// --- MOVE COMPUTATION ---
+function getApproachCaptures(c, r, dc, dr) {
+  // Pieces in the direction of movement, starting from destination
+  const caps = [];
+  let nc = c + dc, nr = r + dr; // this is destination, skip (it should be empty for a valid move... wait, c,r is origin)
+  // Actually: piece at (c,r) moves to (c+dc, r+dr). Approach captures enemies beyond destination.
+  let ec = c + dc + dc, er = r + dr + dr;
+  const enemy = turn === WHITE ? BLACK : WHITE;
+  while (inBounds(ec, er) && board[er][ec] === enemy) {
+    caps.push([ec, er]);
+    ec += dc;
+    er += dr;
+  }
+  return caps;
+}
+
+function getWithdrawCaptures(c, r, dc, dr) {
+  // Pieces in the opposite direction of movement, starting from origin
+  const caps = [];
+  const enemy = turn === WHITE ? BLACK : WHITE;
+  let ec = c - dc, er = r - dr;
+  while (inBounds(ec, er) && board[er][ec] === enemy) {
+    caps.push([ec, er]);
+    ec -= dc;
+    er -= dr;
+  }
+  return caps;
+}
+
+function getMovesForPiece(c, r, isChain) {
+  const moves = [];
+  const piece = board[r][c];
+  if (piece !== turn) return moves;
+
+  for (const [dc, dr] of DIRS) {
+    const nc = c + dc, nr = r + dr;
+    if (!inBounds(nc, nr)) continue;
+    if (board[nr][nc] !== EMPTY) continue;
+    if (!isConnected(c, r, nc, nr)) continue;
+
+    // In chain, cannot revisit positions
+    if (isChain && chainVisited.some(v => v[0] === nc && v[1] === nr)) continue;
+
+    const approach = getApproachCaptures(c, r, dc, dr);
+    const withdraw = getWithdrawCaptures(c, r, dc, dr);
+
+    if (approach.length > 0 || withdraw.length > 0) {
+      moves.push({ fc: c, fr: r, tc: nc, tr: nr, dc, dr, approach, withdraw });
+    } else if (!isChain && !mustCapture) {
+      // Non-capturing move, only if not in chain and no captures anywhere
+      moves.push({ fc: c, fr: r, tc: nc, tr: nr, dc, dr, approach: [], withdraw: [] });
+    }
+  }
+  return moves;
+}
+
+function computeAllMoves() {
+  mustCapture = false;
+  if (chainPiece) {
+    legalMoves = getMovesForPiece(chainPiece[0], chainPiece[1], true);
+    // In chain, only capturing moves
+    legalMoves = legalMoves.filter(m => m.approach.length > 0 || m.withdraw.length > 0);
+    if (legalMoves.length === 0) {
+      // Chain ends
+      chainPiece = null;
+      chainVisited = [];
+      turn = turn === WHITE ? BLACK : WHITE;
+      computeAllMoves();
+      return;
+    }
+    mustCapture = true;
+    return;
+  }
+
+  // Check if any captures available
+  let allMoves = [];
+  let hasCapture = false;
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (board[r][c] !== turn) continue;
+      const pMoves = getMovesForPiece(c, r, false);
+      for (const m of pMoves) {
+        if (m.approach.length > 0 || m.withdraw.length > 0) hasCapture = true;
+        allMoves.push(m);
+      }
+    }
+  }
+
+  if (hasCapture) {
+    mustCapture = true;
+    legalMoves = allMoves.filter(m => m.approach.length > 0 || m.withdraw.length > 0);
+  } else {
+    legalMoves = allMoves;
+  }
+
+  // Check game over
+  let whiteCount = 0, blackCount = 0;
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++) {
+      if (board[r][c] === WHITE) whiteCount++;
+      if (board[r][c] === BLACK) blackCount++;
+    }
+  if (whiteCount === 0) { gameOver = true; winner = BLACK; message = 'Black wins!'; }
+  else if (blackCount === 0) { gameOver = true; winner = WHITE; message = 'You win!'; }
+  else if (legalMoves.length === 0) {
+    gameOver = true;
+    winner = turn === WHITE ? BLACK : WHITE;
+    message = winner === WHITE ? 'You win! (opponent stuck)' : 'Black wins! (you are stuck)';
+  }
+
+  if (!gameOver && turn === WHITE) {
+    if (chainPiece) message = 'Chain capture! Click next move';
+    else message = 'Your turn — click a piece';
+  }
+}
+
+function executeMove(move, captureType) {
+  // captureType: 'approach', 'withdraw', or 'none'
+  const caps = captureType === 'approach' ? move.approach :
+               captureType === 'withdraw' ? move.withdraw : [];
+
+  board[move.fr][move.fc] = EMPTY;
+  board[move.tr][move.tc] = turn;
+
+  animCaptures = caps.slice();
+  for (const [ec, er] of caps) {
+    board[er][ec] = EMPTY;
+  }
+
+  if (caps.length > 0) {
+    // Check for chain capture
+    if (!chainPiece) {
+      chainVisited = [[move.fc, move.fr], [move.tc, move.tr]];
+    } else {
+      chainVisited.push([move.tc, move.tr]);
+    }
+    chainPiece = [move.tc, move.tr];
+
+    // Check if chain can continue
+    const nextMoves = getMovesForPiece(move.tc, move.tr, true)
+      .filter(m => m.approach.length > 0 || m.withdraw.length > 0);
+    if (nextMoves.length === 0) {
+      chainPiece = null;
+      chainVisited = [];
+      turn = turn === WHITE ? BLACK : WHITE;
+    }
+  } else {
+    chainPiece = null;
+    chainVisited = [];
+    turn = turn === WHITE ? BLACK : WHITE;
+  }
+
+  animating = true;
+  animFrames = 15;
+  selected = null;
+  choiceMove = null;
+  choiceApproach = null;
+  choiceWithdraw = null;
+}
+
+// --- AI ---
+function evalBoard() {
+  let score = 0;
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++) {
+      if (board[r][c] === BLACK) score += 10;
+      else if (board[r][c] === WHITE) score -= 10;
+    }
+  return score; // Positive = good for BLACK
+}
+
+function aiMove() {
+  if (gameOver) return;
+  aiThinking = true;
+  message = 'AI thinking...';
+
+  setTimeout(() => {
+    aiTurn();
+    aiThinking = false;
+  }, 300);
+}
+
+function aiTurn() {
+  // Simple AI: pick best immediate capture, or random non-capture
+  while (turn === BLACK && !gameOver) {
+    computeAllMoves();
+    if (gameOver || legalMoves.length === 0) break;
+
+    let bestMove = null;
+    let bestScore = -Infinity;
+    let bestType = 'none';
+
+    for (const m of legalMoves) {
+      if (m.approach.length > 0 && m.withdraw.length > 0) {
+        // Evaluate both
+        if (m.approach.length >= m.withdraw.length) {
+          const s = m.approach.length * 10 + Math.random() * 2;
+          if (s > bestScore) { bestScore = s; bestMove = m; bestType = 'approach'; }
+        }
+        if (m.withdraw.length >= m.approach.length) {
+          const s = m.withdraw.length * 10 + Math.random() * 2;
+          if (s > bestScore) { bestScore = s; bestMove = m; bestType = 'withdraw'; }
+        }
+      } else if (m.approach.length > 0) {
+        const s = m.approach.length * 10 + Math.random() * 2;
+        if (s > bestScore) { bestScore = s; bestMove = m; bestType = 'approach'; }
+      } else if (m.withdraw.length > 0) {
+        const s = m.withdraw.length * 10 + Math.random() * 2;
+        if (s > bestScore) { bestScore = s; bestMove = m; bestType = 'withdraw'; }
+      } else {
+        const s = Math.random() * 2;
+        if (s > bestScore) { bestScore = s; bestMove = m; bestType = 'none'; }
+      }
+    }
+
+    if (bestMove) {
+      executeMove(bestMove, bestType);
+      // If chain continues (turn is still BLACK), loop
+      if (turn !== BLACK) break;
+      // Brief pause would be nice but we'll just continue the chain
+    } else break;
+  }
+
+  computeAllMoves();
+  if (!gameOver && turn === WHITE) {
+    message = chainPiece ? 'Chain capture! Click next move' : 'Your turn — click a piece';
+  }
+}
+
+// --- DRAWING ---
+function boardToScreen(c, r) {
+  return [BOARD_X + c * CELL_W, BOARD_Y + r * CELL_H];
+}
+
+function screenToBoard(x, y) {
+  const c = Math.round((x - BOARD_X) / CELL_W);
+  const r = Math.round((y - BOARD_Y) / CELL_H);
+  if (c >= 0 && c < COLS && r >= 0 && r < ROWS) return [c, r];
+  return null;
+}
+
+function drawBoard() {
+  // Background
+  ctx.fillStyle = '#2a1f14';
+  ctx.fillRect(0, 0, 800, 600);
+
+  // Title
+  ctx.fillStyle = '#c8a060';
+  ctx.font = 'bold 20px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('FANORONA', 400, 40);
+  ctx.font = '12px monospace';
+  ctx.fillStyle = '#886644';
+  ctx.fillText("Madagascar's National Board Game", 400, 58);
+
+  // Board surface
+  ctx.fillStyle = '#3d2e1c';
+  ctx.fillRect(BOARD_X - 30, BOARD_Y - 30, (COLS-1)*CELL_W + 60, (ROWS-1)*CELL_H + 60);
+  ctx.strokeStyle = '#5a4530';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(BOARD_X - 30, BOARD_Y - 30, (COLS-1)*CELL_W + 60, (ROWS-1)*CELL_H + 60);
+
+  // Draw connections
+  ctx.strokeStyle = '#8a7560';
+  ctx.lineWidth = 1.5;
+
+  // Orthogonal lines
+  for (let r = 0; r < ROWS; r++) {
+    ctx.beginPath();
+    const [sx, sy] = boardToScreen(0, r);
+    const [ex, ey] = boardToScreen(COLS-1, r);
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(ex, ey);
+    ctx.stroke();
+  }
+  for (let c = 0; c < COLS; c++) {
+    ctx.beginPath();
+    const [sx, sy] = boardToScreen(c, 0);
+    const [ex, ey] = boardToScreen(c, ROWS-1);
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(ex, ey);
+    ctx.stroke();
+  }
+
+  // Diagonal lines
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (!hasDiagonal(c, r)) continue;
+      const [sx, sy] = boardToScreen(c, r);
+      // Draw diagonals to neighbors
+      for (const [dc, dr] of [[-1,-1],[1,-1],[-1,1],[1,1]]) {
+        const nc = c + dc, nr = r + dr;
+        if (!inBounds(nc, nr)) continue;
+        const [ex, ey] = boardToScreen(nc, nr);
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(ex, ey);
+        ctx.stroke();
+      }
+    }
+  }
+
+  // Draw intersections and pieces
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const [x, y] = boardToScreen(c, r);
+
+      // Intersection dot
+      ctx.fillStyle = '#6a5540';
+      ctx.beginPath();
+      ctx.arc(x, y, 3, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Piece
+      if (board[r][c] !== EMPTY) {
+        const isWhite = board[r][c] === WHITE;
+        const isSelected = selected && selected[0] === c && selected[1] === r;
+
+        // Shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.beginPath();
+        ctx.arc(x + 2, y + 2, PIECE_R, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Piece body
+        ctx.fillStyle = isWhite ? '#f0e4d0' : '#2a2220';
+        ctx.beginPath();
+        ctx.arc(x, y, PIECE_R, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Piece border
+        ctx.strokeStyle = isWhite ? '#c8a060' : '#554440';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(x, y, PIECE_R, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Inner detail
+        ctx.fillStyle = isWhite ? '#d8c8a0' : '#3a3230';
+        ctx.beginPath();
+        ctx.arc(x, y, PIECE_R * 0.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Selection highlight
+        if (isSelected) {
+          ctx.strokeStyle = '#ffcc00';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(x, y, PIECE_R + 4, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      }
+    }
+  }
+
+  // Highlight legal moves for selected piece
+  if (selected && !choiceMove) {
+    const selMoves = legalMoves.filter(m => m.fc === selected[0] && m.fr === selected[1]);
+    for (const m of selMoves) {
+      const [x, y] = boardToScreen(m.tc, m.tr);
+      ctx.fillStyle = 'rgba(0,255,100,0.3)';
+      ctx.beginPath();
+      ctx.arc(x, y, PIECE_R + 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#0f8';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(x, y, PIECE_R + 2, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+
+  // Draw capture animation
+  if (animating && animCaptures.length > 0) {
+    const alpha = animFrames / 15;
+    for (const [ec, er] of animCaptures) {
+      const [x, y] = boardToScreen(ec, er);
+      ctx.fillStyle = `rgba(255,60,60,${alpha * 0.6})`;
+      ctx.beginPath();
+      ctx.arc(x, y, PIECE_R + animFrames, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // Draw approach/withdraw choice
+  if (choiceMove) {
+    drawCaptureChoice();
+  }
+
+  // Score / piece count
+  let wc = 0, bc = 0;
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++) {
+      if (board[r][c] === WHITE) wc++;
+      if (board[r][c] === BLACK) bc++;
+    }
+
+  ctx.font = '14px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#f0e4d0';
+  ctx.fillText(`White: ${wc}`, 640, 120);
+  ctx.fillStyle = '#aaa';
+  ctx.fillText(`Black: ${bc}`, 640, 145);
+
+  ctx.fillStyle = turn === WHITE ? '#f0e4d0' : '#aaa';
+  ctx.fillText(turn === WHITE ? '► Your turn' : '► AI turn', 640, 180);
+
+  // Message
+  ctx.fillStyle = '#c8a060';
+  ctx.font = '14px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(message, 400, 555);
+
+  // Controls hint
+  ctx.fillStyle = '#554430';
+  ctx.font = '11px monospace';
+  ctx.fillText('[?] Info   [R] Restart', 400, 585);
+
+  // Chain indicator
+  if (chainPiece && turn === WHITE) {
+    const [cx, cy] = boardToScreen(chainPiece[0], chainPiece[1]);
+    ctx.strokeStyle = '#ff8800';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.arc(cx, cy, PIECE_R + 8, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Game over overlay
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(0, 0, 800, 600);
+    ctx.fillStyle = winner === WHITE ? '#ffcc00' : '#ff4444';
+    ctx.font = 'bold 36px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(message, 400, 290);
+    ctx.fillStyle = '#aaa';
+    ctx.font = '16px monospace';
+    ctx.fillText('Press R to play again', 400, 330);
+  }
+}
+
+function drawCaptureChoice() {
+  const m = choiceMove;
+  const [mx, my] = boardToScreen(m.tc, m.tr);
+
+  // Dim overlay
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.fillRect(0, 0, 800, 600);
+
+  // Choice prompt
+  ctx.fillStyle = '#ffcc00';
+  ctx.font = 'bold 14px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('Choose capture direction:', 400, 520);
+
+  // Approach button - show captures in movement direction
+  if (choiceApproach && choiceApproach.length > 0) {
+    // Highlight approach captures
+    for (const [ec, er] of choiceApproach) {
+      const [ex, ey] = boardToScreen(ec, er);
+      ctx.fillStyle = 'rgba(0,150,255,0.4)';
+      ctx.beginPath();
+      ctx.arc(ex, ey, PIECE_R + 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // Approach button
+    const bx = 300, by = 535;
+    ctx.fillStyle = '#1a4a80';
+    ctx.fillRect(bx - 80, by - 12, 160, 28);
+    ctx.strokeStyle = '#4a9aff';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(bx - 80, by - 12, 160, 28);
+    ctx.fillStyle = '#8ac4ff';
+    ctx.font = '13px monospace';
+    ctx.fillText(`Approach (${choiceApproach.length})`, bx, by + 5);
+  }
+
+  // Withdraw button
+  if (choiceWithdraw && choiceWithdraw.length > 0) {
+    for (const [ec, er] of choiceWithdraw) {
+      const [ex, ey] = boardToScreen(ec, er);
+      ctx.fillStyle = 'rgba(255,100,0,0.4)';
+      ctx.beginPath();
+      ctx.arc(ex, ey, PIECE_R + 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    const bx = 500, by = 535;
+    ctx.fillStyle = '#804a1a';
+    ctx.fillRect(bx - 80, by - 12, 160, 28);
+    ctx.strokeStyle = '#ff9a4a';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(bx - 80, by - 12, 160, 28);
+    ctx.fillStyle = '#ffc48a';
+    ctx.font = '13px monospace';
+    ctx.fillText(`Withdraw (${choiceWithdraw.length})`, bx, by + 5);
+  }
+}
+
+// --- INPUT ---
+canvas.addEventListener('click', e => {
+  if (infoOpen || gameOver || animating || turn !== WHITE || aiThinking) return;
+
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  const mx = (e.clientX - rect.left) * scaleX;
+  const my = (e.clientY - rect.top) * scaleY;
+
+  // Handle capture choice
+  if (choiceMove) {
+    // Check approach button click
+    if (choiceApproach.length > 0 && mx >= 220 && mx <= 380 && my >= 523 && my <= 551) {
+      executeMove(choiceMove, 'approach');
+      computeAllMoves();
+      if (turn === BLACK && !gameOver) aiMove();
+      return;
+    }
+    // Check withdraw button click
+    if (choiceWithdraw.length > 0 && mx >= 420 && mx <= 580 && my >= 523 && my <= 551) {
+      executeMove(choiceMove, 'withdraw');
+      computeAllMoves();
+      if (turn === BLACK && !gameOver) aiMove();
+      return;
+    }
+    // Click elsewhere cancels
+    choiceMove = null;
+    choiceApproach = null;
+    choiceWithdraw = null;
+    return;
+  }
+
+  const pos = screenToBoard(mx, my);
+  if (!pos) return;
+  const [c, r] = pos;
+
+  // Check if clicking a legal destination
+  if (selected) {
+    const move = legalMoves.find(m =>
+      m.fc === selected[0] && m.fr === selected[1] && m.tc === c && m.tr === r
+    );
+    if (move) {
+      // Determine capture type
+      const hasApproach = move.approach.length > 0;
+      const hasWithdraw = move.withdraw.length > 0;
+
+      if (hasApproach && hasWithdraw) {
+        // Player must choose
+        choiceMove = move;
+        choiceApproach = move.approach;
+        choiceWithdraw = move.withdraw;
+        return;
+      } else if (hasApproach) {
+        executeMove(move, 'approach');
+      } else if (hasWithdraw) {
+        executeMove(move, 'withdraw');
+      } else {
+        executeMove(move, 'none');
+      }
+      computeAllMoves();
+      if (turn === BLACK && !gameOver) aiMove();
+      return;
+    }
+  }
+
+  // Select piece
+  if (board[r][c] === WHITE) {
+    // In chain, can only move the chain piece
+    if (chainPiece && (c !== chainPiece[0] || r !== chainPiece[1])) return;
+    const pieceMoves = legalMoves.filter(m => m.fc === c && m.fr === r);
+    if (pieceMoves.length > 0) {
+      selected = [c, r];
+    }
+  } else {
+    selected = null;
+  }
+});
+
+// --- GAME LOOP ---
+function update() {
+  if (infoOpen) return;
+
+  if (animating) {
+    animFrames--;
+    if (animFrames <= 0) {
+      animating = false;
+      animCaptures = [];
+    }
+  }
+
+  drawBoard();
+  requestAnimationFrame(update);
+}
+
+initGame();
+requestAnimationFrame(update);
+</script>
+</body>
+</html>

@@ -1,0 +1,171 @@
+<!--
+TEMPLATE: base-physics
+PURPOSE: Canvas + velocity + acceleration + friction + gravity + collision
+USAGE: Copy this file, rename to [series]-[NNN]-[name].html
+
+PROTOTYPE: [name]
+SERIES: [series]
+NUMBER: [NNN]
+DATE: YYYY-MM-DD
+MECHANIC: [primary verb]
+ANCESTRY: [which historical games inspired this]
+CONTROLS: Arrow keys to thrust, Space to act
+STATUS: sketch
+VISIBILITY: private
+RATING: [1-5 stars after 10 min play]
+NOTES: [one-line observation]
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PROTOTYPE</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0b0e11; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+canvas { border: 1px solid #333; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+
+function resize() {
+  const scale = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = (W * scale) + 'px';
+  canvas.style.height = (H * scale) + 'px';
+}
+resize();
+window.addEventListener('resize', resize);
+
+// --- INPUT ---
+const keys = {};
+window.addEventListener('keydown', e => { keys[e.code] = true; e.preventDefault(); });
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+// --- PHYSICS CONFIG ---
+const THRUST = 0.15;
+const FRICTION = 0.985;
+const GRAVITY = 0.0;      // Set > 0 for downward pull
+const MAX_SPEED = 5.0;
+const WRAP = true;         // Screen wrap vs wall bounce
+
+// --- ENTITY ---
+class Entity {
+  constructor(x, y, r, color) {
+    this.x = x; this.y = y;
+    this.vx = 0; this.vy = 0;
+    this.r = r;
+    this.color = color;
+    this.alive = true;
+  }
+
+  applyForce(fx, fy) {
+    this.vx += fx;
+    this.vy += fy;
+    const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+    if (speed > MAX_SPEED) {
+      this.vx = (this.vx / speed) * MAX_SPEED;
+      this.vy = (this.vy / speed) * MAX_SPEED;
+    }
+  }
+
+  update() {
+    this.vy += GRAVITY;
+    this.vx *= FRICTION;
+    this.vy *= FRICTION;
+    this.x += this.vx;
+    this.y += this.vy;
+
+    if (WRAP) {
+      if (this.x < -this.r) this.x = W + this.r;
+      if (this.x > W + this.r) this.x = -this.r;
+      if (this.y < -this.r) this.y = H + this.r;
+      if (this.y > H + this.r) this.y = -this.r;
+    } else {
+      if (this.x - this.r < 0) { this.x = this.r; this.vx *= -0.8; }
+      if (this.x + this.r > W) { this.x = W - this.r; this.vx *= -0.8; }
+      if (this.y - this.r < 0) { this.y = this.r; this.vy *= -0.8; }
+      if (this.y + this.r > H) { this.y = H - this.r; this.vy *= -0.8; }
+    }
+  }
+
+  draw() {
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+    ctx.fillStyle = this.color;
+    ctx.fill();
+  }
+
+  distTo(other) {
+    const dx = this.x - other.x;
+    const dy = this.y - other.y;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  collidesWith(other) {
+    return this.distTo(other) < this.r + other.r;
+  }
+}
+
+// --- GAME STATE ---
+const player = new Entity(W / 2, H / 2, 10, '#00e5ff');
+const entities = [];
+let score = 0;
+let frame = 0;
+
+// --- UPDATE ---
+function update() {
+  frame++;
+
+  // Player input
+  if (keys['ArrowUp'] || keys['KeyW']) player.applyForce(0, -THRUST);
+  if (keys['ArrowDown'] || keys['KeyS']) player.applyForce(0, THRUST);
+  if (keys['ArrowLeft'] || keys['KeyA']) player.applyForce(-THRUST, 0);
+  if (keys['ArrowRight'] || keys['KeyD']) player.applyForce(THRUST, 0);
+
+  player.update();
+
+  // Update entities
+  for (const e of entities) {
+    if (e.alive) e.update();
+  }
+
+  // Collision checks
+  for (const e of entities) {
+    if (e.alive && player.collidesWith(e)) {
+      // Handle collision here
+    }
+  }
+}
+
+// --- DRAW ---
+function draw() {
+  ctx.fillStyle = '#0b0e11';
+  ctx.fillRect(0, 0, W, H);
+
+  player.draw();
+  for (const e of entities) {
+    if (e.alive) e.draw();
+  }
+
+  ctx.fillStyle = '#e8e9eb';
+  ctx.font = '16px monospace';
+  ctx.fillText('SCORE: ' + score, 10, 24);
+}
+
+// --- LOOP ---
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>

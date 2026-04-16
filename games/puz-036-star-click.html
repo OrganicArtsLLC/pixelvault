@@ -1,0 +1,812 @@
+<!--
+PROTOTYPE: star-click
+SERIES: puz
+NUMBER: 036
+DATE: 2026-03-24
+MECHANIC: hidden star discovery — each screen contains a star hidden by a unique interaction puzzle; click, drag, interact to discover and reveal it; every screen is different
+ANCESTRY: Hoshi Saga (2007, Yoshio Ishii / Nekogames), Flash puzzle anthology, Cursor*10 (same creator)
+CONTROLS: Mouse — click/drag to interact | N — next screen | R — reset current screen | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 5 (Generalization Wave — each screen is a unique puzzle requiring different reasoning)
+AI-INSIGHT: Hoshi Saga is a meta-puzzle: the player must first discover WHAT to do before doing it. This mirrors the exploration-exploitation tradeoff in reinforcement learning — each screen demands a fresh hypothesis about the interaction model.
+NOTES: 12 unique puzzle screens, each hiding a star behind a different interaction.
+       The joy is in discovery — figuring out what each screen wants from you.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PUZ-036 · STAR CLICK</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: pointer; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>PUZ-036 · STAR CLICK</h1>
+    <p><span class="tag series">PUZ — Puzzle</span> <span class="tag">Prototype #036</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Find the hidden star on each screen. Every screen hides a star behind a different interaction — click, drag, wait, draw, shake. The joy is in discovering what each screen wants from you.</p>
+    <ul>
+      <li><strong>Mouse</strong> — Click, drag, and interact with each screen</li>
+      <li><kbd>N</kbd> — Skip to next screen</li>
+      <li><kbd>R</kbd> — Reset current screen</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Hints</h3>
+    <ul>
+      <li>Each screen has a unique puzzle — experiment!</li>
+      <li>Some screens respond to clicking, some to dragging</li>
+      <li>Some require patience, others require speed</li>
+      <li>Watch for visual clues about what to do</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Hoshi Saga (2007, Yoshio Ishii / Nekogames) &rarr; Flash puzzle anthology &rarr; Cursor*10 (same creator)</p>
+    <p>Yoshio Ishii, working under the name Nekogames, created Hoshi Saga as a series of Flash puzzle screens where each level hides a star behind a unique interaction. The series eventually spanned multiple volumes with dozens of screens. Ishii is also known for Cursor*10, another innovative Flash game where you cooperate with replays of your past selves. Both games exemplify the creativity of the Flash game era, where small independent developers could experiment freely with interaction design.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 5 — Generalization Wave</p>
+    <p>Hoshi Saga represents a fascinating challenge for AI: each screen requires a completely different interaction strategy. Unlike most games where a single policy suffices, this demands meta-learning — the ability to quickly hypothesize and test new interaction models. This mirrors the exploration-exploitation tradeoff in reinforcement learning, where the agent must first discover what actions are meaningful before optimizing them.</p>
+
+    <h2>Classification</h2>
+    <p><strong>Mechanic:</strong> Hidden star discovery — unique interaction puzzle per screen</p>
+    <p><strong>Genre:</strong> Puzzle / Experimental Interaction</p>
+
+    <h2>Prototype Notes</h2>
+    <p>12 unique puzzle screens, each with a different interaction mechanic. Screens range from simple clicking to drawing, dragging, sequencing, and patience puzzles. The star reveal animation celebrates each discovery with a satisfying glow effect.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+const W=800,H=600;
+const cv=document.getElementById('c');cv.width=W;cv.height=H;
+const cx=cv.getContext('2d');
+let infoOpen=false;
+function toggleInfo(){infoOpen=!infoOpen;document.getElementById('info-panel').style.display=infoOpen?'block':'none';}
+
+// Resize
+function resize(){
+  const s=Math.min(innerWidth/W,innerHeight/H);
+  cv.style.width=(W*s)+'px';cv.style.height=(H*s)+'px';
+}
+resize();addEventListener('resize',resize);
+
+// State
+let screen=0, solved=false, solveT=0, stars=0;
+let mx=0,my=0,md=false,prevMx=0,prevMy=0;
+const TOTAL=12;
+
+// Per-screen state
+let S={};
+function initScreen(){
+  solved=false; solveT=0; S={};
+  switch(screen){
+    case 0: // Triangles -> star
+      S.tris=[];
+      const cx0=400,cy0=300;
+      // 5 star points
+      for(let i=0;i<5;i++){
+        const a=Math.PI*2*i/5-Math.PI/2;
+        const tx=cx0+Math.cos(a)*120, ty=cy0+Math.sin(a)*120;
+        // scatter them
+        S.tris.push({x:Math.random()*600+100,y:Math.random()*400+100,tx,ty,placed:false,a:Math.random()*Math.PI*2});
+      }
+      S.clickOrder=0;
+      break;
+    case 1: // Drag cloud
+      S.cloudX=100;S.cloudY=180;S.dragging=false;
+      S.starX=500;S.starY=200;
+      break;
+    case 2: // Lights out -> star glows
+      S.lights=[];
+      for(let i=0;i<20;i++) S.lights.push({x:Math.random()*700+50,y:Math.random()*500+50,on:true,r:15+Math.random()*20});
+      S.allOff=false;
+      break;
+    case 3: // Tilt to roll ball into hole
+      S.ballX=200;S.ballY=300;S.ballVx=0;S.ballVy=0;
+      S.holeX=550;S.holeY=350;
+      S.offsetX=0;S.offsetY=0;S.dragStart=null;
+      break;
+    case 4: // Click flower to bloom
+      S.clicks=0;S.needed=25;S.petalSize=0;S.bloomPhase=0;
+      break;
+    case 5: // Jigsaw pieces
+      S.pieces=[];S.dragPiece=-1;S.ox=0;S.oy=0;
+      const gx=300,gy=200,pw=50,ph=50;
+      for(let r=0;r<4;r++)for(let c=0;c<4;c++){
+        S.pieces.push({tx:gx+c*pw,ty:gy+r*ph,x:Math.random()*600+50,y:Math.random()*400+50,r,c,placed:false});
+      }
+      break;
+    case 6: // Spin wheel to align
+      S.angle=0;S.targetAngle=0;S.spinning=false;
+      S.segments=5;
+      break;
+    case 7: // Click in order
+      S.objs=[];S.order=[];S.clickIdx=0;S.wrong=0;
+      const labels=['A','B','C','D','E'];
+      const shuffled=[0,1,2,3,4].sort(()=>Math.random()-0.5);
+      for(let i=0;i<5;i++){
+        S.objs.push({x:150+i*130,y:250+Math.sin(i*1.3)*80,label:labels[i],lit:false,idx:shuffled[i]});
+      }
+      S.order=S.objs.slice().sort((a,b)=>a.idx-b.idx);
+      break;
+    case 8: // Hold still
+      S.stillTime=0;S.needed=5;S.starAlpha=0;S.lastMoveTime=0;
+      break;
+    case 9: // Connect 5 points to draw star
+      S.points=[];S.connected=[];S.hoverPt=-1;
+      const starPts=[];
+      for(let i=0;i<5;i++){
+        const a=Math.PI*2*i/5-Math.PI/2;
+        starPts.push({x:400+Math.cos(a)*150,y:300+Math.sin(a)*150});
+      }
+      // Star drawing order: 0,2,4,1,3 (pentagram)
+      S.points=starPts;
+      S.correctOrder=[0,2,4,1,3];
+      S.currentIdx=0;S.lines=[];S.lastPt=-1;
+      break;
+    case 10: // Odd one out
+      S.dots=[];S.oddIdx=-1;
+      const baseHue=Math.random()*360;
+      const cols=40;const rows=20;
+      S.oddIdx=Math.floor(Math.random()*cols*rows);
+      for(let i=0;i<cols*rows;i++){
+        const r=Math.floor(i/cols),c=i%cols;
+        S.dots.push({x:60+c*17,y:80+r*22,odd:i===S.oddIdx});
+      }
+      S.baseHue=baseHue;
+      break;
+    case 11: // Shake to dislodge
+      S.shakeCount=0;S.needed=30;S.lastDir=0;S.starY=-30;S.starFalling=false;
+      S.prevMx=400;S.dirs=[];
+      break;
+  }
+}
+
+function solveStar(){
+  if(!solved){solved=true;solveT=performance.now();stars++;}
+}
+
+// Star drawing utility
+function drawStar(x,y,r,fill,stroke){
+  cx.beginPath();
+  for(let i=0;i<5;i++){
+    const a=Math.PI*2*i/5-Math.PI/2;
+    const ox=x+Math.cos(a)*r,oy=y+Math.sin(a)*r;
+    const ia=Math.PI*2*(i+0.5)/5-Math.PI/2;
+    const ix=x+Math.cos(ia)*r*0.38,iy=y+Math.sin(ia)*r*0.38;
+    if(i===0)cx.moveTo(ox,oy);
+    else cx.lineTo(ox,oy);
+    cx.lineTo(ix,iy);
+  }
+  cx.closePath();
+  if(fill){cx.fillStyle=fill;cx.fill();}
+  if(stroke){cx.strokeStyle=stroke;cx.lineWidth=2;cx.stroke();}
+}
+
+// Solved animation
+function drawSolvedStar(t){
+  const elapsed=(t-solveT)/1000;
+  const pulse=1+Math.sin(elapsed*4)*0.1;
+  const r=50*pulse;
+  const glow=Math.min(1,elapsed*2);
+  cx.save();
+  cx.shadowColor='#ff0';cx.shadowBlur=30*glow;
+  drawStar(400,300,r,'#fd0','#fa0');
+  cx.shadowBlur=0;
+  cx.fillStyle='#fff';cx.font='bold 18px monospace';cx.textAlign='center';
+  cx.globalAlpha=Math.min(1,elapsed);
+  cx.fillText('★ STAR FOUND! ★',400,400);
+  cx.font='14px monospace';cx.fillStyle='#aaa';
+  cx.fillText('Press N for next screen',400,430);
+  cx.globalAlpha=1;
+  cx.restore();
+}
+
+function dist(x1,y1,x2,y2){return Math.sqrt((x2-x1)**2+(y2-y1)**2);}
+
+// Input
+cv.addEventListener('mousemove',e=>{
+  const r=cv.getBoundingClientRect();
+  prevMx=mx;prevMy=my;
+  mx=(e.clientX-r.left)/r.width*W;
+  my=(e.clientY-r.top)/r.height*H;
+});
+cv.addEventListener('mousedown',e=>{
+  md=true;
+  const r=cv.getBoundingClientRect();
+  mx=(e.clientX-r.left)/r.width*W;
+  my=(e.clientY-r.top)/r.height*H;
+  handleClick();
+  handleDragStart();
+});
+cv.addEventListener('mouseup',()=>{md=false;handleDragEnd();});
+addEventListener('keydown',e=>{
+  if(e.key==='?'||e.key==='/'){toggleInfo();return;}
+  if(e.key==='Escape'&&infoOpen){toggleInfo();return;}
+  if(infoOpen)return;
+  if(e.key==='n'||e.key==='N'){screen=(screen+1)%TOTAL;initScreen();}
+  if(e.key==='r'||e.key==='R'){initScreen();}
+});
+
+function handleClick(){
+  if(infoOpen||solved)return;
+  switch(screen){
+    case 0: // Click triangles in order
+      for(let i=0;i<S.tris.length;i++){
+        const t=S.tris[i];
+        if(!t.placed&&dist(mx,my,t.x,t.y)<40){
+          t.placed=true;t.x=t.tx;t.y=t.ty;
+          S.clickOrder++;
+          if(S.clickOrder>=5)solveStar();
+          break;
+        }
+      }
+      break;
+    case 2: // Click lights
+      for(let i=0;i<S.lights.length;i++){
+        const l=S.lights[i];
+        if(l.on&&dist(mx,my,l.x,l.y)<l.r+5){
+          l.on=false;break;
+        }
+      }
+      if(S.lights.every(l=>!l.on)&&!S.allOff){S.allOff=true;setTimeout(()=>solveStar(),1500);}
+      break;
+    case 4: // Click flower
+      if(dist(mx,my,400,350)<120){S.clicks++;if(S.clicks>=S.needed)solveStar();}
+      break;
+    case 7: // Click in sequence
+      for(let i=0;i<S.objs.length;i++){
+        const o=S.objs[i];
+        if(dist(mx,my,o.x,o.y)<35){
+          if(S.order[S.clickIdx]===o){
+            o.lit=true;S.clickIdx++;
+            if(S.clickIdx>=5)solveStar();
+          } else {
+            S.wrong++;
+            // Reset
+            S.clickIdx=0;
+            S.objs.forEach(o2=>o2.lit=false);
+          }
+          break;
+        }
+      }
+      break;
+    case 10: // Odd dot
+      for(let i=0;i<S.dots.length;i++){
+        const d=S.dots[i];
+        if(d.odd&&dist(mx,my,d.x,d.y)<12){solveStar();break;}
+      }
+      break;
+  }
+}
+
+function handleDragStart(){
+  if(infoOpen||solved)return;
+  switch(screen){
+    case 1: // Cloud drag
+      if(dist(mx,my,S.cloudX+80,S.cloudY+30)<60)S.dragging=true;
+      break;
+    case 3: // Tilt
+      S.dragStart={x:mx,y:my,ox:S.offsetX,oy:S.offsetY};
+      break;
+    case 5: // Jigsaw
+      for(let i=S.pieces.length-1;i>=0;i--){
+        const p=S.pieces[i];
+        if(!p.placed&&mx>p.x&&mx<p.x+50&&my>p.y&&my<p.y+50){
+          S.dragPiece=i;S.ox=mx-p.x;S.oy=my-p.y;break;
+        }
+      }
+      break;
+    case 6: // Wheel
+      S.spinning=true;S.spinStartAngle=Math.atan2(my-300,mx-400);S.spinStartVal=S.angle;
+      break;
+    case 9: // Star drawing - click points
+      for(let i=0;i<S.points.length;i++){
+        if(dist(mx,my,S.points[i].x,S.points[i].y)<20){
+          if(S.currentIdx===0&&i===S.correctOrder[0]){
+            S.lastPt=i;S.currentIdx=1;
+          } else if(S.currentIdx>0&&i===S.correctOrder[S.currentIdx]){
+            S.lines.push({from:S.lastPt,to:i});
+            S.lastPt=i;S.currentIdx++;
+            if(S.currentIdx>=5){
+              S.lines.push({from:i,to:S.correctOrder[0]});
+              solveStar();
+            }
+          } else if(S.currentIdx>0){
+            // Wrong point, reset
+            S.currentIdx=0;S.lines=[];S.lastPt=-1;
+          }
+          break;
+        }
+      }
+      break;
+  }
+}
+
+function handleDragEnd(){
+  switch(screen){
+    case 1:S.dragging=false;break;
+    case 3:S.dragStart=null;break;
+    case 5:
+      if(S.dragPiece>=0){
+        const p=S.pieces[S.dragPiece];
+        if(dist(p.x+25,p.y+25,p.tx+25,p.ty+25)<30){
+          p.x=p.tx;p.y=p.ty;p.placed=true;
+          if(S.pieces.every(pp=>pp.placed))solveStar();
+        }
+        S.dragPiece=-1;
+      }
+      break;
+    case 6:S.spinning=false;break;
+  }
+}
+
+function update(t){
+  if(infoOpen)return;
+  if(solved)return;
+
+  switch(screen){
+    case 1: // Cloud drag
+      if(S.dragging){
+        S.cloudX+=(mx-prevMx);S.cloudY+=(my-prevMy);
+        // Check if star is uncovered
+        if(dist(S.cloudX+80,S.cloudY+30,S.starX,S.starY)>130)solveStar();
+      }
+      break;
+    case 3: // Tilt ball
+      if(S.dragStart){
+        S.offsetX=S.dragStart.ox+(mx-S.dragStart.x)*0.5;
+        S.offsetY=S.dragStart.oy+(my-S.dragStart.y)*0.5;
+      }
+      // Physics
+      S.ballVx+=S.offsetX*0.001;S.ballVy+=S.offsetY*0.001;
+      S.ballVx*=0.98;S.ballVy*=0.98;
+      S.ballX+=S.ballVx;S.ballY+=S.ballVy;
+      // Bounds
+      S.ballX=Math.max(20,Math.min(W-20,S.ballX));
+      S.ballY=Math.max(20,Math.min(H-20,S.ballY));
+      if(S.ballX<=20||S.ballX>=W-20)S.ballVx*=-0.5;
+      if(S.ballY<=20||S.ballY>=H-20)S.ballVy*=-0.5;
+      // Check hole
+      if(dist(S.ballX,S.ballY,S.holeX+S.offsetX*0.1,S.holeY+S.offsetY*0.1)<25)solveStar();
+      break;
+    case 5: // Drag jigsaw
+      if(S.dragPiece>=0&&md){
+        S.pieces[S.dragPiece].x=mx-S.ox;
+        S.pieces[S.dragPiece].y=my-S.oy;
+      }
+      break;
+    case 6: // Spin wheel
+      if(S.spinning){
+        const a=Math.atan2(my-300,mx-400);
+        S.angle=S.spinStartVal+(a-S.spinStartAngle);
+      }
+      // Check alignment - star aligned when angle is near 0 (mod 2PI)
+      const norm=((S.angle%(Math.PI*2))+(Math.PI*2))%(Math.PI*2);
+      if(norm<0.08||norm>Math.PI*2-0.08)if(Math.abs(S.angle)>0.5)solveStar();
+      break;
+    case 8: // Hold still
+      const moved=dist(mx,my,prevMx,prevMy);
+      if(moved>2){S.stillTime=0;S.starAlpha=0;}
+      else{S.stillTime+=1/60;S.starAlpha=Math.min(1,S.stillTime/S.needed);}
+      if(S.stillTime>=S.needed)solveStar();
+      break;
+    case 11: // Shake
+      const dx=mx-S.prevMx;
+      if(Math.abs(dx)>15){
+        const dir=dx>0?1:-1;
+        if(dir!==S.lastDir&&S.lastDir!==0){S.shakeCount++;}
+        S.lastDir=dir;
+      }
+      S.prevMx=mx;
+      if(S.shakeCount>=S.needed&&!S.starFalling){S.starFalling=true;}
+      if(S.starFalling){
+        S.starY+=5;
+        if(S.starY>=300)solveStar();
+      }
+      break;
+  }
+}
+
+function draw(t){
+  cx.fillStyle='#1a1a2e';cx.fillRect(0,0,W,H);
+
+  // Screen number
+  cx.fillStyle='#556';cx.font='14px monospace';cx.textAlign='left';
+  cx.fillText('Screen '+(screen+1)+'/'+TOTAL+'  Stars: '+stars+'/'+TOTAL,10,22);
+  cx.textAlign='right';cx.fillText('[N] next  [R] reset  [?] info',W-10,22);
+  cx.textAlign='left';
+
+  if(solved){drawSolvedStar(t);return;}
+
+  // Screen title
+  cx.fillStyle='#889';cx.font='16px monospace';cx.textAlign='center';
+
+  switch(screen){
+    case 0: drawScreen0(t);break;
+    case 1: drawScreen1(t);break;
+    case 2: drawScreen2(t);break;
+    case 3: drawScreen3(t);break;
+    case 4: drawScreen4(t);break;
+    case 5: drawScreen5(t);break;
+    case 6: drawScreen6(t);break;
+    case 7: drawScreen7(t);break;
+    case 8: drawScreen8(t);break;
+    case 9: drawScreen9(t);break;
+    case 10: drawScreen10(t);break;
+    case 11: drawScreen11(t);break;
+  }
+  cx.textAlign='left';
+}
+
+function drawScreen0(t){
+  cx.fillText('Arrange the Pieces',400,60);
+  // Draw target outline faintly
+  cx.save();cx.globalAlpha=0.15;
+  drawStar(400,300,120,'#ff0',null);
+  cx.restore();
+  // Draw triangles
+  for(const tri of S.tris){
+    cx.save();
+    cx.translate(tri.x,tri.y);
+    if(!tri.placed)cx.rotate(tri.a);
+    cx.beginPath();cx.moveTo(0,-25);cx.lineTo(22,20);cx.lineTo(-22,20);cx.closePath();
+    cx.fillStyle=tri.placed?'#fd0':'#e94';cx.fill();
+    cx.strokeStyle='#fff';cx.lineWidth=1;cx.stroke();
+    cx.restore();
+  }
+  if(!S.tris.some(t=>!t.placed)){
+    cx.fillStyle='#aaa';cx.font='13px monospace';
+    cx.fillText('Click each triangle to place it',400,540);
+  } else {
+    cx.fillStyle='#667';cx.font='13px monospace';
+    cx.fillText('Click each scattered triangle',400,540);
+  }
+}
+
+function drawScreen1(t){
+  cx.fillText('What\'s Behind the Cloud?',400,60);
+  // Sky gradient
+  const grd=cx.createLinearGradient(0,40,0,H);
+  grd.addColorStop(0,'#1a1a4e');grd.addColorStop(1,'#1a1a2e');
+  cx.fillStyle=grd;cx.fillRect(0,40,W,H-40);
+  // Small stars in sky
+  for(let i=0;i<30;i++){
+    const sx=(i*137.5)%W,sy=60+(i*97.3)%400;
+    cx.fillStyle='#fff';cx.globalAlpha=0.3+Math.sin(t/1000+i)*0.2;
+    cx.fillRect(sx,sy,2,2);
+  }
+  cx.globalAlpha=1;
+  // Hidden star
+  drawStar(S.starX,S.starY,40,'#fd0','#fa0');
+  // Cloud
+  cx.fillStyle='#ccd';
+  const cxx=S.cloudX,cyy=S.cloudY;
+  cx.beginPath();
+  cx.arc(cxx+40,cyy+30,35,0,Math.PI*2);
+  cx.arc(cxx+80,cyy+20,45,0,Math.PI*2);
+  cx.arc(cxx+120,cyy+30,35,0,Math.PI*2);
+  cx.arc(cxx+60,cyy+5,30,0,Math.PI*2);
+  cx.arc(cxx+90,cyy+0,28,0,Math.PI*2);
+  cx.fill();
+  cx.fillStyle='#667';cx.font='13px monospace';cx.textAlign='center';
+  cx.fillText('Drag the cloud away',400,540);
+}
+
+function drawScreen2(t){
+  cx.fillText('Turn Off the Lights',400,60);
+  for(const l of S.lights){
+    if(l.on){
+      cx.fillStyle='#ff8';cx.shadowColor='#ff8';cx.shadowBlur=20;
+      cx.beginPath();cx.arc(l.x,l.y,l.r,0,Math.PI*2);cx.fill();
+      cx.shadowBlur=0;
+    } else {
+      cx.fillStyle='#333';
+      cx.beginPath();cx.arc(l.x,l.y,l.r*0.5,0,Math.PI*2);cx.fill();
+    }
+  }
+  if(S.allOff){
+    // Star glows in darkness
+    const glow=Math.sin(t/200)*0.3+0.7;
+    cx.save();cx.shadowColor='#fd0';cx.shadowBlur=40*glow;
+    drawStar(400,300,45,'rgba(253,208,0,'+glow+')');
+    cx.restore();
+  }
+  cx.shadowBlur=0;
+  cx.fillStyle='#667';cx.font='13px monospace';cx.textAlign='center';
+  cx.fillText(S.allOff?'There it is...':'Click each light to turn it off',400,540);
+}
+
+function drawScreen3(t){
+  cx.fillText('Tilt to Guide the Ball',400,60);
+  // Draw tilted surface
+  cx.save();
+  // Walls
+  cx.strokeStyle='#445';cx.lineWidth=3;
+  cx.strokeRect(15,40,W-30,H-60);
+  // Some obstacles
+  cx.fillStyle='#334';
+  cx.fillRect(300+S.offsetX*0.05,150+S.offsetY*0.05,20,200);
+  cx.fillRect(480+S.offsetX*0.05,250+S.offsetY*0.05,20,200);
+  // Star-shaped hole
+  const hx=S.holeX+S.offsetX*0.1,hy=S.holeY+S.offsetY*0.1;
+  cx.globalAlpha=0.4;
+  drawStar(hx,hy,22,'#550','#aa0');
+  cx.globalAlpha=1;
+  // Ball
+  cx.fillStyle='#4af';
+  cx.beginPath();cx.arc(S.ballX,S.ballY,15,0,Math.PI*2);cx.fill();
+  cx.strokeStyle='#6cf';cx.lineWidth=2;cx.stroke();
+  cx.restore();
+  cx.fillStyle='#667';cx.font='13px monospace';cx.textAlign='center';
+  cx.fillText('Click and drag to tilt — roll the ball into the star hole',400,540);
+}
+
+function drawScreen4(t){
+  cx.fillText('Make It Bloom',400,60);
+  const progress=Math.min(1,S.clicks/S.needed);
+  // Stem
+  cx.strokeStyle='#3a5';cx.lineWidth=4;
+  cx.beginPath();cx.moveTo(400,450);cx.lineTo(400,350);cx.stroke();
+  // Leaves
+  cx.fillStyle='#3a5';
+  cx.beginPath();cx.ellipse(385,410,15,8,-.5,0,Math.PI*2);cx.fill();
+  cx.beginPath();cx.ellipse(415,390,15,8,.5,0,Math.PI*2);cx.fill();
+  // Petals
+  const petalCount=Math.floor(progress*8);
+  const petalR=20+progress*30;
+  for(let i=0;i<petalCount;i++){
+    const a=Math.PI*2*i/8;
+    const px=400+Math.cos(a)*petalR,py=320+Math.sin(a)*petalR;
+    cx.fillStyle=`hsl(${340+i*10},70%,${60+progress*20}%)`;
+    cx.beginPath();cx.ellipse(px,py,15+progress*10,10+progress*5,a,0,Math.PI*2);cx.fill();
+  }
+  // Center
+  cx.fillStyle=progress>=1?'#fd0':'#a64';
+  cx.beginPath();cx.arc(400,320,12+progress*8,0,Math.PI*2);cx.fill();
+  if(progress>=0.7&&progress<1){
+    // Star peeking
+    cx.save();cx.globalAlpha=progress-0.7;
+    drawStar(400,320,15,'#fd0');
+    cx.restore();
+  }
+  // Click feedback
+  cx.fillStyle='#667';cx.font='13px monospace';cx.textAlign='center';
+  cx.fillText('Click the flower rapidly! ('+S.clicks+'/'+S.needed+')',400,540);
+}
+
+function drawScreen5(t){
+  cx.fillText('Complete the Picture',400,60);
+  // Target grid outline
+  cx.strokeStyle='#334';cx.lineWidth=1;
+  for(let r=0;r<4;r++)for(let c=0;c<4;c++){
+    cx.strokeRect(300+c*50,200+r*50,50,50);
+  }
+  // Draw a star pattern across the grid area as reference
+  cx.save();cx.globalAlpha=0.1;
+  drawStar(400,300,90,'#fd0');
+  cx.restore();
+  // Pieces
+  for(const p of S.pieces){
+    const hue=(p.r*4+p.c)*20+30;
+    cx.fillStyle=p.placed?`hsl(${hue},60%,50%)`:`hsl(${hue},40%,35%)`;
+    cx.fillRect(p.x,p.y,48,48);
+    cx.strokeStyle=p.placed?'#fd0':'#667';cx.lineWidth=1;
+    cx.strokeRect(p.x,p.y,48,48);
+    // Piece label
+    cx.fillStyle='#fff';cx.font='11px monospace';cx.textAlign='center';
+    cx.fillText((p.r*4+p.c+1)+'',p.x+24,p.y+28);
+  }
+  cx.fillStyle='#667';cx.font='13px monospace';cx.textAlign='center';
+  cx.fillText('Drag pieces to complete the star image',400,540);
+}
+
+function drawScreen6(t){
+  cx.fillText('Align the Wheel',400,60);
+  cx.save();
+  cx.translate(400,300);
+  cx.rotate(S.angle);
+  // Wheel
+  cx.strokeStyle='#556';cx.lineWidth=3;
+  cx.beginPath();cx.arc(0,0,150,0,Math.PI*2);cx.stroke();
+  // Star segments on wheel
+  for(let i=0;i<5;i++){
+    const a=Math.PI*2*i/5-Math.PI/2+0.3;// offset so it starts misaligned
+    const x1=Math.cos(a)*40,y1=Math.sin(a)*40;
+    const x2=Math.cos(a)*120,y2=Math.sin(a)*120;
+    cx.strokeStyle='#fa0';cx.lineWidth=4;
+    cx.beginPath();cx.moveTo(x1,y1);cx.lineTo(x2,y2);cx.stroke();
+    // Small circle at end
+    cx.fillStyle='#fd0';cx.beginPath();cx.arc(x2,y2,6,0,Math.PI*2);cx.fill();
+  }
+  // Center dot
+  cx.fillStyle='#fff';cx.beginPath();cx.arc(0,0,8,0,Math.PI*2);cx.fill();
+  cx.restore();
+  // Fixed reference marks
+  cx.strokeStyle='#335';cx.lineWidth=1;
+  for(let i=0;i<5;i++){
+    const a=Math.PI*2*i/5-Math.PI/2;
+    const x1=400+Math.cos(a)*155,y1=300+Math.sin(a)*155;
+    const x2=400+Math.cos(a)*165,y2=300+Math.sin(a)*165;
+    cx.beginPath();cx.moveTo(x1,y1);cx.lineTo(x2,y2);cx.stroke();
+  }
+  cx.fillStyle='#667';cx.font='13px monospace';cx.textAlign='center';
+  cx.fillText('Click and drag to spin — align the star segments',400,540);
+}
+
+function drawScreen7(t){
+  cx.fillText('Find the Sequence',400,60);
+  // Show the order hint
+  cx.fillStyle='#445';cx.font='14px monospace';cx.textAlign='center';
+  const hintStr=S.order.map(o=>o.label).join(' → ');
+  cx.fillText('Order: '+hintStr,400,90);
+  // Draw objects
+  for(const o of S.objs){
+    cx.fillStyle=o.lit?'#fd0':'#446';
+    cx.beginPath();cx.arc(o.x,o.y,30,0,Math.PI*2);cx.fill();
+    cx.strokeStyle=o.lit?'#fa0':'#668';cx.lineWidth=2;cx.stroke();
+    cx.fillStyle=o.lit?'#000':'#aab';cx.font='bold 20px monospace';cx.textAlign='center';
+    cx.fillText(o.label,o.x,o.y+7);
+  }
+  // Progress
+  cx.fillStyle='#667';cx.font='13px monospace';
+  cx.fillText('Click the letters in the shown order ('+S.clickIdx+'/5)',400,540);
+  if(S.wrong>0){cx.fillStyle='#a44';cx.fillText('Wrong! Try again.',400,560);}
+}
+
+function drawScreen8(t){
+  cx.fillText('Be Still',400,60);
+  // Calm scene
+  cx.fillStyle='#223';cx.fillRect(50,80,700,420);
+  // Water-like waves
+  for(let i=0;i<10;i++){
+    const y=300+i*15+Math.sin(t/2000+i*0.5)*3;
+    cx.strokeStyle=`rgba(60,80,120,${0.3-i*0.02})`;cx.lineWidth=1;
+    cx.beginPath();
+    for(let x=50;x<750;x+=5){
+      cx.lineTo(x,y+Math.sin(x/80+t/3000)*5);
+    }
+    cx.stroke();
+  }
+  // Moon
+  cx.fillStyle='#dde';cx.beginPath();cx.arc(600,160,35,0,Math.PI*2);cx.fill();
+  cx.fillStyle='#223';cx.beginPath();cx.arc(615,150,30,0,Math.PI*2);cx.fill();
+  // Star appearing
+  if(S.starAlpha>0){
+    cx.save();cx.globalAlpha=S.starAlpha;
+    cx.shadowColor='#fd0';cx.shadowBlur=20*S.starAlpha;
+    drawStar(400,200,30+S.starAlpha*20,'#fd0','#fa0');
+    cx.shadowBlur=0;cx.restore();
+  }
+  // Progress bar
+  cx.fillStyle='#334';cx.fillRect(250,510,300,8);
+  cx.fillStyle='#4af';cx.fillRect(250,510,300*Math.min(1,S.stillTime/S.needed),8);
+  cx.fillStyle='#667';cx.font='13px monospace';cx.textAlign='center';
+  cx.fillText('Hold the mouse perfectly still for 5 seconds',400,540);
+}
+
+function drawScreen9(t){
+  cx.fillText('Draw a Star',400,60);
+  // Connection lines
+  cx.strokeStyle='#fa0';cx.lineWidth=3;
+  for(const l of S.lines){
+    cx.beginPath();
+    cx.moveTo(S.points[l.from].x,S.points[l.from].y);
+    cx.lineTo(S.points[l.to].x,S.points[l.to].y);
+    cx.stroke();
+  }
+  // Points
+  for(let i=0;i<S.points.length;i++){
+    const p=S.points[i];
+    const isNext=S.currentIdx<5&&i===S.correctOrder[S.currentIdx];
+    const isActive=S.lastPt===i;
+    cx.fillStyle=isActive?'#fd0':isNext?'#886':'#445';
+    cx.beginPath();cx.arc(p.x,p.y,12,0,Math.PI*2);cx.fill();
+    cx.strokeStyle=isNext?'#aa6':'#667';cx.lineWidth=2;cx.stroke();
+    // Number
+    cx.fillStyle='#fff';cx.font='bold 12px monospace';cx.textAlign='center';
+    cx.fillText(''+(i+1),p.x,p.y+4);
+  }
+  // Hint
+  cx.fillStyle='#556';cx.font='12px monospace';cx.textAlign='center';
+  cx.fillText('Connect: 1 → 3 → 5 → 2 → 4 (pentagram pattern)',400,500);
+  cx.fillStyle='#667';cx.font='13px monospace';
+  cx.fillText('Click the points to draw a star shape',400,540);
+}
+
+function drawScreen10(t){
+  cx.fillText('Find the Different One',400,60);
+  const bh=S.baseHue;
+  for(const d of S.dots){
+    cx.fillStyle=d.odd?`hsl(${(bh+25)%360},60%,50%)`:`hsl(${bh},60%,50%)`;
+    cx.beginPath();cx.arc(d.x,d.y,7,0,Math.PI*2);cx.fill();
+  }
+  cx.fillStyle='#667';cx.font='13px monospace';cx.textAlign='center';
+  cx.fillText('One dot is a slightly different color — click it',400,540);
+}
+
+function drawScreen11(t){
+  cx.fillText('Shake It Loose!',400,60);
+  // Tree
+  cx.fillStyle='#543';cx.fillRect(380,350,40,150);
+  // Canopy
+  cx.fillStyle='#263';
+  cx.beginPath();cx.arc(400,280,100,0,Math.PI*2);cx.fill();
+  cx.beginPath();cx.arc(350,310,70,0,Math.PI*2);cx.fill();
+  cx.beginPath();cx.arc(450,310,70,0,Math.PI*2);cx.fill();
+  // Shake visual feedback
+  const shakeOff=S.shakeCount>0?Math.sin(t/50)*(Math.min(S.shakeCount,S.needed)/S.needed)*8:0;
+  cx.save();cx.translate(shakeOff,0);
+  // Leaves falling with shake
+  for(let i=0;i<Math.min(S.shakeCount,20);i++){
+    const lx=300+(i*37)%200+Math.sin(t/500+i)*20;
+    const ly=200+(i*23)%300+((t/10+i*50)%400);
+    if(ly<550){
+      cx.fillStyle='#3a5';cx.globalAlpha=0.6;
+      cx.beginPath();cx.ellipse(lx,ly,5,3,i,0,Math.PI*2);cx.fill();
+    }
+  }
+  cx.globalAlpha=1;
+  // Star in tree (or falling)
+  if(!S.starFalling){
+    cx.globalAlpha=0.3;
+    drawStar(400,260,20,'#fd0');
+    cx.globalAlpha=1;
+  } else {
+    drawStar(400,S.starY,25,'#fd0','#fa0');
+  }
+  cx.restore();
+  // Progress bar
+  cx.fillStyle='#334';cx.fillRect(250,510,300,8);
+  cx.fillStyle='#f84';cx.fillRect(250,510,300*Math.min(1,S.shakeCount/S.needed),8);
+  cx.fillStyle='#667';cx.font='13px monospace';cx.textAlign='center';
+  cx.fillText('Move mouse back and forth rapidly! ('+Math.min(S.shakeCount,S.needed)+'/'+S.needed+')',400,540);
+}
+
+// Main loop
+let lastT=0;
+function loop(t){
+  if(!lastT)lastT=t;
+  update(t);
+  draw(t);
+  lastT=t;
+  requestAnimationFrame(loop);
+}
+initScreen();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

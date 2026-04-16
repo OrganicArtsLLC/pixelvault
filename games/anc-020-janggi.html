@@ -1,0 +1,768 @@
+<!--
+PROTOTYPE: janggi
+SERIES: anc
+NUMBER: 020
+DATE: 2026-03-24
+MECHANIC: Korean chess with cannons — 9×10 board with river and palaces; cannons MUST jump over exactly one piece to move or capture; generals confined to 3×3 palace
+ANCESTRY: Janggi (~900 CE, Korea), Xiangqi (China), Chaturanga (~600 CE, India)
+CONTROLS: Mouse — select piece/destination | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 2 (traditional Korean board game, ~900 CE)
+AI-INSIGHT: Janggi's cannon mechanic — requiring a jump over exactly one piece to move or capture — creates a unique tactical dimension absent from Western chess. The cannon's power fluctuates wildly as pieces are captured, making material evaluation non-trivial for both humans and AI.
+NOTES: The cannon jumping mechanic is the unique selling point, creating totally different tactics from any other chess variant.
+       Generals and guards are confined to their 3×3 palace. Elephants move in a larger L-shape than knights.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ANC-020 · JANGGI</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #1a1410; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: pointer; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>ANC-020 · JANGGI (Korean Chess)</h1>
+    <p><span class="tag series">ANC — Ancient Games</span> <span class="tag">Prototype #020</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Play Janggi against an AI opponent. You are Blue/Green (bottom). Click a piece to select it, then click a highlighted intersection to move.</p>
+    <ul>
+      <li><strong>General (將/帥):</strong> Moves one step orthogonally or diagonally within the 3&times;3 palace.</li>
+      <li><strong>Guard (士):</strong> Moves one step orthogonally or diagonally within the palace.</li>
+      <li><strong>Chariot (車):</strong> Moves like a rook — any distance orthogonally. Can also move along palace diagonals.</li>
+      <li><strong>Horse (馬):</strong> Moves one step orthogonal, then one diagonal outward. Blocked if the orthogonal step is occupied.</li>
+      <li><strong>Elephant (象):</strong> Moves one step orthogonal, then two steps diagonal outward. Blocked if any intermediate step is occupied.</li>
+      <li><strong>Cannon (包):</strong> <em>Must</em> jump over exactly one piece (the screen) to move or capture. Cannot jump over another cannon. Cannot capture another cannon.</li>
+      <li><strong>Soldier (卒/兵):</strong> Moves one step forward or sideways. Never backward.</li>
+      <li><kbd>R</kbd> — Restart game</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Chaturanga (~600 CE, India) &rarr; Xiangqi (China) &rarr; Janggi (~900 CE, Korea)</p>
+    <p>Janggi evolved from Chinese chess (Xiangqi) but developed its own distinct character. The most dramatic difference is the cannon: in Xiangqi, cannons only need to jump to capture; in Janggi, cannons must jump to move at all. This single rule change creates an entirely different tactical landscape.</p>
+    <p>Other key differences from Xiangqi: there is no river restriction on pieces, elephants have a larger range, and generals can face each other across the board (the "flying general" rule does not apply). The game was historically played by Korean nobility and military strategists.</p>
+    <p>Janggi remains hugely popular in Korea today, with professional players, televised tournaments, and a rich body of opening theory. It is considered one of the deepest strategy games in East Asian tradition.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 2 — Traditional game (~900 CE)</p>
+    <p>Janggi presents unique challenges for AI compared to Western chess. The cannon's context-dependent movement — its legal moves change based on the positions of ALL other pieces — makes static evaluation far more complex. A cannon that dominates the board in the midgame may become useless in the endgame as jump screens disappear.</p>
+    <p>The branching factor in Janggi is comparable to chess (~30-40 moves per position), but the evaluation function must account for the highly non-linear value of cannons. Early computer Janggi programs struggled precisely because material-based evaluation fails when a piece's value depends on board configuration.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: ANC — Ancient Games</h3>
+    <p>Games with roots stretching back centuries or millennia. Janggi represents the Korean branch of the chess family tree, with innovations that make it a fundamentally different tactical experience.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Cannon jumping — a piece that must vault over exactly one other piece to move or capture.</strong> This creates dynamic, configuration-dependent tactics unlike any other chess variant.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Board rendering — is the 9&times;10 intersection-based board clear?</li>
+      <li>Cannon mechanic — is the jump-to-move rule intuitive?</li>
+      <li>Palace rendering — are the diagonal lines and confinement clear?</li>
+      <li>AI opponent — does the AI use cannons effectively?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Implements full Janggi rules including cannon jumping, palace confinement, horse/elephant blocking, and soldier lateral movement. AI uses minimax with alpha-beta pruning at depth 3. The cannon mechanic is the star — watch how its power shifts as pieces are captured.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+  if (infoOpen) return;
+  if (e.key === 'r' || e.key === 'R') { initGame(); e.preventDefault(); }
+  if ([' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault();
+});
+
+// --- CANVAS SETUP ---
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+
+function resize() {
+  const s = Math.min(innerWidth / W, innerHeight / H);
+  canvas.style.width = (W * s) + 'px';
+  canvas.style.height = (H * s) + 'px';
+}
+resize();
+window.addEventListener('resize', resize);
+
+// --- GAME CONSTANTS ---
+const COLS = 9, ROWS = 10;
+const CELL = 56;
+const OX = Math.floor((W - (COLS - 1) * CELL) / 2);
+const OY = Math.floor((H - (ROWS - 1) * CELL) / 2);
+
+// Piece types
+const GENERAL = 'G', GUARD = 'A', HORSE = 'H', ELEPHANT = 'E',
+      CHARIOT = 'R', CANNON = 'C', SOLDIER = 'S';
+const RED = 'r', BLUE = 'b';
+
+// Piece display characters (Hanja)
+const PIECE_CHARS = {
+  r: { G: '將', A: '士', H: '馬', E: '象', R: '車', C: '包', S: '卒' },
+  b: { G: '帥', A: '仕', H: '馬', E: '象', R: '車', C: '包', S: '兵' }
+};
+
+// Piece values for AI
+const PIECE_VALUES = { G: 0, A: 30, H: 50, E: 30, R: 100, C: 70, S: 20 };
+
+// --- GAME STATE ---
+let board, turn, selected, validMoves, gameOver, message, aiThinking;
+
+function initGame() {
+  board = Array.from({length: ROWS}, () => Array(COLS).fill(null));
+  // Red pieces (top, rows 0-4)
+  board[0][0] = {t:CHARIOT,c:RED}; board[0][8] = {t:CHARIOT,c:RED};
+  board[0][1] = {t:ELEPHANT,c:RED}; board[0][7] = {t:HORSE,c:RED};
+  board[0][2] = {t:HORSE,c:RED}; board[0][6] = {t:ELEPHANT,c:RED};
+  board[0][3] = {t:GUARD,c:RED}; board[0][5] = {t:GUARD,c:RED};
+  board[0][4] = {t:GENERAL,c:RED};
+  board[2][1] = {t:CANNON,c:RED}; board[2][7] = {t:CANNON,c:RED};
+  board[3][0] = {t:SOLDIER,c:RED}; board[3][2] = {t:SOLDIER,c:RED};
+  board[3][4] = {t:SOLDIER,c:RED}; board[3][6] = {t:SOLDIER,c:RED};
+  board[3][8] = {t:SOLDIER,c:RED};
+
+  // Blue pieces (bottom, rows 5-9)
+  board[9][0] = {t:CHARIOT,c:BLUE}; board[9][8] = {t:CHARIOT,c:BLUE};
+  board[9][1] = {t:ELEPHANT,c:BLUE}; board[9][7] = {t:HORSE,c:BLUE};
+  board[9][2] = {t:HORSE,c:BLUE}; board[9][6] = {t:ELEPHANT,c:BLUE};
+  board[9][3] = {t:GUARD,c:BLUE}; board[9][5] = {t:GUARD,c:BLUE};
+  board[9][4] = {t:GENERAL,c:BLUE};
+  board[7][1] = {t:CANNON,c:BLUE}; board[7][7] = {t:CANNON,c:BLUE};
+  board[6][0] = {t:SOLDIER,c:BLUE}; board[6][2] = {t:SOLDIER,c:BLUE};
+  board[6][4] = {t:SOLDIER,c:BLUE}; board[6][6] = {t:SOLDIER,c:BLUE};
+  board[6][8] = {t:SOLDIER,c:BLUE};
+
+  turn = BLUE;
+  selected = null;
+  validMoves = [];
+  gameOver = false;
+  message = '';
+  aiThinking = false;
+}
+
+// --- PALACE DEFINITIONS ---
+function inPalace(r, c, color) {
+  if (c < 3 || c > 5) return false;
+  if (color === RED) return r >= 0 && r <= 2;
+  return r >= 7 && r <= 9;
+}
+
+function inEitherPalace(r, c) {
+  if (c < 3 || c > 5) return false;
+  return (r >= 0 && r <= 2) || (r >= 7 && r <= 9);
+}
+
+// Palace diagonal connections
+function palaceDiagonals(r, c) {
+  const dirs = [];
+  // Center of palace
+  if ((r === 1 || r === 8) && c === 4) {
+    dirs.push([-1,-1],[-1,1],[1,-1],[1,1]);
+  }
+  // Corners of palace
+  if (inEitherPalace(r, c) && (c === 3 || c === 5)) {
+    const pr = (r <= 2) ? 1 : 8; // palace center row
+    if (r === pr - 1 || r === pr + 1) {
+      dirs.push([r < pr ? 1 : -1, c === 3 ? 1 : -1]);
+    }
+  }
+  return dirs;
+}
+
+// --- MOVE GENERATION ---
+function onBoard(r, c) { return r >= 0 && r < ROWS && c >= 0 && c < COLS; }
+
+function getMoves(r, c, bd) {
+  const p = bd[r][c];
+  if (!p) return [];
+  const moves = [];
+  const enemy = p.c === RED ? BLUE : RED;
+
+  switch (p.t) {
+    case GENERAL:
+    case GUARD: {
+      // Orthogonal within palace
+      const orth = [[-1,0],[1,0],[0,-1],[0,1]];
+      for (const [dr, dc] of orth) {
+        const nr = r + dr, nc = c + dc;
+        if (inPalace(nr, nc, p.c) && (!bd[nr][nc] || bd[nr][nc].c === enemy)) {
+          moves.push([nr, nc]);
+        }
+      }
+      // Diagonal within palace
+      const diags = palaceDiagonals(r, c);
+      for (const [dr, dc] of diags) {
+        const nr = r + dr, nc = c + dc;
+        if (inPalace(nr, nc, p.c) && (!bd[nr][nc] || bd[nr][nc].c === enemy)) {
+          moves.push([nr, nc]);
+        }
+      }
+      break;
+    }
+
+    case CHARIOT: {
+      // Orthogonal lines
+      const dirs = [[-1,0],[1,0],[0,-1],[0,1]];
+      for (const [dr, dc] of dirs) {
+        let nr = r + dr, nc = c + dc;
+        while (onBoard(nr, nc)) {
+          if (bd[nr][nc]) {
+            if (bd[nr][nc].c === enemy) moves.push([nr, nc]);
+            break;
+          }
+          moves.push([nr, nc]);
+          nr += dr; nc += dc;
+        }
+      }
+      // Palace diagonal sliding
+      if (inEitherPalace(r, c)) {
+        const diags = palaceDiagonals(r, c);
+        for (const [dr, dc] of diags) {
+          let nr = r + dr, nc = c + dc;
+          while (inEitherPalace(nr, nc)) {
+            if (bd[nr][nc]) {
+              if (bd[nr][nc].c === enemy) moves.push([nr, nc]);
+              break;
+            }
+            moves.push([nr, nc]);
+            nr += dr; nc += dc;
+          }
+        }
+      }
+      break;
+    }
+
+    case HORSE: {
+      // One orthogonal, then one diagonal (can be blocked)
+      const steps = [
+        [-1,0,-1,-1], [-1,0,-1,1],
+        [1,0,1,-1], [1,0,1,1],
+        [0,-1,-1,-1], [0,-1,1,-1],
+        [0,1,-1,1], [0,1,1,1]
+      ];
+      for (const [dr1, dc1, dr2, dc2] of steps) {
+        const mr = r + dr1, mc = c + dc1;
+        if (!onBoard(mr, mc) || bd[mr][mc]) continue; // blocked
+        const nr = r + dr2, nc = c + dc2;
+        if (onBoard(nr, nc) && (!bd[nr][nc] || bd[nr][nc].c === enemy)) {
+          moves.push([nr, nc]);
+        }
+      }
+      break;
+    }
+
+    case ELEPHANT: {
+      // One orthogonal, then two diagonal (can be blocked at each step)
+      const steps = [
+        [-1,0,-1,-1,-2,-2], [-1,0,-1,1,-2,2],
+        [1,0,1,-1,2,-2], [1,0,1,1,2,2],
+        [0,-1,-1,-1,-2,-2], [0,-1,1,-1,2,-2],
+        [0,1,-1,1,-2,2], [0,1,1,1,2,2]
+      ];
+      for (const [dr1, dc1, dr2, dc2, dr3, dc3] of steps) {
+        const mr1 = r + dr1, mc1 = c + dc1;
+        if (!onBoard(mr1, mc1) || bd[mr1][mc1]) continue;
+        const mr2 = r + dr2, mc2 = c + dc2;
+        if (!onBoard(mr2, mc2) || bd[mr2][mc2]) continue;
+        const nr = r + dr3, nc = c + dc3;
+        if (onBoard(nr, nc) && (!bd[nr][nc] || bd[nr][nc].c === enemy)) {
+          moves.push([nr, nc]);
+        }
+      }
+      break;
+    }
+
+    case CANNON: {
+      // Must jump over exactly one piece (not a cannon) to move or capture
+      // Cannot capture another cannon
+      const dirs = [[-1,0],[1,0],[0,-1],[0,1]];
+      for (const [dr, dc] of dirs) {
+        let nr = r + dr, nc = c + dc;
+        let jumped = false;
+        while (onBoard(nr, nc)) {
+          if (!jumped) {
+            if (bd[nr][nc]) {
+              if (bd[nr][nc].t === CANNON) break; // can't jump over cannon
+              jumped = true;
+            }
+          } else {
+            if (bd[nr][nc]) {
+              if (bd[nr][nc].c === enemy && bd[nr][nc].t !== CANNON) {
+                moves.push([nr, nc]); // capture (not cannon)
+              }
+              break;
+            }
+            moves.push([nr, nc]);
+          }
+          nr += dr; nc += dc;
+        }
+      }
+      // Cannon can also jump along palace diagonals
+      if (inEitherPalace(r, c)) {
+        const diags = palaceDiagonals(r, c);
+        for (const [dr, dc] of diags) {
+          let nr = r + dr, nc = c + dc;
+          let jumped = false;
+          while (inEitherPalace(nr, nc)) {
+            if (!jumped) {
+              if (bd[nr][nc]) {
+                if (bd[nr][nc].t === CANNON) break;
+                jumped = true;
+              }
+            } else {
+              if (bd[nr][nc]) {
+                if (bd[nr][nc].c === enemy && bd[nr][nc].t !== CANNON) {
+                  moves.push([nr, nc]);
+                }
+                break;
+              }
+              moves.push([nr, nc]);
+            }
+            nr += dr; nc += dc;
+          }
+        }
+      }
+      break;
+    }
+
+    case SOLDIER: {
+      const forward = p.c === RED ? 1 : -1;
+      const dirs = [[forward, 0], [0, -1], [0, 1]];
+      for (const [dr, dc] of dirs) {
+        const nr = r + dr, nc = c + dc;
+        if (onBoard(nr, nc) && (!bd[nr][nc] || bd[nr][nc].c === enemy)) {
+          moves.push([nr, nc]);
+        }
+      }
+      // Diagonal in palace
+      if (inEitherPalace(r, c)) {
+        const diags = palaceDiagonals(r, c);
+        for (const [dr, dc] of diags) {
+          if (p.c === RED && dr < 0) continue; // no backward
+          if (p.c === BLUE && dr > 0) continue;
+          const nr = r + dr, nc = c + dc;
+          if (inEitherPalace(nr, nc) && (!bd[nr][nc] || bd[nr][nc].c === enemy)) {
+            moves.push([nr, nc]);
+          }
+        }
+      }
+      break;
+    }
+  }
+  return moves;
+}
+
+// --- GAME LOGIC ---
+function makeMove(bd, fr, fc, tr, tc) {
+  const nb = bd.map(row => row.map(cell => cell ? {...cell} : null));
+  nb[tr][tc] = nb[fr][fc];
+  nb[fr][fc] = null;
+  return nb;
+}
+
+function findGeneral(bd, color) {
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++)
+      if (bd[r][c] && bd[r][c].t === GENERAL && bd[r][c].c === color) return [r, c];
+  return null;
+}
+
+function isInCheck(bd, color) {
+  const gp = findGeneral(bd, color);
+  if (!gp) return true;
+  const enemy = color === RED ? BLUE : RED;
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (bd[r][c] && bd[r][c].c === enemy) {
+        const moves = getMoves(r, c, bd);
+        if (moves.some(m => m[0] === gp[0] && m[1] === gp[1])) return true;
+      }
+    }
+  }
+  return false;
+}
+
+function getAllMoves(bd, color) {
+  const moves = [];
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (bd[r][c] && bd[r][c].c === color) {
+        const pMoves = getMoves(r, c, bd);
+        for (const [tr, tc] of pMoves) {
+          const nb = makeMove(bd, r, c, tr, tc);
+          if (!isInCheck(nb, color)) {
+            moves.push([r, c, tr, tc]);
+          }
+        }
+      }
+    }
+  }
+  return moves;
+}
+
+function checkGameEnd() {
+  const enemy = turn === BLUE ? RED : BLUE;
+  if (!findGeneral(board, enemy)) {
+    gameOver = true;
+    message = turn === BLUE ? 'BLUE WINS!' : 'RED WINS!';
+    return;
+  }
+  const moves = getAllMoves(board, turn);
+  if (moves.length === 0) {
+    gameOver = true;
+    message = turn === BLUE ? 'RED WINS!' : 'BLUE WINS!';
+  }
+}
+
+// --- AI ---
+function evaluate(bd) {
+  let score = 0;
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (bd[r][c]) {
+        const val = PIECE_VALUES[bd[r][c].t];
+        // Cannon value depends on pieces available to jump over
+        let cv = val;
+        if (bd[r][c].t === CANNON) {
+          let jumpable = 0;
+          for (let rr = 0; rr < ROWS; rr++)
+            for (let cc = 0; cc < COLS; cc++)
+              if (bd[rr][cc] && bd[rr][cc].t !== CANNON) jumpable++;
+          cv = Math.floor(val * Math.min(jumpable, 10) / 10);
+        }
+        score += bd[r][c].c === RED ? cv : -cv;
+        // Positional bonus: soldiers advanced
+        if (bd[r][c].t === SOLDIER) {
+          const adv = bd[r][c].c === RED ? r : (ROWS - 1 - r);
+          score += bd[r][c].c === RED ? adv * 2 : -adv * 2;
+        }
+        // General safety
+        if (bd[r][c].t === GENERAL) {
+          if (isInCheck(bd, bd[r][c].c)) {
+            score += bd[r][c].c === RED ? -50 : 50;
+          }
+        }
+      }
+    }
+  }
+  return score;
+}
+
+function minimax(bd, depth, alpha, beta, maximizing) {
+  if (depth === 0) return evaluate(bd);
+  const color = maximizing ? RED : BLUE;
+  const moves = getAllMoves(bd, color);
+  if (moves.length === 0) return maximizing ? -9999 : 9999;
+
+  if (maximizing) {
+    let best = -Infinity;
+    for (const [fr, fc, tr, tc] of moves) {
+      const nb = makeMove(bd, fr, fc, tr, tc);
+      const val = minimax(nb, depth - 1, alpha, beta, false);
+      best = Math.max(best, val);
+      alpha = Math.max(alpha, val);
+      if (beta <= alpha) break;
+    }
+    return best;
+  } else {
+    let best = Infinity;
+    for (const [fr, fc, tr, tc] of moves) {
+      const nb = makeMove(bd, fr, fc, tr, tc);
+      const val = minimax(nb, depth - 1, alpha, beta, true);
+      best = Math.min(best, val);
+      beta = Math.min(beta, val);
+      if (beta <= alpha) break;
+    }
+    return best;
+  }
+}
+
+function aiMove() {
+  aiThinking = true;
+  setTimeout(() => {
+    const moves = getAllMoves(board, RED);
+    if (moves.length === 0) { aiThinking = false; checkGameEnd(); return; }
+
+    let bestScore = -Infinity;
+    let bestMoves = [];
+    for (const [fr, fc, tr, tc] of moves) {
+      const nb = makeMove(board, fr, fc, tr, tc);
+      const score = minimax(nb, 2, -Infinity, Infinity, false);
+      if (score > bestScore) {
+        bestScore = score;
+        bestMoves = [[fr, fc, tr, tc]];
+      } else if (score === bestScore) {
+        bestMoves.push([fr, fc, tr, tc]);
+      }
+    }
+    const [fr, fc, tr, tc] = bestMoves[Math.floor(Math.random() * bestMoves.length)];
+    board = makeMove(board, fr, fc, tr, tc);
+    turn = BLUE;
+    aiThinking = false;
+    checkGameEnd();
+  }, 100);
+}
+
+// --- INPUT ---
+canvas.addEventListener('click', e => {
+  if (infoOpen || gameOver || turn !== BLUE || aiThinking) return;
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = W / rect.width, scaleY = H / rect.height;
+  const mx = (e.clientX - rect.left) * scaleX;
+  const my = (e.clientY - rect.top) * scaleY;
+
+  // Find nearest intersection
+  const col = Math.round((mx - OX) / CELL);
+  const row = Math.round((my - OY) / CELL);
+  if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return;
+
+  if (selected) {
+    // Try to move
+    const [sr, sc] = selected;
+    const isValid = validMoves.some(m => m[0] === row && m[1] === col);
+    if (isValid) {
+      board = makeMove(board, sr, sc, row, col);
+      selected = null;
+      validMoves = [];
+      turn = RED;
+      checkGameEnd();
+      if (!gameOver) aiMove();
+      return;
+    }
+    // Select different piece
+    if (board[row][col] && board[row][col].c === BLUE) {
+      selected = [row, col];
+      const rawMoves = getMoves(row, col, board);
+      validMoves = rawMoves.filter(([tr, tc]) => {
+        const nb = makeMove(board, row, col, tr, tc);
+        return !isInCheck(nb, BLUE);
+      });
+      return;
+    }
+    selected = null;
+    validMoves = [];
+  } else {
+    if (board[row][col] && board[row][col].c === BLUE) {
+      selected = [row, col];
+      const rawMoves = getMoves(row, col, board);
+      validMoves = rawMoves.filter(([tr, tc]) => {
+        const nb = makeMove(board, row, col, tr, tc);
+        return !isInCheck(nb, BLUE);
+      });
+    }
+  }
+});
+
+// --- DRAWING ---
+function drawBoard() {
+  ctx.fillStyle = '#d4a556';
+  ctx.fillRect(0, 0, W, H);
+
+  // Wood grain texture effect
+  ctx.fillStyle = '#c89b4a';
+  for (let i = 0; i < 30; i++) {
+    const y = (i * 23 + 7) % H;
+    ctx.fillRect(0, y, W, 1);
+  }
+
+  ctx.strokeStyle = '#2a1a0a';
+  ctx.lineWidth = 1;
+
+  // Grid lines
+  for (let r = 0; r < ROWS; r++) {
+    ctx.beginPath();
+    ctx.moveTo(OX, OY + r * CELL);
+    ctx.lineTo(OX + (COLS - 1) * CELL, OY + r * CELL);
+    ctx.stroke();
+  }
+  for (let c = 0; c < COLS; c++) {
+    ctx.beginPath();
+    ctx.moveTo(OX + c * CELL, OY);
+    ctx.lineTo(OX + c * CELL, OY + (ROWS - 1) * CELL);
+    ctx.stroke();
+  }
+
+  // River label
+  ctx.fillStyle = 'rgba(42, 26, 10, 0.3)';
+  ctx.font = '18px serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('— 漢    河 —', W / 2, OY + 4.5 * CELL + 6);
+
+  // Palace diagonals
+  ctx.strokeStyle = '#2a1a0a';
+  ctx.lineWidth = 1;
+  // Top palace (red)
+  ctx.beginPath();
+  ctx.moveTo(OX + 3 * CELL, OY);
+  ctx.lineTo(OX + 5 * CELL, OY + 2 * CELL);
+  ctx.moveTo(OX + 5 * CELL, OY);
+  ctx.lineTo(OX + 3 * CELL, OY + 2 * CELL);
+  ctx.stroke();
+  // Bottom palace (blue)
+  ctx.beginPath();
+  ctx.moveTo(OX + 3 * CELL, OY + 7 * CELL);
+  ctx.lineTo(OX + 5 * CELL, OY + 9 * CELL);
+  ctx.moveTo(OX + 5 * CELL, OY + 7 * CELL);
+  ctx.lineTo(OX + 3 * CELL, OY + 9 * CELL);
+  ctx.stroke();
+}
+
+function drawPiece(r, c, piece, isSelected) {
+  const x = OX + c * CELL;
+  const y = OY + r * CELL;
+  const radius = 22;
+
+  // Piece disc
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.fillStyle = '#f5e6c8';
+  ctx.fill();
+  ctx.lineWidth = 2.5;
+  ctx.strokeStyle = piece.c === RED ? '#c0392b' : '#2980b9';
+  ctx.stroke();
+
+  if (isSelected) {
+    ctx.beginPath();
+    ctx.arc(x, y, radius + 3, 0, Math.PI * 2);
+    ctx.strokeStyle = '#f1c40f';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+  }
+
+  // Character
+  ctx.fillStyle = piece.c === RED ? '#c0392b' : '#1a6baa';
+  ctx.font = 'bold 20px serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(PIECE_CHARS[piece.c][piece.t], x, y + 1);
+}
+
+function drawValidMoves() {
+  for (const [r, c] of validMoves) {
+    const x = OX + c * CELL;
+    const y = OY + r * CELL;
+    if (board[r][c]) {
+      // Capture highlight
+      ctx.beginPath();
+      ctx.arc(x, y, 26, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(231, 76, 60, 0.8)';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    } else {
+      ctx.beginPath();
+      ctx.arc(x, y, 8, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(46, 204, 113, 0.6)';
+      ctx.fill();
+    }
+  }
+}
+
+function drawHUD() {
+  // Turn indicator
+  ctx.fillStyle = '#2a1a0a';
+  ctx.font = '14px monospace';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  const turnText = aiThinking ? 'RED thinking...' : (turn === BLUE ? 'BLUE to move' : 'RED to move');
+  ctx.fillText(turnText, 10, 10);
+
+  // Title
+  ctx.textAlign = 'right';
+  ctx.fillText('JANGGI  [?] Info  [R] Restart', W - 10, 10);
+
+  // Check warning
+  if (!gameOver && isInCheck(board, turn)) {
+    ctx.fillStyle = 'rgba(231, 76, 60, 0.9)';
+    ctx.font = 'bold 16px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('CHECK!', W / 2, H - 15);
+  }
+
+  // Game over
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(0, H / 2 - 40, W, 80);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 32px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(message, W / 2, H / 2 - 5);
+    ctx.font = '14px monospace';
+    ctx.fillText('Press R to restart', W / 2, H / 2 + 25);
+  }
+}
+
+function draw() {
+  drawBoard();
+  // Draw pieces
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (board[r][c]) {
+        const isSel = selected && selected[0] === r && selected[1] === c;
+        drawPiece(r, c, board[r][c], isSel);
+      }
+    }
+  }
+  drawValidMoves();
+  drawHUD();
+}
+
+// --- MAIN LOOP ---
+function update() {
+  if (infoOpen) return;
+  draw();
+}
+
+function loop() {
+  update();
+  requestAnimationFrame(loop);
+}
+
+initGame();
+loop();
+</script>
+</body>
+</html>

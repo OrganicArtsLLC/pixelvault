@@ -1,0 +1,635 @@
+<!--
+PROTOTYPE: road-crossing
+SERIES: maz
+NUMBER: 002
+DATE: 2026-03-22
+MECHANIC: grid traversal — cross moving lanes of traffic and ride logs across a river
+ANCESTRY: Frogger (1981, Konami), Freeway (1981, Activision)
+CONTROLS: Arrow keys or WASD — move | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — rule-based, pre-backpropagation)
+AI-INSIGHT: Frogger is a rhythm-matching problem disguised as a maze game — each lane is a timing window. Modern RL agents struggle with Frogger because the reward signal is sparse and the state space demands long-horizon planning across multiple independent timers.
+NOTES: Distinct from Pac-Man: no maze walls, no pursuers. The obstacle IS the path.
+       Rhythm-based pattern crossing creates a different spatial intelligence than wall navigation.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MAZ-002 · ROAD CROSSING</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>MAZ-002 · ROAD CROSSING</h1>
+    <p><span class="tag series">MAZ — Maze Chase</span> <span class="tag">Prototype #002</span> <span class="tag">★★★★☆</span></p>
+
+    <h2>How to Play</h2>
+    <p>Guide the frog from the bottom to one of five home slots at the top. Cross the road (avoid cars) and ride logs/turtles across the river. Fill all 5 homes to clear the level.</p>
+    <ul>
+      <li><kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> or <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> — Hop one tile</li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Timing:</strong> Watch the rhythm of each lane before hopping.</li>
+      <li><strong>River:</strong> You must land on a log or turtle — water is fatal.</li>
+      <li><strong>Logs carry you:</strong> Once on a log, you drift with it. Don't drift off-screen.</li>
+      <li><strong>Timer:</strong> Each crossing has a time limit. Move decisively.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Frogger (1981, Konami) → Crossy Road (2014, Hipster Whale)</p>
+    <p>Frogger (1981) by Konami asked: what if the obstacle IS the path? No maze walls, no pursuers — just rhythmic lanes of traffic and flowing water. Each lane is an independent timing puzzle. The genius is layering: road lanes move at different speeds, river objects flow in alternating directions, and the player must synchronize across all of them simultaneously.</p>
+    <p>Frogger is one of the most-ported games in history and a cultural icon. Crossy Road (2014) proved the mechanic is timeless by modernizing it for mobile with procedural generation.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 3 — Knowledge Explosion (1978–1983)</p>
+    <p><strong>Contemporary AI:</strong> Rule-based expert systems. No temporal reasoning. AI could search trees but not model continuous flows.</p>
+    <p><strong>Hidden Intelligence:</strong> Frogger is a rhythm-matching problem disguised as a maze. Each lane is a periodic timing window. The player solves multiple independent oscillators simultaneously — a constraint satisfaction problem across time. Modern RL agents find Frogger exceptionally difficult because the reward is sparse (only awarded at the top) and requires long-horizon planning across independent timers.</p>
+    <p><strong>The Convergence:</strong> Frogger remains a benchmark for RL difficulty. DeepMind's DQN struggles with it compared to simpler Atari games. The sparse reward + temporal coordination is exactly what makes multi-step planning hard for AI.</p>
+    <p><strong>If AI Had Designed This:</strong> Procedurally varied lane speeds to maintain optimal difficulty — the game would tune itself to each player's rhythm perception.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: MAZ — Maze Chase</h3>
+    <p>Frogger extends the maze series into open-field traversal. No walls — the obstacles themselves form a dynamic, rhythmic maze. The constraint isn't space, it's time.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Grid traversal through moving lanes.</strong> Discrete tile-based movement through continuous hazard streams. Road section (avoid) vs river section (ride). Five home slots create sub-goals.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Lane rhythm — does each lane feel like a distinct timing puzzle?</li>
+      <li>Log riding — does drifting feel natural and urgent?</li>
+      <li>Two-zone design — does the road→river transition shift the player's mental model?</li>
+      <li>Home slots — does filling all 5 create satisfying progression?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Classic 13-row layout: safe zone, 5 road lanes, median, 5 river lanes, home row. Discrete hop movement with smooth animation.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+const keys = {};
+const justPressed = {};
+window.addEventListener('keydown', e => {
+  if (infoOpen) return;
+  if (!keys[e.code]) justPressed[e.code] = true;
+  keys[e.code] = true;
+  e.preventDefault();
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+function pop(code) { if (justPressed[code]) { justPressed[code] = false; return true; } return false; }
+
+// --- GRID ---
+const COLS = 16;
+const ROWS = 13;
+const TILE = 40;
+const OX = (W - COLS * TILE) / 2;
+const OY = H - ROWS * TILE - 20;
+
+// Row types (bottom to top, row 0 = bottom safe zone):
+// 0: safe (start)
+// 1-5: road (cars)
+// 6: median (safe)
+// 7-11: river (logs/turtles)
+// 12: home row (5 slots)
+
+const ROAD_ROWS = [1, 2, 3, 4, 5];
+const RIVER_ROWS = [7, 8, 9, 10, 11];
+
+// Lane definitions: { row, dir, speed, objects: [{len, gap}] }
+const LANES = [
+  // Road lanes (bottom to top)
+  { row: 1, dir: 1, speed: 1.2, objLen: 2, gap: 4, color: '#b04040' },
+  { row: 2, dir: -1, speed: 1.8, objLen: 3, gap: 5, color: '#c0a020' },
+  { row: 3, dir: 1, speed: 1.0, objLen: 2, gap: 3, color: '#4080b0' },
+  { row: 4, dir: -1, speed: 2.2, objLen: 1, gap: 3, color: '#a050a0' },
+  { row: 5, dir: 1, speed: 1.5, objLen: 4, gap: 6, color: '#808080' },
+  // River lanes (bottom to top)
+  { row: 7,  dir: -1, speed: 1.0, objLen: 3, gap: 3, color: '#6b4226', isRiver: true },
+  { row: 8,  dir: 1,  speed: 1.4, objLen: 2, gap: 3, color: '#4a7a4a', isRiver: true, isTurtle: true },
+  { row: 9,  dir: -1, speed: 0.8, objLen: 4, gap: 4, color: '#6b4226', isRiver: true },
+  { row: 10, dir: 1,  speed: 1.6, objLen: 2, gap: 4, color: '#4a7a4a', isRiver: true, isTurtle: true },
+  { row: 11, dir: -1, speed: 1.2, objLen: 3, gap: 3, color: '#6b4226', isRiver: true },
+];
+
+// --- STATE ---
+let frog, homes, score, lives, level, gameOver, timer, maxTimer;
+let laneObjects; // array of arrays of {x, len} per lane
+let hopAnim; // {fromX, fromY, toX, toY, t} or null
+let deathAnim; // {x, y, t} or null
+
+function spawnLaneObjects() {
+  laneObjects = [];
+  for (const lane of LANES) {
+    const objs = [];
+    const spacing = (lane.objLen + lane.gap) * TILE;
+    const count = Math.ceil((COLS * TILE + spacing) / spacing) + 1;
+    for (let i = 0; i < count; i++) {
+      objs.push({ x: i * spacing - TILE, len: lane.objLen });
+    }
+    laneObjects.push(objs);
+  }
+}
+
+function initGame() {
+  score = 0; lives = 3; level = 1; gameOver = false;
+  maxTimer = 1800; timer = maxTimer;
+  homes = [false, false, false, false, false];
+  hopAnim = null; deathAnim = null;
+  resetFrog();
+  spawnLaneObjects();
+}
+
+function resetFrog() {
+  frog = { col: Math.floor(COLS / 2), row: 0, onLog: null };
+  timer = maxTimer;
+  hopAnim = null; deathAnim = null;
+}
+
+initGame();
+
+// Home slot positions (columns)
+const HOME_COLS = [1, 4, 7, 10, 13];
+
+function worldX(col) { return OX + col * TILE; }
+function worldY(row) { return OY + (ROWS - 1 - row) * TILE; }
+
+// --- UPDATE ---
+function killFrog() {
+  deathAnim = { x: worldX(frog.col) + TILE / 2, y: worldY(frog.row) + TILE / 2, t: 0 };
+  lives--;
+  if (lives <= 0) gameOver = true;
+}
+
+function update() {
+  if (infoOpen) return;
+  if (gameOver) { if (pop('KeyR')) initGame(); return; }
+
+  // Death animation
+  if (deathAnim) {
+    deathAnim.t++;
+    if (deathAnim.t > 40) {
+      deathAnim = null;
+      if (!gameOver) resetFrog();
+    }
+    return;
+  }
+
+  // Hop animation
+  if (hopAnim) {
+    hopAnim.t += 0.15;
+    if (hopAnim.t >= 1) {
+      hopAnim = null;
+    }
+    return;
+  }
+
+  // Input — discrete hops
+  let dx = 0, dy = 0;
+  if (pop('ArrowUp') || pop('KeyW')) dy = 1;
+  if (pop('ArrowDown') || pop('KeyS')) dy = -1;
+  if (pop('ArrowLeft') || pop('KeyA')) dx = -1;
+  if (pop('ArrowRight') || pop('KeyD')) dx = 1;
+
+  if (dx || dy) {
+    const nc = frog.col + dx;
+    const nr = frog.row + dy;
+    if (nc >= 0 && nc < COLS && nr >= 0 && nr <= 12) {
+      hopAnim = {
+        fromX: worldX(frog.col), fromY: worldY(frog.row),
+        toX: worldX(nc), toY: worldY(nr), t: 0
+      };
+      frog.col = nc; frog.row = nr;
+      if (dy > 0) score += 10;
+    }
+  }
+
+  // Move lane objects
+  for (let i = 0; i < LANES.length; i++) {
+    const lane = LANES[i];
+    const objs = laneObjects[i];
+    for (const obj of objs) {
+      obj.x += lane.dir * lane.speed;
+    }
+    // Wrap objects
+    const totalW = COLS * TILE;
+    for (const obj of objs) {
+      const objW = obj.len * TILE;
+      if (lane.dir > 0 && obj.x > OX + totalW + TILE) obj.x -= (totalW + objW + lane.gap * TILE + TILE * 2);
+      if (lane.dir < 0 && obj.x + objW < OX - TILE) obj.x += (totalW + objW + lane.gap * TILE + TILE * 2);
+    }
+  }
+
+  // Check collisions
+  const fx = worldX(frog.col);
+  const fy = worldY(frog.row);
+  const frogRect = { x: fx + 4, y: fy + 4, w: TILE - 8, h: TILE - 8 };
+
+  // Road collision
+  if (ROAD_ROWS.includes(frog.row)) {
+    const laneIdx = frog.row - 1;
+    const lane = LANES[laneIdx];
+    const objs = laneObjects[laneIdx];
+    for (const obj of objs) {
+      const objRect = { x: obj.x, y: worldY(lane.row), w: obj.len * TILE, h: TILE };
+      if (rectsOverlap(frogRect, objRect)) {
+        killFrog(); return;
+      }
+    }
+  }
+
+  // River — must be on a log/turtle
+  if (RIVER_ROWS.includes(frog.row)) {
+    const laneIdx = frog.row - 2; // offset for median
+    const lane = LANES[laneIdx];
+    const objs = laneObjects[laneIdx];
+    let onPlatform = false;
+    for (const obj of objs) {
+      const objRect = { x: obj.x, y: worldY(lane.row), w: obj.len * TILE, h: TILE };
+      if (rectsOverlap(frogRect, objRect)) {
+        onPlatform = true;
+        // Drift frog with log
+        frog.col += lane.dir * lane.speed / TILE;
+        break;
+      }
+    }
+    if (!onPlatform) { killFrog(); return; }
+    // Off-screen check
+    if (worldX(frog.col) < OX - TILE || worldX(frog.col) > OX + COLS * TILE) {
+      killFrog(); return;
+    }
+  }
+
+  // Home row
+  if (frog.row === 12) {
+    let landed = false;
+    for (let i = 0; i < HOME_COLS.length; i++) {
+      if (Math.abs(frog.col - HOME_COLS[i]) < 1 && !homes[i]) {
+        homes[i] = true;
+        score += 200;
+        landed = true;
+        // Check all homes filled
+        if (homes.every(h => h)) {
+          score += 1000;
+          level++;
+          homes = [false, false, false, false, false];
+          // Speed up lanes
+          for (const lane of LANES) lane.speed *= 1.1;
+          maxTimer = Math.max(900, maxTimer - 100);
+        }
+        resetFrog();
+        break;
+      }
+    }
+    if (!landed) { killFrog(); return; }
+  }
+
+  // Timer
+  timer--;
+  if (timer <= 0) { killFrog(); }
+}
+
+function rectsOverlap(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+// --- DRAW ---
+function draw() {
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+
+  // Draw zones
+  // Home row
+  ctx.fillStyle = '#0a2a0a';
+  ctx.fillRect(OX, worldY(12), COLS * TILE, TILE);
+
+  // River
+  ctx.fillStyle = '#1a3a6a';
+  for (const r of RIVER_ROWS) {
+    ctx.fillRect(OX, worldY(r), COLS * TILE, TILE);
+  }
+
+  // Median
+  ctx.fillStyle = '#2a4a2a';
+  ctx.fillRect(OX, worldY(6), COLS * TILE, TILE);
+
+  // Road
+  ctx.fillStyle = '#222';
+  for (const r of ROAD_ROWS) {
+    ctx.fillRect(OX, worldY(r), COLS * TILE, TILE);
+    // Lane markings
+    ctx.fillStyle = '#444';
+    for (let c = 0; c < COLS; c += 2) {
+      ctx.fillRect(OX + c * TILE + 10, worldY(r) + TILE / 2 - 1, TILE - 20, 2);
+    }
+    ctx.fillStyle = '#222';
+  }
+
+  // Start zone
+  ctx.fillStyle = '#2a4a2a';
+  ctx.fillRect(OX, worldY(0), COLS * TILE, TILE);
+
+  // Home slots
+  for (let i = 0; i < HOME_COLS.length; i++) {
+    const hx = worldX(HOME_COLS[i]);
+    const hy = worldY(12);
+    if (homes[i]) {
+      ctx.fillStyle = '#4a4';
+      ctx.fillRect(hx + 4, hy + 4, TILE - 8, TILE - 8);
+      // Draw small frog in home
+      drawFrogAt(hx, hy, TILE * 0.6);
+    } else {
+      ctx.fillStyle = '#1a5a1a';
+      ctx.fillRect(hx + 6, hy + 6, TILE - 12, TILE - 12);
+    }
+  }
+
+  // Lane objects
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(OX, OY, COLS * TILE, ROWS * TILE);
+  ctx.clip();
+
+  for (let i = 0; i < LANES.length; i++) {
+    const lane = LANES[i];
+    const objs = laneObjects[i];
+    const y = worldY(lane.row);
+
+    for (const obj of objs) {
+      if (lane.isRiver) {
+        if (lane.isTurtle) {
+          // Turtles — green ovals
+          ctx.fillStyle = lane.color;
+          for (let t = 0; t < obj.len; t++) {
+            ctx.beginPath();
+            ctx.ellipse(obj.x + t * TILE + TILE / 2, y + TILE / 2, TILE / 2 - 4, TILE / 2 - 6, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#3a5a3a';
+            ctx.beginPath();
+            ctx.ellipse(obj.x + t * TILE + TILE / 2, y + TILE / 2, TILE / 4, TILE / 4, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = lane.color;
+          }
+        } else {
+          // Logs — brown rectangles
+          ctx.fillStyle = lane.color;
+          ctx.fillRect(obj.x + 2, y + 6, obj.len * TILE - 4, TILE - 12);
+          ctx.fillStyle = '#5a3216';
+          ctx.fillRect(obj.x + 4, y + TILE / 2 - 1, obj.len * TILE - 8, 2);
+        }
+      } else {
+        // Cars/trucks
+        ctx.fillStyle = lane.color;
+        const carW = obj.len * TILE - 8;
+        ctx.fillRect(obj.x + 4, y + 6, carW, TILE - 12);
+        // Windshield
+        ctx.fillStyle = '#aaddff';
+        const windX = lane.dir > 0 ? obj.x + carW - 8 : obj.x + 8;
+        ctx.fillRect(windX, y + 10, 8, TILE - 20);
+        // Wheels
+        ctx.fillStyle = '#111';
+        ctx.fillRect(obj.x + 10, y + TILE - 8, 8, 6);
+        ctx.fillRect(obj.x + carW - 14, y + TILE - 8, 8, 6);
+      }
+    }
+  }
+
+  ctx.restore();
+
+  // Frog
+  if (!deathAnim) {
+    let fx, fy;
+    if (hopAnim) {
+      const t = Math.min(1, hopAnim.t);
+      fx = hopAnim.fromX + (hopAnim.toX - hopAnim.fromX) * t;
+      fy = hopAnim.fromY + (hopAnim.toY - hopAnim.fromY) * t;
+      // Arc
+      fy -= Math.sin(t * Math.PI) * 12;
+    } else {
+      fx = worldX(frog.col);
+      fy = worldY(frog.row);
+    }
+    drawFrogAt(fx, fy, TILE);
+  }
+
+  // Death animation
+  if (deathAnim) {
+    const t = deathAnim.t / 40;
+    ctx.fillStyle = `rgba(255,80,80,${1 - t})`;
+    ctx.beginPath();
+    ctx.arc(deathAnim.x, deathAnim.y, 10 + t * 20, 0, Math.PI * 2);
+    ctx.fill();
+    // Skull/X
+    ctx.fillStyle = `rgba(255,255,255,${1 - t})`;
+    ctx.font = `${20 + t * 10}px monospace`;
+    ctx.textAlign = 'center';
+    ctx.fillText('X', deathAnim.x, deathAnim.y + 6);
+  }
+
+  // HUD
+  ctx.fillStyle = '#5c5'; ctx.font = '16px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('SCORE: ' + score, 10, 26);
+  ctx.textAlign = 'center';
+  ctx.fillText('LEVEL ' + level, W / 2, 26);
+  ctx.textAlign = 'right';
+  ctx.fillText('LIVES: ' + lives, W - 10, 26);
+
+  // Timer bar
+  const barW = 200, barH = 8;
+  const barX = W / 2 - barW / 2, barY = H - 14;
+  ctx.fillStyle = '#222'; ctx.fillRect(barX, barY, barW, barH);
+  const pct = Math.max(0, timer / maxTimer);
+  ctx.fillStyle = pct > 0.3 ? '#5c5' : '#f44';
+  ctx.fillRect(barX, barY, barW * pct, barH);
+
+  // Game over
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, W, H);
+    ctx.font = 'bold 48px monospace'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#f55';
+    ctx.fillText('GAME OVER', W / 2, H / 2 - 20);
+    ctx.fillStyle = '#aaa'; ctx.font = '18px monospace';
+    ctx.fillText('R to restart   SCORE: ' + score, W / 2, H / 2 + 24);
+  }
+
+  // Title badge
+  ctx.fillStyle = '#1a1a1a'; ctx.fillRect(8, 8, 220, 28);
+  ctx.fillStyle = '#555'; ctx.font = '13px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('MAZ-002 · ROAD CROSSING  [?]', 16, 26);
+}
+
+function drawFrogAt(x, y, size) {
+  const cx = x + TILE / 2, cy = y + TILE / 2;
+  const s = size / TILE;
+  // Body
+  ctx.fillStyle = '#3a3';
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, 14 * s, 12 * s, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Eyes
+  ctx.fillStyle = '#ff0';
+  ctx.beginPath(); ctx.arc(cx - 8 * s, cy - 8 * s, 4 * s, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(cx + 8 * s, cy - 8 * s, 4 * s, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#000';
+  ctx.beginPath(); ctx.arc(cx - 8 * s, cy - 8 * s, 2 * s, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(cx + 8 * s, cy - 8 * s, 2 * s, 0, Math.PI * 2); ctx.fill();
+  // Legs
+  ctx.strokeStyle = '#3a3'; ctx.lineWidth = 3 * s;
+  ctx.beginPath(); ctx.moveTo(cx - 12 * s, cy + 4 * s); ctx.lineTo(cx - 18 * s, cy + 12 * s); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx + 12 * s, cy + 4 * s); ctx.lineTo(cx + 18 * s, cy + 12 * s); ctx.stroke();
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: twin-stick ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("twin-stick");
+</script>
+</body>
+</html>

@@ -1,0 +1,683 @@
+<!--
+PROTOTYPE: word-grid
+SERIES: puz
+NUMBER: 007
+DATE: 2026-03-23
+MECHANIC: crossword-style word placement on premium-square grid against AI
+ANCESTRY: Scrabble (1948, Alfred Mosher Butts), Words with Friends (2009, Zynga), Literati (1996, Yahoo)
+CONTROLS: Mouse — select and place tiles | Enter — submit word | Backspace — recall tiles | Tab — exchange tiles | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — dictionary lookup, constraint satisfaction)
+AI-INSIGHT: Scrabble AI is a constraint satisfaction problem disguised as a word game. The AI must simultaneously satisfy lexical validity, board connectivity, and tile availability — a combinatorial search problem that early expert systems could solve but humans approach through vocabulary intuition.
+NOTES: Word game distilled to tile placement and vocabulary.
+       Premium squares create spatial strategy beyond word knowledge.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PUZ-007 · WORD GRID</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: pointer; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>PUZ-007 · WORD GRID</h1>
+    <p><span class="tag series">PUZ — Puzzle</span> <span class="tag">Prototype #007</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Place tiles on the board to form valid crossword-style words. Score points based on letter values and premium squares. Play against an AI opponent.</p>
+    <ul>
+      <li><strong>Click</strong> a tile in your rack, then click a board cell to place it</li>
+      <li><kbd>Enter</kbd> — Submit your word</li>
+      <li><kbd>Backspace</kbd> — Recall all placed tiles back to rack</li>
+      <li><kbd>Tab</kbd> — Exchange tiles (skips your turn)</li>
+      <li><kbd>R</kbd> — Restart game</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Scoring</h3>
+    <ul>
+      <li><strong>DL</strong> (blue) — Double Letter Score</li>
+      <li><strong>TL</strong> (cyan) — Triple Letter Score</li>
+      <li><strong>DW</strong> (pink) — Double Word Score</li>
+      <li><strong>TW</strong> (red) — Triple Word Score</li>
+      <li><strong>&#9733;</strong> (center) — Double Word Score on first turn</li>
+      <li>Premium squares only apply when first covered</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li>First word must cross the center star</li>
+      <li>Subsequent words must connect to existing tiles</li>
+      <li>All formed words (including cross-words) must be valid</li>
+      <li>High-value letters on premium squares maximize score</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Scrabble (1948, Alfred Mosher Butts) &rarr; Words with Friends (2009, Zynga) &rarr; Literati (1996, Yahoo)</p>
+    <p>Alfred Mosher Butts invented Scrabble during the Great Depression by combining crossword puzzles with anagram games. He studied letter frequency in newspapers to determine tile distribution and point values. The game was initially called "Lexiko" then "Criss-Crosswords" before becoming Scrabble in 1948. It became one of the best-selling board games in history.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 3 — Knowledge Explosion</p>
+    <p>Scrabble AI is a constraint satisfaction problem disguised as a word game. The AI must simultaneously satisfy lexical validity, board connectivity, and tile availability. Early Scrabble programs like Maven (1986) used DAWG (Directed Acyclic Word Graph) data structures for efficient word lookup. Modern Scrabble AI can consistently beat world champions.</p>
+
+    <h2>Classification</h2>
+    <p><strong>Mechanic:</strong> Crossword-style word placement on premium-square grid against AI</p>
+    <p><strong>Genre:</strong> Word Puzzle / Strategy</p>
+
+    <h2>Prototype Notes</h2>
+    <p>Compact word list of ~1500 common English words. AI uses constraint-based search to find valid placements. Premium square layout matches standard Scrabble board. Simplified rules — no challenges, no blank tiles.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+const W=800,H=600,BS=15,CS=32,BX=10,BY=10;
+const cv=document.getElementById('c');cv.width=W;cv.height=H;
+const cx=cv.getContext('2d');
+let infoOpen=false;
+function toggleInfo(){infoOpen=!infoOpen;document.getElementById('info-panel').style.display=infoOpen?'block':'none';}
+
+// Letter values and distribution
+const LV={A:1,B:3,C:3,D:2,E:1,F:4,G:2,H:4,I:1,J:8,K:5,L:1,M:3,N:1,O:1,P:3,Q:10,R:1,S:1,T:1,U:1,V:4,W:4,X:8,Y:4,Z:10};
+const LD={A:9,B:2,C:2,D:4,E:12,F:2,G:3,H:2,I:9,J:1,K:1,L:4,M:2,N:6,O:8,P:2,Q:1,R:6,S:4,T:6,U:4,V:2,W:2,X:1,Y:2,Z:1};
+
+// Premium square map: 0=normal,1=DL,2=TL,3=DW,4=TW,5=center
+const PM=[
+[4,0,0,1,0,0,0,4,0,0,0,1,0,0,4],
+[0,3,0,0,0,2,0,0,0,2,0,0,0,3,0],
+[0,0,3,0,0,0,1,0,1,0,0,0,3,0,0],
+[1,0,0,3,0,0,0,1,0,0,0,3,0,0,1],
+[0,0,0,0,3,0,0,0,0,0,3,0,0,0,0],
+[0,2,0,0,0,2,0,0,0,2,0,0,0,2,0],
+[0,0,1,0,0,0,1,0,1,0,0,0,1,0,0],
+[4,0,0,1,0,0,0,5,0,0,0,1,0,0,4],
+[0,0,1,0,0,0,1,0,1,0,0,0,1,0,0],
+[0,2,0,0,0,2,0,0,0,2,0,0,0,2,0],
+[0,0,0,0,3,0,0,0,0,0,3,0,0,0,0],
+[1,0,0,3,0,0,0,1,0,0,0,3,0,0,1],
+[0,0,3,0,0,0,1,0,1,0,0,0,3,0,0],
+[0,3,0,0,0,2,0,0,0,2,0,0,0,3,0],
+[4,0,0,1,0,0,0,4,0,0,0,1,0,0,4]
+];
+
+// Compact dictionary ~1500 common words 2-8 letters
+const DICT=new Set(("aa,ab,ad,ae,ag,ah,ai,al,am,an,ar,as,at,aw,ax,ay,ba,be,bi,bo,by,da,de,do,ed,ef,eh,el,em,en,er,es,et,ex,fa,go,ha,he,hi,ho,id,if,in,is,it,jo,ka,la,li,lo,ma,me,mi,mo,mu,my,na,ne,no,nu,od,oe,of,oh,oi,om,on,op,or,os,ow,ox,oy,pa,pe,pi,po,re,sh,si,so,ta,ti,to,uh,um,un,up,us,ut,we,wo,xi,xu,ya,ye,yo,za,ace,act,add,ado,ads,aft,age,ago,aid,ail,aim,air,ale,all,amp,and,ant,any,ape,apt,arc,are,ark,arm,art,ash,ask,ate,awe,axe,aye,bad,bag,ban,bar,bat,bay,bed,bee,beg,bet,bid,big,bin,bit,bog,bow,box,boy,bra,bud,bug,bun,bus,but,buy,cab,cam,can,cap,car,cat,cop,cot,cow,cry,cub,cud,cup,cur,cut,dab,dad,dam,day,den,dew,did,dig,dim,din,dip,doe,dog,don,dot,dry,dub,dud,due,dug,dun,duo,dye,ear,eat,eel,egg,ego,elm,emu,end,era,eve,ewe,eye,fad,fan,far,fat,fax,fed,fee,fen,few,fig,fin,fir,fit,fix,fly,fob,foe,fog,fop,for,fox,fry,fun,fur,gag,gal,gap,gas,gay,gel,gem,get,gig,gin,gnu,gob,god,got,gum,gun,gut,guy,gym,had,hag,ham,has,hat,hay,hem,hen,her,hew,hex,hid,him,hip,his,hit,hob,hod,hog,hop,hot,how,hub,hue,hug,hum,hut,ice,icy,ill,imp,ink,inn,ion,ire,irk,its,ivy,jab,jag,jam,jar,jaw,jay,jet,jig,job,jog,jot,joy,jug,jut,keg,ken,key,kid,kin,kit,lab,lad,lag,lap,law,lay,lea,led,leg,let,lid,lie,lip,lit,log,lot,low,lug,mad,man,map,mar,mat,maw,may,men,met,mid,mix,mob,mod,mop,mow,mud,mug,mum,nab,nag,nap,net,new,nil,nip,nit,nob,nod,nor,not,now,nun,nut,oak,oar,oat,odd,ode,off,oft,ohm,oil,old,one,opt,orb,ore,our,out,ova,owe,owl,own,pad,pal,pan,pap,par,pat,paw,pay,pea,peg,pen,pep,per,pet,pew,pie,pig,pin,pit,ply,pod,pop,pot,pow,pro,pry,pub,pug,pun,pup,pus,put,quo,rag,ram,ran,rap,rat,raw,ray,red,ref,rep,rib,rid,rig,rim,rip,rob,rod,roe,rot,row,rub,rug,rum,run,rut,rye,sac,sad,sag,sap,sat,saw,say,sea,set,sew,she,shy,sin,sip,sir,sis,sit,six,ski,sky,sly,sob,sod,son,sop,sot,sow,soy,spa,spy,sty,sub,sue,sum,sun,sup,tab,tad,tag,tan,tap,tar,tat,tax,tea,ten,the,thy,tic,tie,tin,tip,toe,ton,too,top,tot,tow,toy,try,tub,tug,two,urn,use,van,vat,vet,vex,via,vie,vim,vow,wad,wag,war,was,wax,way,web,wed,wet,who,why,wig,win,wit,woe,wok,won,woo,wow,yak,yam,yap,yaw,yea,yes,yet,yew,yin,you,yow,zag,zap,zed,zen,zig,zip,zoo,able,ache,acid,acre,aged,aide,ally,also,arch,area,army,aunt,auto,away,axle,back,bade,bail,bait,bake,bald,bale,ball,band,bane,bang,bank,bare,bark,barn,base,bash,bask,bass,bath,bawl,bead,beak,beam,bean,bear,beat,beef,been,beer,bell,belt,bend,bent,best,bias,bike,bile,bill,bind,bird,bite,blah,bled,blew,blip,blob,blog,blot,blow,blue,blur,boar,boat,body,boil,bold,bolt,bomb,bond,bone,book,boom,boot,bore,born,boss,both,bout,bowl,brag,bran,bred,brew,brim,buck,buff,bulb,bulk,bull,bump,bung,bunk,burn,burr,bury,bush,bust,busy,buzz,byte,cafe,cage,cake,calf,call,calm,came,camp,cane,cape,card,care,carp,cart,case,cash,cast,cave,cell,cent,chap,char,chat,chef,chin,chip,chit,chop,chow,cite,city,clad,clam,clan,clap,claw,clay,clip,clog,clot,club,clue,coal,coat,cock,code,coil,coin,cold,colt,comb,come,cone,cook,cool,cope,copy,cord,core,cork,corn,cost,cosy,coup,cove,cowl,crab,crew,crop,crow,crud,cube,cult,curb,curd,cure,curl,cute,damp,dare,dark,darn,dart,dash,data,date,dawn,days,dead,deaf,deal,dear,debt,deck,deed,deem,deep,deer,demo,dent,deny,desk,dial,dice,died,diet,dime,dine,dire,dirt,disc,dish,disk,dock,does,dome,done,doom,door,dose,dove,down,doze,drab,drag,draw,drew,drip,drop,drug,drum,dual,duck,duel,duff,duke,dull,dumb,dump,dune,dung,dunk,dupe,dust,duty,dyed,each,earl,earn,ease,east,easy,edge,edit,eels,else,emit,ends,epic,even,ever,evil,exam,exit,eyed,eyes,face,fact,fade,fail,fair,fake,fall,fame,fang,fare,farm,fast,fate,fawn,fear,feat,feed,feel,feet,fell,felt,fend,fern,fest,feud,file,fill,film,find,fine,fire,firm,fish,fist,five,flag,flak,flam,flan,flap,flat,flaw,flea,fled,flew,flex,flip,flit,flog,flop,flow,flue,foam,foil,fold,folk,fond,font,food,fool,foot,ford,fore,fork,form,fort,foul,four,fowl,free,frog,from,fuel,full,fume,fund,funk,fury,fuse,fuss,fuzz,gain,gait,gale,gall,game,gang,gape,garb,gash,gasp,gate,gave,gaze,gear,gene,gets,gift,gild,gill,gilt,girl,gist,give,glad,glee,glen,glib,glow,glue,glum,glut,gnat,gnaw,goad,goal,goat,goes,gold,golf,gone,gong,good,goof,gore,gory,gown,grab,gram,gray,grew,grey,grid,grim,grin,grip,grit,grow,grub,gulf,gull,gulp,gunk,guru,gust,guts,hack,hail,hair,hale,half,hall,halt,hand,hang,hare,harm,harp,hash,haste,hate,haul,have,hawk,haze,hazy,head,heal,heap,hear,heat,heed,heel,held,hell,helm,help,herb,herd,here,hero,hers,hide,high,hike,hill,hilt,hind,hint,hire,hiss,hive,hoax,hold,hole,holy,home,hone,hood,hook,hoop,hope,horn,hose,host,hour,howl,huff,huge,hull,hump,hung,hunt,hurl,hurt,hush,hymn,icon,idea,idle,idol,iffy,inch,info,into,iron,isle,item,jack,jade,jail,jamb,jape,java,jaws,jazz,jean,jeer,jerk,jest,jibe,jilt,jive,jobs,jock,join,joke,jolt,josh,jowl,judo,jug,jump,junk,jury,just,jute,keen,keep,kelp,kept,keys,kick,kids,kill,kind,king,kink,kiss,kite,kiwi,knee,knew,knit,knob,knot,know,lace,lack,lady,laid,lair,lake,lamb,lame,lamp,land,lane,lard,lark,lash,lass,last,late,lawn,laws,lazy,lead,leaf,leak,lean,leap,left,lend,lens,lent,less,liar,lice,lick,lied,lieu,life,lift,like,lily,limb,lime,limp,line,link,lint,lion,lisp,list,live,load,loaf,loam,loan,lobe,lock,lode,loft,logo,lone,long,look,loom,loop,loot,lord,lore,lose,loss,lost,loud,love,luck,lull,lump,lung,lure,lurk,lush,lust,mace,made,maid,mail,main,make,male,mall,malt,mane,many,mare,mark,mars,mash,mask,mass,mast,mate,maze,mead,meal,mean,meat,meek,meet,meld,melt,memo,mend,menu,mere,mesh,mess,mice,mild,mile,milk,mill,mime,mind,mine,mint,mire,miss,mist,mite,mitt,moan,moat,mock,mode,mold,mole,molt,monk,mood,moon,moor,moot,more,moss,most,moth,move,much,muck,muff,mule,mull,muse,mush,musk,must,mute,mutt,myth,nail,name,nape,navy,near,neat,neck,need,nest,nets,news,next,nice,nick,nine,node,none,nook,noon,norm,nose,note,noun,nude,numb,nuts,oafs,oath,obey,odds,odor,ogre,oink,okay,omen,omit,once,ones,only,onto,onus,ooze,open,opts,oral,orca,orgy,ours,oust,oven,over,owed,owes,owns,oxen,pace,pack,pact,page,paid,pail,pain,pair,pale,palm,pane,pang,pant,pare,park,part,pass,past,path,pave,pawn,peak,peal,pear,peat,peck,peel,peer,pelt,pend,pens,peon,perk,perm,pest,pick,pier,pike,pile,pill,pine,pink,pint,pipe,piss,pith,pits,pity,plan,plat,play,plea,pled,plod,plop,plot,plow,ploy,plug,plum,plus,pock,poem,poet,poke,pole,poll,polo,pomp,pond,pony,pool,poop,poor,pope,pops,pore,pork,port,pose,posh,post,pour,pray,prey,prod,prop,prow,prry,puff,pull,pulp,pump,punk,pure,push,putt,quit,quiz,race,rack,raft,rage,raid,rail,rain,rake,ramp,rang,rank,rant,rash,rasp,rate,rave,raze,read,real,ream,reap,rear,reef,reel,rein,rely,rend,rent,rest,rich,ride,rift,rigs,rile,rill,rind,ring,rink,riot,rise,risk,rite,road,roam,roar,robe,rock,rode,role,roll,romp,roof,room,root,rope,rose,rosy,rote,rout,rove,rows,rude,ruin,rule,rump,rune,rung,runt,ruse,rush,rust,ruth,sack,safe,saga,sage,said,sail,sake,sale,salt,same,sand,sane,sang,sank,sash,save,says,scab,scam,scan,scar,seal,seam,sear,seas,seat,sect,seed,seek,seem,seen,self,sell,semi,send,sent,sept,sere,serf,sewn,shed,shim,shin,ship,shod,shoe,shoo,shop,shot,show,shun,shut,sick,side,sift,sigh,sign,silk,sill,silt,sing,sink,sire,site,sits,size,skit,slab,slag,slam,slap,slat,slaw,slay,sled,slew,slid,slim,slit,slob,slop,slot,slow,slug,slum,slur,smog,snap,snag,snip,snit,snob,snot,snow,snub,snug,soak,soap,soar,sock,soda,sofa,soft,soil,sold,sole,solo,some,song,soon,soot,sore,sort,soul,sour,span,spar,spat,spec,sped,spin,spit,spot,spry,spud,spun,spur,stab,stag,star,stay,stem,step,stew,stir,stop,stow,stub,stud,stun,such,suck,suit,sulk,sums,sung,sunk,sure,surf,swan,swap,sway,swim,swum,tabs,tack,tact,tail,take,tale,talk,tall,tame,tang,tank,tape,taps,tarn,tart,task,taxi,teak,teal,team,tear,teem,tell,temp,tend,tens,tent,term,test,text,than,that,thaw,them,then,they,thin,this,thud,thug,thus,tick,tide,tidy,tied,tier,tiff,tile,till,tilt,time,tine,ting,tiny,tire,toad,toil,told,toll,tomb,tome,tone,tons,tony,took,tool,tops,tore,torn,tort,toss,tour,tout,town,trap,tray,tree,trek,trim,trio,trip,trod,trot,true,tuck,tuft,tuna,tune,turf,turn,tusk,tuft,twin,twit,type,ugly,undo,unit,unto,upon,urge,used,user,uses,vain,vale,vane,vary,vase,vast,veer,veil,vein,vent,verb,very,vest,veto,vial,vice,vide,view,vile,vine,visa,void,vole,volt,vote,wade,wage,wail,wait,wake,walk,wall,wand,wane,want,ward,warm,warn,warp,wart,wary,wash,wasp,wave,wavy,waxy,ways,weak,wean,wear,weed,week,weld,well,welt,went,wept,were,west,what,when,whim,whip,whir,whom,wick,wide,wife,wild,will,wilt,wily,wimp,wind,wine,wing,wink,wipe,wire,wise,wish,wisp,with,wits,woke,wolf,womb,wont,wood,woof,wool,word,wore,work,worm,worn,wort,wove,wrap,wren,writ,yank,yard,yarn,yawn,year,yell,yelp,yoga,yoke,your,zany,zeal,zero,zest,zinc,zone,zoom,abuse,adapt,admit,adopt,adult,after,again,agree,aisle,alarm,alert,alien,align,alike,alive,allay,alley,allot,allow,alloy,aloft,alone,along,aloof,alter,amaze,amber,ample,angel,anger,angle,angry,ankle,annex,antic,anvil,apart,apple,apply,arena,argue,arise,armor,aroma,arose,array,arrow,aside,atone,avail,avoid,await,awake,award,aware,awful,axiom,bacon,badge,badly,baker,basic,basin,basis,batch,beach,beast,begin,being,below,bench,berry,birth,black,blade,blame,bland,blank,blast,blaze,bleak,bleed,blend,bless,blind,blink,bliss,block,blond,blood,bloom,blown,bluff,blunt,blurt,board,boast,bonus,booth,bound,brace,braid,brain,brake,brand,brave,bread,break,breed,brick,bride,brief,bring,brink,brisk,broad,broil,broke,brook,brood,brown,brush,buddy,buggy,build,built,bunch,burst,cabin,camel,candy,cargo,carry,catch,cater,cause,cedar,chain,chair,chalk,chant,chaos,charm,chart,chase,cheap,cheat,check,cheek,cheer,chess,chest,chief,child,chill,china,choir,choke,chord,chose,chunk,churn,civic,civil,claim,clamp,clash,clasp,class,clean,clear,clerk,click,cliff,climb,cling,cloak,clock,clone,close,cloth,cloud,clown,coach,coast,color,comet,comic,coral,couch,could,count,court,cover,crack,craft,cramp,crane,crash,crate,crawl,craze,crazy,creak,cream,creek,creep,crest,crisp,cross,crowd,crown,crude,cruel,crush,cubic,curve,cycle,dairy,dance,death,debug,debut,decay,decoy,decry,defer,delay,delta,dense,depot,depth,derby,dirty,disco,ditch,dizzy,dodge,donor,doubt,dough,drain,drake,drama,drank,drape,drawn,dread,dream,dress,dried,drift,drill,drink,drive,droit,drone,drool,droop,drove,drown,drums,drunk,dryer,dummy,dusty,dwarf,dwell,dying,eager,eagle,early,earth,eaten,edict,eight,elbow,elder,elect,elfin,elite,elude,ember,empty,endow,enemy,enjoy,ensue,enter,entry,equal,equip,erode,error,erupt,essay,evade,event,every,evict,evoke,exact,exalt,excel,exert,exile,exist,expel,extra,exude,fable,facet,faint,fairy,faith,feast,fence,ferry,fetch,fever,fewer,fiber,field,fiery,fight,final,first,fixed,flair,flame,flank,flare,flash,flask,fleet,flesh,flies,fling,flint,float,flock,flood,floor,flora,flour,flown,fluid,flush,flute,foggy,force,forge,forte,forth,forum,fossil,found,frame,frank,fraud,fresh,friar,front,frost,frown,froze,fruit,fully,funny,fuzzy,gauge,gaunt,given,gland,glare,glass,gleam,glide,globe,gloom,glory,gloss,glove,gnash,goose,gorge,gouge,grace,grade,graft,grain,grand,grant,grape,graph,grasp,grass,grate,grave,gravel,gravy,graze,great,greed,green,greet,grief,grill,grind,gripe,groan,groom,grope,gross,group,grove,growl,grown,guard,guess,guest,guide,guild,guilt,guise,gulch,gully,gummy,gusto,habit,hardy,haste,hasty,hatch,haunt,haven,heart,heavy,hedge,hefty,heist,hence,hilly,hinge,hobby,hoist,homer,honey,honor,horde,horse,hotel,hound,house,hover,human,humid,humor,hurry,hyena,ideal,image,imply,inane,incur,index,indie,inept,inert,infer,inner,input,irony,issue,ivory,jewel,jiffy,joint,joker,jolly,judge,juice,juicy,kebab,knack,knead,kneel,knife,knock,known,label,labor,lapse,large,laser,latch,later,lathe,laugh,layer,learn,lease,leash,least,leave,ledge,legal,lemon,level,lever,light,lilac,liken,limbo,limit,linen,liner,lingo,llama,lobby,local,lodge,lofty,logic,lorry,lossy,lotus,lousy,lover,lower,loyal,lucky,lunar,lunch,lurch,lyric,macaw,magic,major,maker,manor,maple,march,marsh,match,maybe,mayor,media,mercy,merge,merry,metal,meter,might,mimic,minor,minus,mirth,mixer,model,moist,money,month,moose,moral,motel,motor,mound,mount,mourn,mouse,mouth,movie,muddy,multi,mural,murky,music,naive,naked,nasty,naval,nerve,never,newly,niece,night,noble,noise,north,notch,noted,novel,nudge,nurse,nylon,occur,ocean,offer,often,olive,onset,opera,orbit,order,organ,other,ought,outer,outdo,owner,oxide,ozone,paint,panel,panic,pants,paper,party,paste,patch,pause,peace,peach,pearl,penal,penny,perch,peril,phase,phone,photo,piano,piece,pilot,pinch,pixel,pizza,place,plaid,plain,plane,plank,plant,plate,plaza,plead,pleat,plied,pluck,plumb,plume,plump,plunk,plush,point,poise,poker,polar,polio,polyp,poppy,porch,poser,pouch,pound,power,prank,prawn,press,price,pride,prime,print,prior,prize,probe,prone,proof,prose,proud,prove,proxy,prude,prune,psalm,pulse,punch,pupil,purge,purse,quail,qualm,queen,query,quest,queue,quick,quiet,quill,quirk,quota,quote,rabbi,radar,rally,ranch,range,rapid,raven,reach,react,ready,realm,rebel,recap,refer,reign,relax,relay,remit,renew,repay,repel,reply,resin,retry,rider,ridge,rifle,right,rigid,rinse,ripen,risen,risky,rival,river,robot,rocky,rogue,roman,rouge,rough,round,route,rover,royal,rugby,ruler,rumor,rural,rusty,salad,salon,salsa,salty,salve,sandy,satin,sauce,sauna,savor,scale,scalp,scare,scarf,scary,scene,scent,scold,scone,scoop,scope,score,scout,scowl,scrap,seize,sense,serum,serve,seven,sever,shade,shaft,shake,shall,shame,shape,share,shark,sharp,shave,shawl,shear,sheen,sheep,sheer,sheet,shelf,shell,shift,shine,shiny,shirt,shock,shore,short,shout,shove,shrub,shrug,shunt,sight,sigma,since,sixth,sixty,skate,skier,skill,skull,skunk,slack,slain,slang,slant,slash,slate,slave,sleek,sleep,slice,slide,slime,slimy,sling,slope,slugs,slump,smart,smash,smell,smile,smirk,smith,smoke,snack,snail,snake,snare,sneak,snore,solid,solve,sorry,sound,south,space,spare,spark,spawn,speak,spear,speed,spell,spend,spent,spice,spicy,spill,spine,spite,split,spoke,spoon,sport,spray,squad,stack,staff,stage,stain,stair,stake,stale,stalk,stall,stamp,stand,stare,stark,start,state,stave,steak,steal,steam,steel,steep,steer,stern,stick,stiff,still,sting,stink,stock,stole,stomp,stone,stood,stool,stoop,store,storm,story,stout,stove,strap,straw,stray,strip,stuck,study,stuff,stump,stung,stunk,stunt,style,suave,sugar,suite,sunny,super,surge,swamp,swarm,swear,sweat,sweep,sweet,swept,swift,swing,swipe,swirl,swore,sworn,swung,syrup,table,taffy,taste,teach,teeth,thank,their,theme,there,thick,thief,thigh,thing,think,third,thorn,those,three,threw,throw,thump,tiger,tight,timer,times,title,toast,today,token,total,touch,tough,towel,tower,toxic,trace,track,trade,trail,train,trait,tramp,trash,treat,trend,trial,tribe,trick,tried,tripe,trite,troll,troop,trout,truck,truly,trump,trunk,trust,truth,tulip,tumor,tunic,tutor,tweed,twice,twine,twist,ultra,uncle,under,undue,unfit,union,unite,unity,until,upper,upset,urban,usage,usual,utter,valid,valor,value,valve,vapor,vault,video,vigor,vinyl,viola,viper,viral,virus,visit,visor,vista,vital,vivid,vocal,vodka,voice,voter,vouch,vowel,vulva,wafer,wager,wagon,waste,watch,water,weary,weave,wedge,weedy,weigh,weird,whale,wheat,wheel,where,which,while,whine,whirl,white,whole,whose,widen,wider,widow,width,wield,witch,woman,women,world,worry,worse,worst,worth,would,wound,wreck,wrist,write,wrong,wrote,yacht,yield,young,youth,zebra").split(','));
+
+// Game state
+let board,placed,bag,pRack,aRack,pScore,aScore,turn,selTile,gameOver,msg,msgTimer,firstMove;
+
+function init(){
+  board=Array.from({length:15},()=>Array(15).fill(null));
+  placed=[];bag=[];pRack=[];aRack=[];pScore=0;aScore=0;turn=0;selTile=-1;gameOver=false;msg='';msgTimer=0;firstMove=true;
+  for(let c in LD)for(let i=0;i<LD[c];i++)bag.push(c);
+  shuffle(bag);
+  fillRack(pRack);fillRack(aRack);
+}
+
+function shuffle(a){for(let i=a.length-1;i>0;i--){let j=Math.random()*i+1|0;[a[i],a[j]]=[a[j],a[i]];}}
+function fillRack(r){while(r.length<7&&bag.length>0)r.push(bag.pop());}
+
+function showMsg(t){msg=t;msgTimer=180;}
+
+function recallTiles(){
+  for(let p of placed){board[p.r][p.c]=null;pRack.push(p.l);}
+  placed=[];selTile=-1;
+}
+
+function getWord(r,c,dr,dc){
+  let sr=r,sc=c;
+  while(sr-dr>=0&&sc-dc>=0&&sr-dr<15&&sc-dc<15&&board[sr-dr][sc-dc]){sr-=dr;sc-=dc;}
+  let w='',cells=[];
+  while(sr>=0&&sc>=0&&sr<15&&sc<15&&board[sr][sc]){
+    w+=board[sr][sc];cells.push({r:sr,c:sc});sr+=dr;sc+=dc;
+  }
+  return {word:w,cells:cells};
+}
+
+function isPlaced(r,c){return placed.some(p=>p.r===r&&p.c===c);}
+
+function submitWord(){
+  if(placed.length===0){showMsg('Place tiles first');return false;}
+  // Check alignment
+  let rows=placed.map(p=>p.r),cols=placed.map(p=>p.c);
+  let ur=new Set(rows),uc=new Set(cols);
+  let horiz=ur.size===1,vert=uc.size===1;
+  if(!horiz&&!vert){showMsg('Tiles must be in a line');return false;}
+  if(placed.length===1){
+    // single tile - check if it forms word in either direction
+    horiz=true;vert=true;
+  }
+  // Check first move covers center
+  if(firstMove){
+    let covers=placed.some(p=>p.r===7&&p.c===7);
+    if(!covers){showMsg('First word must cover center');return false;}
+  }
+  // Check continuity and adjacency
+  if(!firstMove){
+    let adj=false;
+    for(let p of placed){
+      let nb=[[p.r-1,p.c],[p.r+1,p.c],[p.r,p.c-1],[p.r,p.c+1]];
+      for(let[nr,nc]of nb){
+        if(nr>=0&&nr<15&&nc>=0&&nc<15&&board[nr][nc]&&!isPlaced(nr,nc)){adj=true;break;}
+      }
+      if(adj)break;
+    }
+    if(!adj){showMsg('Must connect to existing word');return false;}
+  }
+  // Collect all words formed
+  let words=[],score=0;
+  if(horiz&&!(placed.length===1&&!board[placed[0].r][placed[0].c-1>-1?placed[0].c-1:0]&&!board[placed[0].r][placed[0].c+1<15?placed[0].c+1:14])){
+    // don't count horizontal for single tile if no horizontal neighbors
+    let canH=placed.length>1;
+    if(placed.length===1){
+      let p=placed[0];
+      if((p.c>0&&board[p.r][p.c-1])||(p.c<14&&board[p.r][p.c+1]))canH=true;
+    }
+    if(canH){
+      let w=getWord(placed[0].r,placed[0].c,0,1);
+      if(w.word.length>1)words.push(w);
+    }
+  }
+  if(vert&&!(placed.length===1)){
+    let w=getWord(placed[0].r,placed[0].c,1,0);
+    if(w.word.length>1)words.push(w);
+  }
+  // For single tile check both directions
+  if(placed.length===1){
+    let p=placed[0];
+    let wh=getWord(p.r,p.c,0,1);
+    let wv=getWord(p.r,p.c,1,0);
+    words=[];
+    if(wh.word.length>1)words.push(wh);
+    if(wv.word.length>1)words.push(wv);
+  }
+  // Cross words for multi-tile placement
+  if(placed.length>1){
+    for(let p of placed){
+      let cw=horiz?getWord(p.r,p.c,1,0):getWord(p.r,p.c,0,1);
+      if(cw.word.length>1&&!words.some(w=>w.cells[0].r===cw.cells[0].r&&w.cells[0].c===cw.cells[0].c&&w.word===cw.word))
+        words.push(cw);
+    }
+  }
+  if(words.length===0){showMsg('No valid word formed');return false;}
+  // Validate and score
+  for(let w of words){
+    if(!DICT.has(w.word.toLowerCase())){showMsg('"'+w.word+'" not in dictionary');return false;}
+  }
+  // Calculate score
+  score=0;
+  for(let w of words){
+    let ws=0,wm=1;
+    for(let cell of w.cells){
+      let lv=LV[cell.r!==undefined?board[cell.r][cell.c]:'A']||0;
+      let pm=isPlaced(cell.r,cell.c)?PM[cell.r][cell.c]:0;
+      if(pm===1)lv*=2;
+      else if(pm===2)lv*=3;
+      else if(pm===3||pm===5)wm*=2;
+      else if(pm===4)wm*=3;
+      ws+=lv;
+    }
+    score+=ws*wm;
+  }
+  if(placed.length===7)score+=50; // bonus for using all 7
+  return {score:score,words:words.map(w=>w.word)};
+}
+
+function doPlayerSubmit(){
+  let result=submitWord();
+  if(!result)return;
+  pScore+=result.score;
+  showMsg(result.words.join(', ')+' +'+result.score);
+  placed=[];firstMove=false;selTile=-1;
+  fillRack(pRack);
+  if(checkEnd())return;
+  turn=1;
+  setTimeout(aiTurn,800);
+}
+
+function exchangeTiles(){
+  if(bag.length<7){showMsg('Not enough tiles to exchange');return;}
+  let old=[...pRack];pRack=[];
+  fillRack(pRack);
+  for(let t of old)bag.push(t);
+  shuffle(bag);
+  placed=[];selTile=-1;
+  showMsg('Tiles exchanged');
+  turn=1;
+  setTimeout(aiTurn,800);
+}
+
+function checkEnd(){
+  if(bag.length===0&&(pRack.length===0||aRack.length===0)){
+    gameOver=true;
+    // Deduct remaining tiles
+    let pd=0,ad=0;
+    for(let t of pRack)pd+=LV[t];
+    for(let t of aRack)ad+=LV[t];
+    pScore-=pd;aScore-=ad;
+    msg=pScore>aScore?'You win!':pScore<aScore?'AI wins!':'Tie game!';
+    msgTimer=9999;
+    return true;
+  }
+  return false;
+}
+
+// AI turn
+function aiTurn(){
+  if(gameOver)return;
+  let best=null,bestScore=0;
+  // Try to place words on the board
+  // For each position and direction, try words from rack
+  let rack=[...aRack];
+
+  // Generate possible words from rack letters + board letters
+  function tryPlace(r,c,dr,dc){
+    // Try placing tiles starting from position going in direction
+    for(let len=2;len<=Math.min(7,rack.length+3);len++){
+      // Try each word in dictionary that could be formed
+      // More efficient: for each starting position, collect available letters and check dictionary
+      let avail=[...rack];
+      let pattern=[];
+      let sr=r,sc=c;
+      let boardLetters=0;
+      for(let i=0;i<len;i++){
+        let cr=sr+dr*i,cc=sc+dc*i;
+        if(cr<0||cr>=15||cc<0||cc>=15)return;
+        if(board[cr][cc]){pattern.push(board[cr][cc]);boardLetters++;}
+        else pattern.push(null);
+      }
+      if(boardLetters===len)return; // all board tiles, no new placement
+      if(firstMove&&!patternCoversCenter(r,c,dr,dc,len))return;
+    }
+  }
+
+  function patternCoversCenter(r,c,dr,dc,len){
+    for(let i=0;i<len;i++){
+      if(r+dr*i===7&&c+dc*i===7)return true;
+    }
+    return false;
+  }
+
+  // Simpler AI: try each dictionary word and see if it can be placed
+  let dictArr=[...DICT];
+  shuffle(dictArr);
+  let tried=0;
+
+  for(let word of dictArr){
+    if(tried>500)break;
+    tried++;
+    let w=word.toUpperCase();
+    if(w.length<2||w.length>7)continue;
+
+    for(let dir=0;dir<2;dir++){
+      let dr=dir===0?0:1,dc=dir===0?1:0;
+      let positions=[];
+
+      if(firstMove){
+        // Must cross center
+        for(let i=0;i<w.length;i++){
+          let sr=7-dr*i,sc=7-dc*i;
+          if(sr>=0&&sc>=0&&sr+dr*(w.length-1)<15&&sc+dc*(w.length-1)<15)
+            positions.push({r:sr,c:sc});
+        }
+      } else {
+        // Must be adjacent to existing tiles
+        for(let r=0;r<15;r++){
+          for(let c=0;c<15;c++){
+            if(r+dr*(w.length-1)<15&&c+dc*(w.length-1)<15)
+              positions.push({r:r,c:c});
+          }
+        }
+      }
+
+      for(let pos of positions){
+        let canPlace=true,rackUsed=[],tilesPlaced=[],rackCopy=[...rack];
+        let adjacent=firstMove;
+
+        for(let i=0;i<w.length;i++){
+          let cr=pos.r+dr*i,cc=pos.c+dc*i;
+          if(board[cr][cc]){
+            if(board[cr][cc]!==w[i]){canPlace=false;break;}
+            adjacent=true;
+          } else {
+            let idx=rackCopy.indexOf(w[i]);
+            if(idx===-1){canPlace=false;break;}
+            rackCopy.splice(idx,1);
+            rackUsed.push(w[i]);
+            tilesPlaced.push({r:cr,c:cc,l:w[i]});
+            // Check adjacency
+            if(!firstMove){
+              let nb=[[cr-1,cc],[cr+1,cc],[cr,cc-1],[cr,cc+1]];
+              for(let[nr,nc]of nb){
+                if(nr>=0&&nr<15&&nc>=0&&nc<15&&board[nr][nc]&&!tilesPlaced.some(t=>t.r===nr&&t.c===nc))
+                  adjacent=true;
+              }
+            }
+          }
+        }
+
+        if(!canPlace||!adjacent||tilesPlaced.length===0)continue;
+
+        // Check no overflow at ends
+        let br=pos.r-dr,bc=pos.c-dc;
+        if(br>=0&&bc>=0&&br<15&&bc<15&&board[br][bc])continue;
+        let er=pos.r+dr*w.length,ec=pos.c+dc*w.length;
+        if(er>=0&&ec>=0&&er<15&&ec<15&&board[er][ec])continue;
+
+        // Validate cross words
+        let valid=true;
+        for(let tp of tilesPlaced){
+          board[tp.r][tp.c]=tp.l;
+        }
+        for(let tp of tilesPlaced){
+          let cw=dir===0?getWord(tp.r,tp.c,1,0):getWord(tp.r,tp.c,0,1);
+          if(cw.word.length>1&&!DICT.has(cw.word.toLowerCase())){valid=false;break;}
+        }
+        // Also validate main word
+        let mw=getWord(pos.r,pos.c,dr,dc);
+        if(mw.word.toLowerCase()!==w)valid=false;
+
+        for(let tp of tilesPlaced)board[tp.r][tp.c]=null;
+        if(!valid)continue;
+
+        // Score it
+        let sc=0,wm=1;
+        for(let i=0;i<w.length;i++){
+          let cr=pos.r+dr*i,cc=pos.c+dc*i;
+          let lv=LV[w[i]];
+          let isNew=tilesPlaced.some(t=>t.r===cr&&t.c===cc);
+          if(isNew){
+            let pm=PM[cr][cc];
+            if(pm===1)lv*=2;else if(pm===2)lv*=3;
+            else if(pm===3||pm===5)wm*=2;else if(pm===4)wm*=3;
+          }
+          sc+=lv;
+        }
+        sc*=wm;
+        if(tilesPlaced.length===7)sc+=50;
+
+        if(sc>bestScore){bestScore=sc;best={tiles:tilesPlaced,rackUsed:rackUsed,word:w,score:sc};}
+      }
+    }
+  }
+
+  if(best){
+    for(let t of best.tiles)board[t.r][t.c]=t.l;
+    for(let l of best.rackUsed){let i=aRack.indexOf(l);if(i>-1)aRack.splice(i,1);}
+    aScore+=best.score;
+    firstMove=false;
+    fillRack(aRack);
+    showMsg('AI: '+best.word+' +'+best.score);
+  } else {
+    // Exchange or pass
+    if(bag.length>=7){
+      let old=[...aRack];aRack=[];fillRack(aRack);
+      for(let t of old)bag.push(t);shuffle(bag);
+      showMsg('AI exchanged tiles');
+    } else {
+      showMsg('AI passed');
+    }
+  }
+  if(!checkEnd())turn=0;
+}
+
+// Drawing
+const COLORS={0:'#1a472a',1:'#2a5a8a',2:'#1a7a7a',3:'#8a3a5a',4:'#8a2a2a',5:'#6a5a2a'};
+const LABELS={1:'DL',2:'TL',3:'DW',4:'TW',5:'\u2605'};
+
+function draw(){
+  cx.fillStyle='#0a0a0a';cx.fillRect(0,0,W,H);
+  // Board
+  for(let r=0;r<15;r++){
+    for(let c=0;c<15;c++){
+      let x=BX+c*CS,y=BY+r*CS;
+      let pm=PM[r][c];
+      cx.fillStyle=board[r][c]?'#c8a96e':COLORS[pm];
+      cx.fillRect(x,y,CS-1,CS-1);
+      if(board[r][c]){
+        // Draw tile
+        let ip=isPlaced(r,c);
+        cx.fillStyle=ip?'#e8d8a0':'#dcc080';
+        cx.fillRect(x+1,y+1,CS-3,CS-3);
+        cx.fillStyle='#1a1a1a';
+        cx.font='bold 16px monospace';
+        cx.textAlign='center';cx.textBaseline='middle';
+        cx.fillText(board[r][c],x+CS/2-1,y+CS/2);
+        cx.font='9px monospace';
+        cx.fillText(LV[board[r][c]],x+CS-7,y+CS-6);
+      } else if(LABELS[pm]){
+        cx.fillStyle='rgba(255,255,255,0.5)';
+        cx.font='bold 9px monospace';
+        cx.textAlign='center';cx.textBaseline='middle';
+        cx.fillText(LABELS[pm],x+CS/2,y+CS/2);
+      }
+    }
+  }
+  // Rack area
+  let rx=BX,ry=BY+15*CS+10;
+  cx.fillStyle='#333';cx.fillRect(rx-2,ry-2,7*44+4,44);
+  cx.fillStyle='#ddd';cx.font='12px monospace';cx.textAlign='left';
+  cx.fillText('YOUR RACK:',rx,ry-8);
+  for(let i=0;i<pRack.length;i++){
+    let tx=rx+i*44,ty=ry;
+    cx.fillStyle=i===selTile?'#ffe080':'#dcc080';
+    cx.fillRect(tx,ty,40,40);
+    if(i===selTile){cx.strokeStyle='#ff0';cx.lineWidth=2;cx.strokeRect(tx,ty,40,40);}
+    cx.fillStyle='#1a1a1a';
+    cx.font='bold 20px monospace';cx.textAlign='center';cx.textBaseline='middle';
+    cx.fillText(pRack[i],tx+20,ty+18);
+    cx.font='10px monospace';
+    cx.fillText(LV[pRack[i]],tx+32,ty+34);
+  }
+  // Scores and info
+  let sx=BX+15*CS+15;
+  cx.fillStyle='#ddd';cx.font='14px monospace';cx.textAlign='left';
+  cx.fillText('WORD GRID',sx,30);
+  cx.fillStyle='#7bf';cx.fillText('You: '+pScore,sx,60);
+  cx.fillStyle='#f87';cx.fillText('AI:  '+aScore,sx,80);
+  cx.fillStyle='#888';cx.font='12px monospace';
+  cx.fillText('Bag: '+bag.length,sx,110);
+  cx.fillText(turn===0?'Your turn':'AI thinking...',sx,140);
+
+  // Controls
+  cx.fillStyle='#666';cx.font='11px monospace';
+  let cy2=170;
+  cx.fillText('[Enter] Submit',sx,cy2);
+  cx.fillText('[Bksp] Recall',sx,cy2+16);
+  cx.fillText('[Tab] Exchange',sx,cy2+32);
+  cx.fillText('[R] Restart',sx,cy2+48);
+  cx.fillText('[?] Info',sx,cy2+64);
+
+  // AI rack count
+  cx.fillStyle='#888';cx.font='11px monospace';
+  cx.fillText('AI tiles: '+aRack.length,sx,cy2+96);
+
+  // Message
+  if(msgTimer>0){
+    cx.fillStyle='rgba(0,0,0,0.7)';
+    cx.fillRect(BX,BY+15*CS-24,15*CS,22);
+    cx.fillStyle='#ff0';cx.font='bold 13px monospace';cx.textAlign='center';
+    cx.fillText(msg,BX+15*CS/2,BY+15*CS-8);
+    cx.textAlign='left';
+    if(!gameOver)msgTimer--;
+  }
+
+  if(gameOver){
+    cx.fillStyle='rgba(0,0,0,0.6)';cx.fillRect(0,0,W,H);
+    cx.fillStyle='#fff';cx.font='bold 28px monospace';cx.textAlign='center';
+    cx.fillText('GAME OVER',W/2,H/2-30);
+    cx.fillText(msg,W/2,H/2+10);
+    cx.font='16px monospace';cx.fillStyle='#888';
+    cx.fillText('You: '+pScore+'  AI: '+aScore,W/2,H/2+50);
+    cx.fillText('Press R to restart',W/2,H/2+80);
+    cx.textAlign='left';
+  }
+}
+
+function update(){
+  if(infoOpen)return;
+  draw();
+  requestAnimationFrame(update);
+}
+
+// Input
+cv.addEventListener('click',function(e){
+  if(gameOver||turn!==0||infoOpen)return;
+  let rect=cv.getBoundingClientRect();
+  let mx=(e.clientX-rect.left)*(W/rect.width);
+  let my=(e.clientY-rect.top)*(H/rect.height);
+
+  // Check rack click
+  let rx=BX,ry=BY+15*CS+10;
+  if(my>=ry&&my<=ry+40){
+    let ti=Math.floor((mx-rx)/44);
+    if(ti>=0&&ti<pRack.length){
+      selTile=selTile===ti?-1:ti;
+      return;
+    }
+  }
+
+  // Check board click
+  let bc=Math.floor((mx-BX)/CS),br=Math.floor((my-BY)/CS);
+  if(br>=0&&br<15&&bc>=0&&bc<15){
+    if(selTile>=0&&selTile<pRack.length&&!board[br][bc]){
+      let letter=pRack[selTile];
+      board[br][bc]=letter;
+      placed.push({r:br,c:bc,l:letter});
+      pRack.splice(selTile,1);
+      selTile=-1;
+    } else if(board[br][bc]&&isPlaced(br,bc)){
+      // Pick up placed tile
+      let idx=placed.findIndex(p=>p.r===br&&p.c===bc);
+      if(idx>-1){
+        pRack.push(placed[idx].l);
+        board[br][bc]=null;
+        placed.splice(idx,1);
+      }
+    }
+  }
+});
+
+document.addEventListener('keydown',function(e){
+  if(e.key==='?'||e.key==='/'){toggleInfo();e.preventDefault();return;}
+  if(e.key==='Escape'&&infoOpen){toggleInfo();e.preventDefault();return;}
+  if(infoOpen)return;
+  if(e.key==='r'||e.key==='R'){init();return;}
+  if(gameOver||turn!==0)return;
+  if(e.key==='Enter'){doPlayerSubmit();e.preventDefault();}
+  if(e.key==='Backspace'){recallTiles();e.preventDefault();}
+  if(e.key==='Tab'){exchangeTiles();e.preventDefault();}
+});
+
+init();
+update();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

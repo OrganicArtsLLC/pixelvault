@@ -1,0 +1,529 @@
+<!--
+PROTOTYPE: columns
+SERIES: puz
+NUMBER: 002
+DATE: 2026-03-22
+MECHANIC: match-3 alignment — cycle jewel colors in a falling column of three
+ANCESTRY: Columns (1990, Jay Geertsen/Sega), Bejeweled (2001, PopCap)
+CONTROLS: Left/Right or A/D — move | Up or W — cycle jewels | Down or S — fast drop | Space — instant drop | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 4 (Statistical Learning — pattern-based, pre-deep-learning)
+AI-INSIGHT: Columns is a constraint satisfaction problem over a 2D grid with falling pieces. Unlike Tetris (spatial packing), Columns is about color alignment — a different NP-hard problem. Match-3 became the foundation of a $10B mobile game category, proving that color matching is a universal cognitive primitive.
+NOTES: Different spatial logic than Tetris — alignment vs packing.
+       The cycle mechanic (rotating jewel order) is the core verb — one input, three states.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PUZ-002 · COLUMNS</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #0a0a1a; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>PUZ-002 · COLUMNS</h1>
+    <p><span class="tag series">PUZ — Puzzle</span> <span class="tag">Prototype #002</span> <span class="tag">★★★★☆</span></p>
+
+    <h2>How to Play</h2>
+    <p>A column of 3 colored jewels falls. Position it and cycle the jewel order to create horizontal, vertical, or diagonal lines of 3+ matching colors.</p>
+    <ul>
+      <li><kbd>←</kbd> <kbd>→</kbd> or <kbd>A</kbd> <kbd>D</kbd> — Move column left/right</li>
+      <li><kbd>↑</kbd> or <kbd>W</kbd> — Cycle jewel order (rotate colors within column)</li>
+      <li><kbd>↓</kbd> or <kbd>S</kbd> — Soft drop (faster fall)</li>
+      <li><kbd>Space</kbd> — Hard drop (instant)</li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Diagonals count:</strong> Unlike most match-3 games, diagonal lines clear too.</li>
+      <li><strong>Chains:</strong> Gravity pulls jewels down after a match, potentially creating chain reactions.</li>
+      <li><strong>Cycle wisely:</strong> The cycle verb is your only tool for color placement — master it.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Columns (1990, Jay Geertsen/Sega) → Puyo Puyo (1991) → Bejeweled (2001)</p>
+    <p>Columns was Sega's answer to Tetris, bundled with the Game Gear. It shifted the puzzle paradigm from spatial packing to color alignment. The single verb — cycle jewel order — was inspired by slot machines: simple input, complex positional consequences.</p>
+    <p>Columns fathered the match-3 genre, which became the most commercially successful game mechanic in mobile gaming history (Candy Crush, Bejeweled, Puzzle & Dragons).</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 4 — Statistical Learning (1990–1997)</p>
+    <p><strong>Contemporary AI:</strong> Pattern recognition advancing. Decision trees, early neural networks. AI could classify but struggled with real-time combinatorial planning.</p>
+    <p><strong>Hidden Intelligence:</strong> Columns is a constraint satisfaction problem — place colors to satisfy alignment constraints across three axes (horizontal, vertical, diagonal). Unlike Tetris's spatial packing, this is a graph coloring variant. The match-3 mechanic became a $10B mobile game category, proving that color matching is a universal cognitive primitive humans find deeply satisfying.</p>
+    <p><strong>The Convergence:</strong> Modern match-3 games use ML for difficulty tuning and player retention modeling. The mechanic that started as a simple puzzle now drives some of the most sophisticated player behavior prediction systems in gaming.</p>
+    <p><strong>If AI Had Designed This:</strong> Adaptive color distribution that monitors the board state and adjusts incoming piece colors to maintain optimal tension between solvability and challenge.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: PUZ — Puzzle</h3>
+    <p>Columns introduces color alignment as the core puzzle verb, distinct from Tetris's spatial packing.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Match-3 with falling column and cycle verb.</strong> 6 colors. 3-jewel column. Horizontal, vertical, and diagonal matching. Gravity chains after clears. Speed escalation.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Cycle verb — does rotating jewel order feel intuitive?</li>
+      <li>Three-axis matching — do diagonal matches feel discoverable?</li>
+      <li>Chain reactions — do gravity cascades create excitement?</li>
+      <li>Speed escalation — does increasing speed feel fair?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. 6×13 grid, 6 jewel colors, full diagonal matching, gravity chains.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+const keys = {};
+const justPressed = {};
+window.addEventListener('keydown', e => {
+  if (infoOpen) return;
+  if (!keys[e.code]) justPressed[e.code] = true;
+  keys[e.code] = true;
+  e.preventDefault();
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+function pop(code) { if (justPressed[code]) { justPressed[code] = false; return true; } return false; }
+
+// --- GRID ---
+const COLS = 6, ROWS = 13, TILE = 36;
+const BOARD_W = COLS * TILE, BOARD_H = ROWS * TILE;
+const OX = (W - BOARD_W) / 2, OY = (H - BOARD_H) / 2;
+
+const COLORS = ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#9b59b6', '#e67e22'];
+const COLOR_NAMES = ['Ruby', 'Sapphire', 'Emerald', 'Topaz', 'Amethyst', 'Amber'];
+
+// --- STATE ---
+let board, piece, nextPiece, score, level, linesCleared, gameOver, fallTimer, fallInterval;
+let clearAnim, chainCount;
+
+function randomColor() { return Math.floor(Math.random() * COLORS.length); }
+function newPiece() {
+  return { col: Math.floor(COLS / 2), row: 0, jewels: [randomColor(), randomColor(), randomColor()] };
+}
+
+function initGame() {
+  board = Array.from({ length: ROWS }, () => new Array(COLS).fill(-1));
+  piece = newPiece();
+  nextPiece = newPiece();
+  score = 0; level = 1; linesCleared = 0;
+  gameOver = false;
+  fallTimer = 0; fallInterval = 45;
+  clearAnim = null; chainCount = 0;
+}
+initGame();
+
+function canPlace(col, row) {
+  for (let i = 0; i < 3; i++) {
+    const r = row + i;
+    if (r >= ROWS) return false;
+    if (r >= 0 && board[r][col] !== -1) return false;
+  }
+  return true;
+}
+
+function lockPiece() {
+  for (let i = 0; i < 3; i++) {
+    const r = piece.row + i;
+    if (r >= 0 && r < ROWS) {
+      board[r][piece.col] = piece.jewels[i];
+    }
+  }
+  chainCount = 0;
+  checkMatches();
+}
+
+function checkMatches() {
+  const toRemove = new Set();
+
+  // Check all 4 directions
+  const dirs = [[0, 1], [1, 0], [1, 1], [1, -1]]; // vert, horiz, diag-down-right, diag-down-left
+
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (board[r][c] === -1) continue;
+      const color = board[r][c];
+
+      for (const [dr, dc] of dirs) {
+        const line = [[r, c]];
+        let nr = r + dr, nc = c + dc;
+        while (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS && board[nr][nc] === color) {
+          line.push([nr, nc]);
+          nr += dr; nc += dc;
+        }
+        if (line.length >= 3) {
+          for (const [lr, lc] of line) toRemove.add(lr * COLS + lc);
+        }
+      }
+    }
+  }
+
+  if (toRemove.size > 0) {
+    chainCount++;
+    const pts = toRemove.size * 10 * chainCount;
+    score += pts;
+    linesCleared += Math.floor(toRemove.size / 3);
+    level = Math.floor(linesCleared / 10) + 1;
+    fallInterval = Math.max(5, 45 - (level - 1) * 4);
+
+    // Start clear animation
+    clearAnim = { cells: [...toRemove], t: 0 };
+
+    // Remove cells
+    for (const idx of toRemove) {
+      const r = Math.floor(idx / COLS), c = idx % COLS;
+      board[r][c] = -1;
+    }
+
+    // Gravity
+    for (let c = 0; c < COLS; c++) {
+      let writeRow = ROWS - 1;
+      for (let r = ROWS - 1; r >= 0; r--) {
+        if (board[r][c] !== -1) {
+          if (writeRow !== r) {
+            board[writeRow][c] = board[r][c];
+            board[r][c] = -1;
+          }
+          writeRow--;
+        }
+      }
+    }
+
+    // Check for chain matches after gravity
+    setTimeout(() => { clearAnim = null; checkMatches(); }, 200);
+  } else {
+    // Spawn next piece
+    piece = nextPiece;
+    nextPiece = newPiece();
+    if (!canPlace(piece.col, piece.row)) {
+      gameOver = true;
+    }
+  }
+}
+
+function update() {
+  if (infoOpen) return;
+  if (gameOver) { if (pop('KeyR')) initGame(); return; }
+  if (clearAnim) { clearAnim.t++; return; }
+
+  // Input
+  if (pop('ArrowLeft') || pop('KeyA')) {
+    if (piece.col > 0 && canPlace(piece.col - 1, piece.row)) piece.col--;
+  }
+  if (pop('ArrowRight') || pop('KeyD')) {
+    if (piece.col < COLS - 1 && canPlace(piece.col + 1, piece.row)) piece.col++;
+  }
+  if (pop('ArrowUp') || pop('KeyW')) {
+    // Cycle: [a,b,c] → [c,a,b]
+    const j = piece.jewels;
+    piece.jewels = [j[2], j[0], j[1]];
+  }
+  if (pop('Space')) {
+    // Hard drop
+    while (canPlace(piece.col, piece.row + 1)) piece.row++;
+    lockPiece();
+    return;
+  }
+
+  // Fall
+  const interval = (keys['ArrowDown'] || keys['KeyS']) ? 3 : fallInterval;
+  fallTimer++;
+  if (fallTimer >= interval) {
+    fallTimer = 0;
+    if (canPlace(piece.col, piece.row + 1)) {
+      piece.row++;
+    } else {
+      lockPiece();
+    }
+  }
+}
+
+function drawJewel(x, y, colorIdx, size) {
+  if (colorIdx < 0) return;
+  const s = size || TILE;
+  const cx = x + s / 2, cy = y + s / 2;
+  const r = s / 2 - 3;
+
+  // Jewel body
+  ctx.fillStyle = COLORS[colorIdx];
+  ctx.beginPath();
+  // Diamond shape
+  ctx.moveTo(cx, cy - r);
+  ctx.lineTo(cx + r, cy);
+  ctx.lineTo(cx, cy + r);
+  ctx.lineTo(cx - r, cy);
+  ctx.closePath();
+  ctx.fill();
+
+  // Highlight
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - r + 2);
+  ctx.lineTo(cx + r - 4, cy);
+  ctx.lineTo(cx, cy - 2);
+  ctx.lineTo(cx - r + 4, cy);
+  ctx.closePath();
+  ctx.fill();
+
+  // Center sparkle
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.beginPath();
+  ctx.arc(cx - 2, cy - 3, 2, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function draw() {
+  ctx.fillStyle = '#0a0a1a'; ctx.fillRect(0, 0, W, H);
+
+  // Board background
+  ctx.fillStyle = '#12122a';
+  ctx.fillRect(OX, OY, BOARD_W, BOARD_H);
+
+  // Grid lines
+  ctx.strokeStyle = '#1a1a3a'; ctx.lineWidth = 1;
+  for (let r = 0; r <= ROWS; r++) {
+    ctx.beginPath(); ctx.moveTo(OX, OY + r * TILE); ctx.lineTo(OX + BOARD_W, OY + r * TILE); ctx.stroke();
+  }
+  for (let c = 0; c <= COLS; c++) {
+    ctx.beginPath(); ctx.moveTo(OX + c * TILE, OY); ctx.lineTo(OX + c * TILE, OY + BOARD_H); ctx.stroke();
+  }
+
+  // Board jewels
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (board[r][c] !== -1) {
+        drawJewel(OX + c * TILE, OY + r * TILE, board[r][c]);
+      }
+    }
+  }
+
+  // Clear animation
+  if (clearAnim) {
+    const flash = Math.floor(clearAnim.t / 4) % 2 === 0;
+    if (flash) {
+      for (const idx of clearAnim.cells) {
+        const r = Math.floor(idx / COLS), c = idx % COLS;
+        ctx.fillStyle = 'rgba(255,255,255,0.6)';
+        ctx.fillRect(OX + c * TILE + 2, OY + r * TILE + 2, TILE - 4, TILE - 4);
+      }
+    }
+  }
+
+  // Current piece
+  if (!clearAnim && !gameOver) {
+    for (let i = 0; i < 3; i++) {
+      const r = piece.row + i;
+      if (r >= 0) {
+        drawJewel(OX + piece.col * TILE, OY + r * TILE, piece.jewels[i]);
+      }
+    }
+
+    // Ghost piece
+    let ghostRow = piece.row;
+    while (canPlace(piece.col, ghostRow + 1)) ghostRow++;
+    if (ghostRow !== piece.row) {
+      ctx.globalAlpha = 0.2;
+      for (let i = 0; i < 3; i++) {
+        drawJewel(OX + piece.col * TILE, OY + (ghostRow + i) * TILE, piece.jewels[i]);
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  // Next piece preview
+  ctx.fillStyle = '#1a1a3a';
+  const npX = OX + BOARD_W + 30, npY = OY + 20;
+  ctx.fillRect(npX, npY, TILE + 8, TILE * 3 + 8);
+  ctx.fillStyle = '#666'; ctx.font = '12px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('NEXT', npX + TILE / 2 + 4, npY - 6);
+  for (let i = 0; i < 3; i++) {
+    drawJewel(npX + 4, npY + 4 + i * TILE, nextPiece.jewels[i]);
+  }
+
+  // HUD
+  ctx.fillStyle = '#aaa'; ctx.font = '16px monospace';
+  ctx.textAlign = 'left';
+  const hudX = OX - 180;
+  ctx.fillText('SCORE', hudX, OY + 30);
+  ctx.fillStyle = '#fff'; ctx.font = '24px monospace';
+  ctx.fillText(score, hudX, OY + 56);
+
+  ctx.fillStyle = '#aaa'; ctx.font = '16px monospace';
+  ctx.fillText('LEVEL', hudX, OY + 100);
+  ctx.fillStyle = '#fff'; ctx.font = '24px monospace';
+  ctx.fillText(level, hudX, OY + 126);
+
+  ctx.fillStyle = '#aaa'; ctx.font = '16px monospace';
+  ctx.fillText('LINES', hudX, OY + 170);
+  ctx.fillStyle = '#fff'; ctx.font = '24px monospace';
+  ctx.fillText(linesCleared, hudX, OY + 196);
+
+  // Board border
+  ctx.strokeStyle = '#4a4a8a'; ctx.lineWidth = 2;
+  ctx.strokeRect(OX - 1, OY - 1, BOARD_W + 2, BOARD_H + 2);
+
+  // Game over
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, W, H);
+    ctx.font = 'bold 48px monospace'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#f55';
+    ctx.fillText('GAME OVER', W / 2, H / 2 - 20);
+    ctx.fillStyle = '#aaa'; ctx.font = '18px monospace';
+    ctx.fillText('R to restart   SCORE: ' + score, W / 2, H / 2 + 24);
+  }
+
+  // Title badge
+  ctx.fillStyle = '#1a1a1a'; ctx.fillRect(8, 8, 220, 28);
+  ctx.fillStyle = '#555'; ctx.font = '13px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('PUZ-002 · COLUMNS  [?]', 16, 26);
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: pong ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("pong");
+</script>
+</body>
+</html>

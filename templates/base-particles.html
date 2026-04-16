@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>PROTOTYPE_NAME</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #111; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+canvas { border: 1px solid #333; image-rendering: pixelated; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+// ─── METADATA ───────────────────────────────────────
+// @name        PROTOTYPE_NAME
+// @series      SERIES_CODE
+// @number      NNN
+// @date        YYYY-MM-DD
+// @mechanic    particle-system
+// @status      prototype
+// @visibility  private
+// @rating      0
+// @tags        particles, effects, visual
+// @notes       NOTES
+// ────────────────────────────────────────────────────
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+canvas.width = 800;
+canvas.height = 600;
+
+// ─── PARTICLE SYSTEM ────────────────────────────────
+
+class Particle {
+    constructor(x, y, opts = {}) {
+        this.x = x;
+        this.y = y;
+        this.vx = opts.vx ?? (Math.random() - 0.5) * 4;
+        this.vy = opts.vy ?? (Math.random() - 0.5) * 4;
+        this.life = opts.life ?? 1.0;       // 1.0 = full, 0.0 = dead
+        this.decay = opts.decay ?? 0.01;    // life lost per frame
+        this.size = opts.size ?? 4;
+        this.color = opts.color ?? { r: 255, g: 200, b: 50 };
+        this.gravity = opts.gravity ?? 0;
+        this.friction = opts.friction ?? 1;
+    }
+
+    update() {
+        this.vy += this.gravity;
+        this.vx *= this.friction;
+        this.vy *= this.friction;
+        this.x += this.vx;
+        this.y += this.vy;
+        this.life -= this.decay;
+    }
+
+    draw(ctx) {
+        const alpha = Math.max(0, this.life);
+        const s = this.size * alpha;
+        ctx.fillStyle = `rgba(${this.color.r},${this.color.g},${this.color.b},${alpha})`;
+        ctx.fillRect(this.x - s / 2, this.y - s / 2, s, s);
+    }
+
+    get alive() { return this.life > 0; }
+}
+
+// ─── EMITTER ─────────────────────────────────────────
+
+class Emitter {
+    constructor(x, y, opts = {}) {
+        this.x = x;
+        this.y = y;
+        this.rate = opts.rate ?? 3;         // particles per frame
+        this.particleOpts = opts.particleOpts ?? {};
+        this.particles = [];
+        this.active = true;
+    }
+
+    emit() {
+        if (!this.active) return;
+        for (let i = 0; i < this.rate; i++) {
+            this.particles.push(new Particle(this.x, this.y, {
+                ...this.particleOpts,
+                vx: (Math.random() - 0.5) * (this.particleOpts.spread ?? 4),
+                vy: (Math.random() - 0.5) * (this.particleOpts.spread ?? 4),
+            }));
+        }
+    }
+
+    update() {
+        this.emit();
+        for (const p of this.particles) p.update();
+        this.particles = this.particles.filter(p => p.alive);
+    }
+
+    draw(ctx) {
+        for (const p of this.particles) p.draw(ctx);
+    }
+}
+
+// ─── BURST (one-shot explosion) ──────────────────────
+
+function burst(x, y, count = 30, opts = {}) {
+    const particles = [];
+    for (let i = 0; i < count; i++) {
+        const angle = (Math.PI * 2 / count) * i + Math.random() * 0.3;
+        const speed = (opts.speed ?? 3) * (0.5 + Math.random());
+        particles.push(new Particle(x, y, {
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            decay: opts.decay ?? 0.015,
+            size: opts.size ?? 5,
+            color: opts.color ?? { r: 255, g: 100, b: 50 },
+            gravity: opts.gravity ?? 0.05,
+            friction: opts.friction ?? 0.98,
+        }));
+    }
+    return particles;
+}
+
+// ─── GAME STATE ──────────────────────────────────────
+
+const mouse = { x: 400, y: 300 };
+let allParticles = [];
+const emitters = [];
+
+// Demo emitter following mouse
+const mainEmitter = new Emitter(400, 300, {
+    rate: 2,
+    particleOpts: { spread: 3, decay: 0.012, gravity: 0.02, size: 5 }
+});
+emitters.push(mainEmitter);
+
+// ─── INPUT ───────────────────────────────────────────
+
+canvas.addEventListener('mousemove', e => {
+    const rect = canvas.getBoundingClientRect();
+    mouse.x = (e.clientX - rect.left) * (canvas.width / rect.width);
+    mouse.y = (e.clientY - rect.top) * (canvas.height / rect.height);
+});
+
+canvas.addEventListener('click', e => {
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+    const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+    allParticles.push(...burst(x, y, 40));
+});
+
+// ─── GAME LOOP ───────────────────────────────────────
+
+function update() {
+    // Move emitter to mouse
+    mainEmitter.x = mouse.x;
+    mainEmitter.y = mouse.y;
+
+    // Update emitters
+    for (const e of emitters) e.update();
+
+    // Update free particles (from bursts)
+    for (const p of allParticles) p.update();
+    allParticles = allParticles.filter(p => p.alive);
+}
+
+function draw() {
+    // Fade trail effect
+    ctx.fillStyle = 'rgba(17, 17, 17, 0.15)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Draw emitters
+    for (const e of emitters) e.draw(ctx);
+
+    // Draw free particles
+    for (const p of allParticles) p.draw(ctx);
+
+    // Instructions
+    ctx.fillStyle = '#666';
+    ctx.font = '14px monospace';
+    ctx.fillText('Move mouse to emit · Click to burst', 10, 25);
+}
+
+function loop() {
+    update();
+    draw();
+    requestAnimationFrame(loop);
+}
+
+loop();
+</script>
+</body>
+</html>

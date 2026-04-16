@@ -1,0 +1,657 @@
+<!--
+PROTOTYPE: ur
+SERIES: anc
+NUMBER: 001
+DATE: 2026-03-22
+MECHANIC: race + dice + blocking — move pieces along shared track using dice rolls
+ANCESTRY: Royal Game of Ur (~2600 BCE, Mesopotamia), Backgammon (~3000 BCE)
+CONTROLS: Click/1-7 — select piece to move | Space — roll dice | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 1 (Symbolic AI — tree search, graph algorithms)
+AI-INSIGHT: The Royal Game of Ur is a stochastic game with perfect information — the same class as backgammon. Expectiminimax (minimax with chance nodes) is the optimal algorithm. The shared middle track creates blocking and capture — emergent conflict from spatial constraints. TD-Gammon (1992) solved backgammon's cousin using temporal-difference learning, proving that ancient game designers had unknowingly created ideal RL training environments.
+NOTES: Oldest known board game with surviving rules (decoded by Irving Finkel from a cuneiform tablet).
+       Shared space on the middle track creates conflict from the simplest possible rule.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ANC-001 · ROYAL GAME OF UR</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #1a1008; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>ANC-001 · ROYAL GAME OF UR</h1>
+    <p><span class="tag series">ANC — Ancient Games</span> <span class="tag">Prototype #001</span> <span class="tag">★★★★☆</span></p>
+
+    <h2>How to Play</h2>
+    <p>Race your 7 pieces around the board and off the end before your opponent. Roll tetrahedral dice (0-4), then choose which piece to move. Land on an opponent's piece to capture it (send it back to start). Rosette squares (marked) grant an extra turn and are safe from capture.</p>
+    <ul>
+      <li><kbd>Space</kbd> — Roll dice</li>
+      <li><kbd>1</kbd>-<kbd>7</kbd> or click — Select which piece to move</li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Rosettes:</strong> Landing on a rosette (star) gives an extra turn and protects from capture.</li>
+      <li><strong>Shared track:</strong> The middle row is shared — this is where captures happen.</li>
+      <li><strong>Blocking:</strong> You cannot land on your own pieces. Plan ahead.</li>
+      <li><strong>Zero roll:</strong> Rolling 0 skips your turn.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Royal Game of Ur (~2600 BCE, Mesopotamia) → Senet (~3100 BCE) → Backgammon (~3000 BCE)</p>
+    <p>The Royal Game of Ur is the oldest playable board game with surviving rules, decoded by Irving Finkel at the British Museum from a cuneiform tablet. Boards were found in the Royal Tombs of Ur (modern Iraq), dating to approximately 2600 BCE.</p>
+    <p>The game combines luck (dice) with strategy (piece selection, blocking, capture). The shared middle track forces conflict — the same spatial resource creates both progress and danger. This is the ancestor of backgammon and all race-with-capture games.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 1 — Symbolic AI (pre-1965)</p>
+    <p><strong>Contemporary AI:</strong> This game predates formal AI by 4600 years. But the mathematical structure — stochastic game with perfect information — is exactly what expectiminimax was designed to solve.</p>
+    <p><strong>Hidden Intelligence:</strong> The Royal Game of Ur is a stochastic game with perfect information. The optimal algorithm is expectiminimax (minimax with chance nodes for dice). TD-Gammon (1992) solved backgammon — Ur's descendant — using temporal-difference learning, proving that ancient game designers had unknowingly created ideal RL training environments. The shared track creates a blocking game from the simplest possible spatial constraint.</p>
+    <p><strong>The Convergence:</strong> 4600 years of humans playing this game generated the same behavioral patterns that RL agents discover: prioritize the shared track rosette, capture when possible, advance trailing pieces. Human intuition and machine optimization converge on the same strategies.</p>
+    <p><strong>If AI Had Designed This:</strong> Self-play to discover the optimal track layout and number of pieces — the game might look different, but the core tension (shared space creates conflict) would remain.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: ANC — Ancient Games</h3>
+    <p>Games that survived 1000+ years. What makes them immortal? Simple rules, emergent depth, social play.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Race with dice, blocking, and capture on shared track.</strong> 7 pieces per player. Tetrahedral dice (0-4 range). Rosette squares for extra turns and safety. Shared middle track creates conflict.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Dice-strategy balance — does the game feel skillful despite randomness?</li>
+      <li>Shared track tension — does the middle row create meaningful conflict?</li>
+      <li>Capture drama — does sending a piece back feel impactful?</li>
+      <li>Rosette strategy — do safe squares create interesting decisions?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Two-player (vs AI). Classic 20-square track layout. AI uses simple heuristic evaluation.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+const keys = {};
+const justPressed = {};
+window.addEventListener('keydown', e => {
+  if (infoOpen) return;
+  if (!keys[e.code]) justPressed[e.code] = true;
+  keys[e.code] = true;
+  e.preventDefault();
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+function pop(code) { if (justPressed[code]) { justPressed[code] = false; return true; } return false; }
+
+// --- BOARD LAYOUT ---
+// The Royal Game of Ur board is 3 rows × 8 cols (but with gaps)
+// Track for Player 1 (top): enters top-right, goes left, U-turns into shared middle, exits top-left
+// Track for Player 2 (bottom): mirror of P1
+// Positions 0-13: 0=off-board(start), 1-4=private, 5-12=shared middle, 13-14=private exit, 15=off(done)
+
+const TILE_SIZE = 60;
+const BOARD_X = (W - 8 * TILE_SIZE) / 2;
+const BOARD_Y = (H - 3 * TILE_SIZE) / 2 + 20;
+
+// Board cell positions [row, col] for display
+// P1 path (private cells on top row, shared on middle)
+const P1_PATH = [
+  null,                 // 0: off-board
+  [0, 3], [0, 2], [0, 1], [0, 0], // 1-4: private (top row, right to left)
+  [1, 0], [1, 1], [1, 2], [1, 3], [1, 4], [1, 5], [1, 6], [1, 7], // 5-12: shared middle
+  [0, 7], [0, 6],       // 13-14: private exit (top row)
+  null                  // 15: off-board (done)
+];
+
+const P2_PATH = [
+  null,
+  [2, 3], [2, 2], [2, 1], [2, 0], // bottom row, right to left
+  [1, 0], [1, 1], [1, 2], [1, 3], [1, 4], [1, 5], [1, 6], [1, 7], // shared middle
+  [2, 7], [2, 6],
+  null
+];
+
+// Rosette positions (by path index): 4, 8, 14 are rosettes
+const ROSETTES = new Set([4, 8, 14]);
+
+const PIECES = 7;
+const PATH_LEN = 15;
+
+// --- STATE ---
+let p1Pieces, p2Pieces, turn, diceRoll, diceRolled, gameOver, winner, validMoves, selectedPiece;
+let message, messageTimer, aiThinking;
+
+function initGame() {
+  p1Pieces = new Array(PIECES).fill(0); // all off-board
+  p2Pieces = new Array(PIECES).fill(0);
+  turn = 1; diceRoll = 0; diceRolled = false;
+  gameOver = false; winner = 0;
+  validMoves = [];
+  selectedPiece = -1;
+  message = 'SPACE to roll dice'; messageTimer = 0;
+  aiThinking = 0;
+}
+initGame();
+
+function rollDice() {
+  // Four binary dice (tetrahedral): each 50% chance of 0 or 1, sum = 0-4
+  let sum = 0;
+  for (let i = 0; i < 4; i++) sum += Math.random() < 0.5 ? 1 : 0;
+  return sum;
+}
+
+function getPieces(player) { return player === 1 ? p1Pieces : p2Pieces; }
+function getOppPieces(player) { return player === 1 ? p2Pieces : p1Pieces; }
+function getPath(player) { return player === 1 ? P1_PATH : P2_PATH; }
+
+function findValidMoves(player, roll) {
+  if (roll === 0) return [];
+  const pieces = getPieces(player);
+  const oppPieces = getOppPieces(player);
+  const moves = [];
+
+  for (let i = 0; i < PIECES; i++) {
+    const pos = pieces[i];
+    if (pos >= PATH_LEN) continue; // already finished
+    const newPos = pos + roll;
+    if (newPos > PATH_LEN) continue; // overshoot
+
+    // Can't land on own piece
+    if (newPos < PATH_LEN && pieces.some((p, j) => j !== i && p === newPos)) continue;
+
+    // Can't capture on rosette
+    if (newPos >= 5 && newPos <= 12 && ROSETTES.has(newPos)) {
+      if (oppPieces.some(p => p === newPos)) continue; // opponent on rosette = safe
+    }
+
+    moves.push(i);
+  }
+  return moves;
+}
+
+function movePiece(player, pieceIdx) {
+  const pieces = getPieces(player);
+  const oppPieces = getOppPieces(player);
+  const oldPos = pieces[pieceIdx];
+  const newPos = oldPos + diceRoll;
+
+  pieces[pieceIdx] = newPos;
+
+  // Capture opponent piece (only on shared track, positions 5-12)
+  if (newPos >= 5 && newPos <= 12) {
+    for (let i = 0; i < PIECES; i++) {
+      if (oppPieces[i] === newPos) {
+        oppPieces[i] = 0; // sent back to start
+        message = 'CAPTURED!';
+        messageTimer = 60;
+      }
+    }
+  }
+
+  // Check win
+  if (pieces.every(p => p >= PATH_LEN)) {
+    gameOver = true;
+    winner = player;
+    return;
+  }
+
+  // Rosette = extra turn
+  if (ROSETTES.has(newPos)) {
+    message = 'ROSETTE — Extra turn!';
+    messageTimer = 60;
+    diceRolled = false;
+  } else {
+    turn = turn === 1 ? 2 : 1;
+    diceRolled = false;
+  }
+  validMoves = [];
+}
+
+// Simple AI for Player 2
+function aiMove() {
+  const moves = validMoves;
+  if (moves.length === 0) return;
+
+  let bestMove = moves[0];
+  let bestScore = -Infinity;
+
+  for (const i of moves) {
+    const pos = p2Pieces[i];
+    const newPos = pos + diceRoll;
+    let moveScore = newPos; // prefer advancing
+
+    // Prefer finishing
+    if (newPos >= PATH_LEN) moveScore += 100;
+    // Prefer captures
+    if (newPos >= 5 && newPos <= 12) {
+      if (p1Pieces.some(p => p === newPos)) moveScore += 50;
+    }
+    // Prefer rosettes
+    if (ROSETTES.has(newPos)) moveScore += 30;
+    // Avoid leaving rosette
+    if (ROSETTES.has(pos)) moveScore -= 10;
+    // Prefer getting on board
+    if (pos === 0) moveScore += 15;
+
+    if (moveScore > bestScore) { bestScore = moveScore; bestMove = i; }
+  }
+
+  movePiece(2, bestMove);
+}
+
+// Mouse click handling
+canvas.addEventListener('click', e => {
+  if (infoOpen || gameOver || turn !== 1 || !diceRolled) return;
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = W / rect.width, scaleY = H / rect.height;
+  const mx = (e.clientX - rect.left) * scaleX;
+  const my = (e.clientY - rect.top) * scaleY;
+
+  // Check if clicked on a valid piece
+  for (const i of validMoves) {
+    const pos = p1Pieces[i];
+    if (pos === 0) {
+      // Off-board pieces — check staging area
+      const sx = BOARD_X + 8 * TILE_SIZE + 20;
+      const sy = BOARD_Y + i * 24;
+      if (mx > sx - 15 && mx < sx + 15 && my > sy - 10 && my < sy + 20) {
+        movePiece(1, i); return;
+      }
+    } else if (pos < PATH_LEN) {
+      const cell = P1_PATH[pos];
+      if (cell) {
+        const cx = BOARD_X + cell[1] * TILE_SIZE + TILE_SIZE / 2;
+        const cy = BOARD_Y + cell[0] * TILE_SIZE + TILE_SIZE / 2;
+        if (Math.abs(mx - cx) < TILE_SIZE / 2 && Math.abs(my - cy) < TILE_SIZE / 2) {
+          movePiece(1, i); return;
+        }
+      }
+    }
+  }
+});
+
+function update() {
+  if (infoOpen) return;
+  if (gameOver) { if (pop('KeyR')) initGame(); return; }
+  if (messageTimer > 0) messageTimer--;
+
+  // Player 1 turn
+  if (turn === 1) {
+    if (!diceRolled && pop('Space')) {
+      diceRoll = rollDice();
+      diceRolled = true;
+      validMoves = findValidMoves(1, diceRoll);
+      if (diceRoll === 0) {
+        message = 'Rolled 0 — turn skipped';
+        messageTimer = 60;
+        turn = 2; diceRolled = false;
+      } else if (validMoves.length === 0) {
+        message = 'No valid moves';
+        messageTimer = 60;
+        turn = 2; diceRolled = false;
+      } else {
+        message = 'Rolled ' + diceRoll + ' — choose piece (1-7 or click)';
+      }
+    }
+
+    // Number key selection
+    if (diceRolled) {
+      for (let i = 1; i <= 7; i++) {
+        if (pop('Digit' + i)) {
+          if (validMoves.includes(i - 1)) {
+            movePiece(1, i - 1);
+          }
+        }
+      }
+    }
+  }
+
+  // Player 2 (AI) turn
+  if (turn === 2) {
+    if (!diceRolled) {
+      aiThinking++;
+      if (aiThinking > 30) {
+        diceRoll = rollDice();
+        diceRolled = true;
+        validMoves = findValidMoves(2, diceRoll);
+        aiThinking = 0;
+        if (diceRoll === 0) {
+          message = 'AI rolled 0 — skipped';
+          messageTimer = 60;
+          turn = 1; diceRolled = false;
+        } else if (validMoves.length === 0) {
+          message = 'AI has no moves';
+          messageTimer = 60;
+          turn = 1; diceRolled = false;
+        }
+      }
+    } else {
+      aiThinking++;
+      if (aiThinking > 20) {
+        aiMove();
+        aiThinking = 0;
+      }
+    }
+  }
+}
+
+function draw() {
+  ctx.fillStyle = '#1a1008'; ctx.fillRect(0, 0, W, H);
+
+  // Board
+  const boardCells = [
+    // Row 0 (top): cols 0-3 and 6-7 exist
+    [0,0],[0,1],[0,2],[0,3],null,null,[0,6],[0,7],
+    // Row 1 (middle): all 8
+    [1,0],[1,1],[1,2],[1,3],[1,4],[1,5],[1,6],[1,7],
+    // Row 2 (bottom): cols 0-3 and 6-7 exist
+    [2,0],[2,1],[2,2],[2,3],null,null,[2,6],[2,7]
+  ];
+
+  // Draw all board cells
+  for (let r = 0; r < 3; r++) {
+    for (let c = 0; c < 8; c++) {
+      // Skip non-existent cells
+      if ((r === 0 || r === 2) && (c === 4 || c === 5)) continue;
+
+      const x = BOARD_X + c * TILE_SIZE;
+      const y = BOARD_Y + r * TILE_SIZE;
+
+      // Check if this is a rosette
+      let isRosette = false;
+      for (let pos = 1; pos < PATH_LEN; pos++) {
+        const cell1 = P1_PATH[pos];
+        const cell2 = P2_PATH[pos];
+        if (ROSETTES.has(pos)) {
+          if ((cell1 && cell1[0] === r && cell1[1] === c) ||
+              (cell2 && cell2[0] === r && cell2[1] === c)) {
+            isRosette = true;
+          }
+        }
+      }
+
+      ctx.fillStyle = isRosette ? '#3a2808' : '#2a1a08';
+      ctx.fillRect(x + 2, y + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+      ctx.strokeStyle = '#6a4a20'; ctx.lineWidth = 2;
+      ctx.strokeRect(x + 2, y + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+
+      if (isRosette) {
+        // Star pattern
+        ctx.fillStyle = '#c89030';
+        const cx = x + TILE_SIZE / 2, cy = y + TILE_SIZE / 2;
+        for (let a = 0; a < 5; a++) {
+          const angle = (a / 5) * Math.PI * 2 - Math.PI / 2;
+          ctx.beginPath();
+          ctx.moveTo(cx, cy);
+          ctx.lineTo(cx + Math.cos(angle) * 18, cy + Math.sin(angle) * 18);
+          ctx.lineTo(cx + Math.cos(angle + 0.4) * 8, cy + Math.sin(angle + 0.4) * 8);
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+
+      // Highlight valid moves for player 1
+      if (turn === 1 && diceRolled) {
+        for (const mi of validMoves) {
+          const newPos = p1Pieces[mi] + diceRoll;
+          if (newPos < PATH_LEN) {
+            const cell = P1_PATH[newPos];
+            if (cell && cell[0] === r && cell[1] === c) {
+              ctx.strokeStyle = '#ff0'; ctx.lineWidth = 3;
+              ctx.strokeRect(x + 4, y + 4, TILE_SIZE - 8, TILE_SIZE - 8);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Draw pieces on board
+  function drawPiece(path, pieces, color, label) {
+    for (let i = 0; i < PIECES; i++) {
+      const pos = pieces[i];
+      if (pos <= 0 || pos >= PATH_LEN) continue;
+      const cell = path[pos];
+      if (!cell) continue;
+      const px = BOARD_X + cell[1] * TILE_SIZE + TILE_SIZE / 2;
+      const py = BOARD_Y + cell[0] * TILE_SIZE + TILE_SIZE / 2;
+
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(px, py, 16, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = '#000'; ctx.font = '12px monospace'; ctx.textAlign = 'center';
+      ctx.fillText(i + 1, px, py + 4);
+    }
+  }
+
+  drawPiece(P1_PATH, p1Pieces, '#4488ff', 'P1');
+  drawPiece(P2_PATH, p2Pieces, '#ff4444', 'P2');
+
+  // Staging area (off-board pieces)
+  ctx.fillStyle = '#4488ff'; ctx.font = '14px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('YOU', BOARD_X - 80, BOARD_Y - 10);
+  let p1Off = 0, p1Done = 0;
+  for (let i = 0; i < PIECES; i++) {
+    if (p1Pieces[i] === 0) {
+      ctx.fillStyle = '#4488ff';
+      ctx.beginPath();
+      ctx.arc(BOARD_X - 60 + p1Off * 22, BOARD_Y + 10, 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#000'; ctx.font = '9px monospace'; ctx.textAlign = 'center';
+      ctx.fillText(i + 1, BOARD_X - 60 + p1Off * 22, BOARD_Y + 13);
+      p1Off++;
+    } else if (p1Pieces[i] >= PATH_LEN) {
+      p1Done++;
+    }
+  }
+  ctx.fillStyle = '#4488ff'; ctx.font = '12px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('Done: ' + p1Done + '/7', BOARD_X - 80, BOARD_Y + 40);
+
+  ctx.fillStyle = '#ff4444'; ctx.font = '14px monospace';
+  ctx.fillText('AI', BOARD_X - 80, BOARD_Y + 2 * TILE_SIZE - 10);
+  let p2Off = 0, p2Done = 0;
+  for (let i = 0; i < PIECES; i++) {
+    if (p2Pieces[i] === 0) {
+      ctx.fillStyle = '#ff4444';
+      ctx.beginPath();
+      ctx.arc(BOARD_X - 60 + p2Off * 22, BOARD_Y + 2 * TILE_SIZE + 10, 8, 0, Math.PI * 2);
+      ctx.fill();
+      p2Off++;
+    } else if (p2Pieces[i] >= PATH_LEN) {
+      p2Done++;
+    }
+  }
+  ctx.fillStyle = '#ff4444'; ctx.font = '12px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('Done: ' + p2Done + '/7', BOARD_X - 80, BOARD_Y + 2 * TILE_SIZE + 40);
+
+  // Dice display
+  ctx.fillStyle = '#c89030'; ctx.font = '20px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('DICE: ' + (diceRolled ? diceRoll : '?'), W / 2, BOARD_Y - 30);
+
+  // Turn indicator
+  ctx.fillStyle = turn === 1 ? '#4488ff' : '#ff4444';
+  ctx.font = '16px monospace';
+  ctx.fillText(turn === 1 ? 'YOUR TURN' : 'AI THINKING...', W / 2, BOARD_Y + 3 * TILE_SIZE + 30);
+
+  // Message
+  if (message && messageTimer > 0) {
+    ctx.fillStyle = '#ff0'; ctx.font = '16px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(message, W / 2, BOARD_Y + 3 * TILE_SIZE + 55);
+  } else if (turn === 1 && !diceRolled) {
+    ctx.fillStyle = '#888'; ctx.font = '14px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('Press SPACE to roll dice', W / 2, BOARD_Y + 3 * TILE_SIZE + 55);
+  } else if (turn === 1 && diceRolled && validMoves.length > 0) {
+    ctx.fillStyle = '#888'; ctx.font = '14px monospace'; ctx.textAlign = 'center';
+    const nums = validMoves.map(m => m + 1).join(', ');
+    ctx.fillText('Choose piece: ' + nums + ' (number key or click)', W / 2, BOARD_Y + 3 * TILE_SIZE + 55);
+  }
+
+  // Game over
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, W, H);
+    ctx.font = 'bold 48px monospace'; ctx.textAlign = 'center';
+    ctx.fillStyle = winner === 1 ? '#4488ff' : '#ff4444';
+    ctx.fillText(winner === 1 ? 'YOU WIN!' : 'AI WINS', W / 2, H / 2 - 20);
+    ctx.fillStyle = '#aaa'; ctx.font = '18px monospace';
+    ctx.fillText('R to restart', W / 2, H / 2 + 24);
+  }
+
+  // Title badge
+  ctx.fillStyle = '#1a1a1a'; ctx.fillRect(8, 8, 300, 28);
+  ctx.fillStyle = '#555'; ctx.font = '13px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('ANC-001 · ROYAL GAME OF UR  [?]', 16, 26);
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

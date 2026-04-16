@@ -1,0 +1,939 @@
+<!--
+PROTOTYPE: fortress
+SERIES: fix
+NUMBER: 008
+DATE: 2026-03-24
+MECHANIC: team artillery — set angle and power, fire projectiles with wind; destructible terrain; special weapons; Korea's most beloved casual PC game of the PC bang era
+ANCESTRY: Fortress (1999, CCR Inc., Korea), Scorched Earth (1991, Wendell Hicken), Worms (1995, Team17), Gorillas (1991, IBM)
+CONTROLS: Up/Down — adjust angle | Space (hold/release) — set power | 1-4 — select weapon | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 4 (Machine Learning — wind-compensated trajectory planning with weapon selection heuristics)
+AI-INSIGHT: Fortress elevated artillery games with wind as a core variable — every shot requires recalculating the parabolic arc under changing conditions. The AI must solve a noisy optimization problem each turn, balancing weapon choice, wind compensation, and terrain destruction strategy.
+NOTES: Fortress (포트리스) was THE game of Korean PC bangs from 1999-2009. Its team-based
+       artillery with wind mechanics, destructible terrain, and special weapons created a
+       social gaming phenomenon that predated modern esports culture.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FIX-008 · FORTRESS</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: crosshair; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto; cursor: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>FIX-008 · FORTRESS (포트리스)</h1>
+    <p><span class="tag series">FIX — Fixed Shooter</span> <span class="tag">Prototype #008</span> <span class="tag">★★★★☆</span></p>
+
+    <h2>How to Play</h2>
+    <p>Team artillery battle: you and an AI ally vs two AI enemies. Tanks take turns firing across hilly terrain with wind affecting every shot. Destroy all enemy tanks to win.</p>
+    <ul>
+      <li><kbd>Up</kbd> / <kbd>Down</kbd> — adjust cannon angle</li>
+      <li><kbd>Space</kbd> (hold &amp; release) — charge and fire (longer hold = more power)</li>
+      <li><kbd>1</kbd> — Standard shot (default)</li>
+      <li><kbd>2</kbd> — Double shot (two projectiles)</li>
+      <li><kbd>3</kbd> — Spread shot (three-way fan)</li>
+      <li><kbd>4</kbd> — Laser (straight beam, ignores wind)</li>
+      <li><kbd>R</kbd> — restart game</li>
+      <li><kbd>?</kbd> — toggle this info panel</li>
+    </ul>
+
+    <h2>Wind</h2>
+    <p>The wind arrow at the top of the screen shows direction and strength. Wind changes every turn. Standard, double, and spread shots are all affected — only the laser ignores wind. Reading the wind is the core skill.</p>
+
+    <h2>Weapons</h2>
+    <ul>
+      <li><strong>Standard (1)</strong> — Reliable single shot, unlimited ammo</li>
+      <li><strong>Double (2)</strong> — Two projectiles in quick succession, 3 uses</li>
+      <li><strong>Spread (3)</strong> — Three projectiles in a fan pattern, 2 uses</li>
+      <li><strong>Laser (4)</strong> — Instant straight-line beam ignoring wind, 1 use</li>
+    </ul>
+
+    <h2>History</h2>
+    <p>Fortress (포트리스) was released by CCR Inc. in 1999 and became a cultural phenomenon in South Korea's PC bang (internet cafe) scene. Its accessible turn-based artillery gameplay with wind mechanics made it perfect for casual social gaming. At its peak, millions of Korean players gathered in PC bangs to play Fortress, making it one of the earliest massively popular online games in Korea — predating the StarCraft esports boom. The game ran for over a decade, spawning sequels (Fortress 2, Fortress 2 Blue) and cementing team artillery as a beloved Korean genre alongside Crazy Arcade and KartRider.</p>
+
+    <h3>AI Archaeology</h3>
+    <p>Wind-compensated artillery AI must solve inverse kinematics under uncertainty: given target position, gravity, and a randomly changing wind vector, compute the launch angle and power. The team element adds strategic depth — the AI must choose between finishing a wounded enemy or softening a healthy one, and decide when to spend limited special weapons versus conserving them.</p>
+
+    <h3>Classification</h3>
+    <p>Artillery / Turn-Based Tactics — team-based projectile combat with environmental physics (wind, terrain destruction). Part of the lineage from Artillery (1976) through Scorched Earth to Worms, with Fortress adding the wind-every-turn mechanic and Korean social gaming culture.</p>
+
+    <h3>Prototype Notes</h3>
+    <p>This prototype captures the core 2v2 team artillery loop with destructible terrain, wind variation per turn, and four weapon types. The original Fortress featured dozens of tank types with unique special attacks; this sketch distills the essential wind-reading skill that made every shot in Korean PC bangs a communal spectacle.</p>
+
+    <p style="margin-top:20px;color:#888;font-size:11px;">EDUCATIONAL NOTICE — This is a non-commercial prototype built for research and preservation purposes. Fortress is a trademark of CCR Inc. This sketch explores artillery mechanics and is not affiliated with or endorsed by the original creators.</p>
+  </div>
+</div>
+
+<script>
+// ── Info Panel ──
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// ── Canvas Setup ──
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+
+function resize() {
+  const s = Math.min(innerWidth / W, innerHeight / H);
+  canvas.style.width = (W * s) + 'px';
+  canvas.style.height = (H * s) + 'px';
+}
+resize();
+addEventListener('resize', resize);
+
+// ── Audio ──
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let audioCtx;
+function ensureAudio() { if (!audioCtx) audioCtx = new AudioCtx(); }
+
+function playSound(type) {
+  ensureAudio();
+  const now = audioCtx.currentTime;
+  if (type === 'fire') {
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = 'sawtooth'; o.frequency.setValueAtTime(200, now);
+    o.frequency.exponentialRampToValueAtTime(80, now + 0.15);
+    g.gain.setValueAtTime(0.3, now);
+    g.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(now); o.stop(now + 0.2);
+  } else if (type === 'explode') {
+    const buf = audioCtx.createBufferSource();
+    const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.3, audioCtx.sampleRate);
+    const d = buffer.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+    buf.buffer = buffer;
+    const g = audioCtx.createGain();
+    g.gain.setValueAtTime(0.4, now);
+    g.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+    buf.connect(g); g.connect(audioCtx.destination);
+    buf.start(now);
+  } else if (type === 'laser') {
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = 'square'; o.frequency.setValueAtTime(800, now);
+    o.frequency.exponentialRampToValueAtTime(200, now + 0.4);
+    g.gain.setValueAtTime(0.2, now);
+    g.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(now); o.stop(now + 0.4);
+  } else if (type === 'wind') {
+    const buf = audioCtx.createBufferSource();
+    const buffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.2, audioCtx.sampleRate);
+    const d = buffer.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * 0.3 * Math.sin(i / d.length * Math.PI);
+    buf.buffer = buffer;
+    const g = audioCtx.createGain();
+    g.gain.setValueAtTime(0.1, now);
+    g.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+    buf.connect(g); g.connect(audioCtx.destination);
+    buf.start(now);
+  }
+}
+
+// ── HUD Text ──
+function hudText(text, x, y, size, color, align) {
+  ctx.save();
+  ctx.font = size + 'px monospace';
+  ctx.fillStyle = color || '#fff';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+// ── Terrain ──
+let terrain = [];
+function generateTerrain() {
+  terrain = new Uint16Array(W);
+  // Rolling hills using layered sine waves
+  const baseH = 380;
+  const amp1 = 80, freq1 = 0.005;
+  const amp2 = 40, freq2 = 0.012;
+  const amp3 = 15, freq3 = 0.03;
+  const phase1 = Math.random() * Math.PI * 2;
+  const phase2 = Math.random() * Math.PI * 2;
+  const phase3 = Math.random() * Math.PI * 2;
+  for (let x = 0; x < W; x++) {
+    terrain[x] = Math.floor(baseH
+      + Math.sin(x * freq1 + phase1) * amp1
+      + Math.sin(x * freq2 + phase2) * amp2
+      + Math.sin(x * freq3 + phase3) * amp3);
+    terrain[x] = Math.max(200, Math.min(H - 20, terrain[x]));
+  }
+}
+
+function getTerrainY(x) {
+  const ix = Math.floor(Math.max(0, Math.min(W - 1, x)));
+  return terrain[ix];
+}
+
+function createCrater(cx, radius) {
+  for (let x = Math.max(0, Math.floor(cx - radius)); x < Math.min(W, Math.ceil(cx + radius)); x++) {
+    const dx = x - cx;
+    const depth = Math.sqrt(Math.max(0, radius * radius - dx * dx));
+    terrain[x] = Math.min(H, terrain[x] + Math.floor(depth));
+  }
+}
+
+// ── Tanks ──
+const TEAM_COLORS = [['#4af', '#28d'], ['#f44', '#c22']];
+const TANK_W = 24, TANK_H = 12;
+
+let tanks = [];
+function createTanks() {
+  tanks = [];
+  const positions = [120, 300, 500, 680];
+  // Teams: 0=player(blue), 1=ally(blue), 2=enemy(red), 3=enemy(red)
+  const teams = [0, 0, 1, 1];
+  const names = ['YOU', 'ALLY', 'FOE-1', 'FOE-2'];
+  for (let i = 0; i < 4; i++) {
+    const tx = positions[i];
+    tanks.push({
+      x: tx,
+      y: getTerrainY(tx) - TANK_H,
+      angle: i < 2 ? -Math.PI / 4 : -3 * Math.PI / 4,
+      hp: 100,
+      maxHp: 100,
+      team: teams[i],
+      name: names[i],
+      isPlayer: i === 0,
+      alive: true,
+      weapons: [Infinity, 3, 2, 1], // ammo: standard, double, spread, laser
+      selectedWeapon: 0
+    });
+  }
+}
+
+// ── Game State ──
+let wind = 0; // pixels/sec^2 horizontal acceleration
+let currentTank = 0;
+let phase = 'aim'; // aim, charge, fire, aiTurn, result
+let power = 0;
+let charging = false;
+let projectiles = [];
+let explosions = [];
+let laserBeam = null;
+let turnDelay = 0;
+let resultMsg = '';
+let aiTimer = 0;
+const GRAVITY = 400;
+const MAX_POWER = 500;
+const WEAPON_NAMES = ['STANDARD', 'DOUBLE', 'SPREAD', 'LASER'];
+const EXPLOSION_RADIUS = [28, 22, 18, 20];
+const DAMAGE_BASE = [40, 30, 25, 50];
+
+function newWind() {
+  wind = (Math.random() - 0.5) * 200;
+  playSound('wind');
+}
+
+function nextAlive(from) {
+  for (let i = 1; i <= 4; i++) {
+    const idx = (from + i) % 4;
+    if (tanks[idx].alive) return idx;
+  }
+  return -1;
+}
+
+function checkWin() {
+  const t0alive = tanks.filter(t => t.team === 0 && t.alive).length;
+  const t1alive = tanks.filter(t => t.team === 1 && t.alive).length;
+  if (t0alive === 0) { resultMsg = 'DEFEAT — RED TEAM WINS'; phase = 'result'; return true; }
+  if (t1alive === 0) { resultMsg = 'VICTORY — BLUE TEAM WINS!'; phase = 'result'; return true; }
+  return false;
+}
+
+function settleOnTerrain() {
+  for (const t of tanks) {
+    if (!t.alive) continue;
+    t.y = getTerrainY(t.x) - TANK_H;
+  }
+}
+
+function fireCurrent(t) {
+  ensureAudio();
+  const w = t.selectedWeapon;
+  if (t.weapons[w] <= 0) return false;
+  if (t.weapons[w] !== Infinity) t.weapons[w]--;
+
+  const pw = power;
+  playSound('fire');
+
+  if (w === 3) {
+    // Laser — instant raycast
+    fireLaser(t);
+    return true;
+  }
+
+  const angles = [t.angle];
+  if (w === 1) angles.push(t.angle); // double: same angle, staggered
+  if (w === 2) { angles.length = 0; angles.push(t.angle - 0.1, t.angle, t.angle + 0.1); }
+
+  for (let i = 0; i < angles.length; i++) {
+    const a = angles[i];
+    const delay = (w === 1 && i === 1) ? 8 : 0;
+    const bx = t.x + Math.cos(a) * 20;
+    const by = t.y + Math.sin(a) * 20;
+    projectiles.push({
+      x: bx, y: by,
+      vx: Math.cos(a) * pw,
+      vy: Math.sin(a) * pw,
+      weapon: w,
+      team: t.team,
+      delay: delay,
+      trail: []
+    });
+  }
+  return true;
+}
+
+function fireLaser(t) {
+  playSound('laser');
+  const len = 900;
+  const ex = t.x + Math.cos(t.angle) * len;
+  const ey = t.y + Math.sin(t.angle) * len;
+  laserBeam = { x1: t.x, y1: t.y, x2: ex, y2: ey, timer: 30, team: t.team };
+
+  // Raycast for hits
+  const steps = 200;
+  for (let s = 1; s <= steps; s++) {
+    const px = t.x + (ex - t.x) * s / steps;
+    const py = t.y + (ey - t.y) * s / steps;
+    // Hit terrain?
+    if (px >= 0 && px < W && py >= getTerrainY(px)) {
+      createCrater(px, EXPLOSION_RADIUS[3]);
+      addExplosion(px, py, EXPLOSION_RADIUS[3]);
+      laserBeam.x2 = px; laserBeam.y2 = py;
+      break;
+    }
+    // Hit tank?
+    for (const ot of tanks) {
+      if (!ot.alive || ot === t) continue;
+      if (Math.abs(px - ot.x) < TANK_W / 2 && Math.abs(py - ot.y - TANK_H / 2) < TANK_H) {
+        applyDamage(ot, px, py, 3);
+        laserBeam.x2 = px; laserBeam.y2 = py;
+        addExplosion(px, py, EXPLOSION_RADIUS[3]);
+        // continue ray? no, stop
+        s = steps + 1;
+        break;
+      }
+    }
+  }
+}
+
+function applyDamage(target, ex, ey, weaponIdx) {
+  const dist = Math.hypot(target.x - ex, (target.y + TANK_H / 2) - ey);
+  const radius = EXPLOSION_RADIUS[weaponIdx];
+  if (dist < radius * 1.5) {
+    const factor = Math.max(0, 1 - dist / (radius * 1.5));
+    const dmg = Math.floor(DAMAGE_BASE[weaponIdx] * factor);
+    target.hp -= dmg;
+    if (target.hp <= 0) {
+      target.hp = 0;
+      target.alive = false;
+      addExplosion(target.x, target.y, 35);
+      playSound('explode');
+    }
+  }
+}
+
+function addExplosion(x, y, r) {
+  explosions.push({ x, y, radius: r, timer: 20, maxTimer: 20 });
+}
+
+function advanceTurn() {
+  settleOnTerrain();
+  if (checkWin()) return;
+  currentTank = nextAlive(currentTank);
+  if (currentTank < 0) return;
+  newWind();
+  power = 0;
+  charging = false;
+  if (tanks[currentTank].isPlayer) {
+    phase = 'aim';
+  } else {
+    phase = 'aiTurn';
+    aiTimer = 40 + Math.floor(Math.random() * 30);
+  }
+}
+
+// ── AI Logic ──
+function aiTakeTurn(t) {
+  // Pick closest enemy
+  let bestTarget = null, bestDist = Infinity;
+  for (const ot of tanks) {
+    if (!ot.alive || ot.team === t.team) continue;
+    const d = Math.abs(ot.x - t.x);
+    if (d < bestDist) { bestDist = d; bestTarget = ot; }
+  }
+  if (!bestTarget) return;
+
+  // Pick weapon — use special if available, prefer standard otherwise
+  let wpn = 0;
+  if (t.weapons[1] > 0 && Math.random() < 0.3) wpn = 1;
+  if (t.weapons[2] > 0 && Math.random() < 0.2) wpn = 2;
+  if (t.weapons[3] > 0 && Math.random() < 0.15) wpn = 3;
+  t.selectedWeapon = wpn;
+
+  if (wpn === 3) {
+    // Laser: aim directly at target
+    t.angle = Math.atan2(bestTarget.y - t.y, bestTarget.x - t.x);
+    power = 0;
+    fireCurrent(t);
+    return;
+  }
+
+  // Calculate angle and power to hit target
+  const dx = bestTarget.x - t.x;
+  const dy = bestTarget.y - t.y;
+  const dist = Math.hypot(dx, dy);
+
+  // Use iterative approach: try various angles, pick best
+  let bestAngle = 0, bestPower = 200, bestErr = Infinity;
+  const sign = dx > 0 ? 1 : -1;
+
+  for (let aDeg = 20; aDeg <= 75; aDeg += 5) {
+    const a = -aDeg * Math.PI / 180;
+    const ang = sign > 0 ? a : -(Math.PI + a);
+    // Solve for power: we want to hit (dx, dy) under gravity and wind
+    // x(t) = vx*t + 0.5*wind*t^2, y(t) = vy*t + 0.5*g*t^2
+    // Approximate: time = dx / (cos(ang) * p + 0.5*wind*t) -- iterate
+    for (let pw = 150; pw <= MAX_POWER; pw += 20) {
+      const vx = Math.cos(ang) * pw;
+      const vy = Math.sin(ang) * pw;
+      // Estimate flight time
+      const tEst = Math.abs(dx) / Math.max(10, Math.abs(vx));
+      const landX = vx * tEst + 0.5 * wind * tEst * tEst;
+      const landY = vy * tEst + 0.5 * GRAVITY * tEst * tEst;
+      const err = Math.hypot(landX - dx, landY - dy);
+      if (err < bestErr) {
+        bestErr = err;
+        bestAngle = ang;
+        bestPower = pw;
+      }
+    }
+  }
+
+  // Add some imprecision
+  t.angle = bestAngle + (Math.random() - 0.5) * 0.08;
+  power = Math.max(100, Math.min(MAX_POWER, bestPower + (Math.random() - 0.5) * 40));
+  fireCurrent(t);
+}
+
+// ── Input ──
+const keys = {};
+addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+  if (infoOpen) return;
+  keys[e.key] = true;
+
+  if (e.key === 'r' || e.key === 'R') { initGame(); return; }
+
+  if (phase !== 'aim') return;
+  const t = tanks[currentTank];
+  if (!t || !t.isPlayer) return;
+
+  if (e.key === '1') t.selectedWeapon = 0;
+  if (e.key === '2' && t.weapons[1] > 0) t.selectedWeapon = 1;
+  if (e.key === '3' && t.weapons[2] > 0) t.selectedWeapon = 2;
+  if (e.key === '4' && t.weapons[3] > 0) t.selectedWeapon = 3;
+
+  if (e.key === ' ' && !charging) {
+    charging = true;
+    power = 0;
+    e.preventDefault();
+  }
+});
+
+addEventListener('keyup', e => {
+  keys[e.key] = false;
+  if (infoOpen) return;
+  if (e.key === ' ' && charging && phase === 'aim') {
+    charging = false;
+    const t = tanks[currentTank];
+    if (t && t.isPlayer) {
+      if (fireCurrent(t)) {
+        phase = 'fire';
+      }
+    }
+    e.preventDefault();
+  }
+});
+
+// ── Init ──
+function initGame() {
+  generateTerrain();
+  createTanks();
+  projectiles = [];
+  explosions = [];
+  laserBeam = null;
+  currentTank = 0;
+  phase = 'aim';
+  power = 0;
+  charging = false;
+  resultMsg = '';
+  newWind();
+}
+
+// ── Update ──
+let lastTime = 0;
+function update(ts) {
+  requestAnimationFrame(update);
+  if (infoOpen) return;
+  const dt = Math.min((ts - lastTime) / 1000, 0.05);
+  lastTime = ts;
+
+  const t = tanks[currentTank];
+
+  // Angle adjustment
+  if (phase === 'aim' && t && t.isPlayer) {
+    if (keys['ArrowUp']) t.angle -= 1.5 * dt;
+    if (keys['ArrowDown']) t.angle += 1.5 * dt;
+    t.angle = Math.max(-Math.PI, Math.min(0, t.angle));
+    if (charging) {
+      power = Math.min(MAX_POWER, power + MAX_POWER * dt * 0.8);
+    }
+  }
+
+  // AI turn
+  if (phase === 'aiTurn' && t) {
+    aiTimer--;
+    if (aiTimer <= 0) {
+      aiTakeTurn(t);
+      phase = 'fire';
+    }
+  }
+
+  // Update projectiles
+  if (phase === 'fire') {
+    let allDone = true;
+    for (let i = projectiles.length - 1; i >= 0; i--) {
+      const p = projectiles[i];
+      if (p.delay > 0) { p.delay--; allDone = false; continue; }
+      p.trail.push({ x: p.x, y: p.y });
+      if (p.trail.length > 20) p.trail.shift();
+
+      p.vx += wind * dt;
+      p.vy += GRAVITY * dt;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+
+      let hit = false;
+
+      // Off screen
+      if (p.x < -50 || p.x > W + 50 || p.y > H + 50) { hit = true; }
+
+      // Terrain collision
+      if (!hit && p.x >= 0 && p.x < W && p.y >= getTerrainY(p.x)) {
+        hit = true;
+        createCrater(p.x, EXPLOSION_RADIUS[p.weapon]);
+        addExplosion(p.x, p.y, EXPLOSION_RADIUS[p.weapon]);
+        playSound('explode');
+        // Damage tanks
+        for (const ot of tanks) {
+          if (!ot.alive) continue;
+          applyDamage(ot, p.x, p.y, p.weapon);
+        }
+      }
+
+      // Direct tank hit
+      if (!hit) {
+        for (const ot of tanks) {
+          if (!ot.alive) continue;
+          if (Math.abs(p.x - ot.x) < TANK_W / 2 + 4 && Math.abs(p.y - (ot.y + TANK_H / 2)) < TANK_H + 4) {
+            hit = true;
+            createCrater(p.x, EXPLOSION_RADIUS[p.weapon]);
+            addExplosion(p.x, p.y, EXPLOSION_RADIUS[p.weapon]);
+            playSound('explode');
+            for (const ot2 of tanks) {
+              if (!ot2.alive) continue;
+              applyDamage(ot2, p.x, p.y, p.weapon);
+            }
+            break;
+          }
+        }
+      }
+
+      if (hit) {
+        projectiles.splice(i, 1);
+      } else {
+        allDone = false;
+      }
+    }
+
+    // Laser beam timer
+    if (laserBeam) {
+      laserBeam.timer--;
+      if (laserBeam.timer <= 0) laserBeam = null;
+      else allDone = false;
+    }
+
+    if (allDone && projectiles.length === 0 && !laserBeam) {
+      // Wait for explosions to finish
+      if (explosions.length === 0) {
+        turnDelay = 30;
+        phase = 'waiting';
+      }
+    }
+  }
+
+  if (phase === 'waiting') {
+    turnDelay--;
+    if (turnDelay <= 0) advanceTurn();
+  }
+
+  // Update explosions
+  for (let i = explosions.length - 1; i >= 0; i--) {
+    explosions[i].timer--;
+    if (explosions[i].timer <= 0) explosions.splice(i, 1);
+  }
+
+  draw();
+}
+
+// ── Draw ──
+function draw() {
+  // Sky gradient
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, H);
+  skyGrad.addColorStop(0, '#1a1a3e');
+  skyGrad.addColorStop(0.5, '#2d4a7a');
+  skyGrad.addColorStop(1, '#4a7ab5');
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Terrain
+  ctx.beginPath();
+  ctx.moveTo(0, H);
+  for (let x = 0; x < W; x++) {
+    ctx.lineTo(x, terrain[x]);
+  }
+  ctx.lineTo(W, H);
+  ctx.closePath();
+  const tGrad = ctx.createLinearGradient(0, 250, 0, H);
+  tGrad.addColorStop(0, '#4a8c3f');
+  tGrad.addColorStop(0.3, '#3a7030');
+  tGrad.addColorStop(1, '#2a5020');
+  ctx.fillStyle = tGrad;
+  ctx.fill();
+
+  // Terrain edge highlight
+  ctx.beginPath();
+  for (let x = 0; x < W; x++) {
+    if (x === 0) ctx.moveTo(x, terrain[x]);
+    else ctx.lineTo(x, terrain[x]);
+  }
+  ctx.strokeStyle = '#6ab85a';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Draw tanks
+  for (const t of tanks) {
+    if (!t.alive) continue;
+    const colors = TEAM_COLORS[t.team];
+
+    // Body
+    ctx.fillStyle = colors[0];
+    ctx.fillRect(t.x - TANK_W / 2, t.y, TANK_W, TANK_H);
+    // Turret top
+    ctx.fillStyle = colors[1];
+    ctx.fillRect(t.x - 6, t.y - 5, 12, 6);
+
+    // Cannon barrel
+    const barrelLen = 22;
+    ctx.strokeStyle = colors[1];
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(t.x, t.y - 2);
+    ctx.lineTo(t.x + Math.cos(t.angle) * barrelLen, t.y - 2 + Math.sin(t.angle) * barrelLen);
+    ctx.stroke();
+
+    // HP bar
+    const hpW = 30;
+    ctx.fillStyle = '#333';
+    ctx.fillRect(t.x - hpW / 2, t.y - 14, hpW, 4);
+    const hpPct = t.hp / t.maxHp;
+    ctx.fillStyle = hpPct > 0.5 ? '#4f4' : hpPct > 0.25 ? '#ff0' : '#f44';
+    ctx.fillRect(t.x - hpW / 2, t.y - 14, hpW * hpPct, 4);
+
+    // Name
+    hudText(t.name, t.x, t.y - 24, 9, colors[0], 'center');
+  }
+
+  // Projectiles
+  for (const p of projectiles) {
+    if (p.delay > 0) continue;
+    // Trail
+    ctx.strokeStyle = 'rgba(255,200,100,0.4)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = 0; i < p.trail.length; i++) {
+      if (i === 0) ctx.moveTo(p.trail[i].x, p.trail[i].y);
+      else ctx.lineTo(p.trail[i].x, p.trail[i].y);
+    }
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+    // Projectile dot
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Laser beam
+  if (laserBeam) {
+    const alpha = laserBeam.timer / 30;
+    ctx.strokeStyle = `rgba(255,50,50,${alpha})`;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(laserBeam.x1, laserBeam.y1);
+    ctx.lineTo(laserBeam.x2, laserBeam.y2);
+    ctx.stroke();
+    ctx.strokeStyle = `rgba(255,200,200,${alpha * 0.7})`;
+    ctx.lineWidth = 8;
+    ctx.beginPath();
+    ctx.moveTo(laserBeam.x1, laserBeam.y1);
+    ctx.lineTo(laserBeam.x2, laserBeam.y2);
+    ctx.stroke();
+  }
+
+  // Explosions
+  for (const e of explosions) {
+    const pct = e.timer / e.maxTimer;
+    const r = e.radius * (2 - pct);
+    ctx.beginPath();
+    ctx.arc(e.x, e.y, r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255,${Math.floor(150 * pct)},0,${pct * 0.6})`;
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(e.x, e.y, r * 0.5, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255,255,${Math.floor(200 * pct)},${pct * 0.8})`;
+    ctx.fill();
+  }
+
+  // ── HUD ──
+  // Wind indicator
+  const windStr = Math.abs(wind).toFixed(0);
+  const windDir = wind > 0 ? 'RIGHT' : wind < 0 ? 'LEFT' : 'NONE';
+  hudText('WIND', W / 2, 8, 12, '#aaa', 'center');
+  // Wind arrow
+  const arrowLen = Math.min(80, Math.abs(wind) * 0.4);
+  if (Math.abs(wind) > 1) {
+    ctx.strokeStyle = '#ff0';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(W / 2 - arrowLen * Math.sign(wind) * 0.5, 30);
+    ctx.lineTo(W / 2 + arrowLen * Math.sign(wind) * 0.5, 30);
+    ctx.stroke();
+    // Arrowhead
+    const ax = W / 2 + arrowLen * Math.sign(wind) * 0.5;
+    ctx.beginPath();
+    ctx.moveTo(ax, 24);
+    ctx.lineTo(ax, 36);
+    ctx.lineTo(ax + Math.sign(wind) * 10, 30);
+    ctx.closePath();
+    ctx.fillStyle = '#ff0';
+    ctx.fill();
+  }
+  hudText(windDir + ' ' + windStr, W / 2, 40, 10, '#cc0', 'center');
+
+  // Current turn indicator
+  const ct = tanks[currentTank];
+  if (ct && ct.alive) {
+    const turnColor = TEAM_COLORS[ct.team][0];
+    hudText(ct.name + "'s TURN", 10, 8, 14, turnColor, 'left');
+  }
+
+  // Weapon display (player's turn)
+  if (phase === 'aim' && ct && ct.isPlayer) {
+    const wy = 55;
+    hudText('WEAPON:', 10, wy, 11, '#aaa');
+    for (let i = 0; i < 4; i++) {
+      const ammo = ct.weapons[i];
+      const sel = ct.selectedWeapon === i;
+      const col = ammo <= 0 ? '#555' : sel ? '#ff0' : '#999';
+      const ammoStr = ammo === Infinity ? '~' : ammo.toString();
+      hudText((i + 1) + ':' + WEAPON_NAMES[i] + '(' + ammoStr + ')', 10, wy + 14 + i * 13, 10, col);
+    }
+
+    // Power meter
+    hudText('POWER', 10, wy + 72, 11, '#aaa');
+    ctx.fillStyle = '#333';
+    ctx.fillRect(10, wy + 85, 120, 10);
+    ctx.fillStyle = power / MAX_POWER > 0.8 ? '#f44' : power / MAX_POWER > 0.5 ? '#ff0' : '#4f4';
+    ctx.fillRect(10, wy + 85, 120 * (power / MAX_POWER), 10);
+    hudText(Math.floor(power), 135, wy + 83, 10, '#fff');
+
+    // Angle display
+    const angleDeg = Math.abs(Math.round(ct.angle * 180 / Math.PI));
+    hudText('ANGLE: ' + angleDeg + '\u00B0', 10, wy + 100, 10, '#aaa');
+
+    // Aim indicator on tank
+    const aimLen = 35;
+    ctx.strokeStyle = 'rgba(255,255,0,0.5)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(ct.x, ct.y - 2);
+    ctx.lineTo(ct.x + Math.cos(ct.angle) * aimLen, ct.y - 2 + Math.sin(ct.angle) * aimLen);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Turn indicator arrow above active tank
+  if (ct && ct.alive && phase !== 'result') {
+    const blink = Math.sin(Date.now() * 0.005) > 0;
+    if (blink) {
+      ctx.fillStyle = TEAM_COLORS[ct.team][0];
+      ctx.beginPath();
+      ctx.moveTo(ct.x, ct.y - 32);
+      ctx.lineTo(ct.x - 6, ct.y - 40);
+      ctx.lineTo(ct.x + 6, ct.y - 40);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  // Team scores (HP totals)
+  const blueHP = tanks.filter(t => t.team === 0).reduce((s, t) => s + t.hp, 0);
+  const redHP = tanks.filter(t => t.team === 1).reduce((s, t) => s + t.hp, 0);
+  hudText('BLUE:' + blueHP, W - 130, 8, 11, '#4af');
+  hudText('RED:' + redHP, W - 130, 22, 11, '#f44');
+
+  // Result screen
+  if (phase === 'result') {
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(0, H / 2 - 50, W, 100);
+    const rCol = resultMsg.includes('VICTORY') ? '#4f4' : '#f44';
+    hudText(resultMsg, W / 2, H / 2 - 20, 24, rCol, 'center');
+    hudText('Press R to restart', W / 2, H / 2 + 20, 14, '#aaa', 'center');
+  }
+
+  // Controls hint
+  if (phase === 'aim' && ct && ct.isPlayer) {
+    hudText('\u2191\u2193 Angle  SPACE Fire  1-4 Weapon  ? Info', W / 2, H - 16, 10, '#666', 'center');
+  }
+
+  // AI thinking
+  if (phase === 'aiTurn') {
+    hudText(ct.name + ' aiming...', W / 2, H / 2 - 10, 14, '#ff0', 'center');
+  }
+}
+
+// ── Start ──
+initGame();
+requestAnimationFrame(update);
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

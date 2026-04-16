@@ -1,0 +1,782 @@
+<!--
+PROTOTYPE: idle
+SERIES: sim
+NUMBER: 010
+DATE: 2026-03-23
+MECHANIC: incremental growth — click to generate resources, buy upgrades that produce resources automatically, unlocking exponential growth loops
+ANCESTRY: Progress Quest (2002), Cookie Clicker (2013), Universal Paperclips (2017), Antimatter Dimensions (2017)
+CONTROLS: Click — generate resource | Click buttons — buy upgrades | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 6 (Deep Learning — exponential scaling, reward shaping)
+AI-INSIGHT: Idle games are pure reward-shaping experiments. The exponential growth curve with diminishing returns per upgrade models the same multi-armed bandit problem that RL agents face. Cookie Clicker's prestige system is a meta-learning reset — sacrifice current progress for a permanent multiplier, mirroring transfer learning across training runs.
+NOTES: Cookie Clicker (2013) by Orteil proved that the act of watching numbers go up is inherently compelling. The genre strips away all traditional game design (skill, challenge, narrative) to expose the pure psychology of progress and optimization.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SIM-010 · IDLE</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: pointer; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SIM-010 · IDLE</h1>
+    <p><span class="tag series">SIM — Simulation</span> <span class="tag">Prototype #010</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Click the central crystal to generate energy. Spend energy on upgrades that produce energy automatically. Watch numbers grow exponentially.</p>
+    <ul>
+      <li><kbd>Click</kbd> the crystal to generate energy</li>
+      <li><kbd>Click</kbd> upgrade buttons to purchase producers</li>
+      <li><kbd>R</kbd> — Restart (full reset)</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Upgrades</h3>
+    <ul>
+      <li><strong>Cursor</strong> — 0.1/s each. Cheap automated clicker.</li>
+      <li><strong>Worker</strong> — 1/s each. Human-scale production.</li>
+      <li><strong>Factory</strong> — 8/s each. Industrial output.</li>
+      <li><strong>Lab</strong> — 47/s each. Research-driven generation.</li>
+      <li><strong>Portal</strong> — 260/s each. Interdimensional harvesting.</li>
+    </ul>
+    <h3>Prestige</h3>
+    <p>Once you reach 1 million lifetime energy, press <kbd>R</kbd> to reset with a permanent multiplier. Each prestige level adds +10% to all production.</p>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Progress Quest</strong> (2002) by Eric Fredricksen was the proto-idle game, satirizing RPG grinding by automating it entirely. <strong>Cookie Clicker</strong> (2013) by Julien "Orteil" Thiennot turned the joke earnest — clicking a cookie became a genuine compulsion loop that spawned an entire genre. <strong>Universal Paperclips</strong> (2017) by Frank Lantz, director of the NYU Game Center, wrapped the mechanic in an AI alignment parable. <strong>Antimatter Dimensions</strong> (2017) by Hevipelle pushed the math to its limit with nested infinity layers.</p>
+    <p>The idle genre proves that progression itself — not challenge, not narrative, not skill — is the atomic unit of game satisfaction.</p>
+
+    <h2>AI Archaeology</h2>
+    <p>Idle games are reward-shaping experiments stripped bare. The exponential growth curve with diminishing returns per upgrade tier models the multi-armed bandit problem: allocate limited resources across options with different payoff profiles. Cookie Clicker's prestige system is transfer learning — sacrifice current progress for a permanent multiplier, exactly like resetting a neural network with better initialization weights.</p>
+    <p>The genre's core loop (earn → spend → earn faster) mirrors the RL training cycle. The player IS the optimizer, manually tuning hyperparameters (which upgrade to buy) to maximize a reward signal (resources per second). AI Era 6 because the exponential scaling and reward shaping are pure deep learning patterns.</p>
+
+    <h2>Classification</h2>
+    <p><span class="tag series">SIM — Simulation</span> <span class="tag">Incremental</span> <span class="tag">Idle</span> <span class="tag">Clicker</span> <span class="tag">Economy</span></p>
+    <p><span class="tag">Single Player</span> <span class="tag">Mouse-driven</span> <span class="tag">Infinite Play</span></p>
+
+    <h2>Prototype Notes</h2>
+    <p>Stripped to essentials: one resource, five upgrade tiers, prestige. No save system (session only). The crystal visual and particle effects provide the satisfying click feedback that makes idle games work. Cost scaling at 1.15× per purchase follows the Cookie Clicker formula.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+canvas.width = 800;
+canvas.height = 600;
+
+// Info panel
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// Game state
+let energy = 0;
+let totalEnergy = 0;
+let clickPower = 1;
+let clickPowerLevel = 0;
+let clickPowerCost = 50;
+let prestigeLevel = 0;
+let prestigeMultiplier = 1;
+let perSecond = 0;
+
+const upgrades = [
+  { name: 'Cursor',  baseCost: 15,     baseRate: 0.1,  count: 0, color: '#8cf' },
+  { name: 'Worker',  baseCost: 100,    baseRate: 1,    count: 0, color: '#6e6' },
+  { name: 'Factory', baseCost: 1100,   baseRate: 8,    count: 0, color: '#fc6' },
+  { name: 'Lab',     baseCost: 12000,  baseRate: 47,   count: 0, color: '#c6f' },
+  { name: 'Portal',  baseCost: 130000, baseRate: 260,  count: 0, color: '#f66' },
+];
+
+// Achievements
+const achievements = [
+  { name: 'First Click', desc: 'Generate 1 energy', threshold: 1, earned: false },
+  { name: 'Getting Started', desc: 'Earn 100 energy', threshold: 100, earned: false },
+  { name: 'Thousand', desc: 'Earn 1,000 energy', threshold: 1000, earned: false },
+  { name: 'Ten Thousand', desc: 'Earn 10,000 energy', threshold: 1e4, earned: false },
+  { name: 'Hundred K', desc: 'Earn 100,000 energy', threshold: 1e5, earned: false },
+  { name: 'Millionaire', desc: 'Earn 1,000,000 energy', threshold: 1e6, earned: false },
+  { name: 'Billionaire', desc: 'Earn 1,000,000,000 energy', threshold: 1e9, earned: false },
+  { name: 'First Prestige', desc: 'Prestige once', threshold: -1, earned: false },
+  { name: 'Automation', desc: 'Buy 10 cursors', threshold: -2, earned: false },
+  { name: 'Industrialist', desc: 'Buy a factory', threshold: -3, earned: false },
+];
+
+let achievementPopups = [];
+let lastAchievementCheck = 0;
+
+// Visual effects
+let particles = [];
+let numberPopups = [];
+let crystalPulse = 0;
+let crystalHover = false;
+let crystalGlow = 0;
+
+// Crystal position
+const crystalX = 260;
+const crystalY = 240;
+const crystalRadius = 70;
+
+// Shop area
+const shopX = 500;
+const shopY = 60;
+const shopW = 280;
+const shopBtnH = 70;
+const shopGap = 6;
+
+// Click power button
+const clickPwrBtnX = 500;
+const clickPwrBtnY = shopY + (shopBtnH + shopGap) * 5 + 16;
+const clickPwrBtnW = 280;
+const clickPwrBtnH = 50;
+
+// Prestige button
+const prestigeBtnX = 500;
+const prestigeBtnY = clickPwrBtnY + clickPwrBtnH + 16;
+const prestigeBtnW = 280;
+const prestigeBtnH = 50;
+
+function getCost(upgrade) {
+  return Math.floor(upgrade.baseCost * Math.pow(1.15, upgrade.count));
+}
+
+function getRate(upgrade) {
+  return upgrade.baseRate * upgrade.count * prestigeMultiplier;
+}
+
+function calcPerSecond() {
+  perSecond = 0;
+  for (const u of upgrades) perSecond += getRate(u);
+}
+
+function formatNum(n) {
+  if (n < 1000) return n < 10 ? n.toFixed(1) : Math.floor(n).toString();
+  if (n < 1e6) return (n / 1e3).toFixed(1) + 'K';
+  if (n < 1e9) return (n / 1e6).toFixed(2) + 'M';
+  if (n < 1e12) return (n / 1e9).toFixed(2) + 'B';
+  if (n < 1e15) return (n / 1e12).toFixed(2) + 'T';
+  return (n / 1e15).toFixed(2) + 'Qa';
+}
+
+function spawnParticles(x, y, count, color) {
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 1 + Math.random() * 3;
+    particles.push({
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed - 1,
+      life: 30 + Math.random() * 20,
+      maxLife: 50,
+      color: color || '#ff0',
+      size: 2 + Math.random() * 3,
+    });
+  }
+}
+
+function spawnNumberPopup(x, y, value) {
+  numberPopups.push({
+    x: x + (Math.random() - 0.5) * 40,
+    y,
+    text: '+' + formatNum(value),
+    life: 40,
+    maxLife: 40,
+    color: '#ff0',
+  });
+}
+
+function checkAchievements() {
+  for (const a of achievements) {
+    if (a.earned) continue;
+    let earned = false;
+    if (a.threshold > 0 && totalEnergy >= a.threshold) earned = true;
+    if (a.threshold === -1 && prestigeLevel > 0) earned = true;
+    if (a.threshold === -2 && upgrades[0].count >= 10) earned = true;
+    if (a.threshold === -3 && upgrades[2].count >= 1) earned = true;
+    if (earned) {
+      a.earned = true;
+      achievementPopups.push({ name: a.name, desc: a.desc, life: 180 });
+      spawnParticles(400, 580, 20, '#ff0');
+    }
+  }
+}
+
+function getPrestigeGain() {
+  if (totalEnergy < 1e6) return 0;
+  return Math.floor(Math.sqrt(totalEnergy / 1e6));
+}
+
+function doPrestige() {
+  const gain = getPrestigeGain();
+  if (gain <= 0) return;
+  prestigeLevel += gain;
+  prestigeMultiplier = 1 + prestigeLevel * 0.1;
+  energy = 0;
+  totalEnergy = 0;
+  clickPower = 1;
+  clickPowerLevel = 0;
+  clickPowerCost = 50;
+  for (const u of upgrades) u.count = 0;
+  calcPerSecond();
+  spawnParticles(crystalX, crystalY, 50, '#f0f');
+  // Check prestige achievement
+  for (const a of achievements) {
+    if (a.threshold === -1 && !a.earned) {
+      a.earned = true;
+      achievementPopups.push({ name: a.name, desc: a.desc, life: 180 });
+    }
+  }
+}
+
+function restartGame() {
+  energy = 0;
+  totalEnergy = 0;
+  clickPower = 1;
+  clickPowerLevel = 0;
+  clickPowerCost = 50;
+  prestigeLevel = 0;
+  prestigeMultiplier = 1;
+  perSecond = 0;
+  for (const u of upgrades) u.count = 0;
+  for (const a of achievements) a.earned = false;
+  particles = [];
+  numberPopups = [];
+  achievementPopups = [];
+  crystalPulse = 0;
+  crystalGlow = 0;
+  lastTime = 0;
+  accumulator = 0;
+  calcPerSecond();
+}
+
+// Input
+let mouseX = 0, mouseY = 0;
+
+canvas.addEventListener('mousemove', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const sx = canvas.width / rect.width;
+  const sy = canvas.height / rect.height;
+  mouseX = (e.clientX - rect.left) * sx;
+  mouseY = (e.clientY - rect.top) * sy;
+  // Check crystal hover
+  const dx = mouseX - crystalX;
+  const dy = mouseY - crystalY;
+  crystalHover = (dx * dx + dy * dy) < crystalRadius * crystalRadius;
+});
+
+canvas.addEventListener('click', (e) => {
+  if (infoOpen) return;
+  const rect = canvas.getBoundingClientRect();
+  const sx = canvas.width / rect.width;
+  const sy = canvas.height / rect.height;
+  const cx = (e.clientX - rect.left) * sx;
+  const cy = (e.clientY - rect.top) * sy;
+
+  // Crystal click
+  const dx = cx - crystalX;
+  const dy = cy - crystalY;
+  if (dx * dx + dy * dy < crystalRadius * crystalRadius) {
+    const amount = clickPower * prestigeMultiplier;
+    energy += amount;
+    totalEnergy += amount;
+    crystalPulse = 1;
+    spawnParticles(cx, cy, 8, '#0ff');
+    spawnNumberPopup(cx, cy - 30, amount);
+    return;
+  }
+
+  // Shop buttons
+  for (let i = 0; i < upgrades.length; i++) {
+    const by = shopY + (shopBtnH + shopGap) * i;
+    if (cx >= shopX && cx <= shopX + shopW && cy >= by && cy <= by + shopBtnH) {
+      const cost = getCost(upgrades[i]);
+      if (energy >= cost) {
+        energy -= cost;
+        upgrades[i].count++;
+        calcPerSecond();
+        spawnParticles(shopX + shopW / 2, by + shopBtnH / 2, 6, upgrades[i].color);
+      }
+      return;
+    }
+  }
+
+  // Click power button
+  if (cx >= clickPwrBtnX && cx <= clickPwrBtnX + clickPwrBtnW &&
+      cy >= clickPwrBtnY && cy <= clickPwrBtnY + clickPwrBtnH) {
+    if (energy >= clickPowerCost) {
+      energy -= clickPowerCost;
+      clickPowerLevel++;
+      clickPower = 1 + clickPowerLevel * 2;
+      clickPowerCost = Math.floor(50 * Math.pow(2, clickPowerLevel));
+      spawnParticles(clickPwrBtnX + clickPwrBtnW / 2, clickPwrBtnY + clickPwrBtnH / 2, 6, '#ff0');
+    }
+    return;
+  }
+
+  // Prestige button
+  if (cx >= prestigeBtnX && cx <= prestigeBtnX + prestigeBtnW &&
+      cy >= prestigeBtnY && cy <= prestigeBtnY + prestigeBtnH) {
+    doPrestige();
+  }
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+  if (infoOpen) return;
+  if (e.key === 'r' || e.key === 'R') restartGame();
+  if ([' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault();
+});
+
+// Drawing helpers
+function drawCrystal(time) {
+  const pulse = crystalPulse > 0 ? crystalPulse * 8 : 0;
+  const hover = crystalHover ? 4 : 0;
+  const r = crystalRadius + pulse + hover;
+
+  // Glow
+  const glowAlpha = 0.15 + (crystalPulse > 0 ? crystalPulse * 0.3 : 0) + Math.sin(time * 0.002) * 0.05;
+  const grad = ctx.createRadialGradient(crystalX, crystalY, r * 0.3, crystalX, crystalY, r * 1.8);
+  grad.addColorStop(0, `rgba(0,255,255,${glowAlpha})`);
+  grad.addColorStop(1, 'rgba(0,255,255,0)');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(crystalX, crystalY, r * 1.8, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Crystal shape (hexagon)
+  ctx.save();
+  ctx.translate(crystalX, crystalY);
+  const rot = Math.sin(time * 0.001) * 0.05;
+  ctx.rotate(rot);
+
+  // Outer glow ring
+  ctx.strokeStyle = `rgba(0,200,255,${0.3 + crystalPulse * 0.5})`;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2 - Math.PI / 2;
+    const px = Math.cos(a) * (r + 4);
+    const py = Math.sin(a) * (r + 4);
+    i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.stroke();
+
+  // Main crystal body
+  const bodyGrad = ctx.createLinearGradient(0, -r, 0, r);
+  bodyGrad.addColorStop(0, '#0df');
+  bodyGrad.addColorStop(0.5, '#08a');
+  bodyGrad.addColorStop(1, '#046');
+  ctx.fillStyle = bodyGrad;
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2 - Math.PI / 2;
+    const px = Math.cos(a) * r;
+    const py = Math.sin(a) * r;
+    i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#0ff';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Inner facets
+  ctx.strokeStyle = `rgba(0,255,255,${0.2 + Math.sin(time * 0.003) * 0.1})`;
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2 - Math.PI / 2;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+    ctx.stroke();
+  }
+
+  // Center highlight
+  const centerGrad = ctx.createRadialGradient(0, -r * 0.2, 0, 0, 0, r * 0.5);
+  centerGrad.addColorStop(0, 'rgba(255,255,255,0.4)');
+  centerGrad.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = centerGrad;
+  ctx.beginPath();
+  ctx.arc(0, -r * 0.1, r * 0.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
+
+  // "CLICK" label
+  if (crystalHover) {
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 14px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('CLICK', crystalX, crystalY + r + 24);
+  }
+}
+
+function drawShop() {
+  // Title
+  ctx.fillStyle = '#888';
+  ctx.font = '12px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('UPGRADES', shopX, shopY - 10);
+
+  for (let i = 0; i < upgrades.length; i++) {
+    const u = upgrades[i];
+    const cost = getCost(u);
+    const affordable = energy >= cost;
+    const by = shopY + (shopBtnH + shopGap) * i;
+
+    // Button background
+    ctx.fillStyle = affordable ? '#1a1a2e' : '#111118';
+    ctx.strokeStyle = affordable ? u.color : '#333';
+    ctx.lineWidth = affordable ? 2 : 1;
+    ctx.beginPath();
+    ctx.roundRect(shopX, by, shopW, shopBtnH, 4);
+    ctx.fill();
+    ctx.stroke();
+
+    // Name and count
+    ctx.fillStyle = u.color;
+    ctx.font = 'bold 14px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText(u.name, shopX + 10, by + 20);
+
+    ctx.fillStyle = '#aaa';
+    ctx.font = '12px monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText('x' + u.count, shopX + shopW - 10, by + 20);
+
+    // Cost
+    ctx.fillStyle = affordable ? '#6f6' : '#a44';
+    ctx.font = '12px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('Cost: ' + formatNum(cost), shopX + 10, by + 40);
+
+    // Rate
+    ctx.fillStyle = '#888';
+    ctx.textAlign = 'right';
+    ctx.fillText('+' + (u.baseRate * prestigeMultiplier).toFixed(1) + '/s', shopX + shopW - 10, by + 40);
+
+    // Production
+    if (u.count > 0) {
+      ctx.fillStyle = '#555';
+      ctx.font = '10px monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText('producing: ' + formatNum(getRate(u)) + '/s', shopX + 10, by + 56);
+    }
+  }
+
+  // Click power button
+  const cpAfford = energy >= clickPowerCost;
+  ctx.fillStyle = cpAfford ? '#1e1a2e' : '#111118';
+  ctx.strokeStyle = cpAfford ? '#ff0' : '#333';
+  ctx.lineWidth = cpAfford ? 2 : 1;
+  ctx.beginPath();
+  ctx.roundRect(clickPwrBtnX, clickPwrBtnY, clickPwrBtnW, clickPwrBtnH, 4);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = '#ff0';
+  ctx.font = 'bold 13px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('Click Power x' + (clickPowerLevel + 1), clickPwrBtnX + 10, clickPwrBtnY + 22);
+  ctx.fillStyle = cpAfford ? '#6f6' : '#a44';
+  ctx.font = '12px monospace';
+  ctx.fillText('Cost: ' + formatNum(clickPowerCost), clickPwrBtnX + 10, clickPwrBtnY + 40);
+  ctx.fillStyle = '#aaa';
+  ctx.textAlign = 'right';
+  ctx.fillText('+' + formatNum(clickPower * prestigeMultiplier) + '/click', clickPwrBtnX + clickPwrBtnW - 10, clickPwrBtnY + 22);
+
+  // Prestige button
+  const pGain = getPrestigeGain();
+  const canPrestige = pGain > 0;
+  ctx.fillStyle = canPrestige ? '#2a1a2e' : '#111118';
+  ctx.strokeStyle = canPrestige ? '#f0f' : '#333';
+  ctx.lineWidth = canPrestige ? 2 : 1;
+  ctx.beginPath();
+  ctx.roundRect(prestigeBtnX, prestigeBtnY, prestigeBtnW, prestigeBtnH, 4);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = canPrestige ? '#f0f' : '#666';
+  ctx.font = 'bold 13px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('PRESTIGE (R)', prestigeBtnX + 10, prestigeBtnY + 20);
+  ctx.fillStyle = '#aaa';
+  ctx.font = '11px monospace';
+  if (canPrestige) {
+    ctx.fillText('+' + pGain + ' levels (x' + (1 + (prestigeLevel + pGain) * 0.1).toFixed(1) + ')', prestigeBtnX + 10, prestigeBtnY + 38);
+  } else {
+    ctx.fillText('Need 1M lifetime energy', prestigeBtnX + 10, prestigeBtnY + 38);
+  }
+  if (prestigeLevel > 0) {
+    ctx.fillStyle = '#f0f';
+    ctx.textAlign = 'right';
+    ctx.fillText('Lv.' + prestigeLevel, prestigeBtnX + prestigeBtnW - 10, prestigeBtnY + 20);
+  }
+}
+
+function drawHUD(time) {
+  // Energy display
+  ctx.fillStyle = '#0ff';
+  ctx.font = 'bold 36px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(formatNum(energy), crystalX, 60);
+
+  ctx.fillStyle = '#088';
+  ctx.font = '14px monospace';
+  ctx.fillText('ENERGY', crystalX, 80);
+
+  // Per second
+  ctx.fillStyle = '#6a6';
+  ctx.font = '16px monospace';
+  ctx.fillText(formatNum(perSecond) + ' / sec', crystalX, 105);
+
+  // Click power
+  ctx.fillStyle = '#aa0';
+  ctx.font = '12px monospace';
+  ctx.fillText('+' + formatNum(clickPower * prestigeMultiplier) + ' per click', crystalX, 125);
+
+  // Prestige multiplier
+  if (prestigeLevel > 0) {
+    ctx.fillStyle = '#f0f';
+    ctx.font = '12px monospace';
+    ctx.fillText('Prestige x' + prestigeMultiplier.toFixed(1) + ' (Lv.' + prestigeLevel + ')', crystalX, 145);
+  }
+
+  // Lifetime
+  ctx.fillStyle = '#555';
+  ctx.font = '11px monospace';
+  ctx.fillText('Lifetime: ' + formatNum(totalEnergy), crystalX, crystalY + crystalRadius + 60);
+
+  // Title
+  ctx.fillStyle = '#445';
+  ctx.font = '11px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('SIM-010 · IDLE', 10, 590);
+
+  // Help hint
+  ctx.fillStyle = '#334';
+  ctx.textAlign = 'right';
+  ctx.fillText('Press ? for info', 490, 590);
+
+  // Achievements earned count
+  const earnedCount = achievements.filter(a => a.earned).length;
+  if (earnedCount > 0) {
+    ctx.fillStyle = '#aa0';
+    ctx.font = '11px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('Achievements: ' + earnedCount + '/' + achievements.length, 10, 20);
+  }
+}
+
+function drawParticles() {
+  for (const p of particles) {
+    const alpha = p.life / p.maxLife;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawNumberPopups() {
+  for (const p of numberPopups) {
+    const alpha = p.life / p.maxLife;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = p.color;
+    ctx.font = 'bold ' + (14 + (1 - alpha) * 6) + 'px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(p.text, p.x, p.y);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawAchievementPopups() {
+  for (let i = achievementPopups.length - 1; i >= 0; i--) {
+    const ap = achievementPopups[i];
+    const alpha = Math.min(1, ap.life / 30);
+    const yOff = (1 - Math.min(1, ap.life / 20)) * 30;
+    ctx.globalAlpha = alpha;
+
+    const ax = 140;
+    const ay = 530 - yOff - i * 50;
+
+    ctx.fillStyle = '#2a2a10';
+    ctx.strokeStyle = '#ff0';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(ax, ay, 240, 40, 4);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#ff0';
+    ctx.font = 'bold 12px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(ap.name, ax + 120, ay + 16);
+    ctx.fillStyle = '#aa8';
+    ctx.font = '10px monospace';
+    ctx.fillText(ap.desc, ax + 120, ay + 32);
+  }
+  ctx.globalAlpha = 1;
+}
+
+// Background decorations
+let bgStars = [];
+for (let i = 0; i < 40; i++) {
+  bgStars.push({
+    x: Math.random() * 490,
+    y: Math.random() * 600,
+    size: 0.5 + Math.random() * 1.5,
+    speed: 0.2 + Math.random() * 0.5,
+  });
+}
+
+function drawBackground(time) {
+  // Dark gradient
+  const grad = ctx.createLinearGradient(0, 0, 0, 600);
+  grad.addColorStop(0, '#0a0a14');
+  grad.addColorStop(1, '#050510');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 800, 600);
+
+  // Divider line
+  ctx.strokeStyle = '#222';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(490, 0);
+  ctx.lineTo(490, 600);
+  ctx.stroke();
+
+  // Stars in left panel
+  ctx.fillStyle = '#335';
+  for (const s of bgStars) {
+    const twinkle = 0.3 + Math.sin(time * 0.003 * s.speed + s.x) * 0.3;
+    ctx.globalAlpha = twinkle;
+    ctx.fillRect(s.x, s.y, s.size, s.size);
+  }
+  ctx.globalAlpha = 1;
+}
+
+// Main loop
+let lastTime = 0;
+let accumulator = 0;
+
+function update(time) {
+  requestAnimationFrame(update);
+  if (infoOpen) return;
+
+  const dt = lastTime ? (time - lastTime) / 1000 : 0;
+  lastTime = time;
+
+  // Production
+  if (dt > 0 && dt < 1) {
+    const produced = perSecond * dt;
+    energy += produced;
+    totalEnergy += produced;
+  }
+
+  // Pulse decay
+  if (crystalPulse > 0) {
+    crystalPulse *= 0.9;
+    if (crystalPulse < 0.01) crystalPulse = 0;
+  }
+
+  // Update particles
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.05;
+    p.life--;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+
+  // Update number popups
+  for (let i = numberPopups.length - 1; i >= 0; i--) {
+    numberPopups[i].y -= 1.2;
+    numberPopups[i].life--;
+    if (numberPopups[i].life <= 0) numberPopups.splice(i, 1);
+  }
+
+  // Update achievement popups
+  for (let i = achievementPopups.length - 1; i >= 0; i--) {
+    achievementPopups[i].life--;
+    if (achievementPopups[i].life <= 0) achievementPopups.splice(i, 1);
+  }
+
+  // Check achievements periodically
+  accumulator += dt;
+  if (accumulator > 0.5) {
+    accumulator = 0;
+    checkAchievements();
+  }
+
+  // Draw
+  drawBackground(time);
+  drawCrystal(time);
+  drawParticles();
+  drawNumberPopups();
+  drawShop();
+  drawHUD(time);
+  drawAchievementPopups();
+}
+
+requestAnimationFrame(update);
+</script>
+</body>
+</html>

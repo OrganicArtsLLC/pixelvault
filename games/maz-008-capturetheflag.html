@@ -1,0 +1,852 @@
+<!--
+PROTOTYPE: capturetheflag
+SERIES: maz
+NUMBER: 008
+DATE: 2026-03-23
+MECHANIC: team-based flag capture in divided arena with tagging and jail mechanics
+ANCESTRY: Capture the Flag (traditional playground game), Stratego (1947, Jumbo), Team Fortress (1996, id Software mod)
+CONTROLS: WASD — move | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 5 (Deep Learning — multi-agent coordination, role assignment)
+AI-INSIGHT: CTF requires agents to adopt roles (attacker, defender, support) and switch dynamically based on game state. This multi-agent coordination problem — where individual optimal play differs from team-optimal play — is a foundational challenge in cooperative AI research.
+NOTES: CTF distills team strategy to its essence: territory, roles, risk.
+       The flag-carrying constraint forces vulnerability and creates drama.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MAZ-008 · CAPTURE THE FLAG</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>MAZ-008 · CAPTURE THE FLAG</h1>
+    <p><span class="tag series">MAZ — Maze</span> <span class="tag">Prototype #008</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Lead your blue team to capture the red flag and bring it home. First team to 3 captures wins!</p>
+    <ul>
+      <li><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> — Move your player</li>
+      <li>Cross the midline to enter enemy territory</li>
+      <li>Touch the red flag to grab it, then bring it back to your base</li>
+      <li>Tag red players on YOUR side (left half) to send them to jail</li>
+      <li>Free jailed teammates by touching the jail area on the enemy side</li>
+      <li>If tagged while carrying the flag, you drop it — it returns to base after 5 seconds</li>
+      <li>You can only score if your own flag is safe at your base</li>
+      <li><kbd>R</kbd> — Restart game</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+
+    <h2>History</h2>
+    <p>Capture the Flag has been played as an outdoor game for centuries, formalized in the 19th century as a military training exercise. The digital version emerged through multiplayer FPS games — Team Fortress (1996) and Quake CTF popularized the mode, making it a staple of competitive gaming. The core tension — offense vs defense, individual glory vs team need — remains compelling across all formats.</p>
+
+    <h2>AI Archaeology</h2>
+    <h3>AI Era 5 — Deep Learning</h3>
+    <p>CTF requires agents to adopt roles (attacker, defender, support) and switch dynamically based on game state. This multi-agent coordination problem — where individual optimal play differs from team-optimal play — is a foundational challenge in cooperative AI research. DeepMind's 2019 CTF work showed that emergent team strategies arise from multi-agent reinforcement learning.</p>
+
+    <h2>Classification</h2>
+    <p><span class="tag series">Series: MAZ (Maze)</span> <span class="tag">Team-based</span> <span class="tag">Territory</span> <span class="tag">Multi-agent</span> <span class="tag">Tagging</span></p>
+
+    <h2>Prototype Notes</h2>
+    <p>Arena divided by midline with maze-like walls. AI teammates use role-based behavior — attackers seek the enemy flag through gaps in walls, defenders patrol near the home flag. Jail and freeing mechanics add a rescue dimension. Dropped flags auto-return after 5 seconds to prevent stalemates.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+var C = document.getElementById('c'), X = C.getContext('2d');
+C.width = 800; C.height = 600;
+
+var infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// Constants
+var W = 800, H = 600, TILE = 20;
+var COLS = W / TILE, ROWS = H / TILE; // 40x30
+var MID = COLS / 2; // column 20 = x 400
+var PLAYER_R = 8, FLAG_R = 6;
+var TAG_DIST = 18, FLAG_DIST = 16, JAIL_FREE_DIST = 24;
+var SPEED = 2.2, AI_SPEED = 1.8;
+var WIN_SCORE = 3;
+var FLAG_RETURN_TIME = 300; // 5 seconds at 60fps
+
+// Walls: 1 = wall, 0 = open. We'll use a grid.
+var walls = [];
+function initWalls() {
+  walls = [];
+  for (var r = 0; r < ROWS; r++) {
+    walls[r] = [];
+    for (var c = 0; c < COLS; c++) {
+      walls[r][c] = 0;
+    }
+  }
+  // Border walls
+  for (var c = 0; c < COLS; c++) { walls[0][c] = 1; walls[ROWS-1][c] = 1; }
+  for (var r = 0; r < ROWS; r++) { walls[r][0] = 1; walls[r][COLS-1] = 1; }
+
+  // Symmetric maze obstacles — left side, then mirror to right
+  var leftWalls = [
+    // Horizontal blocks near top
+    [3,4,5], [3,8,5], [3,12,4],
+    // Vertical pillar
+    [6,3,1], [7,3,1], [8,3,1],
+    // L-shape mid-left
+    [7,7,1], [8,7,1], [9,7,1], [9,8,1], [9,9,1],
+    // Block near flag
+    [13,3,1], [13,4,1], [14,3,1], [14,4,1],
+    // Horizontal near bottom
+    [20,5,1], [20,6,1], [20,7,1],
+    // Vertical near mid
+    [5,15,1], [6,15,1], [7,15,1],
+    [11,15,1], [12,15,1],
+    // More obstacles
+    [16,8,1], [16,9,1], [17,8,1],
+    [22,10,1], [23,10,1], [23,11,1],
+    [25,4,1], [25,5,1], [26,5,1],
+    [10,11,1], [10,12,1], [11,12,1],
+    // Near center corridor blockers
+    [3,17,1], [4,17,1],
+    [14,17,1], [15,17,1],
+    [24,17,1], [25,17,1],
+    // Additional strategic walls
+    [8,13,1], [8,14,1],
+    [18,3,1], [18,4,1], [19,4,1],
+    [27,8,1], [27,9,1],
+  ];
+
+  for (var i = 0; i < leftWalls.length; i++) {
+    var rr = leftWalls[i][0], cc = leftWalls[i][1], w = leftWalls[i][2] || 1;
+    for (var dc = 0; dc < w; dc++) {
+      if (rr >= 0 && rr < ROWS && cc+dc >= 1 && cc+dc < MID) {
+        walls[rr][cc+dc] = 1;
+        // Mirror to right side
+        var mc = COLS - 1 - (cc+dc);
+        if (mc >= MID && mc < COLS-1) walls[rr][mc] = 1;
+      }
+    }
+  }
+
+  // Midline gaps — leave some openings at the center divide
+  // Add a few wall segments along midline with gaps
+  for (var r = 1; r < ROWS-1; r++) {
+    if (r === 1 || r === ROWS-2) continue; // keep corners open-ish
+    // Wall on both sides of midline with gaps every few rows
+    if (r % 4 !== 2 && r % 4 !== 3) {
+      walls[r][MID-1] = 1;
+      walls[r][MID] = 1;
+    }
+  }
+}
+
+// Jail areas
+var JAIL_BLUE = { x: 1*TILE + TILE, y: 1*TILE + TILE, w: 3*TILE, h: 3*TILE }; // top-left corner blue side
+var JAIL_RED = { x: (COLS-5)*TILE, y: 1*TILE + TILE, w: 3*TILE, h: 3*TILE }; // top-right corner red side
+
+// Flag base positions
+var FLAG_BLUE_BASE = { x: 3 * TILE, y: 15 * TILE };
+var FLAG_RED_BASE = { x: (COLS - 4) * TILE, y: 15 * TILE };
+
+// Game state
+var keys = {};
+var blueScore = 0, redScore = 0;
+var gameState = 'play'; // play, blueWin, redWin
+var players = [];
+var blueFlag, redFlag;
+var particles = [];
+
+function Entity(x, y, team, role, isPlayer) {
+  return {
+    x: x, y: y, team: team, role: role, isPlayer: isPlayer || false,
+    vx: 0, vy: 0, hasFlag: false, inJail: false,
+    jailTimer: 0, speed: isPlayer ? SPEED : AI_SPEED,
+    aiTarget: null, aiTimer: 0, patrolDir: 1, patrolAxis: 'x'
+  };
+}
+
+function initGame() {
+  players = [];
+  particles = [];
+  initWalls();
+
+  // Blue team: player + 3 AI
+  // Player
+  players.push(Entity(6*TILE, 15*TILE, 'blue', 'player', true));
+  // Blue AI: 1 attacker, 1 defender, 1 support
+  players.push(Entity(5*TILE, 10*TILE, 'blue', 'attacker'));
+  players.push(Entity(4*TILE, 20*TILE, 'blue', 'attacker'));
+  players.push(Entity(6*TILE, 15*TILE + 3*TILE, 'blue', 'defender'));
+
+  // Red team: 4 AI
+  players.push(Entity((COLS-7)*TILE, 15*TILE, 'red', 'attacker'));
+  players.push(Entity((COLS-6)*TILE, 10*TILE, 'red', 'attacker'));
+  players.push(Entity((COLS-5)*TILE, 20*TILE, 'red', 'defender'));
+  players.push(Entity((COLS-7)*TILE, 15*TILE + 3*TILE, 'red', 'defender'));
+
+  // Flags
+  blueFlag = { x: FLAG_BLUE_BASE.x, y: FLAG_BLUE_BASE.y, atBase: true, carrier: null, dropped: false, dropTimer: 0 };
+  redFlag = { x: FLAG_RED_BASE.x, y: FLAG_RED_BASE.y, atBase: true, carrier: null, dropped: false, dropTimer: 0 };
+}
+
+function resetRound() {
+  for (var i = 0; i < players.length; i++) {
+    var p = players[i];
+    p.hasFlag = false;
+    p.inJail = false;
+    p.jailTimer = 0;
+  }
+  // Reset positions
+  players[0].x = 6*TILE; players[0].y = 15*TILE;
+  players[1].x = 5*TILE; players[1].y = 10*TILE;
+  players[2].x = 4*TILE; players[2].y = 20*TILE;
+  players[3].x = 6*TILE; players[3].y = 18*TILE;
+  players[4].x = (COLS-7)*TILE; players[4].y = 15*TILE;
+  players[5].x = (COLS-6)*TILE; players[5].y = 10*TILE;
+  players[6].x = (COLS-5)*TILE; players[6].y = 20*TILE;
+  players[7].x = (COLS-7)*TILE; players[7].y = 18*TILE;
+
+  blueFlag.x = FLAG_BLUE_BASE.x; blueFlag.y = FLAG_BLUE_BASE.y;
+  blueFlag.atBase = true; blueFlag.carrier = null; blueFlag.dropped = false; blueFlag.dropTimer = 0;
+  redFlag.x = FLAG_RED_BASE.x; redFlag.y = FLAG_RED_BASE.y;
+  redFlag.atBase = true; redFlag.carrier = null; redFlag.dropped = false; redFlag.dropTimer = 0;
+}
+
+function isWall(px, py) {
+  var c = Math.floor(px / TILE);
+  var r = Math.floor(py / TILE);
+  if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return true;
+  return walls[r][c] === 1;
+}
+
+function canMove(px, py, r) {
+  r = r || PLAYER_R - 2;
+  return !isWall(px - r, py - r) && !isWall(px + r, py - r) &&
+         !isWall(px - r, py + r) && !isWall(px + r, py + r);
+}
+
+function dist(a, b) {
+  var dx = a.x - b.x, dy = a.y - b.y;
+  return Math.sqrt(dx*dx + dy*dy);
+}
+
+function getSide(entity) {
+  return entity.x < MID * TILE ? 'blue' : 'red';
+}
+
+function isOnOwnSide(entity) {
+  if (entity.team === 'blue') return entity.x < MID * TILE;
+  return entity.x >= MID * TILE;
+}
+
+function spawnParticles(x, y, color, count) {
+  for (var i = 0; i < count; i++) {
+    var angle = Math.random() * Math.PI * 2;
+    var speed = 1 + Math.random() * 3;
+    particles.push({
+      x: x, y: y, vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed,
+      life: 20 + Math.random()*20, color: color, r: 2 + Math.random()*3
+    });
+  }
+}
+
+function dropFlag(entity) {
+  if (!entity.hasFlag) return;
+  entity.hasFlag = false;
+  var flag = (entity.team === 'blue') ? blueFlag : redFlag;
+  // Actually they carry the ENEMY flag
+  flag = (entity.team === 'blue') ? redFlag : blueFlag;
+  flag.carrier = null;
+  flag.dropped = true;
+  flag.dropTimer = FLAG_RETURN_TIME;
+  flag.x = entity.x;
+  flag.y = entity.y;
+  flag.atBase = false;
+  spawnParticles(entity.x, entity.y, '#ff0', 8);
+}
+
+function sendToJail(entity) {
+  dropFlag(entity);
+  entity.inJail = true;
+  entity.jailTimer = 0;
+  // Move to jail position
+  var jail = entity.team === 'blue' ? JAIL_RED : JAIL_BLUE;
+  // Blue players go to red jail (enemy jail), red to blue jail
+  jail = entity.team === 'blue' ? JAIL_RED : JAIL_BLUE;
+  entity.x = jail.x + jail.w/2;
+  entity.y = jail.y + jail.h/2;
+  spawnParticles(entity.x, entity.y, '#fff', 10);
+}
+
+function freeFromJail(entity) {
+  entity.inJail = false;
+  // Teleport back to own side
+  if (entity.team === 'blue') {
+    entity.x = 6*TILE; entity.y = 15*TILE;
+  } else {
+    entity.x = (COLS-7)*TILE; entity.y = 15*TILE;
+  }
+  spawnParticles(entity.x, entity.y, entity.team === 'blue' ? '#4af' : '#f44', 12);
+}
+
+// AI behavior
+function updateAI(entity) {
+  if (entity.inJail || entity.isPlayer) return;
+
+  entity.aiTimer++;
+  var spd = entity.speed;
+  var tx = entity.x, ty = entity.y;
+  var ownFlag = entity.team === 'blue' ? blueFlag : redFlag;
+  var enemyFlag = entity.team === 'blue' ? redFlag : blueFlag;
+  var onOwn = isOnOwnSide(entity);
+
+  if (entity.hasFlag) {
+    // Carry flag home
+    if (entity.team === 'blue') { tx = FLAG_BLUE_BASE.x; ty = FLAG_BLUE_BASE.y; }
+    else { tx = FLAG_RED_BASE.x; ty = FLAG_RED_BASE.y; }
+  } else if (entity.role === 'attacker') {
+    // Try to get enemy flag or free jailed teammates
+    var jailedTeammate = null;
+    for (var i = 0; i < players.length; i++) {
+      if (players[i].team === entity.team && players[i].inJail) {
+        jailedTeammate = players[i];
+        break;
+      }
+    }
+    if (jailedTeammate && Math.random() < 0.3 && entity.aiTimer % 120 < 60) {
+      // Go free teammate
+      var jail = entity.team === 'blue' ? JAIL_RED : JAIL_BLUE;
+      tx = jail.x + jail.w/2;
+      ty = jail.y + jail.h/2;
+    } else if (enemyFlag.atBase || enemyFlag.dropped) {
+      tx = enemyFlag.x; ty = enemyFlag.y;
+    } else {
+      // Flag is being carried, patrol enemy side
+      if (entity.team === 'blue') tx = (MID+5)*TILE; else tx = (MID-6)*TILE;
+      ty = 15*TILE + Math.sin(entity.aiTimer * 0.02) * 8*TILE;
+    }
+    // Avoid enemies when on enemy side
+    if (!onOwn) {
+      for (var i = 0; i < players.length; i++) {
+        var e = players[i];
+        if (e.team !== entity.team && !e.inJail && dist(entity, e) < 60) {
+          // Dodge
+          var dx = entity.x - e.x, dy = entity.y - e.y;
+          var d = Math.sqrt(dx*dx+dy*dy) || 1;
+          tx = entity.x + (dx/d)*40;
+          ty = entity.y + (dy/d)*40;
+          break;
+        }
+      }
+    }
+  } else if (entity.role === 'defender') {
+    // Patrol near own flag
+    var baseX = ownFlag.atBase ? (entity.team === 'blue' ? FLAG_BLUE_BASE.x : FLAG_RED_BASE.x) : ownFlag.x;
+    var baseY = ownFlag.atBase ? (entity.team === 'blue' ? FLAG_BLUE_BASE.y : FLAG_RED_BASE.y) : ownFlag.y;
+
+    // Chase nearby enemies on own side
+    var nearestEnemy = null, nearestDist = 150;
+    for (var i = 0; i < players.length; i++) {
+      var e = players[i];
+      if (e.team !== entity.team && !e.inJail) {
+        var side = getSide(e);
+        if ((entity.team === 'blue' && side === 'blue') || (entity.team === 'red' && side === 'red')) {
+          var d = dist(entity, e);
+          if (d < nearestDist) { nearestDist = d; nearestEnemy = e; }
+        }
+      }
+    }
+    if (nearestEnemy) {
+      tx = nearestEnemy.x; ty = nearestEnemy.y;
+    } else {
+      // Patrol around flag base
+      tx = baseX + Math.sin(entity.aiTimer * 0.015) * 4*TILE;
+      ty = baseY + Math.cos(entity.aiTimer * 0.02) * 4*TILE;
+    }
+  }
+
+  // Move toward target with wall avoidance
+  var dx = tx - entity.x, dy = ty - entity.y;
+  var d = Math.sqrt(dx*dx + dy*dy);
+  if (d > 2) {
+    var mx = (dx/d) * spd, my = (dy/d) * spd;
+    var nx = entity.x + mx, ny = entity.y + my;
+    if (canMove(nx, ny)) {
+      entity.x = nx; entity.y = ny;
+    } else if (canMove(nx, entity.y)) {
+      entity.x = nx;
+    } else if (canMove(entity.x, ny)) {
+      entity.y = ny;
+    } else {
+      // Try perpendicular
+      var perpX = entity.x + (dy/d)*spd, perpY = entity.y - (dx/d)*spd;
+      if (canMove(perpX, perpY)) { entity.x = perpX; entity.y = perpY; }
+      else {
+        perpX = entity.x - (dy/d)*spd; perpY = entity.y + (dx/d)*spd;
+        if (canMove(perpX, perpY)) { entity.x = perpX; entity.y = perpY; }
+      }
+    }
+  }
+}
+
+function update() {
+  if (infoOpen) return;
+  if (gameState !== 'play') return;
+
+  var player = players[0];
+
+  // Player movement
+  var mx = 0, my = 0;
+  if (keys['w'] || keys['arrowup']) my = -SPEED;
+  if (keys['s'] || keys['arrowdown']) my = SPEED;
+  if (keys['a'] || keys['arrowleft']) mx = -SPEED;
+  if (keys['d'] || keys['arrowright']) mx = SPEED;
+  // Diagonal normalization
+  if (mx !== 0 && my !== 0) { mx *= 0.707; my *= 0.707; }
+
+  var nx = player.x + mx, ny = player.y + my;
+  if (canMove(nx, player.y)) player.x = nx;
+  if (canMove(player.x, ny)) player.y = ny;
+  // Clamp
+  player.x = Math.max(PLAYER_R, Math.min(W - PLAYER_R, player.x));
+  player.y = Math.max(PLAYER_R, Math.min(H - PLAYER_R, player.y));
+
+  // Update AI
+  for (var i = 0; i < players.length; i++) {
+    if (!players[i].isPlayer) updateAI(players[i]);
+    // Clamp all
+    players[i].x = Math.max(PLAYER_R, Math.min(W - PLAYER_R, players[i].x));
+    players[i].y = Math.max(PLAYER_R, Math.min(H - PLAYER_R, players[i].y));
+  }
+
+  // Flag pickup
+  for (var i = 0; i < players.length; i++) {
+    var p = players[i];
+    if (p.inJail || p.hasFlag) continue;
+    // Can pick up enemy flag
+    var enemyFlag = p.team === 'blue' ? redFlag : blueFlag;
+    if (!enemyFlag.carrier && (enemyFlag.atBase || enemyFlag.dropped)) {
+      if (dist(p, enemyFlag) < FLAG_DIST) {
+        p.hasFlag = true;
+        enemyFlag.carrier = p;
+        enemyFlag.atBase = false;
+        enemyFlag.dropped = false;
+        spawnParticles(p.x, p.y, p.team === 'blue' ? '#4af' : '#f44', 10);
+      }
+    }
+  }
+
+  // Flag carrier tracking
+  if (redFlag.carrier) { redFlag.x = redFlag.carrier.x; redFlag.y = redFlag.carrier.y; }
+  if (blueFlag.carrier) { blueFlag.x = blueFlag.carrier.x; blueFlag.y = blueFlag.carrier.y; }
+
+  // Dropped flag return timer
+  if (redFlag.dropped) {
+    redFlag.dropTimer--;
+    if (redFlag.dropTimer <= 0) {
+      redFlag.x = FLAG_RED_BASE.x; redFlag.y = FLAG_RED_BASE.y;
+      redFlag.atBase = true; redFlag.dropped = false;
+      spawnParticles(redFlag.x, redFlag.y, '#f44', 8);
+    }
+  }
+  if (blueFlag.dropped) {
+    blueFlag.dropTimer--;
+    if (blueFlag.dropTimer <= 0) {
+      blueFlag.x = FLAG_BLUE_BASE.x; blueFlag.y = FLAG_BLUE_BASE.y;
+      blueFlag.atBase = true; blueFlag.dropped = false;
+      spawnParticles(blueFlag.x, blueFlag.y, '#4af', 8);
+    }
+  }
+
+  // Tagging — you can tag enemies on YOUR side
+  for (var i = 0; i < players.length; i++) {
+    var tagger = players[i];
+    if (tagger.inJail) continue;
+    for (var j = 0; j < players.length; j++) {
+      var target = players[j];
+      if (target.team === tagger.team || target.inJail) continue;
+      // Target must be on tagger's side
+      var targetSide = getSide(target);
+      if (targetSide !== tagger.team) continue;
+      if (dist(tagger, target) < TAG_DIST) {
+        sendToJail(target);
+      }
+    }
+  }
+
+  // Free jailed teammates by touching jail area
+  for (var i = 0; i < players.length; i++) {
+    var p = players[i];
+    if (p.inJail) continue;
+    // Check if near enemy jail to free teammates
+    var enemyJail = p.team === 'blue' ? JAIL_RED : JAIL_BLUE;
+    var jx = enemyJail.x + enemyJail.w/2, jy = enemyJail.y + enemyJail.h/2;
+    if (Math.abs(p.x - jx) < JAIL_FREE_DIST && Math.abs(p.y - jy) < JAIL_FREE_DIST) {
+      // Free all teammates in this jail
+      for (var j = 0; j < players.length; j++) {
+        if (players[j].team === p.team && players[j].inJail) {
+          freeFromJail(players[j]);
+        }
+      }
+    }
+  }
+
+  // Score — carrying flag to own base while own flag is at base
+  for (var i = 0; i < players.length; i++) {
+    var p = players[i];
+    if (!p.hasFlag) continue;
+    var ownFlag = p.team === 'blue' ? blueFlag : redFlag;
+    var ownBase = p.team === 'blue' ? FLAG_BLUE_BASE : FLAG_RED_BASE;
+    if (ownFlag.atBase && dist(p, ownBase) < FLAG_DIST + 8) {
+      // Score!
+      if (p.team === 'blue') blueScore++; else redScore++;
+      spawnParticles(p.x, p.y, '#ff0', 25);
+      spawnParticles(ownBase.x, ownBase.y, '#ff0', 25);
+      if (blueScore >= WIN_SCORE) gameState = 'blueWin';
+      else if (redScore >= WIN_SCORE) gameState = 'redWin';
+      else resetRound();
+      return;
+    }
+  }
+
+  // Pickup own dropped flag to return it
+  for (var i = 0; i < players.length; i++) {
+    var p = players[i];
+    if (p.inJail) continue;
+    var ownFlag = p.team === 'blue' ? blueFlag : redFlag;
+    var ownBase = p.team === 'blue' ? FLAG_BLUE_BASE : FLAG_RED_BASE;
+    if (ownFlag.dropped && p.team === (getSide(ownFlag) === 'blue' ? 'blue' : 'red')) {
+      if (dist(p, ownFlag) < FLAG_DIST && p.team === (ownFlag === blueFlag ? 'blue' : 'red')) {
+        ownFlag.x = ownBase.x; ownFlag.y = ownBase.y;
+        ownFlag.atBase = true; ownFlag.dropped = false; ownFlag.dropTimer = 0;
+        spawnParticles(ownFlag.x, ownFlag.y, p.team === 'blue' ? '#4af' : '#f44', 8);
+      }
+    }
+  }
+
+  // Update particles
+  for (var i = particles.length - 1; i >= 0; i--) {
+    var pt = particles[i];
+    pt.x += pt.vx; pt.y += pt.vy;
+    pt.vx *= 0.95; pt.vy *= 0.95;
+    pt.life--;
+    if (pt.life <= 0) particles.splice(i, 1);
+  }
+}
+
+function draw() {
+  X.fillStyle = '#111';
+  X.fillRect(0, 0, W, H);
+
+  // Draw team territories
+  X.fillStyle = 'rgba(30,50,100,0.3)';
+  X.fillRect(0, 0, MID*TILE, H);
+  X.fillStyle = 'rgba(100,30,30,0.3)';
+  X.fillRect(MID*TILE, 0, MID*TILE, H);
+
+  // Midline
+  X.strokeStyle = '#555';
+  X.lineWidth = 2;
+  X.setLineDash([4, 4]);
+  X.beginPath(); X.moveTo(MID*TILE, 0); X.lineTo(MID*TILE, H); X.stroke();
+  X.setLineDash([]);
+
+  // Draw walls
+  for (var r = 0; r < ROWS; r++) {
+    for (var c = 0; c < COLS; c++) {
+      if (walls[r][c]) {
+        var wx = c * TILE, wy = r * TILE;
+        X.fillStyle = c < MID ? '#2a3a5a' : '#5a2a2a';
+        X.fillRect(wx, wy, TILE, TILE);
+        X.strokeStyle = c < MID ? '#3a5a8a' : '#8a3a3a';
+        X.lineWidth = 1;
+        X.strokeRect(wx+0.5, wy+0.5, TILE-1, TILE-1);
+      }
+    }
+  }
+
+  // Draw jail areas
+  X.strokeStyle = '#888';
+  X.lineWidth = 2;
+  X.setLineDash([3,3]);
+  X.strokeRect(JAIL_BLUE.x, JAIL_BLUE.y, JAIL_BLUE.w, JAIL_BLUE.h);
+  X.strokeRect(JAIL_RED.x, JAIL_RED.y, JAIL_RED.w, JAIL_RED.h);
+  X.setLineDash([]);
+  X.font = '10px monospace';
+  X.fillStyle = '#666';
+  X.textAlign = 'center';
+  X.fillText('JAIL', JAIL_BLUE.x + JAIL_BLUE.w/2, JAIL_BLUE.y + JAIL_BLUE.h + 12);
+  X.fillText('JAIL', JAIL_RED.x + JAIL_RED.w/2, JAIL_RED.y + JAIL_RED.h + 12);
+
+  // Draw flag bases
+  X.strokeStyle = '#4af';
+  X.lineWidth = 2;
+  X.strokeRect(FLAG_BLUE_BASE.x - 10, FLAG_BLUE_BASE.y - 10, 20, 20);
+  X.strokeStyle = '#f44';
+  X.strokeRect(FLAG_RED_BASE.x - 10, FLAG_RED_BASE.y - 10, 20, 20);
+
+  // Draw flags
+  drawFlag(blueFlag, '#4af', '#28f');
+  drawFlag(redFlag, '#f44', '#c22');
+
+  // Draw players
+  for (var i = 0; i < players.length; i++) {
+    drawPlayer(players[i], i === 0);
+  }
+
+  // Draw particles
+  for (var i = 0; i < particles.length; i++) {
+    var pt = particles[i];
+    X.globalAlpha = pt.life / 40;
+    X.fillStyle = pt.color;
+    X.beginPath(); X.arc(pt.x, pt.y, pt.r, 0, Math.PI*2); X.fill();
+    X.globalAlpha = 1;
+  }
+
+  // HUD
+  X.font = 'bold 20px monospace';
+  X.textAlign = 'center';
+  X.fillStyle = '#4af';
+  X.fillText(blueScore, W/2 - 40, 28);
+  X.fillStyle = '#888';
+  X.fillText('-', W/2, 28);
+  X.fillStyle = '#f44';
+  X.fillText(redScore, W/2 + 40, 28);
+
+  X.font = '11px monospace';
+  X.fillStyle = '#555';
+  X.fillText('FIRST TO ' + WIN_SCORE, W/2, 46);
+
+  // Dropped flag timer indicator
+  if (redFlag.dropped) {
+    X.font = '10px monospace'; X.fillStyle = '#f44'; X.textAlign = 'center';
+    X.fillText(Math.ceil(redFlag.dropTimer/60) + 's', redFlag.x, redFlag.y - 14);
+  }
+  if (blueFlag.dropped) {
+    X.font = '10px monospace'; X.fillStyle = '#4af'; X.textAlign = 'center';
+    X.fillText(Math.ceil(blueFlag.dropTimer/60) + 's', blueFlag.x, blueFlag.y - 14);
+  }
+
+  // Game over
+  if (gameState !== 'play') {
+    X.fillStyle = 'rgba(0,0,0,0.7)';
+    X.fillRect(0, 0, W, H);
+    X.font = 'bold 36px monospace';
+    X.textAlign = 'center';
+    X.fillStyle = gameState === 'blueWin' ? '#4af' : '#f44';
+    X.fillText(gameState === 'blueWin' ? 'BLUE TEAM WINS!' : 'RED TEAM WINS!', W/2, H/2 - 20);
+    X.font = '16px monospace';
+    X.fillStyle = '#aaa';
+    X.fillText('Press R to play again', W/2, H/2 + 20);
+  }
+
+  // Controls hint
+  if (gameState === 'play') {
+    X.font = '10px monospace';
+    X.fillStyle = '#444';
+    X.textAlign = 'left';
+    X.fillText('WASD move | ? info | R restart', 10, H - 8);
+  }
+}
+
+function drawFlag(flag, color1, color2) {
+  if (flag.carrier) return; // drawn on carrier
+  X.fillStyle = color2;
+  X.fillRect(flag.x - 1, flag.y - 10, 3, 14);
+  X.fillStyle = color1;
+  X.beginPath();
+  X.moveTo(flag.x + 2, flag.y - 10);
+  X.lineTo(flag.x + 12, flag.y - 6);
+  X.lineTo(flag.x + 2, flag.y - 2);
+  X.fill();
+  // Glow if dropped
+  if (flag.dropped) {
+    X.globalAlpha = 0.3 + 0.2 * Math.sin(Date.now() * 0.005);
+    X.fillStyle = color1;
+    X.beginPath(); X.arc(flag.x, flag.y - 4, 12, 0, Math.PI*2); X.fill();
+    X.globalAlpha = 1;
+  }
+}
+
+function drawPlayer(p, isHuman) {
+  var color = p.team === 'blue' ? '#4af' : '#f44';
+  var darkColor = p.team === 'blue' ? '#28a' : '#a22';
+  if (p.inJail) { color = p.team === 'blue' ? '#246' : '#422'; darkColor = '#333'; }
+
+  // Body
+  X.fillStyle = color;
+  X.beginPath(); X.arc(p.x, p.y, PLAYER_R, 0, Math.PI*2); X.fill();
+  X.strokeStyle = darkColor;
+  X.lineWidth = 2;
+  X.beginPath(); X.arc(p.x, p.y, PLAYER_R, 0, Math.PI*2); X.stroke();
+
+  // Player indicator
+  if (isHuman && !p.inJail) {
+    X.strokeStyle = '#fff';
+    X.lineWidth = 1;
+    X.beginPath(); X.arc(p.x, p.y, PLAYER_R + 3, 0, Math.PI*2); X.stroke();
+    X.font = '8px monospace'; X.fillStyle = '#fff'; X.textAlign = 'center';
+    X.fillText('YOU', p.x, p.y - PLAYER_R - 5);
+  }
+
+  // Role indicator
+  if (!isHuman && !p.inJail) {
+    X.font = '7px monospace'; X.fillStyle = '#aaa'; X.textAlign = 'center';
+    var label = p.role === 'attacker' ? 'ATK' : 'DEF';
+    X.fillText(label, p.x, p.y - PLAYER_R - 3);
+  }
+
+  // Flag on carrier
+  if (p.hasFlag) {
+    var fc = p.team === 'blue' ? '#f44' : '#4af'; // carrying enemy flag
+    X.fillStyle = fc;
+    X.fillRect(p.x + 5, p.y - 12, 2, 10);
+    X.beginPath();
+    X.moveTo(p.x + 7, p.y - 12);
+    X.lineTo(p.x + 14, p.y - 9);
+    X.lineTo(p.x + 7, p.y - 6);
+    X.fill();
+  }
+
+  // Jail indicator
+  if (p.inJail) {
+    X.font = '8px monospace'; X.fillStyle = '#888'; X.textAlign = 'center';
+    X.fillText('JAIL', p.x, p.y + PLAYER_R + 10);
+  }
+}
+
+function gameLoop() {
+  update();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+// Input
+document.addEventListener('keydown', function(e) {
+  var k = e.key.toLowerCase();
+  keys[k] = true;
+  if (k === 'r') {
+    blueScore = 0; redScore = 0; gameState = 'play';
+    initGame();
+  }
+  if (k === '?') { toggleInfo(); e.preventDefault(); }
+  if (k === 'escape' && infoOpen) { toggleInfo(); e.preventDefault(); }
+  if (['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'].indexOf(k) >= 0) e.preventDefault();
+});
+document.addEventListener('keyup', function(e) { keys[e.key.toLowerCase()] = false; });
+
+initGame();
+gameLoop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

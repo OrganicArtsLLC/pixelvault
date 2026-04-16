@@ -1,0 +1,1221 @@
+<!--
+PROTOTYPE: cinematic-escape
+SERIES: plt
+NUMBER: 015
+DATE: 2026-03-24
+MECHANIC: cinematic platformer — zero HUD, zero dialogue, death-heavy trial-and-error; vector-animated alien world with environmental storytelling
+ANCESTRY: Another World / Out of This World (1991, Éric Chahi, Delphine Software), Prince of Persia (1989, Jordan Mechner), Karateka (1984, Jordan Mechner)
+CONTROLS: Arrow keys — run/crouch | Space — jump | X — gun (tap shoot / hold shield / hold longer charge blast) | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3-5 (Knowledge Explosion to Deep Learning — single-developer cinematic vision, vector graphics as data-efficient representation, procedural animation)
+AI-INSIGHT: Éric Chahi's solo creation of Another World proved that a single developer with the right tools (rotoscoping, vector animation, a custom VM) could rival teams of dozens. This prefigures how AI-augmented solo creators can now build entire game worlds — the constraint of one mind forcing elegant, coherent design.
+NOTES: Zero HUD, zero dialogue, death as the primary teaching mechanism.
+       Vector-style flat color graphics evoke the original's polygon aesthetic.
+       Four connected screens: arrival, beast chase, capture, escape.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PLT-015 · CINEMATIC ESCAPE</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>PLT-015 · CINEMATIC ESCAPE</h1>
+    <p><span class="tag series">PLT — Platformer</span> <span class="tag">Prototype #015</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>You are a physicist transported to an alien world. There are no instructions. Explore, die, learn, survive.</p>
+    <ul>
+      <li><kbd>&#8592;</kbd> <kbd>&#8594;</kbd> &mdash; Run left/right</li>
+      <li><kbd>&#8593;</kbd> &mdash; Stand up (from crouch)</li>
+      <li><kbd>&#8595;</kbd> &mdash; Crouch</li>
+      <li><kbd>Space</kbd> &mdash; Jump</li>
+      <li><kbd>X</kbd> &mdash; Gun (when acquired): tap = shoot, hold = shield, hold longer = charge blast</li>
+      <li><kbd>R</kbd> &mdash; Restart from checkpoint</li>
+      <li><kbd>?</kbd> &mdash; Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li>Death is information. Every death teaches you about the world.</li>
+      <li>There is no HUD. No score. No health bar. Pay attention to the world itself.</li>
+      <li>The gun has three modes: quick tap fires a bolt, holding creates a protective shield wall, holding longer charges a powerful blast that destroys shield walls.</li>
+      <li>Watch enemy patterns. Timing matters more than reflexes.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Another World / Out of This World (1991, &Eacute;ric Chahi, Delphine Software) &larr; Prince of Persia (1989, Jordan Mechner) &larr; Karateka (1984, Jordan Mechner)</p>
+    <p>&Eacute;ric Chahi created Another World almost entirely alone over two years. He invented a custom polygon-based engine that used vector graphics instead of sprites, allowing cinematic animation at a fraction of the memory cost. The game ran on a virtual machine — a technique that made porting trivial and that prefigures modern cross-platform game engines.</p>
+    <p>The game was revolutionary for its complete absence of HUD elements, its seamless integration of cutscenes and gameplay, and its hostile alien world that communicated entirely through visual storytelling. It influenced Ico, Limbo, Inside, and the entire "cinematic platformer" lineage.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI-ERA:</strong> 3&ndash;5 (Knowledge Explosion to Deep Learning)</p>
+    <p>Chahi's vector engine was essentially a data-efficient representation system — encoding complex animations as compact polygon transformations rather than bitmap frames. This mirrors how modern neural networks learn compressed latent representations. His custom VM anticipated the abstraction layers that make modern AI deployment portable. The game's "death as learning" design philosophy directly parallels reinforcement learning's trial-and-error paradigm.</p>
+
+    <h2>Classification</h2>
+    <p><span class="tag">cinematic platformer</span> <span class="tag">vector graphics</span> <span class="tag">trial-and-error</span> <span class="tag">environmental storytelling</span> <span class="tag">zero HUD</span> <span class="tag">solo developer</span></p>
+
+    <h2>Prototype Notes</h2>
+    <p>This prototype captures the essence of Another World: atmospheric alien landscapes rendered in flat vector-style polygons, instant-death hazards that teach through failure, and a progression from defenseless arrival to armed escape. Four connected screens recreate the game's opening sequence — pool arrival, beast encounter, guard capture, and escape. The muted purple-orange palette and absence of any UI text during gameplay honor Chahi's vision of pure visual storytelling.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This is an educational prototype created for study and preservation purposes. Another World / Out of This World is the work of &Eacute;ric Chahi and Delphine Software International. This prototype is not affiliated with or endorsed by the original creators. All game design concepts referenced are used for educational commentary and historical analysis.</p>
+  </div>
+</div>
+
+<script>
+// --- Info Panel ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// --- Canvas Setup ---
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+
+function resize() {
+  const s = Math.min(innerWidth / W, innerHeight / H);
+  canvas.style.width = (W * s) + 'px';
+  canvas.style.height = (H * s) + 'px';
+}
+resize();
+addEventListener('resize', resize);
+
+// --- Colors (muted alien palette) ---
+const C = {
+  sky: '#1a0a2e', skyGrad: '#2d1b4e', horizon: '#4a2060',
+  ground: '#1c1c28', groundDark: '#12121a',
+  player: '#c8b8a0', playerDark: '#8a7a60',
+  beast: '#2a2a2a', beastEye: '#ff3030',
+  guard: '#3a3a50', guardArmor: '#5a5a70',
+  alien1: '#6a3080', alien2: '#8a40a0',
+  lava: '#ff4020', pool: '#2040a0', poolGlow: '#4060ff',
+  star: '#ffffff', moon: '#e8d0ff',
+  laser: '#40ff80', laserEnemy: '#ff4040',
+  shield: '#4080ff', chargeBlast: '#80ffff',
+  vine: '#305020', rock: '#4a4050',
+  orange: '#d06020', warmGlow: '#ff8040'
+};
+
+// --- Input ---
+const keys = {};
+addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+  keys[e.key] = true;
+  keys[e.code] = true;
+  e.preventDefault();
+});
+addEventListener('keyup', e => { keys[e.key] = false; keys[e.code] = false; });
+
+// --- Game Constants ---
+const GRAVITY = 0.5;
+const PLAYER_SPEED = 3;
+const JUMP_FORCE = -9;
+const SCREEN_COUNT = 4;
+
+// --- Game State ---
+let state, player, currentScreen, checkpoint, enemies, projectiles, shields;
+let deathTimer, deathAnim, fadeAlpha, gameWon;
+let gunAcquired, gunChargeTime, gunMode; // 0=none, 1=shoot, 2=shield, 3=charge
+let particles, screenShake;
+let xHeld, xHeldFrames;
+
+function initGame() {
+  state = 'play'; // play, dying, dead, win
+  currentScreen = 0;
+  checkpoint = { screen: 0, x: 100, y: 400 };
+  fadeAlpha = 1;
+  gameWon = false;
+  gunAcquired = false;
+  gunChargeTime = 0;
+  gunMode = 0;
+  xHeld = false;
+  xHeldFrames = 0;
+  particles = [];
+  screenShake = 0;
+  initPlayer(checkpoint.x, checkpoint.y);
+  initScreen(currentScreen);
+}
+
+function initPlayer(x, y) {
+  player = {
+    x: x, y: y, vx: 0, vy: 0,
+    w: 20, h: 44, crouching: false,
+    onGround: false, facing: 1,
+    animFrame: 0, animTimer: 0,
+    runCycle: 0
+  };
+  deathTimer = 0;
+  deathAnim = null;
+}
+
+// --- Screen Definitions ---
+// Each screen: platforms, hazards, enemies, triggers
+function getScreenData(n) {
+  const screens = [
+    // Screen 0: Arrival - pool, alien landscape, beast stalks from right
+    {
+      platforms: [
+        { x: 0, y: 480, w: 800, h: 120 },    // main ground
+        { x: 0, y: 380, w: 120, h: 20 },      // left ledge
+        { x: 300, y: 420, w: 100, h: 10 },    // small step
+        { x: 600, y: 400, w: 80, h: 15 }      // right ledge
+      ],
+      hazards: [
+        { x: 200, y: 460, w: 80, h: 20, type: 'pool' },  // arrival pool
+      ],
+      enemyDefs: [
+        { type: 'beast', x: 700, y: 436, patrol: [600, 780], speed: 1.5 }
+      ],
+      checkpoint: { x: 100, y: 400 },
+      gunPickup: null,
+      exitDir: 'right'
+    },
+    // Screen 1: Beast chase - run left to right, tentacles from below
+    {
+      platforms: [
+        { x: 0, y: 480, w: 350, h: 120 },
+        { x: 400, y: 480, w: 400, h: 120 },
+        { x: 150, y: 400, w: 100, h: 15 },
+        { x: 500, y: 370, w: 120, h: 15 },
+        { x: 680, y: 320, w: 100, h: 15 }
+      ],
+      hazards: [
+        { x: 350, y: 480, w: 50, h: 120, type: 'pit' },
+        { x: 100, y: 470, w: 30, h: 10, type: 'tentacle', timer: 0 },
+        { x: 450, y: 470, w: 30, h: 10, type: 'tentacle', timer: 60 }
+      ],
+      enemyDefs: [
+        { type: 'beast', x: 50, y: 436, patrol: [20, 300], speed: 2 }
+      ],
+      checkpoint: { x: 420, y: 400 },
+      gunPickup: { x: 700, y: 290 },
+      exitDir: 'right'
+    },
+    // Screen 2: First guards - use gun, shield mechanics
+    {
+      platforms: [
+        { x: 0, y: 480, w: 800, h: 120 },
+        { x: 0, y: 350, w: 150, h: 15 },
+        { x: 250, y: 380, w: 100, h: 15 },
+        { x: 500, y: 340, w: 130, h: 15 },
+        { x: 650, y: 300, w: 150, h: 15 }
+      ],
+      hazards: [],
+      enemyDefs: [
+        { type: 'guard', x: 400, y: 436, patrol: [350, 500], speed: 0.8, shootTimer: 0, shootInterval: 120 },
+        { type: 'guard', x: 680, y: 256, patrol: [660, 780], speed: 0.6, shootTimer: 60, shootInterval: 100 }
+      ],
+      checkpoint: { x: 30, y: 400 },
+      gunPickup: null,
+      exitDir: 'right'
+    },
+    // Screen 3: Final escape - heavy guard presence, reach the exit
+    {
+      platforms: [
+        { x: 0, y: 480, w: 300, h: 120 },
+        { x: 350, y: 480, w: 450, h: 120 },
+        { x: 100, y: 380, w: 120, h: 15 },
+        { x: 300, y: 320, w: 100, h: 15 },
+        { x: 480, y: 360, w: 100, h: 15 },
+        { x: 650, y: 280, w: 130, h: 15 }
+      ],
+      hazards: [
+        { x: 300, y: 480, w: 50, h: 120, type: 'pit' }
+      ],
+      enemyDefs: [
+        { type: 'guard', x: 200, y: 436, patrol: [100, 280], speed: 1, shootTimer: 0, shootInterval: 90 },
+        { type: 'guard', x: 550, y: 436, patrol: [400, 600], speed: 0.8, shootTimer: 45, shootInterval: 80 },
+        { type: 'guard', x: 700, y: 236, patrol: [660, 770], speed: 0.5, shootTimer: 30, shootInterval: 110 }
+      ],
+      checkpoint: { x: 30, y: 400 },
+      gunPickup: null,
+      exitDir: 'win'
+    }
+  ];
+  return screens[n];
+}
+
+let screenData;
+function initScreen(n) {
+  screenData = getScreenData(n);
+  enemies = [];
+  projectiles = [];
+  shields = [];
+  // Deep copy enemies
+  for (const ed of screenData.enemyDefs) {
+    enemies.push({
+      type: ed.type, x: ed.x, y: ed.y,
+      w: ed.type === 'beast' ? 40 : 20, h: ed.type === 'beast' ? 44 : 44,
+      patrol: [...ed.patrol], speed: ed.speed, dir: -1,
+      alive: true, animTimer: 0, animFrame: 0,
+      shootTimer: ed.shootTimer || 0,
+      shootInterval: ed.shootInterval || 120,
+      hp: ed.type === 'guard' ? 2 : 1,
+      shieldUp: false, shieldTimer: 0
+    });
+  }
+  // Reset hazard timers
+  for (const h of screenData.hazards) {
+    if (h.type === 'tentacle') h.timer = h.timer || 0;
+  }
+}
+
+// --- Physics / Collision ---
+function rectOverlap(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+function playerRect() {
+  const h = player.crouching ? 28 : player.h;
+  const y = player.crouching ? player.y + 16 : player.y;
+  return { x: player.x, y: y, w: player.w, h: h };
+}
+
+function isOnPlatform() {
+  const pr = playerRect();
+  const feetY = pr.y + pr.h;
+  for (const p of screenData.platforms) {
+    if (pr.x + pr.w > p.x && pr.x < p.x + p.w) {
+      if (feetY >= p.y && feetY <= p.y + 8 && player.vy >= 0) {
+        return p.y;
+      }
+    }
+  }
+  return null;
+}
+
+// --- Death ---
+function killPlayer(reason) {
+  if (state !== 'play') return;
+  state = 'dying';
+  deathTimer = 90;
+  screenShake = 10;
+  deathAnim = {
+    x: player.x, y: player.y,
+    parts: [],
+    reason: reason
+  };
+  // Create ragdoll particles
+  for (let i = 0; i < 8; i++) {
+    deathAnim.parts.push({
+      x: player.x + Math.random() * player.w,
+      y: player.y + Math.random() * player.h,
+      vx: (Math.random() - 0.5) * 4,
+      vy: -Math.random() * 5 - 2,
+      size: 3 + Math.random() * 5,
+      color: i < 4 ? C.player : C.playerDark
+    });
+  }
+}
+
+// --- Projectiles ---
+function fireProjectile(x, y, dir, owner, type) {
+  projectiles.push({
+    x: x, y: y, vx: dir * 6, vy: 0,
+    w: type === 'charge' ? 16 : 6, h: type === 'charge' ? 8 : 3,
+    owner: owner, type: type, life: 120,
+    color: owner === 'player' ? (type === 'charge' ? C.chargeBlast : C.laser) : C.laserEnemy
+  });
+}
+
+function createShield(x, y, owner) {
+  shields.push({
+    x: x, y: y, w: 6, h: 50,
+    owner: owner, hp: 3, life: 600,
+    color: owner === 'player' ? C.shield : '#ff4060'
+  });
+}
+
+// --- Particles ---
+function spawnParticles(x, y, count, color, spread) {
+  for (let i = 0; i < count; i++) {
+    particles.push({
+      x: x, y: y,
+      vx: (Math.random() - 0.5) * spread,
+      vy: (Math.random() - 0.5) * spread,
+      life: 20 + Math.random() * 30,
+      maxLife: 50,
+      size: 1 + Math.random() * 3,
+      color: color
+    });
+  }
+}
+
+// --- Update ---
+let frameTick = 0;
+let tentaclePhase = [];
+
+function update() {
+  if (infoOpen) return;
+  frameTick++;
+
+  // Restart
+  if (keys['r'] || keys['R']) {
+    keys['r'] = false; keys['R'] = false;
+    initGame();
+    return;
+  }
+
+  // Fade in
+  if (fadeAlpha > 0) fadeAlpha -= 0.02;
+
+  // Update particles
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx; p.y += p.vy;
+    p.vy += 0.1;
+    p.life--;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+
+  if (screenShake > 0) screenShake--;
+
+  if (state === 'win') return;
+
+  // Death animation
+  if (state === 'dying') {
+    deathTimer--;
+    if (deathAnim) {
+      for (const p of deathAnim.parts) {
+        p.x += p.vx; p.y += p.vy;
+        p.vy += 0.3;
+      }
+    }
+    if (deathTimer <= 0) {
+      state = 'dead';
+      deathTimer = 60;
+    }
+    return;
+  }
+
+  if (state === 'dead') {
+    deathTimer--;
+    if (deathTimer <= 0) {
+      // Respawn at checkpoint
+      currentScreen = checkpoint.screen;
+      initScreen(currentScreen);
+      initPlayer(checkpoint.x, checkpoint.y);
+      state = 'play';
+      fadeAlpha = 1;
+    }
+    return;
+  }
+
+  // --- Player Movement ---
+  const left = keys['ArrowLeft'];
+  const right = keys['ArrowRight'];
+  const down = keys['ArrowDown'];
+  const up = keys['ArrowUp'];
+  const jump = keys[' '] || keys['Space'];
+
+  player.crouching = down && player.onGround;
+
+  if (!player.crouching) {
+    if (left) { player.vx = -PLAYER_SPEED; player.facing = -1; }
+    else if (right) { player.vx = PLAYER_SPEED; player.facing = 1; }
+    else player.vx *= 0.7;
+  } else {
+    player.vx *= 0.8;
+  }
+
+  if (jump && player.onGround && !player.crouching) {
+    player.vy = JUMP_FORCE;
+    player.onGround = false;
+    keys[' '] = false;
+    keys['Space'] = false;
+  }
+
+  // Gun
+  if (gunAcquired) {
+    if (keys['x'] || keys['X']) {
+      if (!xHeld) { xHeld = true; xHeldFrames = 0; }
+      xHeldFrames++;
+    } else if (xHeld) {
+      // Released
+      if (xHeldFrames < 12) {
+        // Tap - shoot
+        const bx = player.x + (player.facing > 0 ? player.w + 2 : -8);
+        const by = player.y + 16;
+        fireProjectile(bx, by, player.facing, 'player', 'normal');
+      } else if (xHeldFrames < 40) {
+        // Hold - shield
+        const sx = player.x + (player.facing > 0 ? player.w + 4 : -10);
+        createShield(sx, player.y - 5, 'player');
+      } else {
+        // Long hold - charge blast
+        const bx = player.x + (player.facing > 0 ? player.w + 2 : -18);
+        const by = player.y + 14;
+        fireProjectile(bx, by, player.facing, 'player', 'charge');
+        screenShake = 5;
+      }
+      xHeld = false;
+      xHeldFrames = 0;
+    }
+  }
+
+  // Apply gravity
+  player.vy += GRAVITY;
+  player.x += player.vx;
+  player.y += player.vy;
+
+  // Platform collision
+  const groundY = isOnPlatform();
+  if (groundY !== null) {
+    player.y = groundY - player.h;
+    player.vy = 0;
+    player.onGround = true;
+  } else {
+    player.onGround = false;
+  }
+
+  // Wall collision with platforms
+  const pr = playerRect();
+  for (const p of screenData.platforms) {
+    if (pr.y + pr.h > p.y + 4 && pr.y < p.y + p.h) {
+      // Side collision
+      if (pr.x + pr.w > p.x && pr.x < p.x && player.vx > 0) {
+        player.x = p.x - player.w;
+        player.vx = 0;
+      }
+      if (pr.x < p.x + p.w && pr.x + pr.w > p.x + p.w && player.vx < 0) {
+        player.x = p.x + p.w;
+        player.vx = 0;
+      }
+    }
+  }
+
+  // Fall death
+  if (player.y > H + 50) {
+    killPlayer('fall');
+    return;
+  }
+
+  // Animation
+  if (Math.abs(player.vx) > 0.5 && player.onGround) {
+    player.runCycle += 0.15;
+  }
+
+  // Screen transitions
+  if (player.x > W - 5) {
+    if (screenData.exitDir === 'win') {
+      state = 'win';
+      gameWon = true;
+      fadeAlpha = 0;
+      return;
+    }
+    if (currentScreen < SCREEN_COUNT - 1) {
+      currentScreen++;
+      checkpoint = { screen: currentScreen, x: 20, y: 400 };
+      initScreen(currentScreen);
+      initPlayer(20, 400);
+      fadeAlpha = 1;
+      return;
+    }
+  }
+  if (player.x < -5 && currentScreen > 0) {
+    currentScreen--;
+    initScreen(currentScreen);
+    initPlayer(W - 30, 400);
+    fadeAlpha = 1;
+    return;
+  }
+
+  // Clamp to screen edges (left on screen 0, right on last)
+  if (currentScreen === 0 && player.x < 0) player.x = 0;
+  if (currentScreen === SCREEN_COUNT - 1 && screenData.exitDir === 'win' && player.x < 0) player.x = 0;
+
+  // Gun pickup
+  if (screenData.gunPickup && !gunAcquired) {
+    const gp = screenData.gunPickup;
+    if (Math.abs(player.x - gp.x) < 30 && Math.abs(player.y - gp.y) < 40) {
+      gunAcquired = true;
+      spawnParticles(gp.x, gp.y, 15, C.laser, 4);
+      screenData.gunPickup = null;
+    }
+  }
+
+  // --- Hazards ---
+  for (const h of screenData.hazards) {
+    if (h.type === 'pool') {
+      // Just visual on screen 0 - arrival point
+    } else if (h.type === 'pit') {
+      const hRect = { x: h.x, y: h.y, w: h.w, h: h.h };
+      if (rectOverlap(playerRect(), hRect)) {
+        killPlayer('pit');
+        return;
+      }
+    } else if (h.type === 'tentacle') {
+      h.timer++;
+      // Tentacle rises periodically
+      const cycle = h.timer % 180;
+      if (cycle > 60 && cycle < 120) {
+        const tentH = Math.min((cycle - 60) * 1.5, 60);
+        const tRect = { x: h.x - 5, y: h.y - tentH, w: h.w + 10, h: tentH };
+        if (rectOverlap(playerRect(), tRect)) {
+          killPlayer('tentacle');
+          return;
+        }
+      }
+    }
+  }
+
+  // --- Enemies ---
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    const e = enemies[i];
+    if (!e.alive) continue;
+
+    // Patrol
+    e.x += e.speed * e.dir;
+    if (e.x <= e.patrol[0]) e.dir = 1;
+    if (e.x >= e.patrol[1]) e.dir = -1;
+    e.animTimer++;
+
+    // Contact damage
+    const eRect = { x: e.x, y: e.y, w: e.w, h: e.h };
+    if (rectOverlap(playerRect(), eRect)) {
+      killPlayer(e.type);
+      return;
+    }
+
+    // Guard shooting
+    if (e.type === 'guard' && e.alive) {
+      e.shootTimer++;
+      // Shield behavior
+      if (e.shieldTimer > 0) {
+        e.shieldTimer--;
+        e.shieldUp = e.shieldTimer > 0;
+      }
+      if (e.shootTimer >= e.shootInterval) {
+        e.shootTimer = 0;
+        // Decide: shoot, shield, or charge
+        const dx = player.x - e.x;
+        const shootDir = dx > 0 ? 1 : -1;
+        // Check if any player projectiles incoming
+        let incoming = false;
+        for (const p of projectiles) {
+          if (p.owner === 'player' && Math.abs(p.y - e.y) < 40) {
+            if ((p.vx > 0 && p.x < e.x && p.x > e.x - 200) ||
+                (p.vx < 0 && p.x > e.x && p.x < e.x + 200)) {
+              incoming = true;
+            }
+          }
+        }
+        if (incoming && Math.random() < 0.5) {
+          // Create shield
+          const sx = e.x + (shootDir > 0 ? -10 : e.w + 4);
+          createShield(sx, e.y - 5, 'enemy');
+          e.shieldUp = true;
+          e.shieldTimer = 90;
+        } else {
+          const bx = e.x + (shootDir > 0 ? e.w + 2 : -8);
+          fireProjectile(bx, e.y + 16, shootDir, 'enemy', 'normal');
+        }
+      }
+    }
+
+    // Beast behavior - charge at player if close
+    if (e.type === 'beast') {
+      const dx = player.x - e.x;
+      if (Math.abs(dx) < 250) {
+        e.dir = dx > 0 ? 1 : -1;
+        e.speed = 2.5;
+      } else {
+        e.speed = 1.5;
+      }
+    }
+  }
+
+  // --- Projectiles ---
+  for (let i = projectiles.length - 1; i >= 0; i--) {
+    const p = projectiles[i];
+    p.x += p.vx;
+    p.life--;
+
+    // Hit platforms
+    let hitPlatform = false;
+    for (const plat of screenData.platforms) {
+      if (p.x + p.w > plat.x && p.x < plat.x + plat.w &&
+          p.y + p.h > plat.y && p.y < plat.y + plat.h) {
+        hitPlatform = true;
+        break;
+      }
+    }
+
+    // Hit shields
+    let hitShield = false;
+    for (let j = shields.length - 1; j >= 0; j--) {
+      const s = shields[j];
+      if (p.owner !== s.owner && rectOverlap(p, s)) {
+        if (p.type === 'charge') {
+          // Charge blast destroys shields
+          shields.splice(j, 1);
+          spawnParticles(s.x, s.y + s.h / 2, 10, s.color, 5);
+        } else {
+          hitShield = true;
+          spawnParticles(p.x, p.y, 5, p.color, 3);
+        }
+        break;
+      }
+    }
+
+    // Hit player
+    if (p.owner === 'enemy') {
+      if (rectOverlap(p, playerRect())) {
+        killPlayer('laser');
+        projectiles.splice(i, 1);
+        continue;
+      }
+    }
+
+    // Hit enemy
+    if (p.owner === 'player') {
+      for (let j = enemies.length - 1; j >= 0; j--) {
+        const e = enemies[j];
+        if (!e.alive) continue;
+        const eRect = { x: e.x, y: e.y, w: e.w, h: e.h };
+        if (rectOverlap(p, eRect)) {
+          e.hp--;
+          if (e.hp <= 0) {
+            e.alive = false;
+            spawnParticles(e.x + e.w / 2, e.y + e.h / 2, 12, C.guard, 6);
+            screenShake = 6;
+          }
+          hitPlatform = true;
+          break;
+        }
+      }
+    }
+
+    if (p.life <= 0 || p.x < -20 || p.x > W + 20 || hitPlatform || hitShield) {
+      if (hitPlatform || hitShield) spawnParticles(p.x, p.y, 5, p.color, 3);
+      projectiles.splice(i, 1);
+    }
+  }
+
+  // --- Shields decay ---
+  for (let i = shields.length - 1; i >= 0; i--) {
+    shields[i].life--;
+    if (shields[i].life <= 0) shields.splice(i, 1);
+  }
+}
+
+// --- Drawing ---
+function drawSky(screenIdx) {
+  // Gradient alien sky
+  const g = ctx.createLinearGradient(0, 0, 0, H * 0.6);
+  g.addColorStop(0, '#0a0618');
+  g.addColorStop(0.5, '#1a0a2e');
+  g.addColorStop(1, '#2d1040');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+
+  // Stars
+  const seed = screenIdx * 100;
+  for (let i = 0; i < 40; i++) {
+    const sx = ((seed + i * 73) * 13 + 7) % W;
+    const sy = ((seed + i * 37) * 11 + 3) % (H * 0.5);
+    const brightness = 0.3 + 0.7 * (((i * 17 + seed) % 10) / 10);
+    const twinkle = Math.sin(frameTick * 0.02 + i) * 0.3 + 0.7;
+    ctx.globalAlpha = brightness * twinkle;
+    ctx.fillStyle = C.star;
+    const sz = ((i * 7 + seed) % 3) + 1;
+    ctx.fillRect(sx, sy, sz, sz);
+  }
+  ctx.globalAlpha = 1;
+
+  // Alien moon/planet
+  if (screenIdx < 2) {
+    const mx = 600 + screenIdx * 50;
+    ctx.fillStyle = C.moon;
+    ctx.beginPath();
+    ctx.arc(mx, 80, 40, 0, Math.PI * 2);
+    ctx.fill();
+    // Crescent shadow
+    ctx.fillStyle = '#1a0a2e';
+    ctx.beginPath();
+    ctx.arc(mx + 15, 75, 38, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Horizon glow
+  const hg = ctx.createLinearGradient(0, H * 0.35, 0, H * 0.55);
+  hg.addColorStop(0, 'transparent');
+  hg.addColorStop(0.5, 'rgba(100, 40, 80, 0.3)');
+  hg.addColorStop(1, 'transparent');
+  ctx.fillStyle = hg;
+  ctx.fillRect(0, H * 0.35, W, H * 0.2);
+
+  // Distant alien structures (background)
+  ctx.fillStyle = '#150a20';
+  if (screenIdx === 0) {
+    // Tall spires
+    drawPoly([[100, 350], [110, 180], [120, 350]]);
+    drawPoly([[140, 350], [155, 220], [170, 350]]);
+    drawPoly([[500, 350], [520, 150], [540, 350]]);
+  } else if (screenIdx === 1) {
+    drawPoly([[50, 350], [70, 200], [90, 350]]);
+    drawPoly([[350, 350], [380, 160], [410, 350]]);
+    drawPoly([[600, 350], [615, 240], [630, 350]]);
+  } else if (screenIdx === 2) {
+    // Alien city silhouette
+    drawPoly([[50, 350], [50, 200], [100, 200], [100, 250], [150, 250], [150, 180], [180, 180], [180, 350]]);
+    drawPoly([[400, 350], [400, 220], [450, 220], [450, 260], [500, 260], [500, 200], [530, 200], [530, 350]]);
+  } else {
+    // Exit portal glow
+    drawPoly([[30, 350], [30, 190], [80, 190], [80, 350]]);
+    drawPoly([[250, 350], [260, 210], [280, 210], [290, 350]]);
+    // Glowing exit on far right
+    ctx.fillStyle = 'rgba(100, 200, 255, 0.1)';
+    ctx.fillRect(740, 200, 60, 280);
+  }
+}
+
+function drawPoly(pts) {
+  ctx.beginPath();
+  ctx.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawGround(screenIdx) {
+  for (const p of screenData.platforms) {
+    // Main platform
+    const g = ctx.createLinearGradient(p.x, p.y, p.x, p.y + p.h);
+    g.addColorStop(0, '#2a2030');
+    g.addColorStop(1, '#1a1420');
+    ctx.fillStyle = g;
+    ctx.fillRect(p.x, p.y, p.w, p.h);
+
+    // Surface detail
+    ctx.fillStyle = '#3a2840';
+    ctx.fillRect(p.x, p.y, p.w, 2);
+
+    // Texture lines
+    ctx.fillStyle = '#221828';
+    for (let tx = p.x + 20; tx < p.x + p.w; tx += 40) {
+      ctx.fillRect(tx, p.y + 4, 1, p.h - 4);
+    }
+  }
+}
+
+function drawHazards() {
+  for (const h of screenData.hazards) {
+    if (h.type === 'pool') {
+      // Glowing arrival pool
+      const pulse = Math.sin(frameTick * 0.05) * 0.2 + 0.8;
+      ctx.fillStyle = `rgba(40, 80, 180, ${0.3 * pulse})`;
+      ctx.fillRect(h.x - 10, h.y - 5, h.w + 20, h.h + 10);
+      ctx.fillStyle = C.pool;
+      ctx.fillRect(h.x, h.y, h.w, h.h);
+      // Glow
+      ctx.fillStyle = `rgba(64, 96, 255, ${0.4 * pulse})`;
+      ctx.fillRect(h.x + 5, h.y + 2, h.w - 10, h.h - 4);
+    } else if (h.type === 'pit') {
+      ctx.fillStyle = '#050008';
+      ctx.fillRect(h.x, h.y, h.w, h.h);
+      // Danger glow at edges
+      const pg = ctx.createLinearGradient(h.x - 5, 0, h.x + 5, 0);
+      pg.addColorStop(0, 'transparent');
+      pg.addColorStop(1, 'rgba(255, 40, 20, 0.15)');
+      ctx.fillStyle = pg;
+      ctx.fillRect(h.x - 5, h.y, 10, h.h);
+    } else if (h.type === 'tentacle') {
+      const cycle = h.timer % 180;
+      if (cycle > 50 && cycle < 130) {
+        const progress = cycle < 90 ? (cycle - 50) / 40 : (130 - cycle) / 40;
+        const tentH = progress * 60;
+        ctx.fillStyle = '#3a1040';
+        // Wavy tentacle
+        const waveX = Math.sin(frameTick * 0.1) * 3;
+        ctx.beginPath();
+        ctx.moveTo(h.x + waveX, h.y);
+        ctx.quadraticCurveTo(h.x + h.w / 2 + waveX * 2, h.y - tentH * 0.6,
+                             h.x + h.w / 2, h.y - tentH);
+        ctx.quadraticCurveTo(h.x + h.w / 2 - waveX, h.y - tentH * 0.6,
+                             h.x + h.w + waveX, h.y);
+        ctx.fill();
+        // Tip
+        ctx.fillStyle = '#6a2060';
+        ctx.beginPath();
+        ctx.arc(h.x + h.w / 2, h.y - tentH, 4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+}
+
+function drawPlayer() {
+  if (state === 'dying' && deathAnim) {
+    // Ragdoll pieces
+    for (const p of deathAnim.parts) {
+      ctx.fillStyle = p.color;
+      ctx.fillRect(p.x, p.y, p.size, p.size);
+    }
+    return;
+  }
+  if (state === 'dead') return;
+
+  const px = player.x, py = player.y;
+  const f = player.facing;
+  const run = player.runCycle;
+  const crouch = player.crouching;
+  const grounded = player.onGround;
+
+  // Body (vector style - flat shapes)
+  ctx.save();
+  ctx.translate(px + player.w / 2, py);
+
+  if (crouch) {
+    // Crouching pose
+    ctx.fillStyle = C.player;
+    ctx.fillRect(-8, 20, 16, 14);  // body
+    ctx.fillStyle = C.playerDark;
+    ctx.fillRect(-6, 34, 12, 10);  // legs
+    // Head
+    ctx.fillStyle = C.player;
+    ctx.fillRect(-5 + f * 2, 12, 10, 10);
+  } else {
+    // Head
+    ctx.fillStyle = C.player;
+    ctx.fillRect(-5 + f * 2, 0, 10, 10);
+
+    // Torso
+    ctx.fillStyle = C.player;
+    ctx.fillRect(-7, 10, 14, 16);
+
+    // Lab coat detail
+    ctx.fillStyle = C.playerDark;
+    ctx.fillRect(-7, 10, 3, 16);
+
+    if (grounded && Math.abs(player.vx) > 0.5) {
+      // Running legs
+      const legOff = Math.sin(run) * 6;
+      ctx.fillStyle = C.playerDark;
+      ctx.fillRect(-5 + legOff, 26, 5, 18);
+      ctx.fillRect(-1 - legOff, 26, 5, 18);
+    } else if (!grounded) {
+      // Jumping legs
+      ctx.fillStyle = C.playerDark;
+      ctx.fillRect(-6, 26, 5, 14);
+      ctx.fillRect(1, 26, 5, 14);
+      // Arms up
+      ctx.fillStyle = C.player;
+      ctx.fillRect(-10, 8, 4, 10);
+      ctx.fillRect(6, 8, 4, 10);
+    } else {
+      // Standing legs
+      ctx.fillStyle = C.playerDark;
+      ctx.fillRect(-5, 26, 5, 18);
+      ctx.fillRect(1, 26, 5, 18);
+    }
+
+    // Gun arm
+    if (gunAcquired && !(!grounded)) {
+      ctx.fillStyle = '#606060';
+      const armX = f > 0 ? 7 : -11;
+      ctx.fillRect(armX, 12, 4, 8);
+      // Gun
+      ctx.fillStyle = '#404040';
+      ctx.fillRect(armX + (f > 0 ? 2 : -4), 12, 6, 3);
+
+      // Charge indicator
+      if (xHeld) {
+        const glow = xHeldFrames < 12 ? 0 : (xHeldFrames < 40 ? 0.5 : 1);
+        if (glow > 0) {
+          ctx.fillStyle = xHeldFrames < 40 ?
+            `rgba(64, 128, 255, ${glow})` :
+            `rgba(128, 255, 255, ${Math.sin(frameTick * 0.3) * 0.3 + 0.7})`;
+          const glowX = f > 0 ? armX + 8 : armX - 6;
+          ctx.fillRect(glowX, 10, 4 + glow * 4, 4 + glow * 4);
+        }
+      }
+    }
+  }
+
+  ctx.restore();
+}
+
+function drawEnemies() {
+  for (const e of enemies) {
+    if (!e.alive) continue;
+
+    if (e.type === 'beast') {
+      // Alien beast - low, dark, menacing
+      ctx.fillStyle = C.beast;
+      // Body
+      ctx.fillRect(e.x, e.y + 10, e.w, e.h - 15);
+      // Head (towards player)
+      const headDir = player.x > e.x ? 1 : -1;
+      ctx.fillRect(e.x + (headDir > 0 ? e.w - 5 : -10), e.y + 5, 15, 15);
+      // Eye
+      ctx.fillStyle = C.beastEye;
+      const eyeX = e.x + (headDir > 0 ? e.w + 2 : -6);
+      ctx.fillRect(eyeX, e.y + 9, 3, 3);
+      // Legs (animated)
+      ctx.fillStyle = '#1a1a1a';
+      const legAnim = Math.sin(e.animTimer * 0.1) * 3;
+      ctx.fillRect(e.x + 5 + legAnim, e.y + e.h - 10, 4, 10);
+      ctx.fillRect(e.x + 15 - legAnim, e.y + e.h - 10, 4, 10);
+      ctx.fillRect(e.x + 25 + legAnim, e.y + e.h - 10, 4, 10);
+      ctx.fillRect(e.x + 33 - legAnim, e.y + e.h - 10, 4, 10);
+    } else if (e.type === 'guard') {
+      // Alien guard - tall, armored
+      const gf = player.x > e.x ? 1 : -1;
+      ctx.fillStyle = C.guardArmor;
+      // Body
+      ctx.fillRect(e.x, e.y + 8, e.w, 28);
+      // Head
+      ctx.fillStyle = C.guard;
+      ctx.fillRect(e.x + 2 + gf * 3, e.y, 16, 12);
+      // Visor
+      ctx.fillStyle = '#a060c0';
+      ctx.fillRect(e.x + 5 + (gf > 0 ? 5 : 0), e.y + 4, 8, 3);
+      // Legs
+      ctx.fillStyle = C.guard;
+      const gLeg = Math.sin(e.animTimer * 0.08) * 3;
+      ctx.fillRect(e.x + 3 + gLeg, e.y + 36, 5, 8);
+      ctx.fillRect(e.x + 12 - gLeg, e.y + 36, 5, 8);
+      // Gun arm
+      ctx.fillStyle = '#707080';
+      const armX = gf > 0 ? e.x + e.w : e.x - 8;
+      ctx.fillRect(armX, e.y + 14, 8, 3);
+
+      // Shield visual
+      if (e.shieldUp) {
+        ctx.fillStyle = 'rgba(255, 64, 96, 0.4)';
+        const sDir = player.x > e.x ? 1 : -1;
+        const sx = sDir > 0 ? e.x + e.w + 2 : e.x - 8;
+        ctx.fillRect(sx, e.y - 5, 6, 54);
+      }
+    }
+  }
+}
+
+function drawProjectiles() {
+  for (const p of projectiles) {
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x, p.y, p.w, p.h);
+    // Trail
+    ctx.globalAlpha = 0.4;
+    ctx.fillRect(p.x - p.vx * 1.5, p.y, p.w * 0.6, p.h);
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawShields() {
+  for (const s of shields) {
+    const pulse = Math.sin(frameTick * 0.1) * 0.2 + 0.8;
+    ctx.fillStyle = s.color;
+    ctx.globalAlpha = 0.6 * pulse;
+    ctx.fillRect(s.x, s.y, s.w, s.h);
+    ctx.globalAlpha = 0.3;
+    ctx.fillRect(s.x - 2, s.y, s.w + 4, s.h);
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawParticles() {
+  for (const p of particles) {
+    ctx.globalAlpha = p.life / p.maxLife;
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x, p.y, p.size, p.size);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawGunPickup() {
+  if (!screenData.gunPickup || gunAcquired) return;
+  const gp = screenData.gunPickup;
+  const bob = Math.sin(frameTick * 0.05) * 4;
+  // Glow
+  ctx.fillStyle = `rgba(64, 255, 128, ${0.15 + Math.sin(frameTick * 0.08) * 0.1})`;
+  ctx.fillRect(gp.x - 10, gp.y - 10 + bob, 30, 30);
+  // Gun shape
+  ctx.fillStyle = '#808080';
+  ctx.fillRect(gp.x, gp.y + bob, 12, 6);
+  ctx.fillRect(gp.x + 3, gp.y + 6 + bob, 4, 6);
+  // Gleam
+  ctx.fillStyle = C.laser;
+  ctx.fillRect(gp.x + 10, gp.y + 1 + bob, 3, 2);
+}
+
+function drawExitPortal() {
+  if (currentScreen !== 3) return;
+  // Glowing portal on far right
+  const pulse = Math.sin(frameTick * 0.03) * 0.3 + 0.7;
+  ctx.fillStyle = `rgba(100, 200, 255, ${0.1 * pulse})`;
+  ctx.fillRect(760, 200, 40, 280);
+  ctx.fillStyle = `rgba(150, 220, 255, ${0.2 * pulse})`;
+  ctx.fillRect(770, 220, 20, 260);
+  ctx.fillStyle = `rgba(200, 240, 255, ${0.3 * pulse})`;
+  ctx.fillRect(778, 240, 8, 240);
+}
+
+function draw() {
+  ctx.save();
+  // Screen shake
+  if (screenShake > 0) {
+    ctx.translate((Math.random() - 0.5) * screenShake, (Math.random() - 0.5) * screenShake);
+  }
+
+  drawSky(currentScreen);
+  drawExitPortal();
+  drawGround(currentScreen);
+  drawHazards();
+  drawGunPickup();
+  drawEnemies();
+  drawPlayer();
+  drawProjectiles();
+  drawShields();
+  drawParticles();
+
+  // Fade overlay
+  if (fadeAlpha > 0) {
+    ctx.fillStyle = `rgba(0, 0, 0, ${Math.max(0, fadeAlpha)})`;
+    ctx.fillRect(-20, -20, W + 40, H + 40);
+  }
+
+  // Win screen
+  if (state === 'win') {
+    fadeAlpha += 0.005;
+    const a = Math.min(fadeAlpha, 1);
+    ctx.fillStyle = `rgba(200, 230, 255, ${a * 0.8})`;
+    ctx.fillRect(0, 0, W, H);
+
+    if (a > 0.3) {
+      ctx.fillStyle = `rgba(0, 0, 0, ${Math.min((a - 0.3) * 2, 1)})`;
+      ctx.font = '20px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('...to be continued', W / 2, H / 2);
+      ctx.font = '12px monospace';
+      ctx.fillStyle = `rgba(0, 0, 0, ${Math.min((a - 0.5) * 2, 0.5)})`;
+      ctx.fillText('Press R to play again', W / 2, H / 2 + 40);
+    }
+  }
+
+  ctx.restore();
+}
+
+// --- Main Loop ---
+initGame();
+
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

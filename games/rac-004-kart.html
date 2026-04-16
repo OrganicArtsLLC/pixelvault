@@ -1,0 +1,1017 @@
+<!--
+PROTOTYPE: kart
+SERIES: rac
+NUMBER: 004
+DATE: 2026-03-23
+MECHANIC: kart racing with item pickups, drifting, and AI opponents on circuit
+ANCESTRY: Super Mario Kart (1992, Nintendo), Micro Machines (1991, Codemasters), RC Pro-Am (1988, Rare)
+CONTROLS: Up — accelerate | Down — brake | Left/Right — steer | Shift — drift | Space — use item | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 4 (Statistical Learning — rubber-banding AI, item probability weighted by position)
+AI-INSIGHT: Mario Kart pioneered rubber-banding — AI that adapts difficulty based on player performance. This dynamic difficulty adjustment predated formal research into adaptive systems and remains one of gaming's most effective engagement mechanisms.
+NOTES: Kart racing distilled to its essentials: circuit, items, rivals.
+       Item economy creates drama; drifting rewards skill.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAC-004 · KART</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .content {
+  max-width: 700px; margin: 40px auto; padding: 20px; line-height: 1.7;
+}
+#info-panel h2 { color: #f90; margin-bottom: 10px; }
+#info-panel h3 { color: #fc0; margin: 18px 0 6px; }
+#info-panel kbd { background: #333; padding: 2px 8px; border-radius: 3px; color: #fff; }
+#info-panel .close-btn { position: fixed; top: 15px; right: 25px; color: #f90;
+  font-size: 28px; cursor: pointer; z-index: 101; }
+</style>
+</head>
+<body>
+<canvas id="c" width="800" height="600"></canvas>
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="content">
+    <h2>RAC-004 · KART</h2>
+
+    <h3>How to Play</h3>
+    <ul>
+      <li><kbd>&uarr;</kbd> — Accelerate</li>
+      <li><kbd>&darr;</kbd> — Brake / Reverse</li>
+      <li><kbd>&larr;</kbd> / <kbd>&rarr;</kbd> — Steer</li>
+      <li><kbd>Shift</kbd> — Drift (hold while turning for tighter turns, release for mini-boost)</li>
+      <li><kbd>Space</kbd> — Use item</li>
+      <li><kbd>R</kbd> — Restart race</li>
+      <li><kbd>?</kbd> — Toggle this panel</li>
+    </ul>
+    <p>Complete 3 laps around the circuit. Collect item boxes on the track for power-ups.
+    Use items strategically to gain advantage over your 3 AI opponents.</p>
+    <p><strong>Items:</strong> Shell (fires forward, bounces off walls) · Banana (drops behind, spins out karts) · Mushroom (speed boost) · Star (invincibility + speed)</p>
+
+    <h3>History</h3>
+    <p>Super Mario Kart (1992) invented the kart racing genre by combining Nintendo's beloved
+    characters with Mode 7 pseudo-3D tracks and chaotic item-based combat. It proved that
+    racing games didn't need simulation fidelity — they needed fun. The item system created
+    natural drama: last place gets the best items, keeping races exciting until the finish line.</p>
+
+    <h3>AI Archaeology</h3>
+    <p><strong>Era 4 — Statistical Learning.</strong> Mario Kart's rubber-banding AI adjusts
+    difficulty dynamically based on player performance. Karts in last place receive more powerful
+    items; AI racers speed up or slow down to keep the pack tight. This predated formal research
+    into dynamic difficulty adjustment (DDA) and remains one of gaming's most effective
+    engagement mechanisms. The item probability distribution is essentially a position-weighted
+    random variable — statistics in service of fun.</p>
+
+    <h3>Classification</h3>
+    <p><strong>Series:</strong> RAC (Racing) · <strong>Prototype:</strong> 004 ·
+    <strong>Mechanic:</strong> Top-down kart racing with items and drifting</p>
+    <p><strong>Ancestry:</strong> Super Mario Kart (1992, Nintendo), Micro Machines (1991, Codemasters), RC Pro-Am (1988, Rare)</p>
+
+    <h3>Prototype Notes</h3>
+    <p>Top-down view keeps the spatial reasoning clear while preserving the chaos of item combat.
+    The track is a closed loop with varied turns. Drifting rewards skilled players with mini-boosts.
+    AI uses rubber-banding: trailing karts get better items and slight speed bonuses.
+    Item boxes respawn on a timer. The minimap shows all kart positions at a glance.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// Track definition — series of waypoints forming a circuit
+const trackPts = [
+  {x: 400, y: 480}, {x: 250, y: 470}, {x: 140, y: 420}, {x: 80, y: 340},
+  {x: 70, y: 240}, {x: 100, y: 160}, {x: 170, y: 100}, {x: 280, y: 60},
+  {x: 400, y: 50}, {x: 520, y: 60}, {x: 630, y: 100}, {x: 700, y: 160},
+  {x: 730, y: 240}, {x: 720, y: 340}, {x: 660, y: 420}, {x: 550, y: 470}
+];
+
+const TRACK_W = 60; // half-width of track
+const TOTAL_LAPS = 3;
+
+// Build smooth track from waypoints using Catmull-Rom
+function catmullRom(p0, p1, p2, p3, t) {
+  const t2 = t * t, t3 = t2 * t;
+  return {
+    x: 0.5 * ((2*p1.x) + (-p0.x+p2.x)*t + (2*p0.x-5*p1.x+4*p2.x-p3.x)*t2 + (-p0.x+3*p1.x-3*p2.x+p3.x)*t3),
+    y: 0.5 * ((2*p1.y) + (-p0.y+p2.y)*t + (2*p0.y-5*p1.y+4*p2.y-p3.y)*t2 + (-p0.y+3*p1.y-3*p2.y+p3.y)*t3)
+  };
+}
+
+let trackPath = [];
+const TRACK_RES = 12; // points per segment
+function buildTrack() {
+  trackPath = [];
+  const n = trackPts.length;
+  for (let i = 0; i < n; i++) {
+    const p0 = trackPts[(i-1+n)%n], p1 = trackPts[i], p2 = trackPts[(i+1)%n], p3 = trackPts[(i+2)%n];
+    for (let t = 0; t < TRACK_RES; t++) {
+      trackPath.push(catmullRom(p0, p1, p2, p3, t / TRACK_RES));
+    }
+  }
+}
+buildTrack();
+
+const TRACK_LEN = trackPath.length;
+
+// Get track position and direction at fractional index
+function trackAt(idx) {
+  const i = ((idx % TRACK_LEN) + TRACK_LEN) % TRACK_LEN;
+  const i0 = Math.floor(i) % TRACK_LEN;
+  const i1 = (i0 + 1) % TRACK_LEN;
+  const frac = i - Math.floor(i);
+  const p = {
+    x: trackPath[i0].x + (trackPath[i1].x - trackPath[i0].x) * frac,
+    y: trackPath[i0].y + (trackPath[i1].y - trackPath[i0].y) * frac
+  };
+  const dx = trackPath[i1].x - trackPath[i0].x;
+  const dy = trackPath[i1].y - trackPath[i0].y;
+  const a = Math.atan2(dy, dx);
+  return { x: p.x, y: p.y, angle: a };
+}
+
+// Distance along track
+function dist(a, b) {
+  return Math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2);
+}
+
+// Find closest track index for a world position
+function closestTrackIdx(wx, wy) {
+  let best = 0, bestD = Infinity;
+  for (let i = 0; i < TRACK_LEN; i++) {
+    const d = (trackPath[i].x - wx)**2 + (trackPath[i].y - wy)**2;
+    if (d < bestD) { bestD = d; best = i; }
+  }
+  return best;
+}
+
+// Item boxes positions (along track indices)
+let itemBoxes = [];
+function placeItemBoxes() {
+  itemBoxes = [];
+  const spacing = Math.floor(TRACK_LEN / 8);
+  for (let i = 0; i < 8; i++) {
+    const idx = (i * spacing + Math.floor(spacing/2)) % TRACK_LEN;
+    const p = trackPath[idx];
+    itemBoxes.push({ x: p.x, y: p.y, active: true, timer: 0, idx: idx });
+  }
+}
+
+const ITEM_NAMES = ['shell', 'banana', 'mushroom', 'star'];
+const ITEM_COLORS = { shell: '#0f0', banana: '#ff0', mushroom: '#f66', star: '#ff0' };
+
+// Kart class
+function makeKart(color, isPlayer, startIdx) {
+  const p = trackAt(startIdx);
+  return {
+    x: p.x, y: p.y, angle: p.angle + Math.PI, // face forward along track
+    speed: 0, maxSpeed: 3.2, accel: 0.08, brake: 0.12, friction: 0.02,
+    turnRate: 0.05, color: color, isPlayer: isPlayer,
+    trackIdx: startIdx, lap: 0, lastCheckIdx: startIdx,
+    item: null, itemTimer: 0,
+    drifting: false, driftTime: 0, driftDir: 0,
+    spinTimer: 0, boostTimer: 0, starTimer: 0,
+    invincible: false, finished: false, finishTime: 0,
+    targetIdx: startIdx + 5, // AI target
+    aiItemDelay: 0
+  };
+}
+
+let karts = [];
+let shells = [];
+let bananas = [];
+let particles = [];
+let raceTime = 0;
+let raceState = 'countdown'; // countdown, racing, finished
+let countdownTimer = 3;
+let positions = [0,1,2,3];
+
+const KART_COLORS = ['#39f', '#e33', '#3c3', '#f90'];
+const KART_NAMES = ['BLUE', 'RED', 'GREEN', 'ORANGE'];
+
+function initRace() {
+  karts = [];
+  shells = [];
+  bananas = [];
+  particles = [];
+  raceTime = 0;
+  raceState = 'countdown';
+  countdownTimer = 3;
+
+  placeItemBoxes();
+
+  // Start positions — staggered along track
+  for (let i = 0; i < 4; i++) {
+    const idx = TRACK_LEN - 3 - i * 4;
+    const k = makeKart(KART_COLORS[i], i === 0, idx);
+    // Offset laterally for grid
+    const off = (i % 2 === 0) ? -15 : 15;
+    const perp = k.angle + Math.PI / 2;
+    k.x += Math.cos(perp) * off;
+    k.y += Math.sin(perp) * off;
+    karts.push(k);
+  }
+}
+
+// Input
+const keys = {};
+document.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'r' || e.key === 'R') { initRace(); return; }
+  keys[e.code] = true;
+  if (e.code === 'Space' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') e.preventDefault();
+});
+document.addEventListener('keyup', e => {
+  // Detect drift release for boost
+  if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && karts[0] && karts[0].drifting) {
+    if (karts[0].driftTime > 30) {
+      karts[0].boostTimer = Math.min(karts[0].driftTime * 0.5, 40);
+    }
+    karts[0].drifting = false;
+    karts[0].driftTime = 0;
+  }
+  keys[e.code] = false;
+});
+
+// Use item
+function useItem(k) {
+  if (!k.item) return;
+  const item = k.item;
+  k.item = null;
+
+  if (item === 'shell') {
+    shells.push({
+      x: k.x + Math.cos(k.angle) * 18,
+      y: k.y + Math.sin(k.angle) * 18,
+      dx: Math.cos(k.angle) * 6,
+      dy: Math.sin(k.angle) * 6,
+      owner: k, bounces: 3, life: 300
+    });
+  } else if (item === 'banana') {
+    bananas.push({
+      x: k.x - Math.cos(k.angle) * 20,
+      y: k.y - Math.sin(k.angle) * 20
+    });
+  } else if (item === 'mushroom') {
+    k.boostTimer = 45;
+  } else if (item === 'star') {
+    k.starTimer = 300;
+    k.invincible = true;
+  }
+}
+
+// Get item weighted by position
+function getItem(posRank) {
+  const r = Math.random();
+  if (posRank === 0) { // 1st place — weak items
+    if (r < 0.4) return 'banana';
+    if (r < 0.75) return 'shell';
+    return 'mushroom';
+  } else if (posRank === 3) { // last place — strong items
+    if (r < 0.35) return 'star';
+    if (r < 0.65) return 'mushroom';
+    if (r < 0.85) return 'shell';
+    return 'banana';
+  } else { // middle
+    if (r < 0.3) return 'shell';
+    if (r < 0.55) return 'mushroom';
+    if (r < 0.8) return 'banana';
+    return 'star';
+  }
+}
+
+function addParticles(x, y, color, count) {
+  for (let i = 0; i < count; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const sp = 1 + Math.random() * 3;
+    particles.push({ x, y, dx: Math.cos(a)*sp, dy: Math.sin(a)*sp, life: 20+Math.random()*20, color });
+  }
+}
+
+// Kart-to-kart collision
+function kartCollision(a, b) {
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const d = Math.sqrt(dx*dx + dy*dy);
+  if (d < 16 && d > 0) {
+    const nx = dx/d, ny = dy/d;
+    const push = (16 - d) / 2;
+    a.x -= nx * push; a.y -= ny * push;
+    b.x += nx * push; b.y += ny * push;
+    // Star kills
+    if (a.invincible && !b.invincible) { b.spinTimer = 60; b.speed *= 0.2; }
+    if (b.invincible && !a.invincible) { a.spinTimer = 60; a.speed *= 0.2; }
+    // Bounce speeds
+    const relV = 0.3;
+    a.speed *= (1 - relV);
+    b.speed *= (1 - relV);
+  }
+}
+
+// Check if point is on track
+function isOnTrack(x, y) {
+  const idx = closestTrackIdx(x, y);
+  const p = trackPath[idx];
+  const d = Math.sqrt((p.x-x)**2 + (p.y-y)**2);
+  return d < TRACK_W;
+}
+
+// Lap detection
+function updateLap(k) {
+  const ci = closestTrackIdx(k.x, k.y);
+  const halfTrack = TRACK_LEN / 2;
+  // Crossed start line going forward
+  if (k.lastCheckIdx > TRACK_LEN * 0.75 && ci < TRACK_LEN * 0.25) {
+    k.lap++;
+    if (k.lap >= TOTAL_LAPS && !k.finished) {
+      k.finished = true;
+      k.finishTime = raceTime;
+    }
+  }
+  // Going backward across start
+  if (k.lastCheckIdx < TRACK_LEN * 0.25 && ci > TRACK_LEN * 0.75) {
+    k.lap = Math.max(0, k.lap - 1);
+  }
+  k.lastCheckIdx = ci;
+  k.trackIdx = ci;
+}
+
+// Sort karts by race position
+function updatePositions() {
+  const scored = karts.map((k, i) => {
+    const s = k.lap * TRACK_LEN + k.trackIdx;
+    return { idx: i, score: k.finished ? (100000 - k.finishTime) * 10000 + s : s };
+  });
+  scored.sort((a, b) => b.score - a.score);
+  positions = scored.map(s => s.idx);
+}
+
+function updateKart(k, dt) {
+  if (k.spinTimer > 0) { k.spinTimer--; k.angle += 0.3; k.speed *= 0.95; return; }
+
+  const onTrack = isOnTrack(k.x, k.y);
+  const effectiveMax = k.maxSpeed * (onTrack ? 1 : 0.5) * (k.boostTimer > 0 ? 1.6 : 1) * (k.starTimer > 0 ? 1.3 : 1);
+
+  if (k.isPlayer) {
+    // Player controls
+    if (keys['ArrowUp'] || keys['KeyW']) k.speed = Math.min(k.speed + k.accel, effectiveMax);
+    if (keys['ArrowDown'] || keys['KeyS']) k.speed = Math.max(k.speed - k.brake, -1.5);
+
+    const turning = keys['ArrowLeft'] || keys['ArrowRight'] || keys['KeyA'] || keys['KeyD'];
+    const shiftHeld = keys['ShiftLeft'] || keys['ShiftRight'];
+    const turnDir = (keys['ArrowLeft'] || keys['KeyA']) ? -1 : (keys['ArrowRight'] || keys['KeyD']) ? 1 : 0;
+
+    if (shiftHeld && turning && Math.abs(k.speed) > 1) {
+      if (!k.drifting) { k.drifting = true; k.driftDir = turnDir; k.driftTime = 0; }
+      k.driftTime++;
+      k.angle += turnDir * k.turnRate * 1.5 * Math.sign(k.speed);
+      // Slight lateral slide
+      k.x += Math.cos(k.angle + Math.PI/2) * turnDir * 0.5;
+      k.y += Math.sin(k.angle + Math.PI/2) * turnDir * 0.5;
+    } else {
+      if (turnDir !== 0) k.angle += turnDir * k.turnRate * Math.sign(k.speed || 0.01);
+    }
+
+    if (keys['Space']) { useItem(k); keys['Space'] = false; }
+  } else {
+    // AI logic
+    updateAI(k);
+  }
+
+  // Apply boost timer
+  if (k.boostTimer > 0) k.boostTimer--;
+  if (k.starTimer > 0) { k.starTimer--; if (k.starTimer <= 0) k.invincible = false; }
+
+  // Friction
+  if (k.speed > 0) k.speed = Math.max(0, k.speed - k.friction * (onTrack ? 1 : 3));
+  else if (k.speed < 0) k.speed = Math.min(0, k.speed + k.friction * (onTrack ? 1 : 3));
+
+  // Move
+  k.x += Math.cos(k.angle) * k.speed;
+  k.y += Math.sin(k.angle) * k.speed;
+
+  // Clamp to world
+  k.x = Math.max(10, Math.min(790, k.x));
+  k.y = Math.max(10, Math.min(590, k.y));
+
+  updateLap(k);
+}
+
+function updateAI(k) {
+  if (k.finished) { k.speed *= 0.95; return; }
+
+  // Rubber-banding: adjust speed based on position
+  const posIdx = positions.indexOf(karts.indexOf(k));
+  const rubberband = posIdx === 3 ? 1.12 : posIdx === 0 ? 0.92 : 1.0;
+  const aiMax = k.maxSpeed * rubberband;
+
+  // Follow track waypoints
+  const target = trackAt(k.targetIdx);
+  const dx = target.x - k.x, dy = target.y - k.y;
+  const dToTarget = Math.sqrt(dx*dx + dy*dy);
+  const targetAngle = Math.atan2(dy, dx);
+
+  // Advance target when close
+  if (dToTarget < 30) {
+    k.targetIdx = (k.targetIdx + 3) % TRACK_LEN;
+  }
+
+  // Steer toward target
+  let angleDiff = targetAngle - k.angle;
+  while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+  while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+
+  const steerAmount = Math.min(Math.abs(angleDiff), k.turnRate * 1.2) * Math.sign(angleDiff);
+  k.angle += steerAmount;
+
+  // Accelerate
+  k.speed = Math.min(k.speed + k.accel, aiMax);
+
+  // Slow for sharp turns
+  if (Math.abs(angleDiff) > 0.5) k.speed *= 0.97;
+
+  // Use items
+  if (k.item && k.aiItemDelay <= 0) {
+    if (k.item === 'mushroom' || k.item === 'star') {
+      useItem(k);
+    } else if (k.item === 'shell') {
+      // Check if a kart is ahead in line of sight
+      for (const other of karts) {
+        if (other === k) continue;
+        const ox = other.x - k.x, oy = other.y - k.y;
+        const od = Math.sqrt(ox*ox + oy*oy);
+        if (od < 150) {
+          const oa = Math.atan2(oy, ox);
+          let ad = oa - k.angle;
+          while (ad > Math.PI) ad -= Math.PI*2;
+          while (ad < -Math.PI) ad += Math.PI*2;
+          if (Math.abs(ad) < 0.4) { useItem(k); break; }
+        }
+      }
+    } else if (k.item === 'banana') {
+      if (Math.random() < 0.02) useItem(k);
+    }
+  }
+  if (k.aiItemDelay > 0) k.aiItemDelay--;
+}
+
+function update() {
+  if (infoOpen) return;
+
+  if (raceState === 'countdown') {
+    countdownTimer -= 1/60;
+    if (countdownTimer <= 0) raceState = 'racing';
+    return;
+  }
+
+  if (raceState === 'finished') return;
+
+  raceTime++;
+
+  // Update karts
+  for (const k of karts) updateKart(k, 1);
+
+  // Kart collisions
+  for (let i = 0; i < karts.length; i++) {
+    for (let j = i+1; j < karts.length; j++) {
+      kartCollision(karts[i], karts[j]);
+    }
+  }
+
+  // Update shells
+  for (let i = shells.length - 1; i >= 0; i--) {
+    const s = shells[i];
+    s.x += s.dx; s.y += s.dy;
+    s.life--;
+
+    // Bounce off track edges (use world boundaries for simplicity)
+    if (s.x < 15 || s.x > 785) { s.dx = -s.dx; s.bounces--; s.x = Math.max(15, Math.min(785, s.x)); }
+    if (s.y < 15 || s.y > 585) { s.dy = -s.dy; s.bounces--; s.y = Math.max(15, Math.min(585, s.y)); }
+
+    // Hit karts
+    let hit = false;
+    for (const k of karts) {
+      if (k === s.owner && s.life > 280) continue; // brief immunity for owner
+      const d = Math.sqrt((k.x-s.x)**2 + (k.y-s.y)**2);
+      if (d < 16 && !k.invincible) {
+        k.spinTimer = 60; k.speed *= 0.1;
+        addParticles(k.x, k.y, '#0f0', 12);
+        hit = true; break;
+      }
+    }
+
+    if (hit || s.bounces <= 0 || s.life <= 0) { shells.splice(i, 1); }
+  }
+
+  // Update bananas
+  for (let i = bananas.length - 1; i >= 0; i--) {
+    const b = bananas[i];
+    for (const k of karts) {
+      const d = Math.sqrt((k.x-b.x)**2 + (k.y-b.y)**2);
+      if (d < 14 && !k.invincible) {
+        k.spinTimer = 45; k.speed *= 0.2;
+        addParticles(b.x, b.y, '#ff0', 10);
+        bananas.splice(i, 1);
+        break;
+      }
+    }
+  }
+
+  // Item box pickups
+  for (const box of itemBoxes) {
+    if (!box.active) {
+      box.timer--;
+      if (box.timer <= 0) box.active = true;
+      continue;
+    }
+    for (const k of karts) {
+      if (k.item) continue;
+      const d = Math.sqrt((k.x - box.x)**2 + (k.y - box.y)**2);
+      if (d < 18) {
+        const posRank = positions.indexOf(karts.indexOf(k));
+        k.item = getItem(posRank);
+        k.aiItemDelay = 30 + Math.floor(Math.random() * 60);
+        box.active = false;
+        box.timer = 300; // 5 seconds to respawn
+        addParticles(box.x, box.y, '#fff', 8);
+        break;
+      }
+    }
+  }
+
+  // Particles
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.dx; p.y += p.dy;
+    p.dx *= 0.95; p.dy *= 0.95;
+    p.life--;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+
+  updatePositions();
+
+  // Check if player finished
+  if (karts[0].finished && raceState === 'racing') {
+    raceState = 'finished';
+  }
+  // Also end if all AI finished
+  if (karts.every(k => k.finished) && raceState === 'racing') {
+    raceState = 'finished';
+  }
+}
+
+function drawTrack() {
+  // Draw grass
+  ctx.fillStyle = '#1a5c1a';
+  ctx.fillRect(0, 0, W, H);
+
+  // Draw track surface
+  ctx.strokeStyle = '#555';
+  ctx.lineWidth = TRACK_W * 2;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(trackPath[0].x, trackPath[0].y);
+  for (let i = 1; i < TRACK_LEN; i++) {
+    ctx.lineTo(trackPath[i].x, trackPath[i].y);
+  }
+  ctx.closePath();
+  ctx.stroke();
+
+  // Track border (outer)
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = TRACK_W * 2 + 4;
+  ctx.beginPath();
+  ctx.moveTo(trackPath[0].x, trackPath[0].y);
+  for (let i = 1; i < TRACK_LEN; i++) ctx.lineTo(trackPath[i].x, trackPath[i].y);
+  ctx.closePath();
+  ctx.stroke();
+
+  // Track surface again on top
+  ctx.strokeStyle = '#555';
+  ctx.lineWidth = TRACK_W * 2;
+  ctx.beginPath();
+  ctx.moveTo(trackPath[0].x, trackPath[0].y);
+  for (let i = 1; i < TRACK_LEN; i++) ctx.lineTo(trackPath[i].x, trackPath[i].y);
+  ctx.closePath();
+  ctx.stroke();
+
+  // Center line (dashed)
+  ctx.strokeStyle = '#777';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([8, 12]);
+  ctx.beginPath();
+  ctx.moveTo(trackPath[0].x, trackPath[0].y);
+  for (let i = 1; i < TRACK_LEN; i++) ctx.lineTo(trackPath[i].x, trackPath[i].y);
+  ctx.closePath();
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Start/finish line
+  const s0 = trackPath[0];
+  const s1 = trackPath[1];
+  const sa = Math.atan2(s1.y - s0.y, s1.x - s0.x) + Math.PI/2;
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(s0.x + Math.cos(sa)*TRACK_W, s0.y + Math.sin(sa)*TRACK_W);
+  ctx.lineTo(s0.x - Math.cos(sa)*TRACK_W, s0.y - Math.sin(sa)*TRACK_W);
+  ctx.stroke();
+
+  // Checkerboard pattern on start line
+  const sx = s0.x, sy = s0.y;
+  const perpX = Math.cos(sa), perpY = Math.sin(sa);
+  for (let j = -5; j < 5; j++) {
+    for (let k = 0; k < 2; k++) {
+      if ((j + k) % 2 === 0) ctx.fillStyle = '#fff'; else ctx.fillStyle = '#000';
+      ctx.fillRect(
+        sx + perpX * j * 10 + Math.cos(sa + Math.PI/2) * k * 5 - 2,
+        sy + perpY * j * 10 + Math.sin(sa + Math.PI/2) * k * 5 - 2,
+        8, 4
+      );
+    }
+  }
+}
+
+function drawItemBoxes() {
+  const time = Date.now() * 0.003;
+  for (const box of itemBoxes) {
+    if (!box.active) continue;
+    const s = 8 + Math.sin(time + box.idx) * 2;
+    ctx.save();
+    ctx.translate(box.x, box.y);
+    ctx.rotate(time * 0.5);
+    ctx.fillStyle = '#f0f';
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.fillRect(-s/2, -s/2, s, s);
+    ctx.strokeRect(-s/2, -s/2, s, s);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 8px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('?', 0, 3);
+    ctx.restore();
+  }
+}
+
+function drawBananas() {
+  for (const b of bananas) {
+    ctx.fillStyle = '#ff0';
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#a80';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+}
+
+function drawShells() {
+  for (const s of shells) {
+    ctx.fillStyle = '#0f0';
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#0a0';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+}
+
+function drawKart(k) {
+  ctx.save();
+  ctx.translate(k.x, k.y);
+  ctx.rotate(k.angle);
+
+  // Star glow
+  if (k.starTimer > 0) {
+    const glow = Math.sin(Date.now() * 0.02) * 0.3 + 0.7;
+    ctx.fillStyle = `rgba(255,255,0,${glow * 0.3})`;
+    ctx.beginPath();
+    ctx.arc(0, 0, 16, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  // Drift sparks
+  if (k.drifting && k.driftTime > 10) {
+    const sparkColor = k.driftTime > 40 ? '#f90' : '#ff0';
+    ctx.fillStyle = sparkColor;
+    for (let i = 0; i < 3; i++) {
+      ctx.fillRect(-8 + Math.random()*4, -4 + Math.random()*8, 2, 2);
+    }
+  }
+
+  // Boost flame
+  if (k.boostTimer > 0) {
+    ctx.fillStyle = '#f60';
+    ctx.beginPath();
+    ctx.moveTo(-10, -3);
+    ctx.lineTo(-16 - Math.random()*6, 0);
+    ctx.lineTo(-10, 3);
+    ctx.fill();
+  }
+
+  // Kart body
+  ctx.fillStyle = k.spinTimer > 0 ? '#fff' : k.color;
+  ctx.fillRect(-8, -5, 16, 10);
+
+  // Kart front
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(6, -3, 3, 6);
+
+  // Wheels
+  ctx.fillStyle = '#222';
+  ctx.fillRect(-7, -7, 5, 3);
+  ctx.fillRect(-7, 4, 5, 3);
+  ctx.fillRect(3, -7, 5, 3);
+  ctx.fillRect(3, 4, 5, 3);
+
+  ctx.restore();
+
+  // Item indicator above kart
+  if (k.item) {
+    ctx.fillStyle = ITEM_COLORS[k.item];
+    ctx.font = '8px monospace';
+    ctx.textAlign = 'center';
+    const label = k.item === 'shell' ? 'S' : k.item === 'banana' ? 'B' : k.item === 'mushroom' ? 'M' : '*';
+    ctx.fillText(label, k.x, k.y - 14);
+  }
+}
+
+function drawParticles() {
+  for (const p of particles) {
+    ctx.globalAlpha = p.life / 30;
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x - 1, p.y - 1, 3, 3);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawMinimap() {
+  const mx = W - 130, my = 10, ms = 120;
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(mx, my, ms, ms);
+  ctx.strokeStyle = '#444';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(mx, my, ms, ms);
+
+  // Track on minimap
+  const scale = ms / 800;
+  ctx.strokeStyle = '#666';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let i = 0; i < TRACK_LEN; i++) {
+    const px = mx + trackPath[i].x * scale;
+    const py = my + trackPath[i].y * scale;
+    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.stroke();
+
+  // Karts on minimap
+  for (let i = 0; i < karts.length; i++) {
+    const k = karts[i];
+    ctx.fillStyle = k.color;
+    ctx.beginPath();
+    ctx.arc(mx + k.x * scale, my + k.y * scale, 3, 0, Math.PI*2);
+    ctx.fill();
+  }
+}
+
+function drawHUD() {
+  const player = karts[0];
+  const posRank = positions.indexOf(0) + 1;
+  const ordinal = ['', '1st', '2nd', '3rd', '4th'];
+
+  // Position
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 28px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText(ordinal[posRank], 15, 35);
+
+  // Lap
+  ctx.font = '16px monospace';
+  ctx.fillText('LAP ' + Math.min(player.lap + 1, TOTAL_LAPS) + '/' + TOTAL_LAPS, 15, 60);
+
+  // Speed bar
+  ctx.fillStyle = '#333';
+  ctx.fillRect(15, 70, 80, 8);
+  const speedPct = Math.abs(player.speed) / (player.maxSpeed * 1.6);
+  ctx.fillStyle = player.boostTimer > 0 ? '#f60' : player.starTimer > 0 ? '#ff0' : '#0af';
+  ctx.fillRect(15, 70, 80 * Math.min(speedPct, 1), 8);
+
+  // Item box
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(15, 85, 30, 30);
+  if (player.item) {
+    ctx.fillStyle = ITEM_COLORS[player.item];
+    ctx.font = 'bold 18px monospace';
+    ctx.textAlign = 'center';
+    const icon = player.item === 'shell' ? 'S' : player.item === 'banana' ? 'B' : player.item === 'mushroom' ? 'M' : '*';
+    ctx.fillText(icon, 30, 107);
+    ctx.font = '8px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#aaa';
+    ctx.fillText(player.item.toUpperCase(), 50, 105);
+  }
+
+  // Time
+  ctx.font = '14px monospace';
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#fff';
+  const secs = (raceTime / 60).toFixed(1);
+  ctx.fillText(secs + 's', W - 140, 145);
+
+  // Positions list
+  ctx.textAlign = 'right';
+  ctx.font = '12px monospace';
+  for (let i = 0; i < 4; i++) {
+    const ki = positions[i];
+    ctx.fillStyle = karts[ki].color;
+    ctx.fillText((i+1) + '. ' + KART_NAMES[ki], W - 140, 165 + i * 18);
+  }
+}
+
+function drawCountdown() {
+  if (raceState !== 'countdown') return;
+  const num = Math.ceil(countdownTimer);
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 60px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  if (num > 0) {
+    ctx.fillText(num, W/2, H/2);
+  } else {
+    ctx.fillStyle = '#0f0';
+    ctx.fillText('GO!', W/2, H/2);
+  }
+  ctx.textBaseline = 'alphabetic';
+}
+
+function drawFinish() {
+  if (raceState !== 'finished') return;
+  const posRank = positions.indexOf(0) + 1;
+  const ordinal = ['', '1st', '2nd', '3rd', '4th'];
+
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(W/2 - 150, H/2 - 60, 300, 120);
+
+  ctx.fillStyle = posRank === 1 ? '#ff0' : '#fff';
+  ctx.font = 'bold 36px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('FINISH!', W/2, H/2 - 20);
+
+  ctx.font = 'bold 24px monospace';
+  ctx.fillText(ordinal[posRank] + ' PLACE', W/2, H/2 + 15);
+
+  ctx.fillStyle = '#aaa';
+  ctx.font = '14px monospace';
+  ctx.fillText('Press R to restart', W/2, H/2 + 45);
+}
+
+function draw() {
+  drawTrack();
+  drawItemBoxes();
+  drawBananas();
+  drawShells();
+
+  // Draw karts back to front (by y position for slight depth)
+  const sorted = [...karts].sort((a, b) => a.y - b.y);
+  for (const k of sorted) drawKart(k);
+
+  drawParticles();
+  drawMinimap();
+  drawHUD();
+  drawCountdown();
+  drawFinish();
+}
+
+function gameLoop() {
+  update();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+initRace();
+gameLoop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

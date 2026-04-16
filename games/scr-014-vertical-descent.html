@@ -1,0 +1,849 @@
+<!--
+PROTOTYPE: vertical-descent
+SERIES: scr
+NUMBER: 014
+DATE: 2026-03-24
+MECHANIC: vertical gunboot shooter — fall down a procedural well; gun boots shoot downward to destroy enemies and slow descent; stomping enemies reloads ammo; red/white/black only
+ANCESTRY: Downwell (2015, Ojiro Fumoto), Spelunky (2008, Derek Yu), Cave Story (2004, Daisuke Amaya)
+CONTROLS: Arrow keys — move left/right | Space — fire gun boots downward | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 6 (Modern ML — procedural generation with learned layout patterns and adaptive difficulty)
+AI-INSIGHT: Downwell's procedural well generation uses hand-authored room templates stitched together with random selection, creating readable yet surprising vertical layouts. The combo system — consecutive kills without landing — creates emergent risk/reward: stay airborne longer for bigger combos but risk running out of ammo and hitting enemies from the side.
+NOTES: Vertical gunboot roguelike. Fall down a procedural well.
+       Red/white/black palette. Stomp enemies to reload ammo.
+       Combo system rewards consecutive airborne kills.
+       Solo developer Ojiro Fumoto, age 22, Japan, 2015.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SCR-014 · VERTICAL DESCENT</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #f44; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #f44; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #311; color: #f44; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #f44; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SCR-014 · VERTICAL DESCENT</h1>
+    <p><span class="tag series">SCR — Scrolling</span> <span class="tag">Prototype #014</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Fall down an endless procedural well. Use your gun boots to shoot enemies below you and slow your descent. Stomp on enemies to reload your ammo. Survive as deep as you can.</p>
+    <ul>
+      <li><kbd>&larr;</kbd> <kbd>&rarr;</kbd> — Move left/right</li>
+      <li><kbd>Space</kbd> — Fire gun boots downward (also slows descent)</li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Stomp enemies:</strong> Landing on top of enemies destroys them AND reloads your ammo. This is your primary reload method.</li>
+      <li><strong>Combo system:</strong> Kill consecutive enemies without touching the ground for combo bonuses. Higher combos = more gems.</li>
+      <li><strong>Ammo management:</strong> You have 8 shots. Stomping enemies or landing on platforms reloads fully. Don't waste shots.</li>
+      <li><strong>Side contact = damage:</strong> Touching enemies from the side or below hurts you. Always attack from above.</li>
+      <li><strong>Gun boots slow you:</strong> Firing slows your descent, giving you more control. Use short bursts to navigate tight spaces.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Downwell (2015, Ojiro Fumoto) &rarr; Spelunky (2008) &rarr; Cave Story (2004)</p>
+    <p>Downwell was created by Ojiro Fumoto, a solo Japanese developer who was just 22 years old when the game launched in 2015. He developed it while studying at a vocational school in Tokyo, inspired by Spelunky's procedural generation and the simple joy of falling.</p>
+    <p>The game's signature three-color palette (red, white, black) was both an aesthetic choice and a practical one — it made gameplay instantly readable at high speeds. The "gun boots" mechanic brilliantly unified movement and combat: shooting slows your fall, creating a natural tension between descending quickly for combos and descending carefully for survival.</p>
+    <p>Fumoto was later hired by Nintendo, a testament to the game's design quality. Downwell proved that a single mechanic — falling with gun boots — could sustain an entire game when explored deeply enough.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 6 — Modern ML (2012-present)</p>
+    <p><strong>Contemporary AI:</strong> Deep learning, procedural content generation via neural networks, reinforcement learning agents.</p>
+    <p><strong>Hidden Intelligence:</strong> Downwell's procedural well generation uses hand-authored room templates selected and stitched together randomly. The combo system creates emergent difficulty — players who maintain combos move faster through the well, naturally increasing challenge. The gem economy and upgrade system between levels add roguelike progression.</p>
+    <p><strong>The Convergence:</strong> Modern PCG (procedural content generation) research uses machine learning to generate game levels that feel hand-crafted. Downwell's template-stitching approach is a simpler version of what WaveFunctionCollapse and ML-based level generators now automate — ensuring playability constraints while maintaining surprise.</p>
+    <p><strong>If AI Had Designed This:</strong> Adaptive well generation that learns from player death patterns to place platforms and enemies at optimal difficulty curves. The combo system could dynamically adjust enemy density based on the player's historical combo lengths.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: SCR — Scrolling</h3>
+    <p>Downwell is a vertical scrolling shooter where the scroll direction is downward. The player's descent IS the scrolling mechanism — gravity drives the game forward.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Vertical gunboot shooter.</strong> Fall down a procedural well. Gun boots shoot downward to destroy enemies and slow descent. Stomping enemies reloads ammo. Red/white/black palette only. Combo system rewards consecutive airborne kills.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Downward momentum — does constant falling create satisfying forward pressure?</li>
+      <li>Gun boots dual-purpose — does shooting-as-braking feel natural and strategic?</li>
+      <li>Stomp reload — does the risk/reward of landing on enemies vs shooting them work?</li>
+      <li>Combo system — does staying airborne for combos create meaningful risk/reward?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Procedural well with three enemy types (bats, blobs, skulls), gem collection, combo system, and the signature red/white/black palette. Captures the core gun-boot-falling loop.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+const keys = {};
+window.addEventListener('keydown', e => { if (!infoOpen) keys[e.code] = true; e.preventDefault(); });
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+// --- COLORS (Red/White/Black only) ---
+const COL = {
+  bg: '#000',
+  wall: '#fff',
+  player: '#fff',
+  enemy: '#f22',
+  gem: '#f22',
+  bullet: '#fff',
+  hud: '#fff',
+  hudRed: '#f22',
+  platform: '#fff',
+  cavity: '#111'
+};
+
+// --- CONSTANTS ---
+const GRAVITY = 0.35;
+const MAX_FALL = 8;
+const MOVE_SPEED = 4;
+const JUMP_VEL = -7;
+const SHOOT_SLOW = -1.5; // upward force when shooting
+const MAX_AMMO = 8;
+const WELL_LEFT = 200;   // left wall x
+const WELL_RIGHT = 600;  // right wall x
+const WELL_W = WELL_RIGHT - WELL_LEFT;
+const PLAT_H = 12;
+const PLAYER_W = 20;
+const PLAYER_H = 28;
+
+// --- GAME STATE ---
+let player, platforms, enemies, bullets, gems, particles;
+let camera, depth, combo, maxCombo, score, gameOver, hp;
+let spawnTimer, difficultyScale;
+
+function init() {
+  player = {
+    x: 400, y: 100, vx: 0, vy: 0,
+    w: PLAYER_W, h: PLAYER_H,
+    ammo: MAX_AMMO,
+    onGround: false,
+    shooting: false,
+    shootCooldown: 0,
+    invuln: 0,
+    facing: 0 // -1 left, 1 right, 0 neutral
+  };
+  platforms = [];
+  enemies = [];
+  bullets = [];
+  gems = [];
+  particles = [];
+  camera = 0;
+  depth = 0;
+  combo = 0;
+  maxCombo = 0;
+  score = 0;
+  gameOver = false;
+  hp = 3;
+  spawnTimer = 0;
+  difficultyScale = 1;
+
+  // Generate initial platforms
+  generateWell(0, 2000);
+}
+
+function generateWell(startY, endY) {
+  // Place platforms in the well at intervals
+  for (let y = startY + 80; y < endY; y += 60 + Math.random() * 40) {
+    const numPlats = 1 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < numPlats; i++) {
+      const pw = 40 + Math.random() * 80;
+      const px = WELL_LEFT + 10 + Math.random() * (WELL_W - pw - 20);
+      platforms.push({ x: px, y: y, w: pw, h: PLAT_H, visited: false });
+    }
+
+    // Sometimes add a cavity (gap in the wall)
+    if (Math.random() < 0.15) {
+      const side = Math.random() < 0.5 ? 'left' : 'right';
+      platforms.push({
+        x: side === 'left' ? WELL_LEFT - 60 : WELL_RIGHT,
+        y: y - 20, w: 60, h: 50,
+        isCavity: true, side: side
+      });
+    }
+
+    // Spawn enemies on or near platforms
+    if (Math.random() < 0.5 + difficultyScale * 0.1) {
+      spawnEnemy(y - 30);
+    }
+  }
+}
+
+function spawnEnemy(y) {
+  const types = ['bat', 'blob', 'skull'];
+  const type = types[Math.floor(Math.random() * types.length)];
+  const ex = WELL_LEFT + 30 + Math.random() * (WELL_W - 60);
+
+  const enemy = {
+    x: ex, y: y, w: 20, h: 20,
+    type: type, alive: true,
+    vx: 0, vy: 0, timer: 0
+  };
+
+  switch (type) {
+    case 'bat':
+      enemy.vx = (Math.random() < 0.5 ? -1 : 1) * (1.5 + Math.random());
+      enemy.vy = 0.5 + Math.random() * 0.5;
+      enemy.w = 22; enemy.h = 16;
+      break;
+    case 'blob':
+      enemy.w = 22; enemy.h = 18;
+      break;
+    case 'skull':
+      enemy.vy = 1 + Math.random();
+      enemy.vx = (Math.random() < 0.5 ? -1 : 1) * (1 + Math.random());
+      enemy.w = 20; enemy.h = 22;
+      break;
+  }
+
+  enemies.push(enemy);
+}
+
+function spawnGem(x, y, count) {
+  for (let i = 0; i < count; i++) {
+    gems.push({
+      x: x + (Math.random() - 0.5) * 20,
+      y: y + (Math.random() - 0.5) * 10,
+      vy: -2 - Math.random() * 2,
+      vx: (Math.random() - 0.5) * 3,
+      size: 6, life: 180
+    });
+  }
+}
+
+function spawnParticles(x, y, col, count) {
+  for (let i = 0; i < count; i++) {
+    particles.push({
+      x: x, y: y,
+      vx: (Math.random() - 0.5) * 6,
+      vy: (Math.random() - 0.5) * 6,
+      life: 15 + Math.random() * 15,
+      maxLife: 30,
+      color: col,
+      size: 2 + Math.random() * 3
+    });
+  }
+}
+
+function rectOverlap(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x &&
+         a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+init();
+
+// --- UPDATE ---
+function update() {
+  if (infoOpen) return;
+  if (gameOver) {
+    if (keys['KeyR']) init();
+    return;
+  }
+
+  const p = player;
+
+  // Horizontal movement
+  p.vx = 0;
+  if (keys['ArrowLeft'] || keys['KeyA']) { p.vx = -MOVE_SPEED; p.facing = -1; }
+  if (keys['ArrowRight'] || keys['KeyD']) { p.vx = MOVE_SPEED; p.facing = 1; }
+
+  // Gravity
+  p.vy += GRAVITY;
+  if (p.vy > MAX_FALL) p.vy = MAX_FALL;
+
+  // Shooting
+  p.shooting = false;
+  if (p.shootCooldown > 0) p.shootCooldown--;
+  if (keys['Space'] && p.ammo > 0 && !p.onGround && p.shootCooldown <= 0) {
+    p.shooting = true;
+    p.ammo--;
+    p.shootCooldown = 6;
+    // Slow descent
+    if (p.vy > SHOOT_SLOW) p.vy += SHOOT_SLOW;
+    if (p.vy < -2) p.vy = -2;
+    // Create bullet
+    bullets.push({
+      x: p.x + p.w / 2 - 3, y: p.y + p.h,
+      w: 6, h: 10, vy: 10
+    });
+    spawnParticles(p.x + p.w / 2, p.y + p.h, COL.bullet, 3);
+  }
+
+  // Move horizontally
+  p.x += p.vx;
+
+  // Well wall collision
+  if (p.x < WELL_LEFT) p.x = WELL_LEFT;
+  if (p.x + p.w > WELL_RIGHT) p.x = WELL_RIGHT - p.w;
+
+  // Check for cavity passages (wrap through walls)
+  for (const plat of platforms) {
+    if (plat.isCavity && rectOverlap({ x: p.x, y: p.y, w: p.w, h: p.h },
+        { x: plat.x, y: plat.y, w: plat.w, h: plat.h })) {
+      if (plat.side === 'left' && p.vx < 0) {
+        p.x = WELL_RIGHT - p.w - 5;
+      } else if (plat.side === 'right' && p.vx > 0) {
+        p.x = WELL_LEFT + 5;
+      }
+    }
+  }
+
+  // Move vertically
+  p.y += p.vy;
+  p.onGround = false;
+
+  // Platform collision (only when falling)
+  if (p.vy >= 0) {
+    for (const plat of platforms) {
+      if (plat.isCavity) continue;
+      if (p.x + p.w > plat.x && p.x < plat.x + plat.w &&
+          p.y + p.h >= plat.y && p.y + p.h <= plat.y + plat.h + p.vy + 2) {
+        p.y = plat.y - p.h;
+        p.vy = 0;
+        p.onGround = true;
+        p.ammo = MAX_AMMO;
+        if (!plat.visited) {
+          plat.visited = true;
+        }
+        if (combo > 0) {
+          score += combo * 10;
+          if (combo > maxCombo) maxCombo = combo;
+          combo = 0;
+        }
+        break;
+      }
+    }
+  }
+
+  // Invulnerability timer
+  if (p.invuln > 0) p.invuln--;
+
+  // Camera follows player downward
+  const targetCam = p.y - 150;
+  if (targetCam > camera) {
+    camera += (targetCam - camera) * 0.1;
+  }
+  depth = Math.max(depth, Math.floor(camera / 10));
+
+  // Generate more well as player descends
+  const genThreshold = camera + 1500;
+  const lastPlatY = platforms.length > 0 ? Math.max(...platforms.filter(p => !p.isCavity).map(p => p.y)) : 0;
+  if (lastPlatY < genThreshold) {
+    difficultyScale = 1 + depth / 200;
+    generateWell(lastPlatY, lastPlatY + 1000);
+  }
+
+  // Clean up off-screen objects (above camera)
+  const cullY = camera - 200;
+  platforms = platforms.filter(p => p.y > cullY);
+  enemies = enemies.filter(e => e.y > cullY && e.y < camera + H + 200);
+
+  // Update bullets
+  for (let i = bullets.length - 1; i >= 0; i--) {
+    const b = bullets[i];
+    b.y += b.vy;
+    if (b.y > camera + H + 50) {
+      bullets.splice(i, 1);
+      continue;
+    }
+
+    // Bullet hits platform
+    let hitPlat = false;
+    for (const plat of platforms) {
+      if (plat.isCavity) continue;
+      if (rectOverlap(b, plat)) {
+        hitPlat = true;
+        spawnParticles(b.x + b.w / 2, b.y, COL.bullet, 4);
+        break;
+      }
+    }
+    if (hitPlat) { bullets.splice(i, 1); continue; }
+
+    // Bullet hits enemy
+    for (let j = enemies.length - 1; j >= 0; j--) {
+      const e = enemies[j];
+      if (e.alive && rectOverlap(b, e)) {
+        killEnemy(j);
+        bullets.splice(i, 1);
+        break;
+      }
+    }
+  }
+
+  // Update enemies
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    const e = enemies[i];
+    if (!e.alive) continue;
+
+    e.timer++;
+
+    switch (e.type) {
+      case 'bat':
+        e.x += e.vx;
+        e.y += Math.sin(e.timer * 0.08) * 1.5;
+        if (e.x <= WELL_LEFT || e.x + e.w >= WELL_RIGHT) e.vx *= -1;
+        break;
+      case 'blob':
+        // Blobs sit still
+        break;
+      case 'skull':
+        e.x += e.vx;
+        e.y += e.vy;
+        if (e.x <= WELL_LEFT || e.x + e.w >= WELL_RIGHT) e.vx *= -1;
+        // Bounce off platforms
+        for (const plat of platforms) {
+          if (plat.isCavity) continue;
+          if (rectOverlap(e, plat)) {
+            e.vy = -(2 + Math.random() * 2);
+            e.y = plat.y - e.h;
+          }
+        }
+        e.vy += 0.15;
+        break;
+    }
+
+    // Enemy-player collision
+    if (e.alive && p.invuln <= 0 && rectOverlap(
+      { x: p.x, y: p.y, w: p.w, h: p.h },
+      { x: e.x, y: e.y, w: e.w, h: e.h }
+    )) {
+      // Check if stomping (player above enemy, moving down)
+      if (p.vy > 0 && p.y + p.h - 8 < e.y + e.h / 2) {
+        // Stomp!
+        killEnemy(i);
+        p.vy = -5;
+        p.ammo = MAX_AMMO;
+      } else {
+        // Damage!
+        hp--;
+        p.invuln = 60;
+        p.vy = -4;
+        spawnParticles(p.x + p.w / 2, p.y + p.h / 2, COL.enemy, 8);
+        if (hp <= 0) {
+          gameOver = true;
+          spawnParticles(p.x + p.w / 2, p.y + p.h / 2, COL.enemy, 20);
+        }
+      }
+    }
+  }
+
+  // Update gems
+  for (let i = gems.length - 1; i >= 0; i--) {
+    const g = gems[i];
+    g.vy += 0.15;
+    g.x += g.vx;
+    g.y += g.vy;
+    g.vx *= 0.98;
+    g.life--;
+    if (g.life <= 0) { gems.splice(i, 1); continue; }
+
+    // Collect gem
+    if (Math.abs(g.x - (p.x + p.w / 2)) < 20 && Math.abs(g.y - (p.y + p.h / 2)) < 20) {
+      score += 5;
+      gems.splice(i, 1);
+    }
+  }
+
+  // Update particles
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const pt = particles[i];
+    pt.x += pt.vx;
+    pt.y += pt.vy;
+    pt.life--;
+    if (pt.life <= 0) particles.splice(i, 1);
+  }
+
+  // Player fell too far without any platforms (safety net)
+  if (p.y > camera + H + 100) {
+    hp = 0;
+    gameOver = true;
+  }
+
+  // Restart
+  if (keys['KeyR']) init();
+}
+
+function killEnemy(idx) {
+  const e = enemies[idx];
+  e.alive = false;
+  combo++;
+  const gemCount = Math.min(combo, 5);
+  spawnGem(e.x + e.w / 2, e.y + e.h / 2, gemCount);
+  spawnParticles(e.x + e.w / 2, e.y + e.h / 2, COL.enemy, 8);
+  score += 10 * combo;
+  enemies.splice(idx, 1);
+}
+
+// --- DRAW ---
+function draw() {
+  ctx.fillStyle = COL.bg;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.save();
+  ctx.translate(0, -camera);
+
+  // Draw well walls
+  const wallTop = camera - 50;
+  const wallBot = camera + H + 50;
+
+  // Left wall
+  ctx.fillStyle = COL.wall;
+  ctx.fillRect(WELL_LEFT - 8, wallTop, 8, wallBot - wallTop);
+  // Right wall
+  ctx.fillRect(WELL_RIGHT, wallTop, 8, wallBot - wallTop);
+
+  // Wall texture lines
+  ctx.strokeStyle = '#444';
+  ctx.lineWidth = 1;
+  for (let wy = Math.floor(wallTop / 30) * 30; wy < wallBot; wy += 30) {
+    ctx.beginPath();
+    ctx.moveTo(WELL_LEFT - 8, wy);
+    ctx.lineTo(WELL_LEFT, wy);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(WELL_RIGHT, wy);
+    ctx.lineTo(WELL_RIGHT + 8, wy);
+    ctx.stroke();
+  }
+
+  // Draw cavities (dark gaps in walls)
+  for (const plat of platforms) {
+    if (plat.isCavity) {
+      ctx.fillStyle = COL.cavity;
+      ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+    }
+  }
+
+  // Draw platforms
+  for (const plat of platforms) {
+    if (plat.isCavity) continue;
+    if (plat.y < camera - 50 || plat.y > camera + H + 50) continue;
+    ctx.fillStyle = COL.platform;
+    ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+    // Platform edge detail
+    ctx.fillStyle = '#888';
+    ctx.fillRect(plat.x, plat.y + plat.h - 2, plat.w, 2);
+  }
+
+  // Draw gems
+  for (const g of gems) {
+    const alpha = g.life < 30 ? g.life / 30 : 1;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = COL.gem;
+    ctx.save();
+    ctx.translate(g.x, g.y);
+    ctx.rotate(g.life * 0.1);
+    ctx.fillRect(-g.size / 2, -g.size / 2, g.size, g.size);
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+
+  // Draw enemies
+  for (const e of enemies) {
+    if (!e.alive) continue;
+    if (e.y < camera - 50 || e.y > camera + H + 50) continue;
+
+    ctx.fillStyle = COL.enemy;
+
+    switch (e.type) {
+      case 'bat':
+        // Body
+        ctx.fillRect(e.x + 4, e.y + 4, 14, 10);
+        // Wings (flap)
+        const wingY = Math.sin(e.timer * 0.2) * 3;
+        ctx.fillRect(e.x, e.y + 2 + wingY, 6, 8);
+        ctx.fillRect(e.x + 16, e.y + 2 - wingY, 6, 8);
+        // Eyes
+        ctx.fillStyle = COL.bg;
+        ctx.fillRect(e.x + 7, e.y + 6, 3, 3);
+        ctx.fillRect(e.x + 13, e.y + 6, 3, 3);
+        break;
+      case 'blob':
+        // Rounded body (use rects for pixel style)
+        ctx.fillRect(e.x + 2, e.y + 6, 18, 12);
+        ctx.fillRect(e.x + 5, e.y + 3, 12, 3);
+        // Eyes
+        ctx.fillStyle = COL.bg;
+        ctx.fillRect(e.x + 7, e.y + 9, 3, 3);
+        ctx.fillRect(e.x + 13, e.y + 9, 3, 3);
+        break;
+      case 'skull':
+        // Skull shape
+        ctx.fillRect(e.x + 2, e.y + 2, 16, 14);
+        ctx.fillRect(e.x + 4, e.y, 12, 2);
+        ctx.fillRect(e.x + 4, e.y + 16, 12, 4);
+        // Eye sockets
+        ctx.fillStyle = COL.bg;
+        ctx.fillRect(e.x + 5, e.y + 5, 4, 5);
+        ctx.fillRect(e.x + 11, e.y + 5, 4, 5);
+        // Nose
+        ctx.fillRect(e.x + 9, e.y + 11, 2, 3);
+        // Teeth
+        ctx.fillRect(e.x + 6, e.y + 17, 2, 2);
+        ctx.fillRect(e.x + 10, e.y + 17, 2, 2);
+        break;
+    }
+  }
+
+  // Draw bullets
+  ctx.fillStyle = COL.bullet;
+  for (const b of bullets) {
+    ctx.fillRect(b.x, b.y, b.w, b.h);
+    // Bullet trail
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.fillRect(b.x + 1, b.y - 6, b.w - 2, 6);
+    ctx.fillStyle = COL.bullet;
+  }
+
+  // Draw player
+  const p = player;
+  if (p.invuln <= 0 || Math.floor(p.invuln / 3) % 2 === 0) {
+    ctx.fillStyle = COL.player;
+
+    // Body
+    ctx.fillRect(p.x + 3, p.y + 2, 14, 14);
+    // Head
+    ctx.fillRect(p.x + 5, p.y - 2, 10, 6);
+    // Eyes
+    ctx.fillStyle = COL.bg;
+    const eyeOff = p.facing > 0 ? 3 : p.facing < 0 ? -1 : 1;
+    ctx.fillRect(p.x + 7 + eyeOff, p.y, 2, 3);
+    ctx.fillRect(p.x + 11 + eyeOff, p.y, 2, 3);
+
+    // Legs / gun boots
+    ctx.fillStyle = COL.player;
+    ctx.fillRect(p.x + 4, p.y + 16, 5, 12);
+    ctx.fillRect(p.x + 11, p.y + 16, 5, 12);
+
+    // Boot nozzles
+    ctx.fillStyle = COL.enemy; // red boots
+    ctx.fillRect(p.x + 3, p.y + 24, 7, 4);
+    ctx.fillRect(p.x + 10, p.y + 24, 7, 4);
+
+    // Muzzle flash when shooting
+    if (p.shooting && p.shootCooldown >= 4) {
+      ctx.fillStyle = COL.bullet;
+      ctx.fillRect(p.x + 2, p.y + 28, 7, 4);
+      ctx.fillRect(p.x + 11, p.y + 28, 7, 4);
+      ctx.fillStyle = COL.enemy;
+      ctx.fillRect(p.x + 4, p.y + 30, 4, 4);
+      ctx.fillRect(p.x + 12, p.y + 30, 4, 4);
+    }
+  }
+
+  // Draw particles
+  for (const pt of particles) {
+    const alpha = pt.life / pt.maxLife;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = pt.color;
+    ctx.fillRect(pt.x - pt.size / 2, pt.y - pt.size / 2, pt.size, pt.size);
+  }
+  ctx.globalAlpha = 1;
+
+  ctx.restore();
+
+  // --- HUD ---
+  // Depth
+  hudText('DEPTH: ' + depth + 'm', 15, 15, COL.hud, 16);
+
+  // Score
+  hudText('SCORE: ' + score, W - 15, 15, COL.hud, 16, 'right');
+
+  // HP
+  for (let i = 0; i < 3; i++) {
+    ctx.fillStyle = i < hp ? COL.enemy : '#333';
+    ctx.fillRect(15 + i * 22, 40, 16, 16);
+    // Heart shape hint
+    if (i < hp) {
+      ctx.fillStyle = COL.bg;
+      ctx.fillRect(15 + i * 22 + 7, 40, 2, 2);
+    }
+  }
+
+  // Ammo
+  hudText('AMMO', 15, 65, '#888', 10);
+  for (let i = 0; i < MAX_AMMO; i++) {
+    ctx.fillStyle = i < player.ammo ? COL.hud : '#333';
+    ctx.fillRect(15 + i * 12, 78, 8, 12);
+  }
+
+  // Combo
+  if (combo > 1) {
+    hudText('COMBO x' + combo, W / 2, 80, COL.enemy, 20, 'center');
+  }
+
+  // Game over
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, 0, W, H);
+    hudText('GAME OVER', W / 2, H / 2 - 40, COL.enemy, 36, 'center');
+    hudText('Depth: ' + depth + 'm', W / 2, H / 2 + 10, COL.hud, 18, 'center');
+    hudText('Score: ' + score, W / 2, H / 2 + 35, COL.hud, 18, 'center');
+    hudText('Max Combo: ' + maxCombo, W / 2, H / 2 + 60, COL.hud, 14, 'center');
+    hudText('Press R to restart', W / 2, H / 2 + 100, '#888', 14, 'center');
+  }
+
+  // Title screen hint
+  if (depth === 0 && !gameOver && player.y < 200) {
+    hudText('DOWNWELL', W / 2, H / 2 - 80, COL.hud, 32, 'center');
+    hudText('Arrow keys to move', W / 2, H / 2 - 30, '#888', 14, 'center');
+    hudText('Space to fire gun boots', W / 2, H / 2 - 10, '#888', 14, 'center');
+    hudText('Stomp enemies to reload', W / 2, H / 2 + 10, '#888', 14, 'center');
+    hudText('Press ? for info', W / 2, H / 2 + 40, '#555', 12, 'center');
+  }
+}
+
+// --- GAME LOOP ---
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

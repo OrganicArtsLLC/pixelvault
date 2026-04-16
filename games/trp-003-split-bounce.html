@@ -1,0 +1,688 @@
+<!--
+PROTOTYPE: split-bounce
+SERIES: trp
+NUMBER: 003
+DATE: 2026-03-23
+MECHANIC: territory division — build walls to divide the playing field and trap bouncing balls; claim 75% of the area to clear each level
+ANCESTRY: Qix (1981), JezzBall (1992 Microsoft), Barrack (1998), Volfied (1989)
+CONTROLS: Click — start building wall | Tab — toggle wall direction (H/V) | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — spatial partitioning, computational geometry)
+AI-INSIGHT: JezzBall is a real-time spatial partitioning problem. Each wall divides the space into regions that must be evaluated for ball containment. The optimal strategy requires reasoning about area maximization under dynamic constraints — the same computational geometry problems that spatial indexing (BSP trees, quadtrees) solves. The player performs real-time geometric reasoning that maps directly to algorithms developed for computer graphics.
+NOTES: JezzBall (1992) was included in Microsoft Entertainment Pack 3. It simplifies Qix's freeform line-drawing into axis-aligned walls, making the spatial reasoning more accessible while preserving the core territory-capture tension. The key insight: you're not fighting the balls, you're partitioning space around them.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TRP-003 · SPLIT BOUNCE</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: crosshair; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>TRP-003 · SPLIT BOUNCE</h1>
+    <p><span class="tag series">TRP — Territorial Trap</span> <span class="tag">Prototype #003</span> <span class="tag">★★★★</span></p>
+
+    <h2>How to Play</h2>
+    <p>Divide the playing field by building walls to trap bouncing balls. Claim 75% of the area to clear each level.</p>
+    <ul>
+      <li><kbd>Click</kbd> — Start building a wall at cursor position</li>
+      <li><kbd>Tab</kbd> — Toggle wall direction (Horizontal / Vertical)</li>
+      <li><kbd>R</kbd> — Restart game</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Wall building:</strong> Walls extend in both directions from your click point. They stop when they reach an existing wall or the field border.</li>
+      <li><strong>Danger:</strong> If a ball hits a wall while it's still building, the wall is destroyed and you lose a life.</li>
+      <li><strong>Claiming:</strong> Once a wall completes, any enclosed region with no balls is claimed (filled in).</li>
+      <li><strong>Strategy:</strong> Isolate balls into smaller areas. Build walls when balls are moving away from your click point.</li>
+      <li><strong>Levels:</strong> Each level adds one more ball. Level 1 has 2 balls, level 2 has 3, etc.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Qix (1981, Randy &amp; Sandy Pfeiffer) &rarr; Volfied (1989, Taito) &rarr; JezzBall (1992, Dima Pavlovsky) &rarr; Barrack (1998)</p>
+    <p><strong>Qix</strong> (1981) by Randy and Sandy Pfeiffer established the territory-capture genre with freeform line-drawing. <strong>Volfied</strong> (1989, Taito) served as an intermediate link, bridging Qix and JezzBall by adding enemies inside the claiming area.</p>
+    <p><strong>JezzBall</strong> (1992) was created by Dima Pavlovsky and included in Microsoft Entertainment Pack 3. It became one of the most-played Windows games of the 1990s, alongside Minesweeper and Solitaire. Where Qix demanded freeform line-drawing courage, JezzBall simplified the mechanic to axis-aligned walls. This made the spatial reasoning more accessible: you&rsquo;re always building straight horizontal or vertical barriers. The tension shifts from &ldquo;how do I draw my path&rdquo; to &ldquo;when and where do I place this wall.&rdquo;</p>
+    <p>The game&rsquo;s genius is in its constraint reduction. By limiting walls to two orientations, it focuses the player entirely on timing and spatial partitioning. The balls are obstacles, not enemies &mdash; you&rsquo;re not fighting them, you&rsquo;re building around them. <strong>Barrack</strong> (1998) extended the concept with powerups and varied ball behaviors.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 3 — Knowledge Explosion (1978–1993)</p>
+    <p><strong>Contemporary AI:</strong> By 1992, computational geometry was mature — BSP trees (used in Doom, 1993), quadtrees, and spatial indexing were well-understood. JezzBall's core mechanic IS spatial partitioning: each wall is a BSP split, and evaluating which regions contain balls is a point-in-polygon test.</p>
+    <p><strong>Insight:</strong> The player performs real-time geometric reasoning: "If I place a wall here, which regions will be created? Will they contain balls?" This is the same reasoning that spatial databases use for range queries. The optimal strategy — maximizing claimed area while minimizing risk — maps to computational geometry optimization problems.</p>
+    <p><strong>Modern relevance:</strong> JezzBall strategies could be solved with reinforcement learning on continuous state spaces, but the combinatorial explosion of wall placements across time makes it surprisingly hard for AI. The human intuition for "trap the ball in the corner" is spatial reasoning that deep learning struggles to replicate efficiently.</p>
+
+    <h2>Classification</h2>
+    <ul>
+      <li><strong>Series:</strong> TRP (Territorial Trap) — games about claiming and defending territory</li>
+      <li><strong>Mechanic:</strong> Territory division through wall-building</li>
+      <li><strong>Input:</strong> Mouse click + keyboard toggle</li>
+      <li><strong>State space:</strong> Continuous (ball positions) + discrete (grid cells)</li>
+      <li><strong>Challenge type:</strong> Spatial reasoning + timing</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <ul>
+      <li>Field uses a grid internally for wall/claimed tracking, balls use continuous positions</li>
+      <li>Wall growth is animated at a fixed speed for visual feedback</li>
+      <li>Region detection uses flood fill after wall completion</li>
+      <li>Ball-wall collision checks both completed walls and in-progress walls</li>
+      <li>75% threshold matches the original JezzBall requirement</li>
+    </ul>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+canvas.width = 800;
+canvas.height = 600;
+
+// Field dimensions (inside border)
+const BORDER = 4;
+const FX = 40, FY = 60;
+const FW = 720, FH = 500;
+const CELL = 5; // grid cell size
+const COLS = FW / CELL;
+const ROWS = FH / CELL;
+
+// Colors
+const COL_BG = '#0a0a1a';
+const COL_BORDER = '#334';
+const COL_FIELD = '#111122';
+const COL_CLAIMED = '#1a1a3a';
+const COL_CLAIMED_FILL = '#222255';
+const COL_WALL = '#5588cc';
+const COL_WALL_BUILD = '#ffcc33';
+const COL_TEXT = '#aabbdd';
+const COL_PCT = '#66ff88';
+const COL_LIVES = '#ff6666';
+const COL_DIR = '#ffcc33';
+const BALL_COLORS = ['#ff4466','#44bbff','#66ff66','#ffaa33','#ff66ff','#66ffff','#ffff44','#ff8844','#aa66ff','#44ff88'];
+
+let infoOpen = false;
+let grid; // 0=open, 1=wall, 2=claimed
+let balls;
+let walls; // active building walls
+let level, lives, score, claimed, totalOpen;
+let wallDir = 0; // 0=vertical, 1=horizontal
+let gameState; // 'play','win','lose','levelComplete'
+let levelTimer, levelBonus;
+let flashMsg, flashTimer;
+let mouseX = 400, mouseY = 300;
+
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+function initGrid() {
+  grid = new Uint8Array(COLS * ROWS);
+}
+
+function gIdx(c, r) { return r * COLS + c; }
+function gGet(c, r) { return (c < 0 || c >= COLS || r < 0 || r >= ROWS) ? 1 : grid[gIdx(c, r)]; }
+function gSet(c, r, v) { if (c >= 0 && c < COLS && r >= 0 && r < ROWS) grid[gIdx(c, r)] = v; }
+
+function cellToX(c) { return FX + c * CELL; }
+function cellToY(r) { return FY + r * CELL; }
+function xToCell(x) { return Math.floor((x - FX) / CELL); }
+function yToCell(y) { return Math.floor((y - FY) / CELL); }
+
+function createBall(avoid) {
+  const radius = 6;
+  const speed = 1.5 + Math.random() * 1.5;
+  const angle = Math.random() * Math.PI * 2;
+  let x, y, tries = 0;
+  do {
+    x = FX + 30 + Math.random() * (FW - 60);
+    y = FY + 30 + Math.random() * (FH - 60);
+    tries++;
+  } while (tries < 100 && avoid && avoid.some(b => Math.hypot(b.x - x, b.y - y) < 30));
+  return {
+    x, y,
+    vx: Math.cos(angle) * speed,
+    vy: Math.sin(angle) * speed,
+    radius,
+    color: BALL_COLORS[Math.floor(Math.random() * BALL_COLORS.length)]
+  };
+}
+
+function initLevel(lvl) {
+  level = lvl;
+  initGrid();
+  balls = [];
+  walls = [];
+  const numBalls = level + 1;
+  for (let i = 0; i < numBalls; i++) {
+    balls.push(createBall(balls));
+  }
+  totalOpen = COLS * ROWS;
+  claimed = 0;
+  levelTimer = 0;
+  flashMsg = 'LEVEL ' + level;
+  flashTimer = 90;
+  gameState = 'play';
+}
+
+function initGame() {
+  level = 1;
+  lives = 5;
+  score = 0;
+  initLevel(1);
+}
+
+function getClaimedPercent() {
+  return totalOpen > 0 ? (claimed / totalOpen * 100) : 0;
+}
+
+// Wall building
+function startWall(mx, my) {
+  if (gameState !== 'play') return;
+  const c = xToCell(mx);
+  const r = yToCell(my);
+  if (c < 0 || c >= COLS || r < 0 || r >= ROWS) return;
+  if (gGet(c, r) !== 0) return; // must click on open space
+
+  const wall = {
+    col: c, row: r,
+    dir: wallDir, // 0=vertical, 1=horizontal
+    cells: [[c, r]],
+    // Two heads extending in opposite directions
+    head1: { c, r, active: true },
+    head2: { c, r, active: true },
+    alive: true,
+    speed: 2 // cells per frame
+  };
+  gSet(c, r, 1);
+  walls.push(wall);
+}
+
+function growWall(wall) {
+  if (!wall.alive) return;
+  for (let step = 0; step < wall.speed; step++) {
+    let grew = false;
+    if (wall.head1.active) {
+      let nc, nr;
+      if (wall.dir === 0) { nc = wall.head1.c; nr = wall.head1.r - 1; }
+      else { nc = wall.head1.c - 1; nr = wall.head1.r; }
+      if (nc < 0 || nc >= COLS || nr < 0 || nr >= ROWS || gGet(nc, nr) !== 0) {
+        wall.head1.active = false;
+      } else {
+        wall.head1.c = nc;
+        wall.head1.r = nr;
+        gSet(nc, nr, 1);
+        wall.cells.push([nc, nr]);
+        grew = true;
+      }
+    }
+    if (wall.head2.active) {
+      let nc, nr;
+      if (wall.dir === 0) { nc = wall.head2.c; nr = wall.head2.r + 1; }
+      else { nc = wall.head2.c + 1; nr = wall.head2.r; }
+      if (nc < 0 || nc >= COLS || nr < 0 || nr >= ROWS || gGet(nc, nr) !== 0) {
+        wall.head2.active = false;
+      } else {
+        wall.head2.c = nc;
+        wall.head2.r = nr;
+        gSet(nc, nr, 1);
+        wall.cells.push([nc, nr]);
+        grew = true;
+      }
+    }
+    if (!wall.head1.active && !wall.head2.active) {
+      // Wall complete — check for regions to claim
+      claimRegions();
+      return;
+    }
+  }
+}
+
+function destroyWall(wall) {
+  wall.alive = false;
+  for (const [c, r] of wall.cells) {
+    if (gGet(c, r) === 1) gSet(c, r, 0);
+  }
+  lives--;
+  flashMsg = 'WALL DESTROYED!';
+  flashTimer = 60;
+  if (lives <= 0) {
+    gameState = 'lose';
+    flashMsg = 'GAME OVER';
+    flashTimer = 180;
+  }
+}
+
+// Check if ball hits an in-progress wall
+function ballHitsWall(ball) {
+  const bc = xToCell(ball.x);
+  const br = yToCell(ball.y);
+  // Check cells around ball
+  const r = Math.ceil(ball.radius / CELL) + 1;
+  for (let dc = -r; dc <= r; dc++) {
+    for (let dr = -r; dr <= r; dr++) {
+      const cc = bc + dc;
+      const rr = br + dr;
+      if (cc < 0 || cc >= COLS || rr < 0 || rr >= ROWS) continue;
+      if (gGet(cc, rr) !== 1) continue;
+      // Check pixel-level collision
+      const cx = cellToX(cc) + CELL / 2;
+      const cy = cellToY(rr) + CELL / 2;
+      const dx = ball.x - cx;
+      const dy = ball.y - cy;
+      if (Math.abs(dx) < ball.radius + CELL / 2 && Math.abs(dy) < ball.radius + CELL / 2) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+// Flood fill to find regions and claim empty ones
+function claimRegions() {
+  const visited = new Uint8Array(COLS * ROWS);
+  const regions = [];
+
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (visited[gIdx(c, r)] || gGet(c, r) !== 0) continue;
+      // Flood fill this region
+      const region = [];
+      const stack = [[c, r]];
+      visited[gIdx(c, r)] = 1;
+      while (stack.length > 0) {
+        const [fc, fr] = stack.pop();
+        region.push([fc, fr]);
+        const neighbors = [[fc-1,fr],[fc+1,fr],[fc,fr-1],[fc,fr+1]];
+        for (const [nc, nr] of neighbors) {
+          if (nc < 0 || nc >= COLS || nr < 0 || nr >= ROWS) continue;
+          if (visited[gIdx(nc, nr)]) continue;
+          if (gGet(nc, nr) !== 0) continue;
+          visited[gIdx(nc, nr)] = 1;
+          stack.push([nc, nr]);
+        }
+      }
+      regions.push(region);
+    }
+  }
+
+  // Check each region for balls
+  for (const region of regions) {
+    let hasBall = false;
+    for (const ball of balls) {
+      const bc = xToCell(ball.x);
+      const br = yToCell(ball.y);
+      for (const [rc, rr] of region) {
+        if (rc === bc && rr === br) {
+          hasBall = true;
+          break;
+        }
+      }
+      if (hasBall) break;
+    }
+    if (!hasBall && region.length > 0) {
+      // Claim this region
+      for (const [rc, rr] of region) {
+        gSet(rc, rr, 2);
+        claimed++;
+      }
+    }
+  }
+
+  // Check win condition
+  if (getClaimedPercent() >= 75) {
+    const bonus = Math.max(0, 1000 - Math.floor(levelTimer / 60) * 10);
+    score += Math.floor(getClaimedPercent()) * 10 * level + bonus;
+    gameState = 'levelComplete';
+    flashMsg = 'LEVEL COMPLETE! +' + (Math.floor(getClaimedPercent()) * 10 * level + bonus);
+    flashTimer = 120;
+  }
+}
+
+// Ball physics
+function updateBall(ball) {
+  ball.x += ball.vx;
+  ball.y += ball.vy;
+
+  // Bounce off field edges
+  if (ball.x - ball.radius < FX) { ball.x = FX + ball.radius; ball.vx = Math.abs(ball.vx); }
+  if (ball.x + ball.radius > FX + FW) { ball.x = FX + FW - ball.radius; ball.vx = -Math.abs(ball.vx); }
+  if (ball.y - ball.radius < FY) { ball.y = FY + ball.radius; ball.vy = Math.abs(ball.vy); }
+  if (ball.y + ball.radius > FY + FH) { ball.y = FY + FH - ball.radius; ball.vy = -Math.abs(ball.vy); }
+
+  // Bounce off claimed areas and completed walls (grid value 2 or walls not building)
+  const bc = xToCell(ball.x);
+  const br = yToCell(ball.y);
+  const r = Math.ceil(ball.radius / CELL) + 1;
+
+  let bounceX = false, bounceY = false;
+  for (let dc = -r; dc <= r; dc++) {
+    for (let dr = -r; dr <= r; dr++) {
+      const cc = bc + dc;
+      const rr = br + dr;
+      if (cc < 0 || cc >= COLS || rr < 0 || rr >= ROWS) continue;
+      const val = gGet(cc, rr);
+      if (val !== 2) continue; // only bounce off claimed
+      const cx = cellToX(cc) + CELL / 2;
+      const cy = cellToY(rr) + CELL / 2;
+      const dx = ball.x - cx;
+      const dy = ball.y - cy;
+      const overlapX = ball.radius + CELL / 2 - Math.abs(dx);
+      const overlapY = ball.radius + CELL / 2 - Math.abs(dy);
+      if (overlapX > 0 && overlapY > 0) {
+        if (overlapX < overlapY) {
+          bounceX = true;
+          ball.x += (dx > 0 ? overlapX : -overlapX);
+        } else {
+          bounceY = true;
+          ball.y += (dy > 0 ? overlapY : -overlapY);
+        }
+      }
+    }
+  }
+  if (bounceX) ball.vx = -ball.vx;
+  if (bounceY) ball.vy = -ball.vy;
+}
+
+function update() {
+  if (infoOpen) return;
+
+  if (gameState === 'levelComplete') {
+    if (flashTimer > 0) { flashTimer--; return; }
+    initLevel(level + 1);
+    return;
+  }
+  if (gameState === 'lose') {
+    if (flashTimer > 0) flashTimer--;
+    return;
+  }
+
+  if (flashTimer > 0) flashTimer--;
+  levelTimer++;
+
+  // Update balls
+  for (const ball of balls) {
+    updateBall(ball);
+  }
+
+  // Grow active walls & check collisions
+  for (let i = walls.length - 1; i >= 0; i--) {
+    const wall = walls[i];
+    if (!wall.alive) { walls.splice(i, 1); continue; }
+    if (wall.head1.active || wall.head2.active) {
+      growWall(wall);
+      if (!wall.alive) continue;
+      // Check ball collision with this building wall
+      for (const ball of balls) {
+        if (ballHitsWall(ball)) {
+          destroyWall(wall);
+          break;
+        }
+      }
+    }
+  }
+}
+
+function draw() {
+  ctx.fillStyle = COL_BG;
+  ctx.fillRect(0, 0, 800, 600);
+
+  // Field border
+  ctx.strokeStyle = COL_BORDER;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(FX - 1, FY - 1, FW + 2, FH + 2);
+
+  // Field background
+  ctx.fillStyle = COL_FIELD;
+  ctx.fillRect(FX, FY, FW, FH);
+
+  // Draw grid: claimed areas and walls
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const v = gGet(c, r);
+      if (v === 2) {
+        ctx.fillStyle = COL_CLAIMED_FILL;
+        ctx.fillRect(cellToX(c), cellToY(r), CELL, CELL);
+      } else if (v === 1) {
+        // Check if this is part of an active building wall
+        let building = false;
+        for (const wall of walls) {
+          if (wall.alive && (wall.head1.active || wall.head2.active)) {
+            for (const [wc, wr] of wall.cells) {
+              if (wc === c && wr === r) { building = true; break; }
+            }
+          }
+          if (building) break;
+        }
+        ctx.fillStyle = building ? COL_WALL_BUILD : COL_WALL;
+        ctx.fillRect(cellToX(c), cellToY(r), CELL, CELL);
+      }
+    }
+  }
+
+  // Draw balls
+  for (const ball of balls) {
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+    ctx.fillStyle = ball.color;
+    ctx.fill();
+    // Highlight
+    ctx.beginPath();
+    ctx.arc(ball.x - 2, ball.y - 2, ball.radius * 0.35, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.fill();
+  }
+
+  // Draw wall direction indicator at cursor
+  if (gameState === 'play') {
+    ctx.strokeStyle = COL_DIR;
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = 0.6;
+    if (wallDir === 0) {
+      // Vertical
+      ctx.beginPath();
+      ctx.moveTo(mouseX, mouseY - 15);
+      ctx.lineTo(mouseX, mouseY + 15);
+      ctx.stroke();
+      // Arrows
+      ctx.beginPath();
+      ctx.moveTo(mouseX - 4, mouseY - 11);
+      ctx.lineTo(mouseX, mouseY - 15);
+      ctx.lineTo(mouseX + 4, mouseY - 11);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(mouseX - 4, mouseY + 11);
+      ctx.lineTo(mouseX, mouseY + 15);
+      ctx.lineTo(mouseX + 4, mouseY + 11);
+      ctx.stroke();
+    } else {
+      // Horizontal
+      ctx.beginPath();
+      ctx.moveTo(mouseX - 15, mouseY);
+      ctx.lineTo(mouseX + 15, mouseY);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(mouseX - 11, mouseY - 4);
+      ctx.lineTo(mouseX - 15, mouseY);
+      ctx.lineTo(mouseX - 11, mouseY + 4);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(mouseX + 11, mouseY - 4);
+      ctx.lineTo(mouseX + 15, mouseY);
+      ctx.lineTo(mouseX + 11, mouseY + 4);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // HUD
+  ctx.font = '14px monospace';
+
+  // Title
+  ctx.fillStyle = '#7bf';
+  ctx.textAlign = 'left';
+  ctx.fillText('TRP-003 · SPLIT BOUNCE', FX, FY - 18);
+
+  // Level
+  ctx.fillStyle = COL_TEXT;
+  ctx.fillText('LVL ' + level, FX + 250, FY - 18);
+
+  // Score
+  ctx.fillText('SCORE ' + score, FX + 340, FY - 18);
+
+  // Lives
+  ctx.fillStyle = COL_LIVES;
+  let livesStr = 'LIVES ';
+  for (let i = 0; i < lives; i++) livesStr += '\u2665 ';
+  ctx.fillText(livesStr, FX + 500, FY - 18);
+
+  // Percentage
+  const pct = getClaimedPercent();
+  ctx.fillStyle = COL_PCT;
+  ctx.font = 'bold 16px monospace';
+  ctx.textAlign = 'right';
+  ctx.fillText(pct.toFixed(1) + '%', FX + FW, FY - 18);
+
+  // Goal bar
+  const barW = 150;
+  const barH = 6;
+  const barX = FX + FW - barW;
+  const barY = FY - 10;
+  ctx.fillStyle = '#222';
+  ctx.fillRect(barX, barY, barW, barH);
+  ctx.fillStyle = pct >= 75 ? '#66ff66' : '#3366aa';
+  ctx.fillRect(barX, barY, barW * Math.min(pct / 100, 1), barH);
+  // 75% marker
+  ctx.fillStyle = '#ff0';
+  ctx.fillRect(barX + barW * 0.75 - 1, barY - 1, 2, barH + 2);
+
+  // Direction indicator text
+  ctx.font = '12px monospace';
+  ctx.fillStyle = COL_DIR;
+  ctx.textAlign = 'right';
+  ctx.fillText('[Tab] ' + (wallDir === 0 ? 'VERTICAL' : 'HORIZONTAL'), FX + FW, FY + FH + 16);
+
+  // Info hint
+  ctx.fillStyle = '#555';
+  ctx.textAlign = 'left';
+  ctx.fillText('[?] Info   [R] Restart', FX, FY + FH + 16);
+
+  // Balls remaining
+  ctx.fillStyle = COL_TEXT;
+  ctx.textAlign = 'center';
+  ctx.fillText('BALLS: ' + balls.length, FX + FW / 2, FY + FH + 16);
+
+  // Flash message
+  if (flashTimer > 0 && flashMsg) {
+    ctx.save();
+    ctx.font = 'bold 28px monospace';
+    ctx.textAlign = 'center';
+    ctx.globalAlpha = Math.min(1, flashTimer / 30);
+    if (gameState === 'lose') {
+      ctx.fillStyle = '#ff4444';
+    } else if (gameState === 'levelComplete') {
+      ctx.fillStyle = '#66ff66';
+    } else if (flashMsg === 'WALL DESTROYED!') {
+      ctx.fillStyle = '#ff6633';
+    } else {
+      ctx.fillStyle = '#ffffff';
+    }
+    ctx.fillText(flashMsg, 400, 320);
+
+    if (gameState === 'lose' && flashTimer < 120) {
+      ctx.font = '16px monospace';
+      ctx.fillStyle = '#aaa';
+      ctx.fillText('Press R to restart', 400, 360);
+    }
+    ctx.restore();
+  }
+}
+
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+// Input
+canvas.addEventListener('mousemove', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const sx = canvas.width / rect.width;
+  const sy = canvas.height / rect.height;
+  mouseX = (e.clientX - rect.left) * sx;
+  mouseY = (e.clientY - rect.top) * sy;
+});
+
+canvas.addEventListener('click', (e) => {
+  if (infoOpen) return;
+  const rect = canvas.getBoundingClientRect();
+  const sx = canvas.width / rect.width;
+  const sy = canvas.height / rect.height;
+  const mx = (e.clientX - rect.left) * sx;
+  const my = (e.clientY - rect.top) * sy;
+  startWall(mx, my);
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === '?') { e.preventDefault(); toggleInfo(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); return; }
+  if (infoOpen) return;
+  if (e.key === 'Tab') { e.preventDefault(); wallDir = 1 - wallDir; }
+  if (e.key === 'r' || e.key === 'R') { initGame(); }
+});
+
+initGame();
+loop();
+</script>
+</body>
+</html>

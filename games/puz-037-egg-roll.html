@@ -1,0 +1,920 @@
+<!--
+PROTOTYPE: egg-roll
+SERIES: puz
+NUMBER: 037
+DATE: 2026-03-24
+MECHANIC: downward egg navigation — guide a penguin egg downward through platforms by breaking blocks beneath it; the egg rolls on slopes and cracks on long falls
+ANCESTRY: Doki Doki Penguin Land (1985, Sega SG-1000/Master System, Japan)
+CONTROLS: Arrow keys — move penguin | Space — break block penguin faces | R — restart level | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 2 (Knowledge-Based — rule-driven block physics and fragility simulation)
+AI-INSIGHT: Doki Doki Penguin Land inverted the platformer formula by making downward progress the goal, turning gravity from ally into threat. The egg's fragility creates a constraint-satisfaction puzzle where every block-break decision must account for cascading consequences — a design that presages modern physics puzzle games.
+NOTES: Downward puzzle-platformer with egg fragility mechanic.
+       6 procedurally-structured levels with bears, springs, and ice blocks.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PUZ-037 · EGG ROLL</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>PUZ-037 · EGG ROLL</h1>
+    <p><span class="tag series">PUZ — Puzzle</span> <span class="tag">Prototype #037</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Guide the egg safely to the bottom of each level! The penguin pushes the egg downward by breaking blocks beneath it.</p>
+    <ul>
+      <li><kbd>&larr;</kbd> <kbd>&rarr;</kbd> — Move penguin left/right</li>
+      <li><kbd>&uarr;</kbd> — Jump (one block height)</li>
+      <li><kbd>Space</kbd> — Break the block the penguin is facing</li>
+      <li><kbd>R</kbd> — Restart current level</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Egg fragility:</strong> The egg cracks if it falls more than 3 block heights. Plan your path carefully!</li>
+      <li><strong>Ice blocks:</strong> Blue blocks are slippery — the egg slides across them and won't stop until it hits something.</li>
+      <li><strong>Bears:</strong> Brown bears push the egg one tile away from them. Avoid or use strategically.</li>
+      <li><strong>Springs:</strong> Green springs bounce the egg upward 2 tiles. Use them to redirect the egg.</li>
+      <li><strong>Think downward:</strong> Unlike most platformers, your goal is to descend. Every block you break changes the puzzle.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Doki Doki Penguin Land (1985, Sega)</p>
+    <p>Doki Doki Penguin Land was developed by Sega for the SG-1000 in 1985, later ported to the Master System. Designed by Sega's internal team, it was one of the earliest puzzle-platformers to invert the typical upward-climbing formula. The player controls a penguin who must guide a fragile egg downward through a maze of blocks, creating a unique tension between gravity as a tool and gravity as a threat.</p>
+    <p>The game's title ("Doki Doki" meaning "heart-pounding" in Japanese) perfectly captures the anxiety of watching the egg teeter on the edge of a fatal drop. It spawned sequels on the Game Gear and received a spiritual successor in Pengo's later iterations. The downward-navigation mechanic influenced puzzle games that followed, including elements seen in Lode Runner and Solomon's Key.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 2 — Knowledge-Based Systems (1980-1995)</p>
+    <p><strong>Contemporary AI:</strong> Expert systems, rule-based reasoning, early constraint satisfaction. MYCIN, DENDRAL, and R1/XCON were state-of-the-art.</p>
+    <p>Penguin Land's gameplay is fundamentally a constraint-satisfaction problem: each block-break decision must satisfy multiple constraints simultaneously — the egg must not fall too far, must not roll into hazards, and must eventually reach the bottom. This mirrors the constraint propagation techniques being developed in AI research at the time. The game's level design encodes domain knowledge about physics (gravity, momentum, fragility) in a rule-based system that the player must learn to reason about — echoing the expert system paradigm of its era.</p>
+
+    <h2>Classification</h2>
+    <p><strong>Primary:</strong> Puzzle Platformer</p>
+    <p><strong>Secondary:</strong> Downward Navigation, Fragility Management</p>
+    <p><strong>Input:</strong> Keyboard (4-directional + action)</p>
+    <p><strong>Perspective:</strong> Side-view 2D with vertical scrolling</p>
+
+    <h2>Prototype Notes</h2>
+    <p>This prototype implements 6 hand-crafted levels with downward vertical scrolling. The egg physics simulate rolling on slopes, falling through gaps, and cracking on long drops. Obstacles include ice blocks (slippery surfaces), bears (push the egg), and springs (bounce the egg upward). The camera follows the egg's descent, keeping the action centered.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+var canvas = document.getElementById('c');
+var ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowOffsetX = 1; ctx.shadowOffsetY = 1; ctx.shadowBlur = 0;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+// ── Info panel ──
+var infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// ── Canvas setup ──
+var W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  var s = Math.min(innerWidth / W, innerHeight / H);
+  canvas.style.width = (W * s) + 'px';
+  canvas.style.height = (H * s) + 'px';
+}
+resize();
+addEventListener('resize', resize);
+
+// ── Constants ──
+var TILE = 32;
+var COLS = 25;
+var GRAVITY = 0.15;
+var MAX_SAFE_FALL = 3; // blocks
+
+// Tile types
+var EMPTY = 0, BLOCK = 1, ICE = 2, SPRING = 3, BEAR = 4, GOAL = 5, SLOPE_L = 6, SLOPE_R = 7;
+
+// ── Level data ──
+var levels = [];
+var currentLevel = 0;
+
+function generateLevel(num) {
+  var rows = 30 + num * 5;
+  var grid = [];
+  var r, c;
+  for (r = 0; r < rows; r++) {
+    grid[r] = [];
+    for (c = 0; c < COLS; c++) {
+      // Walls
+      if (c === 0 || c === COLS - 1) { grid[r][c] = BLOCK; continue; }
+      grid[r][c] = EMPTY;
+    }
+  }
+
+  // Floor
+  for (c = 0; c < COLS; c++) grid[rows - 1][c] = BLOCK;
+
+  // Starting platform (top area)
+  for (c = 3; c < COLS - 3; c++) grid[2][c] = BLOCK;
+
+  // Goal at bottom
+  grid[rows - 2][Math.floor(COLS / 2)] = GOAL;
+  grid[rows - 2][Math.floor(COLS / 2) - 1] = EMPTY;
+  grid[rows - 2][Math.floor(COLS / 2) + 1] = EMPTY;
+
+  // Generate platforms with gaps
+  var seed = num * 1337 + 42;
+  function rng() { seed = (seed * 16807 + 0) % 2147483647; return (seed - 1) / 2147483646; }
+
+  for (r = 5; r < rows - 3; r += 2 + Math.floor(rng() * 2)) {
+    var gapStart = 1 + Math.floor(rng() * (COLS - 4));
+    var gapWidth = 2 + Math.floor(rng() * 2);
+    for (c = 1; c < COLS - 1; c++) {
+      if (c >= gapStart && c < gapStart + gapWidth) continue;
+      if (rng() < 0.15 && num > 0) {
+        grid[r][c] = ICE;
+      } else {
+        grid[r][c] = BLOCK;
+      }
+    }
+
+    // Add obstacles based on level
+    if (num >= 1 && rng() < 0.3) {
+      var sc = 1 + Math.floor(rng() * (COLS - 2));
+      if (grid[r][sc] === EMPTY && grid[r + 1] && grid[r + 1][sc] !== EMPTY) {
+        grid[r][sc] = SPRING;
+      }
+    }
+    if (num >= 2 && rng() < 0.25) {
+      var bc = 2 + Math.floor(rng() * (COLS - 4));
+      if (grid[r - 1] && grid[r - 1][bc] === EMPTY && grid[r][bc] !== EMPTY) {
+        grid[r - 1][bc] = BEAR;
+      }
+    }
+    // Slopes
+    if (num >= 1 && rng() < 0.2) {
+      var slc = 2 + Math.floor(rng() * (COLS - 5));
+      if (grid[r][slc] !== EMPTY) {
+        grid[r][slc] = rng() < 0.5 ? SLOPE_L : SLOPE_R;
+      }
+    }
+  }
+
+  // Ensure a clear path exists by removing some blocks
+  var pathCol = Math.floor(COLS / 2);
+  for (r = 3; r < rows - 3; r++) {
+    if (grid[r][pathCol] !== EMPTY && grid[r][pathCol] !== GOAL) {
+      if (rng() < 0.4) {
+        grid[r][pathCol] = EMPTY;
+        if (pathCol + 1 < COLS - 1) grid[r][pathCol + 1] = EMPTY;
+      }
+    }
+    // Drift path
+    if (rng() < 0.3) pathCol += rng() < 0.5 ? -1 : 1;
+    pathCol = Math.max(2, Math.min(COLS - 3, pathCol));
+  }
+
+  return { grid: grid, rows: rows, startPenguinCol: Math.floor(COLS / 2), startEggCol: Math.floor(COLS / 2) };
+}
+
+for (var i = 0; i < 6; i++) levels.push(generateLevel(i));
+
+// ── Game state ──
+var penguin, egg, camera, state, crackTimer, levelComplete, lives;
+var keys = {};
+
+function initLevel(n) {
+  var lv = levels[n];
+  // Deep copy grid
+  var g = [];
+  for (var r = 0; r < lv.rows; r++) {
+    g[r] = [];
+    for (var c = 0; c < COLS; c++) g[r][c] = lv.grid[r][c];
+  }
+
+  penguin = {
+    x: lv.startPenguinCol * TILE, y: 1 * TILE,
+    vx: 0, vy: 0,
+    w: TILE - 4, h: TILE - 2,
+    facing: 1, // 1 = right, -1 = left
+    onGround: false,
+    jumpCooldown: 0
+  };
+
+  egg = {
+    x: lv.startEggCol * TILE, y: 0,
+    vx: 0, vy: 0,
+    w: TILE - 8, h: TILE - 4,
+    fallStart: -1,
+    cracked: false,
+    onGround: false,
+    onIce: false
+  };
+
+  camera = { y: 0, targetY: 0 };
+  state = 'play';
+  crackTimer = 0;
+  levelComplete = false;
+
+  return g;
+}
+
+var grid;
+lives = 3;
+
+function resetLevel() {
+  grid = initLevel(currentLevel);
+}
+
+resetLevel();
+
+// ── Input ──
+addEventListener('keydown', function(e) {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+  keys[e.key] = true;
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].indexOf(e.key) >= 0) e.preventDefault();
+});
+addEventListener('keyup', function(e) { keys[e.key] = false; });
+
+// ── Tile helpers ──
+function tileAt(gx, gy) {
+  var r = Math.floor(gy / TILE);
+  var c = Math.floor(gx / TILE);
+  if (r < 0 || r >= levels[currentLevel].rows || c < 0 || c >= COLS) return BLOCK;
+  return grid[r][c];
+}
+
+function solidAt(gx, gy) {
+  var t = tileAt(gx, gy);
+  return t === BLOCK || t === ICE || t === SLOPE_L || t === SLOPE_R;
+}
+
+function setTile(gx, gy, val) {
+  var r = Math.floor(gy / TILE);
+  var c = Math.floor(gx / TILE);
+  if (r >= 0 && r < levels[currentLevel].rows && c >= 0 && c < COLS) {
+    grid[r][c] = val;
+  }
+}
+
+// ── Physics for an entity ──
+function moveEntity(ent, isEgg) {
+  // Apply gravity
+  ent.vy += GRAVITY;
+  if (ent.vy > TILE * 0.8) ent.vy = TILE * 0.8;
+
+  // Horizontal movement
+  var nx = ent.x + ent.vx;
+  var cy = ent.y;
+  var hw = ent.w / 2;
+  var hh = ent.h / 2;
+
+  // Horizontal collision
+  if (ent.vx > 0) {
+    if (solidAt(nx + hw, cy - hh + 2) || solidAt(nx + hw, cy + hh - 2)) {
+      nx = Math.floor((nx + hw) / TILE) * TILE - hw - 1;
+      ent.vx = 0;
+    }
+  } else if (ent.vx < 0) {
+    if (solidAt(nx - hw, cy - hh + 2) || solidAt(nx - hw, cy + hh - 2)) {
+      nx = Math.ceil((nx - hw) / TILE) * TILE + hw + 1;
+      ent.vx = 0;
+    }
+  }
+  ent.x = nx;
+
+  // Vertical movement
+  var ny = ent.y + ent.vy;
+  ent.onGround = false;
+  ent.onIce = false;
+
+  if (ent.vy > 0) {
+    // Falling
+    if (solidAt(ent.x - hw + 2, ny + hh) || solidAt(ent.x + hw - 2, ny + hh)) {
+      var landRow = Math.floor((ny + hh) / TILE);
+      ny = landRow * TILE - hh;
+      // Check fall distance for egg
+      if (isEgg && ent.fallStart >= 0) {
+        var fallDist = (ny - ent.fallStart) / TILE;
+        if (fallDist > MAX_SAFE_FALL) {
+          ent.cracked = true;
+        }
+      }
+      ent.fallStart = -1;
+      ent.vy = 0;
+      ent.onGround = true;
+
+      // Check if on ice
+      var tBelow = tileAt(ent.x, ny + hh + 2);
+      if (tBelow === ICE) ent.onIce = true;
+
+      // Check for spring
+      if (tileAt(ent.x, ny + hh + 2) === SPRING) {
+        ent.vy = -TILE * 0.25;
+        ent.fallStart = -1;
+        ent.onGround = false;
+      }
+    } else {
+      if (ent.fallStart < 0) ent.fallStart = ent.y;
+    }
+  } else if (ent.vy < 0) {
+    // Rising
+    if (solidAt(ent.x - hw + 2, ny - hh) || solidAt(ent.x + hw - 2, ny - hh)) {
+      ny = Math.ceil((ny - hh) / TILE) * TILE + hh;
+      ent.vy = 0;
+    }
+  }
+  ent.y = ny;
+
+  // Slope rolling for egg
+  if (isEgg && ent.onGround) {
+    var belowTile = tileAt(ent.x, ent.y + hh + 2);
+    if (belowTile === SLOPE_L) ent.vx = -1.5;
+    else if (belowTile === SLOPE_R) ent.vx = 1.5;
+
+    // Ice friction
+    if (ent.onIce) {
+      ent.vx *= 0.995;
+    } else {
+      ent.vx *= 0.8;
+    }
+    if (Math.abs(ent.vx) < 0.1) ent.vx = 0;
+  }
+
+  // Check goal
+  if (isEgg) {
+    var er = Math.floor(ent.y / TILE);
+    var ec = Math.floor(ent.x / TILE);
+    if (er >= 0 && er < levels[currentLevel].rows && ec >= 0 && ec < COLS) {
+      if (grid[er][ec] === GOAL) {
+        levelComplete = true;
+        state = 'complete';
+      }
+    }
+  }
+}
+
+// ── Bear entities ──
+var bears = [];
+function initBears() {
+  bears = [];
+  var lv = levels[currentLevel];
+  for (var r = 0; r < lv.rows; r++) {
+    for (var c = 0; c < COLS; c++) {
+      if (grid[r][c] === BEAR) {
+        bears.push({ x: c * TILE + TILE / 2, y: r * TILE + TILE / 2, dir: 1, timer: 0 });
+        grid[r][c] = EMPTY;
+      }
+    }
+  }
+}
+
+function updateBears() {
+  for (var i = 0; i < bears.length; i++) {
+    var b = bears[i];
+    b.timer++;
+
+    // Patrol
+    if (b.timer % 90 === 0) b.dir *= -1;
+    var nx = b.x + b.dir * 0.5;
+    var br = Math.floor(b.y / TILE);
+    var bc = Math.floor(nx / TILE);
+    if (bc <= 0 || bc >= COLS - 1 || solidAt(nx + b.dir * TILE / 2, b.y)) {
+      b.dir *= -1;
+    } else {
+      // Check ground beneath
+      if (!solidAt(nx, b.y + TILE / 2 + 2)) {
+        b.dir *= -1;
+      } else {
+        b.x = nx;
+      }
+    }
+
+    // Push egg
+    var dx = egg.x - b.x;
+    var dy = egg.y - b.y;
+    if (Math.abs(dx) < TILE && Math.abs(dy) < TILE * 0.7) {
+      egg.vx += (dx > 0 ? 3 : -3);
+    }
+  }
+}
+
+// ── Update ──
+var breakAnim = null;
+
+function update() {
+  if (infoOpen) return;
+
+  if (keys['r'] || keys['R']) {
+    keys['r'] = false; keys['R'] = false;
+    resetLevel();
+    initBears();
+    return;
+  }
+
+  if (state === 'complete') {
+    crackTimer++;
+    if (crackTimer > 120 || keys[' ']) {
+      keys[' '] = false;
+      currentLevel++;
+      if (currentLevel >= 6) {
+        state = 'win';
+      } else {
+        resetLevel();
+        initBears();
+      }
+    }
+    return;
+  }
+
+  if (state === 'dead') {
+    crackTimer++;
+    if (crackTimer > 90) {
+      lives--;
+      if (lives <= 0) {
+        state = 'gameover';
+      } else {
+        resetLevel();
+        initBears();
+      }
+    }
+    return;
+  }
+
+  if (state === 'gameover' || state === 'win') {
+    if (keys[' ']) {
+      keys[' '] = false;
+      currentLevel = 0;
+      lives = 3;
+      resetLevel();
+      initBears();
+    }
+    return;
+  }
+
+  // Penguin controls
+  var speed = 2.5;
+  if (keys['ArrowLeft']) {
+    penguin.vx = -speed;
+    penguin.facing = -1;
+  } else if (keys['ArrowRight']) {
+    penguin.vx = speed;
+    penguin.facing = 1;
+  } else {
+    penguin.vx *= 0.7;
+    if (Math.abs(penguin.vx) < 0.2) penguin.vx = 0;
+  }
+
+  // Jump
+  if (keys['ArrowUp'] && penguin.onGround && penguin.jumpCooldown <= 0) {
+    penguin.vy = -5;
+    penguin.onGround = false;
+    penguin.jumpCooldown = 15;
+  }
+  if (penguin.jumpCooldown > 0) penguin.jumpCooldown--;
+
+  // Break block
+  if (keys[' ']) {
+    keys[' '] = false;
+    var bx = penguin.x + penguin.facing * TILE;
+    var by = penguin.y;
+    var bc = Math.floor(bx / TILE);
+    var br = Math.floor(by / TILE);
+    if (bc > 0 && bc < COLS - 1 && br >= 0 && br < levels[currentLevel].rows) {
+      var t = grid[br][bc];
+      if (t === BLOCK || t === ICE || t === SLOPE_L || t === SLOPE_R) {
+        grid[br][bc] = EMPTY;
+        breakAnim = { x: bc * TILE, y: br * TILE, timer: 10 };
+      }
+    }
+    // Also check below penguin's facing
+    by = penguin.y + TILE;
+    br = Math.floor(by / TILE);
+    if (bc > 0 && bc < COLS - 1 && br >= 0 && br < levels[currentLevel].rows) {
+      var t2 = grid[br][bc];
+      if (t2 === BLOCK || t2 === ICE || t2 === SLOPE_L || t2 === SLOPE_R) {
+        grid[br][bc] = EMPTY;
+        breakAnim = { x: bc * TILE, y: br * TILE, timer: 10 };
+      }
+    }
+  }
+
+  // Break animation
+  if (breakAnim) {
+    breakAnim.timer--;
+    if (breakAnim.timer <= 0) breakAnim = null;
+  }
+
+  // Move entities
+  moveEntity(penguin, false);
+  moveEntity(egg, true);
+
+  // Bears
+  updateBears();
+
+  // Check egg cracked
+  if (egg.cracked) {
+    state = 'dead';
+    crackTimer = 0;
+  }
+
+  // Check egg out of bounds
+  if (egg.y > levels[currentLevel].rows * TILE + TILE) {
+    state = 'dead';
+    crackTimer = 0;
+  }
+
+  // Camera follows egg, scrolling down
+  camera.targetY = egg.y - H * 0.4;
+  if (camera.targetY < 0) camera.targetY = 0;
+  var maxCam = levels[currentLevel].rows * TILE - H;
+  if (camera.targetY > maxCam) camera.targetY = maxCam;
+  camera.y += (camera.targetY - camera.y) * 0.08;
+}
+
+// ── Drawing ──
+function drawTile(c, r, type) {
+  var x = c * TILE;
+  var y = r * TILE - camera.y;
+  if (y < -TILE || y > H + TILE) return;
+
+  switch (type) {
+    case BLOCK:
+      ctx.fillStyle = '#666';
+      ctx.fillRect(x, y, TILE, TILE);
+      ctx.strokeStyle = '#888';
+      ctx.strokeRect(x + 1, y + 1, TILE - 2, TILE - 2);
+      // Brick pattern
+      ctx.strokeStyle = '#555';
+      ctx.beginPath();
+      ctx.moveTo(x + TILE / 2, y); ctx.lineTo(x + TILE / 2, y + TILE / 2);
+      ctx.moveTo(x, y + TILE / 2); ctx.lineTo(x + TILE, y + TILE / 2);
+      ctx.stroke();
+      break;
+    case ICE:
+      ctx.fillStyle = '#8cf';
+      ctx.fillRect(x, y, TILE, TILE);
+      ctx.strokeStyle = '#aef';
+      ctx.strokeRect(x + 1, y + 1, TILE - 2, TILE - 2);
+      // Shine
+      ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      ctx.fillRect(x + 4, y + 4, 8, 4);
+      ctx.fillRect(x + 16, y + 12, 6, 3);
+      break;
+    case SPRING:
+      ctx.fillStyle = '#2a2';
+      ctx.fillRect(x + 4, y + TILE - 12, TILE - 8, 12);
+      // Coils
+      ctx.strokeStyle = '#4f4';
+      ctx.lineWidth = 2;
+      for (var i = 0; i < 3; i++) {
+        var sy = y + TILE - 10 + i * 4;
+        ctx.beginPath();
+        ctx.moveTo(x + 6, sy); ctx.lineTo(x + TILE - 6, sy);
+        ctx.stroke();
+      }
+      ctx.lineWidth = 1;
+      break;
+    case GOAL:
+      ctx.fillStyle = '#ff0';
+      ctx.fillRect(x, y, TILE, TILE);
+      ctx.fillStyle = '#fa0';
+      ctx.font = '16px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('★', x + TILE / 2, y + TILE / 2 + 5);
+      break;
+    case SLOPE_L:
+      ctx.fillStyle = '#777';
+      ctx.beginPath();
+      ctx.moveTo(x, y + TILE); ctx.lineTo(x + TILE, y + TILE); ctx.lineTo(x + TILE, y);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#999';
+      ctx.stroke();
+      break;
+    case SLOPE_R:
+      ctx.fillStyle = '#777';
+      ctx.beginPath();
+      ctx.moveTo(x, y + TILE); ctx.lineTo(x + TILE, y + TILE); ctx.lineTo(x, y);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#999';
+      ctx.stroke();
+      break;
+  }
+}
+
+function drawPenguin() {
+  var x = penguin.x;
+  var y = penguin.y - camera.y;
+  if (y < -TILE * 2 || y > H + TILE * 2) return;
+  var f = penguin.facing;
+
+  // Body
+  ctx.fillStyle = '#222';
+  ctx.fillRect(x - 10, y - 14, 20, 24);
+  // Belly
+  ctx.fillStyle = '#eee';
+  ctx.fillRect(x - 6, y - 8, 12, 16);
+  // Eyes
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(x + f * 3 - 3, y - 12, 6, 5);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(x + f * 4 - 1, y - 11, 3, 3);
+  // Beak
+  ctx.fillStyle = '#f80';
+  ctx.fillRect(x + f * 8 - 2, y - 8, 5, 3);
+  // Feet
+  ctx.fillStyle = '#f80';
+  ctx.fillRect(x - 8, y + 10, 7, 4);
+  ctx.fillRect(x + 1, y + 10, 7, 4);
+  // Flippers
+  ctx.fillStyle = '#333';
+  ctx.fillRect(x - 13, y - 6, 4, 14);
+  ctx.fillRect(x + 9, y - 6, 4, 14);
+}
+
+function drawEgg() {
+  var x = egg.x;
+  var y = egg.y - camera.y;
+  if (y < -TILE * 2 || y > H + TILE * 2) return;
+
+  ctx.save();
+  // Egg shape
+  ctx.fillStyle = egg.cracked ? '#f44' : '#ffe';
+  ctx.beginPath();
+  ctx.ellipse(x, y, 10, 13, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = egg.cracked ? '#a00' : '#ddc';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Spots
+  if (!egg.cracked) {
+    ctx.fillStyle = '#edc';
+    ctx.beginPath(); ctx.arc(x - 3, y - 4, 2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + 4, y + 2, 1.5, 0, Math.PI * 2); ctx.fill();
+  } else {
+    // Crack lines
+    ctx.strokeStyle = '#800';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x - 5, y - 2); ctx.lineTo(x, y + 3); ctx.lineTo(x + 4, y - 1);
+    ctx.moveTo(x - 2, y + 1); ctx.lineTo(x + 1, y + 6);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // Fall warning
+  if (egg.fallStart >= 0 && !egg.onGround) {
+    var dist = (egg.y - egg.fallStart) / TILE;
+    if (dist > 1.5) {
+      ctx.fillStyle = dist > 2.5 ? '#f44' : '#ff0';
+      ctx.font = '10px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('!', x, y - 18);
+    }
+  }
+}
+
+function drawBear(b) {
+  var x = b.x;
+  var y = b.y - camera.y;
+  if (y < -TILE * 2 || y > H + TILE * 2) return;
+
+  // Body
+  ctx.fillStyle = '#864';
+  ctx.fillRect(x - 12, y - 14, 24, 26);
+  // Belly
+  ctx.fillStyle = '#a86';
+  ctx.fillRect(x - 6, y - 4, 12, 12);
+  // Ears
+  ctx.fillStyle = '#753';
+  ctx.beginPath(); ctx.arc(x - 10, y - 14, 5, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x + 10, y - 14, 5, 0, Math.PI * 2); ctx.fill();
+  // Eyes
+  ctx.fillStyle = '#000';
+  ctx.fillRect(x - 6, y - 10, 4, 4);
+  ctx.fillRect(x + 2, y - 10, 4, 4);
+  // Nose
+  ctx.fillStyle = '#000';
+  ctx.fillRect(x - 2, y - 5, 4, 3);
+}
+
+function draw() {
+  // Background gradient (icy blue)
+  var grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#1a2a4a');
+  grad.addColorStop(1, '#0a1020');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  var lv = levels[currentLevel];
+
+  // Draw tiles
+  var startRow = Math.max(0, Math.floor(camera.y / TILE) - 1);
+  var endRow = Math.min(lv.rows, startRow + Math.ceil(H / TILE) + 3);
+  for (var r = startRow; r < endRow; r++) {
+    for (var c = 0; c < COLS; c++) {
+      if (grid[r][c] !== EMPTY) drawTile(c, r, grid[r][c]);
+    }
+  }
+
+  // Break animation
+  if (breakAnim) {
+    var ba = breakAnim;
+    ctx.fillStyle = 'rgba(255,200,100,' + (ba.timer / 10) + ')';
+    var spread = (10 - ba.timer) * 3;
+    ctx.fillRect(ba.x - spread, ba.y - camera.y - spread, TILE + spread * 2, TILE + spread * 2);
+  }
+
+  // Draw bears
+  for (var i = 0; i < bears.length; i++) drawBear(bears[i]);
+
+  // Draw penguin and egg
+  drawPenguin();
+  drawEgg();
+
+  // HUD
+  hudText('LEVEL ' + (currentLevel + 1) + '/6', 10, 10, '#7bf', 16);
+  hudText('LIVES: ' + lives, W - 120, 10, '#f88', 16);
+
+  // Facing indicator
+  var fx = penguin.x + penguin.facing * TILE;
+  var fy = penguin.y - camera.y;
+  ctx.strokeStyle = 'rgba(255,255,0,0.3)';
+  ctx.strokeRect(Math.floor(fx / TILE) * TILE, Math.floor(fy / TILE) * TILE - camera.y % TILE, TILE, TILE);
+
+  // Depth indicator
+  var depth = Math.floor(egg.y / TILE);
+  var maxDepth = lv.rows - 2;
+  var pct = Math.min(100, Math.floor((depth / maxDepth) * 100));
+  hudText('DEPTH: ' + pct + '%', 10, 30, '#8f8', 12);
+
+  // State overlays
+  if (state === 'complete') {
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(0, 0, W, H);
+    hudText('LEVEL COMPLETE!', W / 2, H / 2 - 30, '#ff0', 28, 'center');
+    hudText('Press SPACE to continue', W / 2, H / 2 + 10, '#aaa', 14, 'center');
+  }
+
+  if (state === 'dead') {
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(0, 0, W, H);
+    hudText('EGG CRACKED!', W / 2, H / 2 - 20, '#f44', 28, 'center');
+  }
+
+  if (state === 'gameover') {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, 0, W, H);
+    hudText('GAME OVER', W / 2, H / 2 - 30, '#f44', 32, 'center');
+    hudText('Press SPACE to restart', W / 2, H / 2 + 10, '#aaa', 14, 'center');
+  }
+
+  if (state === 'win') {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, 0, W, H);
+    hudText('ALL EGGS SAVED!', W / 2, H / 2 - 30, '#ff0', 32, 'center');
+    hudText('You guided every egg safely home!', W / 2, H / 2 + 10, '#aaa', 14, 'center');
+    hudText('Press SPACE to play again', W / 2, H / 2 + 40, '#888', 12, 'center');
+  }
+
+  // Title screen hint
+  if (state === 'play' && penguin.y < 3 * TILE && camera.y < TILE) {
+    hudText('Break blocks with SPACE to guide the egg down!', W / 2, H - 40, '#aaf', 12, 'center');
+  }
+}
+
+// Init bears
+initBears();
+
+// ── Game loop ──
+function gameLoop() {
+  update();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+requestAnimationFrame(gameLoop);
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

@@ -1,0 +1,689 @@
+<!--
+PROTOTYPE: tower
+SERIES: phy
+NUMBER: 008
+DATE: 2026-03-24
+MECHANIC: physics stacking — drop blocks to build the tallest tower possible; overhanging parts break off, making each level narrower
+ANCESTRY: Jenga (1983 Leslie Scott), Tetris stacking, mobile stacking games, World's Biggest (2012)
+CONTROLS: Click or Space — drop block | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 6 (Deep Learning — physics simulation, structural stability, robot block stacking)
+AI-INSIGHT: Tower stacking is a structural engineering problem: center of mass must stay over the base. Each imperfect placement narrows the effective platform, raising the difficulty exponentially. MIT's robot block-stacking research uses the same physics reasoning — predict stability from visual observation, then act.
+NOTES: Leslie Scott created Jenga in 1983 from a family game played in Ghana. This prototype simplifies to dropping blocks from above rather than removing from below. The tension comes from watching your tower grow while the platform shrinks with each imperfect drop. Simple mechanic, infinite replayability.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PHY-008 · TOWER</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>PHY-008 &middot; TOWER</h1>
+    <p><span class="tag series">PHY &mdash; Physics</span> <span class="tag">Prototype #008</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Drop blocks to build the tallest tower you can! Each block swings back and forth &mdash; time your drop to align it with the block below.</p>
+    <ul>
+      <li><kbd>Space</kbd> or <kbd>Click</kbd> &mdash; Drop block</li>
+      <li><kbd>R</kbd> &mdash; Restart game</li>
+      <li><kbd>?</kbd> &mdash; Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Precision:</strong> Any overhanging part breaks off, making the next block narrower.</li>
+      <li><strong>Perfect drops:</strong> Land exactly on the previous block for bonus points and no shrinkage!</li>
+      <li><strong>Speed:</strong> The swing gets faster as the tower grows &mdash; stay focused.</li>
+      <li><strong>Miss entirely:</strong> If there is no overlap at all, your tower collapses and the game ends.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Jenga (1983, Leslie Scott) &rarr; Tetris stacking (1984) &rarr; Mobile stacking games &rarr; World&rsquo;s Biggest (2012)</p>
+    <p>Leslie Scott created Jenga in 1983, inspired by a family game played in Takoradi, Ghana. The name comes from the Swahili word <em>kujenga</em>, meaning &ldquo;to build.&rdquo; While Jenga removes blocks from below, the tower-stacking archetype reverses this: drop from above, building upward. The mechanic is ancient &mdash; children stack blocks instinctively &mdash; but the game design tension comes from the shrinking platform that punishes imprecision exponentially.</p>
+    <p>Mobile games like &ldquo;Stack&rdquo; and &ldquo;The Tower&rdquo; popularized the drop-and-stack formula, proving that one-button mechanics can create compelling games when paired with physics-based consequences.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 6 &mdash; Deep Learning (2012&ndash;present)</p>
+    <p><strong>Contemporary AI:</strong> Deep reinforcement learning, computer vision for robotic manipulation, physics simulation engines (MuJoCo, PyBullet).</p>
+    <p><strong>Hidden Intelligence:</strong> Tower stacking is a structural engineering problem in disguise. The center of mass must remain over the support base, or the structure topples. Each imperfect placement narrows the effective platform, raising difficulty exponentially. This is the same problem MIT&rsquo;s robot block-stacking research tackles: predict structural stability from visual observation, then act precisely.</p>
+    <p><strong>The Convergence:</strong> Modern robotics uses deep learning to stack physical blocks &mdash; predicting stability, planning grasp points, and compensating for real-world physics. The game&rsquo;s core loop (observe platform width, time the drop, accept the consequence) mirrors the sense-plan-act cycle of autonomous manipulation systems.</p>
+
+    <h2>Classification</h2>
+    <p><strong>Genre:</strong> Physics / Precision Timing</p>
+    <p><strong>Input Complexity:</strong> Minimal &mdash; single action (drop)</p>
+    <p><strong>State Complexity:</strong> Low &mdash; tower height and current block width</p>
+
+    <h2>Prototype Notes</h2>
+    <p>One-button physics stacking. Blocks swing horizontally and drop on input. Overhang detection slices the block, with the excess falling away. Perfect alignment detection rewards precision. Camera scrolls upward as tower grows. Sky gradient shifts with altitude. Increasing swing speed creates natural difficulty curve.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game&rsquo;s creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+var C = document.getElementById('c'), X = C.getContext('2d');
+C.width = 800; C.height = 600;
+var W = 800, H = 600;
+var infoOpen = false;
+
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// --- Colors ---
+var BLOCK_COLORS = [
+  '#e74c3c','#e67e22','#f1c40f','#2ecc71','#1abc9c',
+  '#3498db','#9b59b6','#e91e63','#00bcd4','#8bc34a'
+];
+
+// --- Game State ---
+var BLOCK_H = 28;
+var BASE_W = 200;
+var BASE_SPEED = 2.5;
+var SPEED_INCREASE = 0.15;
+var PERFECT_THRESHOLD = 4;
+
+var stack, moving, falling, particles, sparkles;
+var score, perfectStreak, bestScore, gameOver, crumbling, crumbleTimer;
+var cameraY;
+
+function hsl(h, s, l) { return 'hsl(' + h + ',' + s + '%,' + l + '%)'; }
+
+function blockColor(i) { return BLOCK_COLORS[i % BLOCK_COLORS.length]; }
+
+function darken(color, amt) {
+  // Create a slightly darker version for 3D edge
+  var c = document.createElement('canvas').getContext('2d');
+  c.fillStyle = color;
+  // parse by drawing
+  return color; // we'll handle 3D differently
+}
+
+function init() {
+  stack = [];
+  falling = [];
+  particles = [];
+  sparkles = [];
+  score = 0;
+  perfectStreak = 0;
+  gameOver = false;
+  crumbling = false;
+  crumbleTimer = 0;
+  cameraY = 0;
+
+  // Base block (foundation)
+  stack.push({
+    x: (W - BASE_W) / 2,
+    y: H - 60 - BLOCK_H,
+    w: BASE_W,
+    h: BLOCK_H,
+    color: blockColor(0),
+    settled: true
+  });
+
+  // First moving block
+  spawnMoving();
+}
+
+function spawnMoving() {
+  var top = stack[stack.length - 1];
+  var speed = BASE_SPEED + stack.length * SPEED_INCREASE;
+  // Alternate direction
+  var dir = stack.length % 2 === 0 ? 1 : -1;
+  moving = {
+    x: dir > 0 ? -top.w : W,
+    y: top.y - BLOCK_H,
+    w: top.w,
+    h: BLOCK_H,
+    color: blockColor(stack.length),
+    speed: speed * dir,
+    settled: false
+  };
+}
+
+function dropBlock() {
+  if (gameOver || !moving) return;
+  var prev = stack[stack.length - 1];
+  var m = moving;
+
+  // Calculate overlap
+  var overlapLeft = Math.max(m.x, prev.x);
+  var overlapRight = Math.min(m.x + m.w, prev.x + prev.w);
+  var overlapW = overlapRight - overlapLeft;
+
+  if (overlapW <= 0) {
+    // Missed entirely — game over
+    falling.push({ x: m.x, y: m.y, w: m.w, h: m.h, color: m.color, vy: 0, vx: m.speed * 0.3 });
+    moving = null;
+    triggerGameOver();
+    return;
+  }
+
+  // Check for perfect placement
+  var isPerfect = Math.abs(m.x - prev.x) < PERFECT_THRESHOLD;
+
+  if (isPerfect) {
+    // Perfect drop — keep full width, snap to previous position
+    perfectStreak++;
+    score += 10 + perfectStreak * 5;
+    stack.push({
+      x: prev.x,
+      y: m.y,
+      w: prev.w,
+      h: BLOCK_H,
+      color: m.color,
+      settled: true
+    });
+    // Sparkle effect
+    spawnSparkles(prev.x, m.y, prev.w);
+  } else {
+    perfectStreak = 0;
+    score += 10;
+
+    // Place the overlapping portion
+    stack.push({
+      x: overlapLeft,
+      y: m.y,
+      w: overlapW,
+      h: BLOCK_H,
+      color: m.color,
+      settled: true
+    });
+
+    // Falling excess piece
+    if (m.x < prev.x) {
+      // Overhang on left
+      var exW = prev.x - m.x;
+      falling.push({ x: m.x, y: m.y, w: exW, h: BLOCK_H, color: m.color, vy: 0, vx: -2 - Math.random() * 2, rot: 0, vr: -0.03 - Math.random() * 0.05 });
+    }
+    if (m.x + m.w > prev.x + prev.w) {
+      // Overhang on right
+      var exX = prev.x + prev.w;
+      var exW2 = (m.x + m.w) - exX;
+      falling.push({ x: exX, y: m.y, w: exW2, h: BLOCK_H, color: m.color, vy: 0, vx: 2 + Math.random() * 2, rot: 0, vr: 0.03 + Math.random() * 0.05 });
+    }
+
+    // Particles at cut point
+    spawnCutParticles(overlapLeft, m.y, overlapW);
+  }
+
+  moving = null;
+
+  // Check if block is too narrow
+  var top = stack[stack.length - 1];
+  if (top.w < 5) {
+    triggerGameOver();
+    return;
+  }
+
+  spawnMoving();
+}
+
+function spawnSparkles(x, y, w) {
+  for (var i = 0; i < 20; i++) {
+    sparkles.push({
+      x: x + Math.random() * w,
+      y: y + Math.random() * BLOCK_H,
+      vx: (Math.random() - 0.5) * 6,
+      vy: -Math.random() * 4 - 1,
+      life: 1,
+      size: 2 + Math.random() * 3
+    });
+  }
+}
+
+function spawnCutParticles(x, y, w) {
+  for (var i = 0; i < 8; i++) {
+    particles.push({
+      x: x + Math.random() * w,
+      y: y,
+      vx: (Math.random() - 0.5) * 3,
+      vy: -Math.random() * 2,
+      life: 1,
+      size: 2 + Math.random() * 2
+    });
+  }
+}
+
+function triggerGameOver() {
+  gameOver = true;
+  crumbling = true;
+  crumbleTimer = 0;
+  if (!bestScore || score > bestScore) bestScore = score;
+
+  // Turn stack blocks into falling pieces with staggered timing
+  for (var i = stack.length - 1; i >= 0; i--) {
+    var b = stack[i];
+    b.crumbleDelay = (stack.length - 1 - i) * 3;
+    b.crumbling = false;
+    b.vy = 0;
+    b.vx = 0;
+    b.rot = 0;
+    b.vr = 0;
+  }
+}
+
+function update() {
+  if (infoOpen) return;
+
+  // Update falling pieces
+  for (var i = falling.length - 1; i >= 0; i--) {
+    var f = falling[i];
+    f.vy += 0.5;
+    f.x += f.vx || 0;
+    f.y += f.vy;
+    if (f.rot !== undefined) f.rot += f.vr || 0;
+    if (f.y > H + cameraY + 200) falling.splice(i, 1);
+  }
+
+  // Update sparkles
+  for (var i = sparkles.length - 1; i >= 0; i--) {
+    var s = sparkles[i];
+    s.x += s.vx;
+    s.y += s.vy;
+    s.vy += 0.1;
+    s.life -= 0.025;
+    if (s.life <= 0) sparkles.splice(i, 1);
+  }
+
+  // Update particles
+  for (var i = particles.length - 1; i >= 0; i--) {
+    var p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.15;
+    p.life -= 0.03;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+
+  if (crumbling) {
+    crumbleTimer++;
+    var allGone = true;
+    for (var i = stack.length - 1; i >= 0; i--) {
+      var b = stack[i];
+      if (b.crumbleDelay !== undefined) {
+        if (crumbleTimer >= b.crumbleDelay && !b.crumbling) {
+          b.crumbling = true;
+          b.vx = (Math.random() - 0.5) * 4;
+          b.vy = -2 - Math.random() * 3;
+          b.vr = (Math.random() - 0.5) * 0.1;
+          b.rot = 0;
+        }
+        if (b.crumbling) {
+          b.vy += 0.4;
+          b.x += b.vx;
+          b.y += b.vy;
+          b.rot += b.vr;
+          if (b.y < H + cameraY + 400) allGone = false;
+        } else {
+          allGone = false;
+        }
+      }
+    }
+    if (allGone) crumbling = false;
+    return;
+  }
+
+  if (gameOver) return;
+
+  // Move the swinging block
+  if (moving) {
+    moving.x += moving.speed;
+    // Bounce off edges
+    if (moving.x + moving.w > W + 50) moving.speed = -Math.abs(moving.speed);
+    if (moving.x < -50) moving.speed = Math.abs(moving.speed);
+  }
+
+  // Camera follows tower top
+  var topBlock = stack[stack.length - 1];
+  var targetCameraY = Math.max(0, -(topBlock.y - H * 0.5));
+  cameraY += (targetCameraY - cameraY) * 0.08;
+}
+
+function drawBlock(b, camY) {
+  var bx = b.x, by = b.y + camY, bw = b.w, bh = b.h;
+
+  if (b.rot !== undefined && b.rot !== 0) {
+    X.save();
+    X.translate(bx + bw / 2, by + bh / 2);
+    X.rotate(b.rot);
+    X.fillStyle = b.color;
+    X.fillRect(-bw / 2, -bh / 2, bw, bh);
+    // 3D top edge
+    X.fillStyle = 'rgba(255,255,255,0.25)';
+    X.fillRect(-bw / 2, -bh / 2, bw, 4);
+    // 3D right edge shadow
+    X.fillStyle = 'rgba(0,0,0,0.2)';
+    X.fillRect(bw / 2 - 3, -bh / 2, 3, bh);
+    X.restore();
+    return;
+  }
+
+  X.fillStyle = b.color;
+  X.fillRect(bx, by, bw, bh);
+  // 3D top highlight
+  X.fillStyle = 'rgba(255,255,255,0.25)';
+  X.fillRect(bx, by, bw, 4);
+  // 3D left highlight
+  X.fillStyle = 'rgba(255,255,255,0.1)';
+  X.fillRect(bx, by, 3, bh);
+  // 3D bottom shadow
+  X.fillStyle = 'rgba(0,0,0,0.2)';
+  X.fillRect(bx, by + bh - 3, bw, 3);
+  // 3D right shadow
+  X.fillStyle = 'rgba(0,0,0,0.15)';
+  X.fillRect(bx + bw - 3, by, 3, bh);
+}
+
+function skyGradient(towerHeight) {
+  // Shift sky color as tower gets higher
+  var t = Math.min(towerHeight / 40, 1);
+  var grad = X.createLinearGradient(0, 0, 0, H);
+
+  // Low: light blue sky → high: deep sunset/space
+  var r1 = Math.floor(135 + t * 60);   // top: 135 → 195 (warm)
+  var g1 = Math.floor(206 - t * 120);  // top: 206 → 86
+  var b1 = Math.floor(235 - t * 80);   // top: 235 → 155
+
+  var r2 = Math.floor(200 + t * 30);
+  var g2 = Math.floor(220 - t * 100);
+  var b2 = Math.floor(240 - t * 50);
+
+  grad.addColorStop(0, 'rgb(' + r1 + ',' + g1 + ',' + b1 + ')');
+  grad.addColorStop(1, 'rgb(' + r2 + ',' + g2 + ',' + b2 + ')');
+  return grad;
+}
+
+function draw() {
+  var towerHeight = stack.length - 1;
+
+  // Sky background
+  X.fillStyle = skyGradient(towerHeight);
+  X.fillRect(0, 0, W, H);
+
+  var camY = cameraY;
+
+  // Ground
+  var groundY = H - 60 + camY;
+  if (groundY < H) {
+    X.fillStyle = '#5a4a3a';
+    X.fillRect(0, groundY, W, H - groundY + 200);
+    X.fillStyle = '#6b5b4b';
+    X.fillRect(0, groundY, W, 4);
+  }
+
+  // Draw stacked blocks
+  for (var i = 0; i < stack.length; i++) {
+    var b = stack[i];
+    if (b.crumbling && b.rot !== undefined) {
+      drawBlock(b, camY);
+    } else if (!b.crumbling) {
+      drawBlock(b, camY);
+    }
+  }
+
+  // Draw moving block
+  if (moving) drawBlock(moving, camY);
+
+  // Draw falling pieces
+  for (var i = 0; i < falling.length; i++) {
+    drawBlock(falling[i], camY);
+  }
+
+  // Draw sparkles
+  for (var i = 0; i < sparkles.length; i++) {
+    var s = sparkles[i];
+    X.globalAlpha = s.life;
+    X.fillStyle = '#fff';
+    X.beginPath();
+    // Star shape
+    var sx = s.x, sy = s.y + camY;
+    X.moveTo(sx, sy - s.size);
+    X.lineTo(sx + s.size * 0.3, sy - s.size * 0.3);
+    X.lineTo(sx + s.size, sy);
+    X.lineTo(sx + s.size * 0.3, sy + s.size * 0.3);
+    X.lineTo(sx, sy + s.size);
+    X.lineTo(sx - s.size * 0.3, sy + s.size * 0.3);
+    X.lineTo(sx - s.size, sy);
+    X.lineTo(sx - s.size * 0.3, sy - s.size * 0.3);
+    X.closePath();
+    X.fill();
+    X.globalAlpha = 1;
+  }
+
+  // Draw cut particles
+  for (var i = 0; i < particles.length; i++) {
+    var p = particles[i];
+    X.globalAlpha = p.life;
+    X.fillStyle = '#fff';
+    X.fillRect(p.x - p.size / 2, p.y + camY - p.size / 2, p.size, p.size);
+    X.globalAlpha = 1;
+  }
+
+  // HUD
+  X.font = '18px "SF Mono", "Cascadia Code", "Consolas", monospace';
+  X.textAlign = 'left';
+  X.fillStyle = 'rgba(0,0,0,0.5)';
+  X.fillRect(8, 8, 180, perfectStreak > 0 ? 68 : 48);
+  X.fillStyle = '#fff';
+  X.fillText('Score: ' + score, 16, 30);
+  X.fillText('Height: ' + towerHeight, 16, 52);
+  if (perfectStreak > 0) {
+    X.fillStyle = '#ff0';
+    X.fillText('Streak: ' + perfectStreak + 'x', 16, 74);
+  }
+
+  // Best score
+  if (bestScore) {
+    X.textAlign = 'right';
+    X.fillStyle = 'rgba(0,0,0,0.5)';
+    X.fillRect(W - 170, 8, 162, 28);
+    X.fillStyle = '#aaa';
+    X.fillText('Best: ' + bestScore, W - 16, 30);
+  }
+
+  // Perfect drop flash text
+  if (sparkles.length > 0 && !gameOver) {
+    X.textAlign = 'center';
+    X.font = 'bold 24px "SF Mono", "Cascadia Code", "Consolas", monospace';
+    var flashAlpha = Math.min(sparkles[0] ? sparkles[0].life * 2 : 0, 1);
+    X.fillStyle = 'rgba(255,255,0,' + flashAlpha + ')';
+    X.fillText('PERFECT!', W / 2, H / 2 - 40);
+  }
+
+  // Game over screen
+  if (gameOver && !crumbling) {
+    X.fillStyle = 'rgba(0,0,0,0.6)';
+    X.fillRect(0, 0, W, H);
+    X.textAlign = 'center';
+    X.font = 'bold 48px "SF Mono", "Cascadia Code", "Consolas", monospace';
+    X.fillStyle = '#fff';
+    X.fillText('GAME OVER', W / 2, H / 2 - 40);
+    X.font = '22px "SF Mono", "Cascadia Code", "Consolas", monospace';
+    X.fillStyle = '#f80';
+    X.fillText('Score: ' + score + '  |  Height: ' + towerHeight, W / 2, H / 2 + 10);
+    if (bestScore) {
+      X.fillStyle = '#aaa';
+      X.fillText('Best: ' + bestScore, W / 2, H / 2 + 42);
+    }
+    X.font = '16px "SF Mono", "Cascadia Code", "Consolas", monospace';
+    X.fillStyle = '#888';
+    X.fillText('Press R or Click to restart', W / 2, H / 2 + 80);
+  }
+
+  // Start hint
+  if (!gameOver && stack.length === 1 && moving) {
+    X.textAlign = 'center';
+    X.font = '16px "SF Mono", "Cascadia Code", "Consolas", monospace';
+    X.fillStyle = 'rgba(255,255,255,0.7)';
+    X.fillText('Click or press Space to drop the block', W / 2, H / 2 - 80);
+    X.fillText('Press ? for info', W / 2, H / 2 - 56);
+  }
+}
+
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+// --- Input ---
+document.addEventListener('keydown', function(e) {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
+    toggleInfo();
+    e.preventDefault();
+    return;
+  }
+  if (e.key === 'Escape' && infoOpen) {
+    toggleInfo();
+    e.preventDefault();
+    return;
+  }
+  if (infoOpen) return;
+
+  if (e.key === 'r' || e.key === 'R') {
+    init();
+    return;
+  }
+  if (e.key === ' ' || e.code === 'Space') {
+    e.preventDefault();
+    if (gameOver && !crumbling) {
+      init();
+    } else {
+      dropBlock();
+    }
+  }
+});
+
+C.addEventListener('click', function() {
+  if (infoOpen) return;
+  if (gameOver && !crumbling) {
+    init();
+  } else {
+    dropBlock();
+  }
+});
+
+// --- Resize ---
+function resize() {
+  var s = Math.min(window.innerWidth / W, window.innerHeight / H);
+  C.style.width = (W * s) + 'px';
+  C.style.height = (H * s) + 'px';
+}
+window.addEventListener('resize', resize);
+resize();
+
+// --- Start ---
+bestScore = 0;
+init();
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

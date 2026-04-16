@@ -1,0 +1,690 @@
+<!--
+PROTOTYPE: runner
+SERIES: plt
+NUMBER: 001
+DATE: 2026-03-22
+MECHANIC: platformer run — jump across gaps, stomp enemies, collect coins; gravity is the primary antagonist
+ANCESTRY: Donkey Kong (1981), Super Mario Bros (1985), Sonic (1991)
+CONTROLS: Left/Right or A/D — run | Space or Up or W — jump (hold for higher) | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — rule-based, pre-backpropagation)
+AI-INSIGHT: Variable-height jump is continuous action control — infinite action space per jump. Coin placement is reward shaping: teaching through environmental design, the exact principle behind curriculum learning and reward shaping in RL.
+NOTES: Mario's genius: variable-height jump. The longer you hold, the higher you go. Depth from a single button.
+       Added coyote time (jump grace after walking off edge) and jump buffer.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PLT-001 · RUNNER</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; flex-direction: column; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner {
+  max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6;
+}
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>PLT-001 · RUNNER</h1>
+    <p><span class="tag series">PLT — Platform</span> <span class="tag">Prototype #001</span> <span class="tag">★★★★☆</span></p>
+
+    <h2>How to Play</h2>
+    <p>Run right, jump gaps, stomp enemies from above, collect coins, reach the flag.</p>
+    <ul>
+      <li><kbd>←</kbd> <kbd>→</kbd> or <kbd>A</kbd> <kbd>D</kbd> — Run</li>
+      <li><kbd>Space</kbd> or <kbd>↑</kbd> or <kbd>W</kbd> — Jump (hold for higher)</li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Variable jump:</strong> Tap for short hop, hold for full height</li>
+      <li><strong>Coyote time:</strong> You can still jump briefly after walking off an edge</li>
+      <li><strong>Stomp:</strong> Land on enemies from above to defeat them. Touch from the side = death.</li>
+      <li>Falling into pits costs a life. Collect coins for score.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Donkey Kong (1981) → Super Mario Bros (1985) → Sonic the Hedgehog (1991)</p>
+    <p>The platformer is born from a simple question: <em>what if jumping was the game?</em> Donkey Kong (1981) gave players a character who could jump over obstacles. Super Mario Bros (1985) perfected the variable-height jump — hold the button longer, jump higher — which is still the gold standard for platformer feel. Sonic (1991) added momentum and speed as reward.</p>
+    <p>Mario's variable jump is the single most important design innovation in platform games. It turns one button into a <em>continuous expression of intent</em>. Every platformer since — from Celeste to Hollow Knight — inherits this mechanic.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 3 — Knowledge Explosion (1978–1983)</p>
+    <p><strong>Contemporary AI:</strong> Planning systems existed but couldn't handle real-time continuous control. No model-based RL. Discrete action spaces only — continuous control remained unsolved.</p>
+    <p><strong>Hidden Intelligence:</strong> Variable-height jump (hold longer = jump higher) is continuous action control — the player chooses from an effectively infinite action space with every jump. This is inherently harder for AI than discrete actions, which is why platformers remained challenging long after Atari shooters were solved by DQN.</p>
+    <p><strong>The Convergence:</strong> Level design in platformers is reward shaping — coins guide the player along intended paths, gaps punish deviation. Mario's levels are hand-crafted reward functions that teach through environmental design, exactly the principle behind curriculum learning and reward shaping in RL. Nintendo's level designers were building reward functions decades before the term existed.</p>
+    <p><strong>If AI Had Designed This:</strong> Procedural level generation with emotional arcs — tension and release patterns mapped to specific player positions, formalizing what Mario Maker's community discovered empirically.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: PLT — Platform</h3>
+    <p>Games where gravity is the primary antagonist. The player navigates vertically layered terrain through jumping, climbing, or falling. The core tension is spatial: <em>can I reach that ledge?</em></p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Variable-height jump + scrolling world.</strong> The player fights gravity while navigating a world wider than the screen. Enemies and gaps create a rhythm of run-jump-stomp.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Variable-height jump feel (is the arc satisfying?)</li>
+      <li>Coyote time + jump buffering (forgiveness mechanics)</li>
+      <li>Enemy stomp as primary combat (risk/reward of jumping on things)</li>
+      <li>Horizontal scrolling camera (how much world context does the player need?)</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> — a mechanical skeleton, not a finished game. The goal is to feel the core mechanic from the builder's perspective, not to create a polished product.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W=800, H=480;
+canvas.width=W; canvas.height=H;
+function resize(){const s=Math.min(window.innerWidth/W,window.innerHeight/H)*0.95;canvas.style.width=W*s+'px';canvas.style.height=H*s+'px';}
+resize(); window.addEventListener('resize',resize);
+
+const keys={};
+window.addEventListener('keydown',e=>{if(!infoOpen){keys[e.code]=true;}e.preventDefault();});
+window.addEventListener('keyup',e=>{keys[e.code]=false;});
+
+// --- LEVEL DATA ---
+// World is ~2400px wide (3 screens). Ground with gaps, floating platforms, pipes, enemies.
+const GROUND_Y=420;
+const LEVELS = [
+  {
+    width: 2800,
+    platforms:[
+      // Ground segments (with gaps)
+      [0,GROUND_Y,480,60],
+      [560,GROUND_Y,340,60],
+      [980,GROUND_Y,200,60],
+      [1280,GROUND_Y,300,60],
+      [1680,GROUND_Y,200,60],
+      [1960,GROUND_Y,240,60],
+      [2300,GROUND_Y,500,60],
+      // Floating platforms — ascending staircase
+      [200,350,80,14],
+      [340,300,80,14],
+      [480,340,100,14], // over first gap
+      [520,260,70,14],
+      // Mid-section elevated
+      [750,320,100,14],
+      [880,270,80,14],
+      [1000,330,80,14],
+      // Pipe obstacles (tall narrow platforms)
+      [1100,350,40,70],
+      [1200,320,40,100],
+      // High path section
+      [1320,280,120,14],
+      [1500,240,100,14],
+      [1620,200,80,14],
+      [1720,260,80,14],
+      // Valley section
+      [1900,360,60,14],
+      [1960,300,80,14],
+      [2100,340,80,14],
+      // Final approach
+      [2350,350,80,14],
+      [2480,300,80,14],
+      [2600,260,120,14],
+    ],
+    coins:[
+      [60,390],[120,390],[180,390],[260,320],[350,270],[490,310],
+      [530,230],[600,390],[680,390],
+      [760,290],[890,240],[1010,300],
+      [1120,310],[1210,280],
+      [1350,250],[1380,250],[1520,210],[1550,210],[1640,170],
+      [1730,230],[1910,330],[1970,270],[2050,270],
+      [2110,310],[2360,320],[2490,270],[2530,270],[2640,230],[2670,230],
+    ],
+    enemies:[
+      [300,GROUND_Y-22,120],
+      [620,GROUND_Y-22,100],
+      [1050,GROUND_Y-22,60],
+      [1350,GROUND_Y-22,80],
+      [480,326,70],
+      [1320,266,80],
+      [2000,GROUND_Y-22,100],
+      [2400,GROUND_Y-22,120],
+    ],
+    goal:[2720,GROUND_Y-40]
+  }
+];
+
+const GRAVITY=0.7, JUMP_FORCE=-13.5, JUMP_HOLD=-0.55, MAX_FALL=16;
+const PLAYER_W=22, PLAYER_H=28, PLAYER_ACCEL=0.85, PLAYER_MAX=6.5, FRICTION=0.82;
+const ENEMY_W=22, ENEMY_H=22;
+const COIN_R=8, GOAL_W=30, GOAL_H=40;
+const COYOTE_TIME=7, JUMP_BUFFER=8;
+
+let player, enemies, coins, camX, score, lives, level, gameOver, won, frame;
+let jumpBuffer=0, coyoteTimer=0;
+let showGoalHint=true, hintTimer=300;
+let particles=[];
+
+function loadLevel(li){
+  const lev=LEVELS[li%LEVELS.length];
+  camX=0;
+  coins=lev.coins.map(([x,y])=>({x,y,collected:false,sparkle:0}));
+  enemies=lev.enemies.map(([x,y,r])=>({x,y,vx:1.8,vy:0,dir:1,startX:x,range:r,alive:true,flat:0,anim:0}));
+  particles=[];
+  return lev;
+}
+
+function initGame(){
+  score=0; lives=4; level=0; gameOver=false; won=false; frame=0;
+  showGoalHint=true; hintTimer=300;
+  player={x:60,y:GROUND_Y-PLAYER_H-2,vx:0,vy:0,onGround:false,facingRight:true,
+          jumpHeld:false,dead:false,respawnTimer:0,runAnim:0,squash:0};
+  loadLevel(level);
+}
+initGame();
+
+function spawn(x,y,count,color){
+  for(let i=0;i<count;i++){
+    const a=Math.random()*Math.PI*2,spd=1+Math.random()*3;
+    particles.push({x,y,vx:Math.cos(a)*spd,vy:Math.sin(a)*spd-2,life:30+Math.random()*20,maxLife:50,color});
+  }
+}
+
+// --- COLLISION ---
+function rectOverlap(ax,ay,aw,ah,bx,by,bw,bh){
+  return ax<bx+bw&&ax+aw>bx&&ay<by+bh&&ay+ah>by;
+}
+
+function resolveGround(p,plats){
+  let onGround=false;
+  for(const [px,py,pw,ph] of plats){
+    if(p.x+PLAYER_W>px&&p.x<px+pw){
+      if(p.vy>=0&&p.y+PLAYER_H<=py+10&&p.y+PLAYER_H+p.vy>=py){
+        p.y=py-PLAYER_H; p.vy=0; onGround=true;
+      }
+      if(p.vy<0&&p.y>=py+ph-6&&p.y+p.vy<=py+ph){
+        p.y=py+ph; p.vy=1;
+      }
+    }
+    if(p.y+PLAYER_H>py+4&&p.y<py+ph-4){
+      if(p.vx>0&&p.x+PLAYER_W>px&&p.x+PLAYER_W-p.vx<=px+2){p.x=px-PLAYER_W;p.vx=0;}
+      if(p.vx<0&&p.x<px+pw&&p.x-p.vx>=px+pw-2){p.x=px+pw;p.vx=0;}
+    }
+  }
+  return onGround;
+}
+
+// --- UPDATE ---
+function update(){
+  if(infoOpen) return;
+  if(gameOver||won){if(keys['KeyR']){initGame();loadLevel(level);}return;}
+  frame++;
+  if(hintTimer>0) hintTimer--;
+
+  const p=player;
+  if(p.dead){
+    p.respawnTimer--;
+    if(p.respawnTimer<=0){
+      p.dead=false; p.x=Math.max(0,camX+60); p.y=200; p.vx=0; p.vy=0;
+    }
+    return;
+  }
+
+  // Run animation
+  if(Math.abs(p.vx)>0.5&&p.onGround) p.runAnim+=Math.abs(p.vx)*0.15;
+
+  // Horizontal
+  if(keys['ArrowLeft']||keys['KeyA']){p.vx-=PLAYER_ACCEL;p.facingRight=false;}
+  else if(keys['ArrowRight']||keys['KeyD']){p.vx+=PLAYER_ACCEL;p.facingRight=true;}
+  else p.vx*=FRICTION;
+  p.vx=Math.max(-PLAYER_MAX,Math.min(PLAYER_MAX,p.vx));
+  if(Math.abs(p.vx)<0.1) p.vx=0;
+
+  // Jump buffer
+  const jumpPressed=keys['Space']||keys['ArrowUp']||keys['KeyW'];
+  if(jumpPressed) jumpBuffer=JUMP_BUFFER;
+  else jumpBuffer=Math.max(0,jumpBuffer-1);
+
+  // Coyote time + jump
+  if(p.onGround) coyoteTimer=COYOTE_TIME;
+  else coyoteTimer=Math.max(0,coyoteTimer-1);
+
+  if(jumpBuffer>0&&coyoteTimer>0&&!p.jumpHeld){
+    p.vy=JUMP_FORCE; jumpBuffer=0; coyoteTimer=0; p.jumpHeld=true;
+    p.squash=-4;
+    spawn(p.x+PLAYER_W/2,p.y+PLAYER_H,5,'#fff');
+  }
+  // Variable height — snappier cutoff
+  if(p.jumpHeld&&jumpPressed&&p.vy<-2) p.vy+=JUMP_HOLD;
+  if(!jumpPressed){
+    p.jumpHeld=false;
+    if(p.vy<-3) p.vy*=0.6; // cut jump short fast
+  }
+
+  // Gravity
+  p.vy=Math.min(p.vy+GRAVITY, MAX_FALL);
+  p.x+=p.vx; p.y+=p.vy;
+  if(p.x<0){p.x=0;p.vx=0;}
+
+  // Squash/stretch decay
+  if(p.squash!==0) p.squash*=0.7;
+  if(Math.abs(p.squash)<0.5) p.squash=0;
+
+  const lev=LEVELS[level%LEVELS.length];
+  const plat=lev.platforms;
+  const wasOnGround=p.onGround;
+  p.onGround=resolveGround(p,plat);
+
+  // Land squash
+  if(p.onGround&&!wasOnGround&&p.vy===0) p.squash=3;
+
+  // Camera — smooth follow
+  const targetCam=p.x-W*0.35;
+  camX+=(targetCam-camX)*0.12;
+  camX=Math.max(0,Math.min(lev.width-W,camX));
+
+  // Fell off screen
+  if(p.y>H+80){
+    lives--; p.dead=true; p.respawnTimer=60;
+    if(lives<=0){gameOver=true;}
+    return;
+  }
+
+  // Enemies
+  for(const e of enemies){
+    if(!e.alive){e.flat=Math.max(0,e.flat-1);continue;}
+    e.anim++;
+    e.vx=e.dir*1.8; e.vy=Math.min(e.vy+GRAVITY,MAX_FALL);
+    e.x+=e.vx; e.y+=e.vy;
+    if(e.x<e.startX-e.range||e.x>e.startX+e.range) e.dir*=-1;
+    for(const [px,py,pw,ph] of plat){
+      if(e.x+ENEMY_W>px&&e.x<px+pw&&e.vy>=0&&e.y+ENEMY_H<=py+10&&e.y+ENEMY_H+e.vy>=py){
+        e.y=py-ENEMY_H; e.vy=0;
+      }
+    }
+    // Edge detection — reverse at platform edge
+    let overEdge=true;
+    for(const [px,py,pw,ph] of plat){
+      const checkX=e.dir>0?e.x+ENEMY_W+2:e.x-2;
+      if(checkX>=px&&checkX<=px+pw&&e.y+ENEMY_H>=py-2&&e.y+ENEMY_H<=py+10){overEdge=false;break;}
+    }
+    if(overEdge&&e.vy===0) e.dir*=-1;
+
+    if(rectOverlap(p.x,p.y,PLAYER_W,PLAYER_H,e.x,e.y,ENEMY_W,ENEMY_H)){
+      if(p.vy>0&&p.y+PLAYER_H<e.y+ENEMY_H*0.6){
+        e.alive=false; e.flat=40; p.vy=JUMP_FORCE*0.65; score+=200;
+        spawn(e.x+ENEMY_W/2,e.y+ENEMY_H/2,10,'#f80');
+      } else {
+        lives--; p.dead=true; p.respawnTimer=60;
+        spawn(p.x+PLAYER_W/2,p.y+PLAYER_H/2,15,'#f44');
+        if(lives<=0){gameOver=true;}
+        return;
+      }
+    }
+  }
+
+  // Coins
+  for(const c of coins){
+    if(!c.collected&&rectOverlap(p.x,p.y,PLAYER_W,PLAYER_H,c.x-COIN_R,c.y-COIN_R,COIN_R*2,COIN_R*2)){
+      c.collected=true; c.sparkle=20; score+=100;
+      spawn(c.x,c.y,6,'#ffd700');
+    }
+    if(c.sparkle>0) c.sparkle--;
+  }
+
+  // Goal
+  const gl=lev.goal;
+  if(rectOverlap(p.x,p.y,PLAYER_W,PLAYER_H,gl[0],gl[1],GOAL_W,GOAL_H)){
+    score+=1000; won=true;
+  }
+
+  // Particles
+  particles=particles.filter(pt=>{pt.x+=pt.vx;pt.y+=pt.vy;pt.vy+=0.15;pt.vx*=0.96;return --pt.life>0;});
+}
+
+// --- DRAW ---
+function drawPlayer(){
+  const p=player;
+  if(p.dead)return;
+  const sx=p.x-camX, sy=p.y;
+  const f=p.facingRight?1:-1;
+  const sq=p.squash;
+  const sw=PLAYER_W+sq*2, sh=PLAYER_H-sq;
+  const ox=sx-(sq), oy=sy+(sq>0?sq:0);
+  // Shadow
+  ctx.fillStyle='rgba(0,0,0,0.15)';
+  ctx.fillRect(ox+2,GROUND_Y-camX*0+0-2,sw-4,4);
+  // Body
+  ctx.fillStyle='#e63';
+  ctx.fillRect(ox+2,oy,sw-4,sh-4);
+  // Hat
+  ctx.fillStyle='#e63';
+  ctx.fillRect(ox,oy-7,sw,9);
+  ctx.fillStyle='#c42';
+  ctx.fillRect(ox+(f>0?sw*0.5:0),oy-7,sw*0.5,3);
+  // Face
+  ctx.fillStyle='#fca';
+  ctx.fillRect(ox+4,oy+2,sw-8,10);
+  // Eyes
+  ctx.fillStyle='#000';
+  ctx.fillRect(ox+(f>0?sw-8:4),oy+4,3,3);
+  // Overalls
+  ctx.fillStyle='#36c';
+  ctx.fillRect(ox+4,oy+12,sw-8,sh-16);
+  ctx.fillStyle='#28a';
+  ctx.fillRect(ox+sw/2-2,oy+12,4,sh-18);
+  // Feet — animate while running
+  const legOff=p.onGround?Math.sin(p.runAnim)*3:0;
+  ctx.fillStyle='#520';
+  ctx.fillRect(ox+2+legOff,oy+sh-5,sw/2-3,5);
+  ctx.fillRect(ox+sw/2+1-legOff,oy+sh-5,sw/2-3,5);
+}
+
+function drawPipe(x,topY){
+  const sx=x-camX;
+  const ph=GROUND_Y-topY;
+  ctx.fillStyle='#2a2'; ctx.fillRect(sx,topY,40,ph);
+  ctx.fillStyle='#3c3'; ctx.fillRect(sx-3,topY,46,14);
+  ctx.fillStyle='#1a1'; ctx.fillRect(sx+2,topY+14,4,ph-14);
+  ctx.fillStyle='#4d4'; ctx.fillRect(sx+34,topY+14,4,ph-14);
+}
+
+function draw(){
+  // Sky gradient
+  const grad=ctx.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0,'#4080e0'); grad.addColorStop(0.7,'#6cacff'); grad.addColorStop(1,'#a8d8ff');
+  ctx.fillStyle=grad; ctx.fillRect(0,0,W,H);
+
+  // Distant mountains
+  ctx.fillStyle='#5590d8';
+  for(let i=0;i<6;i++){
+    const mx=((i*400-camX*0.15+2400)%2400)-200;
+    ctx.beginPath(); ctx.moveTo(mx-120,GROUND_Y);
+    ctx.lineTo(mx,GROUND_Y-80-i%3*30); ctx.lineTo(mx+120,GROUND_Y); ctx.fill();
+  }
+  // Hills
+  ctx.fillStyle='#5a9653';
+  for(let i=0;i<8;i++){
+    const hx=((i*260-camX*0.3+2100)%2100)-120;
+    ctx.beginPath(); ctx.arc(hx,GROUND_Y,70+i%3*20,0,Math.PI,true); ctx.fill();
+  }
+  // Bushes
+  ctx.fillStyle='#4a8040';
+  for(let i=0;i<12;i++){
+    const bx=((i*190-camX*0.5+2400)%2400)-60;
+    ctx.beginPath(); ctx.arc(bx,GROUND_Y-3,14+i%4*6,0,Math.PI,true); ctx.fill();
+  }
+
+  const lev=LEVELS[level%LEVELS.length];
+  const plat=lev.platforms;
+
+  // Draw platforms
+  for(const [px,py,pw,ph] of plat){
+    const sx=px-camX;
+    if(sx>W+50||sx+pw<-50) continue;
+    if(ph>50){
+      // Ground block
+      ctx.fillStyle='#8b5e3c'; ctx.fillRect(sx,py,pw,ph);
+      ctx.fillStyle='#5a8a3c'; ctx.fillRect(sx,py-2,pw,6);
+      // Brick pattern
+      ctx.fillStyle='#7a4e2c';
+      for(let by=py+8;by<py+ph;by+=16)
+        for(let bx=0;bx<pw;bx+=32){
+          const off=(by-py)%32===8?0:16;
+          ctx.fillRect(sx+bx+off,by,30,14);
+          ctx.strokeStyle='#6a3e1c'; ctx.strokeRect(sx+bx+off,by,30,14);
+        }
+    } else if(pw===40&&ph>=70){
+      // Pipe
+      drawPipe(px,py);
+    } else {
+      // Floating platform
+      ctx.fillStyle='#b87333'; ctx.fillRect(sx,py,pw,ph);
+      ctx.fillStyle='#d4943a'; ctx.fillRect(sx,py,pw,4);
+      ctx.fillStyle='#8a5520'; ctx.fillRect(sx,py+ph-3,pw,3);
+    }
+  }
+
+  // Goal flag
+  const gl=lev.goal;
+  const gsx=gl[0]-camX;
+  ctx.fillStyle='#888'; ctx.fillRect(gsx+13,gl[1]-50,4,GOAL_H+50);
+  ctx.fillStyle='#4f4';
+  ctx.beginPath();ctx.moveTo(gsx+17,gl[1]-50);ctx.lineTo(gsx+40,gl[1]-40);
+  ctx.lineTo(gsx+17,gl[1]-30);ctx.fill();
+  ctx.fillStyle='#fff'; ctx.font='bold 11px monospace'; ctx.textAlign='center';
+  ctx.fillText('GOAL',gsx+24,gl[1]-54);
+
+  // Coins
+  for(const c of coins){
+    if(c.collected) continue;
+    const sx=c.x-camX;
+    if(sx<-20||sx>W+20) continue;
+    const bob=Math.sin(frame*0.08+c.x*0.1)*3;
+    ctx.fillStyle='#ffd700';
+    ctx.beginPath(); ctx.arc(sx,c.y+bob,COIN_R,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#ffed4a';
+    ctx.beginPath(); ctx.arc(sx-2,c.y+bob-2,COIN_R*0.4,0,Math.PI*2); ctx.fill();
+  }
+
+  // Enemies
+  for(const e of enemies){
+    const sx=e.x-camX, sy=e.y;
+    if(sx<-40||sx>W+40) continue;
+    if(!e.alive){
+      if(e.flat>0){
+        ctx.fillStyle='#d44'; ctx.fillRect(sx,sy+ENEMY_H-6,ENEMY_W,6);
+      }
+      continue;
+    }
+    const bob=Math.sin(e.anim*0.1)*1.5;
+    ctx.fillStyle='#d44'; ctx.fillRect(sx,sy+bob,ENEMY_W,ENEMY_H);
+    ctx.fillStyle='#900'; ctx.fillRect(sx,sy+bob,ENEMY_W,ENEMY_H*0.45);
+    // Angry eyes
+    ctx.fillStyle='#fff';
+    ctx.fillRect(sx+3,sy+5+bob,6,5); ctx.fillRect(sx+ENEMY_W-9,sy+5+bob,6,5);
+    ctx.fillStyle='#000';
+    const ex=e.dir>0?2:0;
+    ctx.fillRect(sx+3+ex,sy+7+bob,3,3); ctx.fillRect(sx+ENEMY_W-9+ex,sy+7+bob,3,3);
+    // Angry brows
+    ctx.fillStyle='#600';
+    ctx.fillRect(sx+2,sy+3+bob,7,2); ctx.fillRect(sx+ENEMY_W-9,sy+3+bob,7,2);
+    // Feet shuffle
+    const foot=Math.sin(e.anim*0.2)*2;
+    ctx.fillStyle='#600';
+    ctx.fillRect(sx-2+foot,sy+ENEMY_H-4+bob,9,4);
+    ctx.fillRect(sx+ENEMY_W-7-foot,sy+ENEMY_H-4+bob,9,4);
+  }
+
+  // Particles
+  for(const pt of particles){
+    ctx.globalAlpha=pt.life/pt.maxLife;
+    ctx.fillStyle=pt.color;
+    ctx.fillRect(pt.x-camX-1,pt.y-1,3,3);
+  }
+  ctx.globalAlpha=1;
+
+  drawPlayer();
+
+  // HUD
+  ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fillRect(0,0,W,34);
+  ctx.fillStyle='#fff'; ctx.font='bold 15px monospace';
+  ctx.textAlign='left'; ctx.fillText('SCORE: '+score, 12, 23);
+  ctx.textAlign='right';
+  let heartsStr='';
+  for(let i=0;i<lives;i++) heartsStr+='❤ ';
+  ctx.fillText(heartsStr.trim(), W-12, 23);
+  ctx.textAlign='center'; ctx.fillStyle='#ff0';
+  const coinCount=coins.filter(c=>c.collected).length;
+  ctx.fillText('COINS: '+coinCount+'/'+coins.length, W/2, 23);
+
+  // Goal hint at start
+  if(hintTimer>0&&showGoalHint){
+    ctx.globalAlpha=Math.min(1,hintTimer/60);
+    ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.fillRect(W/2-160,H/2-60,320,80);
+    ctx.fillStyle='#ff0'; ctx.font='bold 18px monospace'; ctx.textAlign='center';
+    ctx.fillText('Run right → Reach the flag!', W/2, H/2-30);
+    ctx.fillStyle='#aaa'; ctx.font='14px monospace';
+    ctx.fillText('Jump on enemies, collect coins', W/2, H/2-6);
+    ctx.fillText('Press ? for help', W/2, H/2+14);
+    ctx.globalAlpha=1;
+  }
+
+  if(player.dead&&!gameOver){
+    ctx.fillStyle='rgba(0,0,0,0.4)'; ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='#ff4'; ctx.font='bold 28px monospace'; ctx.textAlign='center';
+    ctx.fillText('OUCH!', W/2, H/2);
+  }
+
+  if(gameOver||won){
+    ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(0,0,W,H);
+    ctx.font='bold 44px monospace'; ctx.textAlign='center';
+    ctx.fillStyle= won?'#4f4':'#f44';
+    ctx.fillText(won?'LEVEL CLEAR!':'GAME OVER', W/2, H/2-24);
+    ctx.fillStyle='#ff0'; ctx.font='bold 22px monospace';
+    ctx.fillText('SCORE: '+score, W/2, H/2+12);
+    ctx.fillStyle='#aaa'; ctx.font='16px monospace';
+    ctx.fillText('R to restart', W/2, H/2+40);
+  }
+
+  // Series badge
+  ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.fillRect(W-170,H-26,162,20);
+  ctx.fillStyle='#aaa'; ctx.font='12px monospace'; ctx.textAlign='right';
+  ctx.fillText('PLT-001 · RUNNER  [?]', W-14, H-11);
+}
+
+function loop(){update();draw();requestAnimationFrame(loop);}
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: runner ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("runner");
+</script>
+</body>
+</html>

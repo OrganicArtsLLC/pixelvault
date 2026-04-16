@@ -1,0 +1,552 @@
+<!--
+PROTOTYPE: racer
+SERIES: rac
+NUMBER: 001
+DATE: 2026-03-26
+MECHANIC: perspective-road — pseudo-3D road races toward viewer, steer to survive, speed to win
+ANCESTRY: Night Driver (1976, Atari), Pole Position (1982, Namco), Out Run (1986, Sega)
+CONTROLS: Left/Right arrows — steer | Up — accelerate | Down — brake | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 2 (Expert Systems — sprite scaling creates 3D illusion with 2D math, road curvature is pure trig)
+AI-INSIGHT: Pseudo-3D racing is one of gaming's great optical illusions. No 3D engine, no polygons — just scaled horizontal lines creating the sensation of depth. The road is a mathematical curve rendered as stacked trapezoids. Every racing game before polygon era lived inside this trick.
+NOTES: The perspective road illusion — one of gaming's most important visual inventions. Sprite scaling as proto-3D. Every racing game from Pole Position to Out Run to Road Rash used this technique.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAC-001 · RACER</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .content {
+  max-width: 700px; margin: 40px auto; padding: 20px; line-height: 1.7;
+}
+#info-panel h2 { color: #f90; margin-bottom: 10px; }
+#info-panel kbd { background: #333; padding: 2px 8px; border-radius: 3px; color: #fff; }
+#info-panel .close-btn { position: fixed; top: 15px; right: 25px; color: #f90;
+  font-size: 28px; cursor: pointer; z-index: 101; }
+</style>
+</head>
+<body>
+<canvas id="c" width="800" height="600"></canvas>
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="content">
+    <h2>RAC-001 · RACER</h2>
+    <p><strong>Mechanic:</strong> Pseudo-3D perspective road — steer, accelerate, avoid</p>
+    <p><strong>Ancestry:</strong> Night Driver (1976), Pole Position (1982), Out Run (1986)</p>
+    <p><strong>Controls:</strong></p>
+    <ul>
+      <li><kbd>Left</kbd> / <kbd>Right</kbd> — Steer</li>
+      <li><kbd>Up</kbd> — Accelerate</li>
+      <li><kbd>Down</kbd> — Brake</li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — Toggle this panel</li>
+    </ul>
+    <p><strong>Goal:</strong> Race as far as possible before time runs out. Pass other cars to earn bonus time.
+    Hitting roadside objects or other cars slows you down dramatically.</p>
+    <p><strong>AI Insight:</strong> Pseudo-3D is one of gaming's great optical illusions.
+    No 3D engine needed — just scaled horizontal lines creating the sensation of depth.
+    The road is a mathematical curve rendered as stacked trapezoids.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+
+let infoPanelOpen = false;
+function toggleInfo() {
+  infoPanelOpen = !infoPanelOpen;
+  document.getElementById('info-panel').style.display = infoPanelOpen ? 'block' : 'none';
+}
+
+const W = 800, H = 600;
+const ROAD_Y = 250;              // horizon line
+const SEG_COUNT = 200;           // road segments
+const SEG_LENGTH = 200;          // world units per segment
+const RUMBLE_LENGTH = 3;         // segments per rumble strip
+const ROAD_WIDTH = 2000;         // half-width in world units
+const CAMERA_HEIGHT = 1000;
+const CAMERA_DEPTH = 1 / Math.tan(50 * Math.PI / 180);  // FOV
+const MAX_SPEED = SEG_LENGTH * 60;   // segments/sec at 60fps
+const ACCEL = MAX_SPEED / 100;
+const BRAKE = -MAX_SPEED / 50;
+const DECEL = -MAX_SPEED / 200;
+const OFF_ROAD_DECEL = -MAX_SPEED / 30;
+const CENTRIFUGAL = 0.35;
+
+let keys = {};
+let speed, position, playerX, score, timeLeft, state;
+let segments = [];
+let cars = [];
+
+// --- ROAD GENERATION ---
+function buildRoad() {
+  segments = [];
+  for (let i = 0; i < SEG_COUNT; i++) {
+    const seg = {
+      index: i,
+      curve: 0,
+      y: 0,     // elevation (future)
+      clip: 0,
+    };
+    // Curved sections
+    if (i > 20 && i < 60) seg.curve = 2.5;
+    if (i > 70 && i < 100) seg.curve = -3;
+    if (i > 120 && i < 150) seg.curve = 4;
+    if (i > 160 && i < 180) seg.curve = -2;
+    segments.push(seg);
+  }
+}
+
+function spawnCars() {
+  cars = [];
+  for (let i = 0; i < 12; i++) {
+    cars.push({
+      segIndex: 30 + Math.floor(Math.random() * (SEG_COUNT - 40)),
+      offset: (Math.random() - 0.5) * 1.6,  // -0.8 to 0.8
+      speed: MAX_SPEED * (0.3 + Math.random() * 0.3),
+      w: 300, h: 200,
+      color: ['#e22', '#22e', '#ee2', '#2e2', '#e82'][Math.floor(Math.random() * 5)],
+    });
+  }
+}
+
+function initGame() {
+  speed = 0;
+  position = 0;
+  playerX = 0;
+  score = 0;
+  timeLeft = 60;
+  state = 'title';
+  buildRoad();
+  spawnCars();
+}
+
+function startRace() {
+  speed = 0;
+  position = 0;
+  playerX = 0;
+  score = 0;
+  timeLeft = 45;
+  buildRoad();
+  spawnCars();
+  state = 'play';
+}
+
+// --- PROJECT / RENDER SEGMENT ---
+function project(p, cameraX, cameraY, cameraZ, screenW, screenH) {
+  const transX = p.worldX - cameraX;
+  const transY = p.worldY - cameraY;
+  const transZ = p.worldZ - cameraZ;
+  if (transZ <= 0) return null;
+  const scale = CAMERA_DEPTH / transZ;
+  return {
+    x: Math.round(screenW / 2 + scale * transX * screenW / 2),
+    y: Math.round(screenH / 2 - scale * transY * screenH / 2),
+    w: Math.round(scale * ROAD_WIDTH * screenW / 2),
+    scale,
+  };
+}
+
+function drawSegment(x1, y1, w1, x2, y2, w2, color) {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(x1 - w1, y1);
+  ctx.lineTo(x1 + w1, y1);
+  ctx.lineTo(x2 + w2, y2);
+  ctx.lineTo(x2 - w2, y2);
+  ctx.closePath();
+  ctx.fill();
+}
+
+// --- TIMER ---
+let lastTime = 0;
+let timerAccum = 0;
+
+// --- UPDATE ---
+function update(dt) {
+  if (infoPanelOpen) return;
+  if (state !== 'play') return;
+
+  // Timer
+  timerAccum += dt;
+  if (timerAccum >= 1) {
+    timerAccum -= 1;
+    timeLeft--;
+    if (timeLeft <= 0) {
+      timeLeft = 0;
+      state = 'gameover';
+      return;
+    }
+  }
+
+  // Speed control
+  if (keys['ArrowUp'] || keys['w'] || keys['W']) {
+    speed += ACCEL;
+  } else if (keys['ArrowDown'] || keys['s'] || keys['S']) {
+    speed += BRAKE;
+  } else {
+    speed += DECEL;
+  }
+
+  // Off-road deceleration
+  if (Math.abs(playerX) > 0.8) {
+    speed += OFF_ROAD_DECEL;
+  }
+
+  speed = Math.max(0, Math.min(speed, MAX_SPEED));
+
+  // Steering
+  const steerAmount = 0.04 * (speed / MAX_SPEED);
+  if (keys['ArrowLeft'] || keys['a'] || keys['A']) playerX -= steerAmount;
+  if (keys['ArrowRight'] || keys['d'] || keys['D']) playerX += steerAmount;
+
+  // Centrifugal force from curves
+  const segIndex = Math.floor(position / SEG_LENGTH) % SEG_COUNT;
+  const curve = segments[segIndex].curve;
+  playerX -= curve * CENTRIFUGAL * (speed / MAX_SPEED) * 0.02;
+
+  // Clamp player X
+  if (playerX < -2) playerX = -2;
+  if (playerX > 2) playerX = 2;
+
+  // Advance position
+  position += speed * dt;
+
+  // Wrap road
+  if (position >= SEG_COUNT * SEG_LENGTH) {
+    position -= SEG_COUNT * SEG_LENGTH;
+    score += 1000; // lap bonus
+  }
+
+  // Score
+  score += Math.floor(speed * dt / 100);
+
+  // Car collisions
+  for (const car of cars) {
+    const carPos = car.segIndex * SEG_LENGTH;
+    const dist = Math.abs(position - carPos);
+    if (dist < SEG_LENGTH * 0.8) {
+      const dx = Math.abs(playerX - car.offset);
+      if (dx < 0.4) {
+        speed *= 0.3;  // crash slowdown
+        score += 200;  // passing bonus canceled
+        car.segIndex = (car.segIndex + 50) % SEG_COUNT; // move car away
+      }
+    }
+    // Move cars
+    car.segIndex = (car.segIndex + car.speed * dt / SEG_LENGTH) % SEG_COUNT;
+  }
+}
+
+// --- DRAW ---
+function draw() {
+  // Sky gradient
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, ROAD_Y);
+  skyGrad.addColorStop(0, '#115');
+  skyGrad.addColorStop(1, '#48a');
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, W, ROAD_Y);
+
+  // Ground
+  ctx.fillStyle = '#362';
+  ctx.fillRect(0, ROAD_Y, W, H - ROAD_Y);
+
+  if (state === 'title') {
+    ctx.fillStyle = '#f90';
+    ctx.font = 'bold 48px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('RACER', W / 2, 180);
+    ctx.fillStyle = '#aaa';
+    ctx.font = '18px monospace';
+    ctx.fillText('Pseudo-3D perspective road racing', W / 2, 230);
+    ctx.fillText('UP — accelerate  |  LEFT/RIGHT — steer  |  DOWN — brake', W / 2, 280);
+    ctx.fillText('Press UP to race', W / 2, 340);
+    ctx.fillStyle = '#666';
+    ctx.font = '14px monospace';
+    ctx.fillText('RAC-001 · Racing / Driving Series', W / 2, 560);
+    return;
+  }
+
+  // Render road back-to-front
+  const baseSeg = Math.floor(position / SEG_LENGTH);
+  const basePercent = (position % SEG_LENGTH) / SEG_LENGTH;
+  let cumulCurve = 0;
+  let x = 0;
+  let dx = 0;
+
+  // Project road segments
+  const projected = [];
+  for (let i = 0; i < 80; i++) {
+    const n = (baseSeg + i) % SEG_COUNT;
+    const seg = segments[n];
+    const z = (i - basePercent) * SEG_LENGTH;
+    if (z <= 0) continue;
+
+    cumulCurve += seg.curve;
+    x += dx;
+    dx += seg.curve;
+
+    const p = project(
+      { worldX: x - playerX * ROAD_WIDTH, worldY: CAMERA_HEIGHT, worldZ: z },
+      0, CAMERA_HEIGHT, 0, W, H
+    );
+    if (!p) continue;
+    p.curve = cumulCurve;
+    p.segIndex = n;
+    projected.push(p);
+  }
+
+  // Draw from far to near
+  let maxY = H;
+  for (let i = projected.length - 1; i > 0; i--) {
+    const p1 = projected[i];
+    const p2 = projected[i - 1];
+
+    if (p1.y >= maxY) continue;
+
+    const segI = p1.segIndex;
+    const rumble = Math.floor(segI / RUMBLE_LENGTH) % 2;
+
+    // Grass
+    const grassColor = rumble ? '#2a5' : '#283';
+    ctx.fillStyle = grassColor;
+    ctx.fillRect(0, p1.y, W, p2.y - p1.y);
+
+    // Road
+    const roadColor = rumble ? '#666' : '#777';
+    drawSegment(p1.x, p1.y, p1.w, p2.x, p2.y, p2.w, roadColor);
+
+    // Rumble strips
+    const rumbleW1 = p1.w * 1.15;
+    const rumbleW2 = p2.w * 1.15;
+    const rumbleColor = rumble ? '#e22' : '#fff';
+    drawSegment(p1.x, p1.y, rumbleW1, p2.x, p2.y, rumbleW2, rumbleColor);
+    // Re-draw road on top of rumble
+    drawSegment(p1.x, p1.y, p1.w, p2.x, p2.y, p2.w, roadColor);
+
+    // Center line
+    if (!rumble) {
+      const lw1 = p1.w * 0.02;
+      const lw2 = p2.w * 0.02;
+      drawSegment(p1.x, p1.y, lw1, p2.x, p2.y, lw2, '#fff');
+    }
+
+    // Lane markers
+    const laneW1 = p1.w * 0.01;
+    const laneW2 = p2.w * 0.01;
+    if (rumble) {
+      for (const laneOff of [-0.5, 0.5]) {
+        const lx1 = p1.x + p1.w * laneOff;
+        const lx2 = p2.x + p2.w * laneOff;
+        drawSegment(lx1, p1.y, laneW1, lx2, p2.y, laneW2, '#fff');
+      }
+    }
+
+    maxY = p1.y;
+  }
+
+  // Draw other cars
+  for (const car of cars) {
+    const carSegDist = ((car.segIndex - baseSeg + SEG_COUNT) % SEG_COUNT);
+    if (carSegDist > 0 && carSegDist < 70) {
+      const z = (carSegDist - basePercent) * SEG_LENGTH;
+      if (z <= 0) continue;
+      const scale = CAMERA_DEPTH / z * W / 2;
+      const carW = car.w * scale * 0.3;
+      const carH = car.h * scale * 0.3;
+      // Approximate screen position
+      const screenX = W / 2 + (car.offset - playerX) * ROAD_WIDTH * scale * 0.5;
+      const screenY = H / 2 - CAMERA_HEIGHT * scale + carH;
+      if (screenY < H && screenY > ROAD_Y) {
+        ctx.fillStyle = car.color;
+        ctx.fillRect(screenX - carW / 2, screenY - carH, carW, carH);
+        // Windshield
+        ctx.fillStyle = '#224';
+        ctx.fillRect(screenX - carW * 0.35, screenY - carH * 0.85, carW * 0.7, carH * 0.3);
+      }
+    }
+  }
+
+  // Player car (always at bottom center)
+  const carCX = W / 2;
+  const carY = H - 40;
+  ctx.fillStyle = '#4af';
+  ctx.fillRect(carCX - 30, carY - 50, 60, 50);
+  ctx.fillStyle = '#38d';
+  ctx.fillRect(carCX - 25, carY - 65, 50, 20);  // roof
+  ctx.fillStyle = '#226';
+  ctx.fillRect(carCX - 22, carY - 62, 44, 14);   // windshield
+  // Wheels
+  ctx.fillStyle = '#222';
+  ctx.fillRect(carCX - 33, carY - 45, 8, 16);
+  ctx.fillRect(carCX + 25, carY - 45, 8, 16);
+  ctx.fillRect(carCX - 33, carY - 15, 8, 16);
+  ctx.fillRect(carCX + 25, carY - 15, 8, 16);
+
+  // HUD
+  ctx.fillStyle = '#fff';
+  ctx.font = '16px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText(`SCORE: ${score}`, 15, 25);
+  ctx.fillText(`SPEED: ${Math.floor(speed / MAX_SPEED * 200)} MPH`, 15, 45);
+  ctx.textAlign = 'right';
+  ctx.fillStyle = timeLeft <= 10 ? '#f44' : '#fff';
+  ctx.fillText(`TIME: ${timeLeft}s`, W - 15, 25);
+
+  // Speedometer bar
+  const barW = 150;
+  ctx.fillStyle = '#333';
+  ctx.fillRect(15, 55, barW, 8);
+  const speedPct = speed / MAX_SPEED;
+  ctx.fillStyle = speedPct > 0.8 ? '#f22' : speedPct > 0.5 ? '#fa0' : '#4f4';
+  ctx.fillRect(15, 55, barW * speedPct, 8);
+
+  if (state === 'gameover') {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#f44';
+    ctx.font = 'bold 42px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('TIME UP', W / 2, 250);
+    ctx.fillStyle = '#fff';
+    ctx.font = '20px monospace';
+    ctx.fillText(`Final Score: ${score}`, W / 2, 300);
+    ctx.fillStyle = '#aaa';
+    ctx.font = '16px monospace';
+    ctx.fillText('Press R to race again', W / 2, 360);
+  }
+}
+
+// --- INPUT ---
+document.addEventListener('keydown', e => {
+  keys[e.key] = true;
+  if (e.key === '?') { toggleInfo(); return; }
+  if (e.key === 'r' || e.key === 'R') { initGame(); startRace(); return; }
+  if ((e.key === 'ArrowUp') && state === 'title') { startRace(); return; }
+  if (e.key === ' ') e.preventDefault();
+});
+document.addEventListener('keyup', e => { keys[e.key] = false; });
+
+// --- GAME LOOP ---
+initGame();
+function loop(ts) {
+  const dt = lastTime ? Math.min((ts - lastTime) / 1000, 0.05) : 1 / 60;
+  lastTime = ts;
+  update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: dpad4 ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("dpad4");
+</script>
+</body>
+</html>

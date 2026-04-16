@@ -1,0 +1,729 @@
+<!--
+PROTOTYPE: goobridge
+SERIES: phy
+NUMBER: 009
+DATE: 2026-03-24
+MECHANIC: living physics bridge building — connect goo balls into structures to span gaps and reach the exit pipe; goo has spring physics
+ANCESTRY: World of Goo (2008, Kyle Gabler & Ron Carmel / 2D Boy), Bridge Builder (2000, Alex Austin / Chronic Logic), The Incredible Machine (1993, Kevin Ryan / Sierra)
+CONTROLS: Click — pick up goo ball | Drag — position | Release — attach to nearby goo | R — restart level | N — next level (after win) | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 5-6 (Ensemble & Deep Learning — structural stability prediction, physics simulation, soft-body dynamics)
+AI-INSIGHT: World of Goo is a structural engineering problem disguised as a toy. Each goo ball placement is a decision about load distribution, and the spring-joint network must maintain structural integrity under gravity. This parallels finite element analysis in engineering and graph neural networks that predict physical system behavior from connectivity patterns.
+NOTES: Kyle Gabler and Ron Carmel created World of Goo at 2D Boy in 2008, evolving from Gabler's student project Tower of Goo. The game proved that physics puzzles could be emotionally engaging — the goo balls feel alive, creating attachment to your building material. This prototype captures the core loop: pick up, stretch, attach, watch it sway.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PHY-009 · GOOBRIDGE</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>PHY-009 &middot; GOOBRIDGE</h1>
+    <p><span class="tag series">PHY &mdash; Physics</span> <span class="tag">Prototype #009</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Build structures with goo balls to reach the exit pipe! Pick up free goo balls and attach them to the structure to bridge gaps and build towers.</p>
+    <ul>
+      <li><kbd>Click</kbd> near a free goo ball &mdash; Pick it up</li>
+      <li><kbd>Drag</kbd> &mdash; Position the goo ball</li>
+      <li><kbd>Release</kbd> &mdash; Attach to nearby structure goo balls</li>
+      <li><kbd>R</kbd> &mdash; Restart current level</li>
+      <li><kbd>N</kbd> &mdash; Next level (after winning)</li>
+      <li><kbd>?</kbd> &mdash; Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Triangles:</strong> Triangle shapes are the strongest structures. Build in triangles!</li>
+      <li><strong>Balance:</strong> The structure sways under gravity &mdash; distribute weight evenly.</li>
+      <li><strong>Save goo:</strong> Unattached goo balls near the pipe get sucked in for bonus score.</li>
+      <li><strong>Wind levels:</strong> Watch for wind indicators &mdash; build wider bases for stability.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Bridge Builder (2000, Chronic Logic) &rarr; Tower of Goo (2005, student project) &rarr; World of Goo (2008, 2D Boy)</p>
+    <p>Kyle Gabler created Tower of Goo as an experimental gameplay project while at Carnegie Mellon. He and Ron Carmel founded 2D Boy and expanded the concept into World of Goo (2008), one of the most acclaimed indie games of its era. The game married structural engineering with character &mdash; the goo balls have eyes, make sounds, and feel alive, transforming cold physics into warm emotional play.</p>
+    <p>The bridge-building genre traces back to Pontifex/Bridge Builder (2000) by Chronic Logic, but World of Goo replaced rigid engineering with organic, squishy construction that anyone could understand intuitively.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 5&ndash;6 &mdash; Ensemble Methods to Deep Learning (2006&ndash;present)</p>
+    <p><strong>Contemporary AI:</strong> Physics engines (Box2D), graph neural networks, structural prediction models.</p>
+    <p><strong>Hidden Intelligence:</strong> Every goo structure is a graph where nodes are balls and edges are springs. Structural stability depends on the graph&rsquo;s topology &mdash; the same math that powers graph neural networks. The game implicitly teaches finite element analysis: distribute forces across a mesh to prevent collapse.</p>
+    <p><strong>The Convergence:</strong> Modern AI uses graph neural networks to predict physical system behavior from connectivity patterns. DeepMind&rsquo;s &ldquo;Learning to Simulate&rdquo; work predicts particle-based physics by reasoning about neighbor relationships &mdash; exactly what a World of Goo player does intuitively when deciding where to place the next ball.</p>
+
+    <h2>Classification</h2>
+    <p><strong>Genre:</strong> Physics Puzzle / Construction</p>
+    <p><strong>Input Complexity:</strong> Low &mdash; click, drag, release</p>
+    <p><strong>State Complexity:</strong> High &mdash; spring-mass system with emergent structural behavior</p>
+
+    <h2>Prototype Notes</h2>
+    <p>Spring-joint physics with Verlet integration. Goo balls have eyes that track the mouse cursor. Structure detection via flood-fill graph traversal. Four levels with increasing difficulty: simple bridge, vertical tower, bridge with wind, long span. Pipe suction zone collects free goo balls for scoring.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+var C = document.getElementById('c'), X = C.getContext('2d');
+C.width = 800; C.height = 600;
+var infoOpen = false;
+
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// --- Constants ---
+var W = 800, H = 600, GRAVITY = 0.35, GOO_R = 10, STRAND_REST = 45;
+var STRAND_K = 0.03, STRAND_DAMP = 0.97, MAX_CONNECTIONS = 3;
+var ATTACH_RANGE = 60, PICK_RANGE = 20, PIPE_SUCK_RANGE = 50;
+var PIPE_R = 25;
+
+// --- Levels ---
+var LEVELS = [
+  { // Level 1: Simple bridge
+    name: 'Bridge the Gap',
+    groundLeft: { x: 0, y: 450, w: 300, h: 150 },
+    groundRight: { x: 550, y: 450, w: 250, h: 150 },
+    pipe: { x: 700, y: 420 },
+    startGoo: [
+      {x:100,y:410},{x:140,y:410},{x:180,y:410},{x:220,y:410},{x:260,y:410},
+      {x:120,y:370},{x:160,y:370},{x:200,y:370},{x:240,y:370},
+      {x:140,y:330},{x:180,y:330},{x:220,y:330},
+      {x:160,y:290},{x:200,y:290},
+      {x:100,y:440},{x:150,y:440},{x:200,y:440},{x:250,y:440}
+    ],
+    wind: 0,
+    goal: 3
+  },
+  { // Level 2: Tower
+    name: 'Tower Up',
+    groundLeft: { x: 0, y: 500, w: 800, h: 100 },
+    groundRight: null,
+    pipe: { x: 400, y: 120 },
+    startGoo: [
+      {x:350,y:460},{x:400,y:460},{x:450,y:460},
+      {x:370,y:420},{x:430,y:420},
+      {x:350,y:380},{x:400,y:380},{x:450,y:380},
+      {x:300,y:490},{x:340,y:490},{x:380,y:490},{x:420,y:490},{x:460,y:490},{x:500,y:490},
+      {x:320,y:460},{x:480,y:460},
+      {x:370,y:340},{x:430,y:340},
+      {x:400,y:300},{x:400,y:260}
+    ],
+    wind: 0,
+    goal: 3
+  },
+  { // Level 3: Bridge with wind
+    name: 'Windy Crossing',
+    groundLeft: { x: 0, y: 430, w: 280, h: 170 },
+    groundRight: { x: 520, y: 430, w: 280, h: 170 },
+    pipe: { x: 680, y: 400 },
+    startGoo: [
+      {x:80,y:390},{x:120,y:390},{x:160,y:390},{x:200,y:390},{x:240,y:390},
+      {x:100,y:350},{x:140,y:350},{x:180,y:350},{x:220,y:350},
+      {x:120,y:310},{x:160,y:310},{x:200,y:310},
+      {x:140,y:270},{x:180,y:270},
+      {x:80,y:420},{x:130,y:420},{x:180,y:420},{x:230,y:420},
+      {x:100,y:360},{x:200,y:360}
+    ],
+    wind: 0.06,
+    goal: 3
+  },
+  { // Level 4: Long span
+    name: 'The Long Span',
+    groundLeft: { x: 0, y: 420, w: 200, h: 180 },
+    groundRight: { x: 650, y: 420, w: 150, h: 180 },
+    pipe: { x: 730, y: 390 },
+    startGoo: [
+      {x:60,y:380},{x:100,y:380},{x:140,y:380},{x:180,y:380},
+      {x:80,y:340},{x:120,y:340},{x:160,y:340},
+      {x:100,y:300},{x:140,y:300},
+      {x:120,y:260},
+      {x:60,y:410},{x:100,y:410},{x:140,y:410},{x:180,y:410},
+      {x:80,y:370},{x:120,y:370},{x:160,y:370},
+      {x:100,y:330},{x:140,y:330},
+      {x:60,y:350},{x:180,y:350},
+      {x:80,y:280},{x:160,y:280}
+    ],
+    wind: 0.03,
+    goal: 4
+  }
+];
+
+// --- State ---
+var level = 0, goo = [], strands = [], dragging = null, dragOffX = 0, dragOffY = 0;
+var mouseX = 0, mouseY = 0, mouseDown = false;
+var score = 0, totalCollected = 0, levelWon = false, pipeAnim = 0;
+var particles = [];
+var scaleX = 1, scaleY = 1, offX = 0, offY = 0;
+
+function initLevel(n) {
+  var lv = LEVELS[n];
+  goo = []; strands = []; dragging = null; score = 0; levelWon = false; pipeAnim = 0;
+  particles = [];
+  for (var i = 0; i < lv.startGoo.length; i++) {
+    goo.push({
+      x: lv.startGoo[i].x, y: lv.startGoo[i].y,
+      ox: lv.startGoo[i].x, oy: lv.startGoo[i].y,
+      vx: 0, vy: 0,
+      attached: false, connections: 0,
+      eyeAngle: Math.random() * Math.PI * 2,
+      alive: true
+    });
+  }
+}
+initLevel(0);
+
+// --- Resize ---
+function resize() {
+  var r = W / H, ww = window.innerWidth, wh = window.innerHeight;
+  var wr = ww / wh;
+  if (wr > r) { C.style.height = wh + 'px'; C.style.width = (wh * r) + 'px'; scaleX = W / (wh * r); scaleY = H / wh; offX = (ww - wh * r) / 2; offY = 0; }
+  else { C.style.width = ww + 'px'; C.style.height = (ww / r) + 'px'; scaleX = W / ww; scaleY = H / (ww / r); offX = 0; offY = (wh - ww / r) / 2; }
+}
+window.addEventListener('resize', resize); resize();
+
+function canvasCoords(e) {
+  var rect = C.getBoundingClientRect();
+  return { x: (e.clientX - rect.left) * (W / rect.width), y: (e.clientY - rect.top) * (H / rect.height) };
+}
+
+// --- Input ---
+C.addEventListener('mousedown', function(e) {
+  if (infoOpen || levelWon) return;
+  var p = canvasCoords(e);
+  mouseX = p.x; mouseY = p.y; mouseDown = true;
+  // Find closest free goo ball
+  var best = -1, bestD = PICK_RANGE;
+  for (var i = 0; i < goo.length; i++) {
+    if (!goo[i].alive) continue;
+    var dx = goo[i].x - p.x, dy = goo[i].y - p.y;
+    var d = Math.sqrt(dx*dx + dy*dy);
+    if (d < bestD) { bestD = d; best = i; }
+  }
+  if (best >= 0) {
+    dragging = best;
+    goo[best].dragged = true;
+  }
+});
+
+C.addEventListener('mousemove', function(e) {
+  var p = canvasCoords(e);
+  mouseX = p.x; mouseY = p.y;
+  if (dragging !== null && goo[dragging]) {
+    goo[dragging].x = p.x;
+    goo[dragging].y = p.y;
+  }
+});
+
+C.addEventListener('mouseup', function(e) {
+  mouseDown = false;
+  if (dragging !== null && goo[dragging]) {
+    goo[dragging].dragged = false;
+    tryAttach(dragging);
+    dragging = null;
+  }
+});
+
+// Touch support
+C.addEventListener('touchstart', function(e) {
+  e.preventDefault();
+  var t = e.touches[0];
+  C.dispatchEvent(new MouseEvent('mousedown', { clientX: t.clientX, clientY: t.clientY }));
+}, { passive: false });
+C.addEventListener('touchmove', function(e) {
+  e.preventDefault();
+  var t = e.touches[0];
+  C.dispatchEvent(new MouseEvent('mousemove', { clientX: t.clientX, clientY: t.clientY }));
+}, { passive: false });
+C.addEventListener('touchend', function(e) {
+  e.preventDefault();
+  C.dispatchEvent(new MouseEvent('mouseup', {}));
+}, { passive: false });
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); return; }
+  if (e.key === 'r' || e.key === 'R') { initLevel(level); return; }
+  if ((e.key === 'n' || e.key === 'N') && levelWon) {
+    level = (level + 1) % LEVELS.length;
+    totalCollected += score;
+    initLevel(level);
+    return;
+  }
+});
+
+// --- Physics helpers ---
+function dist(a, b) { var dx = a.x - b.x, dy = a.y - b.y; return Math.sqrt(dx*dx+dy*dy); }
+
+function tryAttach(idx) {
+  var ball = goo[idx];
+  if (ball.connections >= MAX_CONNECTIONS) return;
+  // Find nearby attached goo balls to connect to
+  var candidates = [];
+  for (var i = 0; i < goo.length; i++) {
+    if (i === idx || !goo[i].alive) continue;
+    if (!goo[i].attached && !ball.attached) continue; // need at least one attached
+    if (goo[i].connections >= MAX_CONNECTIONS) continue;
+    var d = dist(ball, goo[i]);
+    if (d < ATTACH_RANGE) {
+      candidates.push({ idx: i, dist: d });
+    }
+  }
+  // Also allow attaching to ground-anchored balls
+  if (candidates.length === 0 && !ball.attached) {
+    // Check if ball is on ground
+    var lv = LEVELS[level];
+    if (isOnGround(ball, lv)) {
+      ball.attached = true;
+      ball.anchored = true;
+      return;
+    }
+    return;
+  }
+  candidates.sort(function(a, b) { return a.dist - b.dist; });
+  var connected = 0;
+  for (var c = 0; c < candidates.length && connected < 2 && ball.connections < MAX_CONNECTIONS; c++) {
+    var other = candidates[c].idx;
+    if (goo[other].connections >= MAX_CONNECTIONS) continue;
+    // Check no duplicate strand
+    var dup = false;
+    for (var s = 0; s < strands.length; s++) {
+      if ((strands[s].a === idx && strands[s].b === other) || (strands[s].a === other && strands[s].b === idx)) { dup = true; break; }
+    }
+    if (dup) continue;
+    strands.push({ a: idx, b: other, rest: dist(ball, goo[other]) * 0.85 });
+    ball.connections++;
+    goo[other].connections++;
+    ball.attached = true;
+    if (!goo[other].attached) goo[other].attached = true;
+    connected++;
+  }
+}
+
+function isOnGround(ball, lv) {
+  var gl = lv.groundLeft, gr = lv.groundRight;
+  if (gl && ball.x >= gl.x && ball.x <= gl.x + gl.w && ball.y >= gl.y - GOO_R - 5 && ball.y <= gl.y + 5) return true;
+  if (gr && ball.x >= gr.x && ball.x <= gr.x + gr.w && ball.y >= gr.y - GOO_R - 5 && ball.y <= gr.y + 5) return true;
+  return false;
+}
+
+function groundCollide(ball, lv) {
+  var gl = lv.groundLeft, gr = lv.groundRight;
+  if (gl && ball.x >= gl.x - GOO_R && ball.x <= gl.x + gl.w + GOO_R) {
+    if (ball.y > gl.y - GOO_R) { ball.y = gl.y - GOO_R; ball.vy = 0; if (ball.vy > 0) ball.vy = 0; }
+  }
+  if (gr && ball.x >= gr.x - GOO_R && ball.x <= gr.x + gr.w + GOO_R) {
+    if (ball.y > gr.y - GOO_R) { ball.y = gr.y - GOO_R; ball.vy = 0; }
+  }
+  // Floor
+  if (ball.y > H - GOO_R) { ball.y = H - GOO_R; ball.vy = 0; }
+  // Walls
+  if (ball.x < GOO_R) { ball.x = GOO_R; ball.vx = 0; }
+  if (ball.x > W - GOO_R) { ball.x = W - GOO_R; ball.vx = 0; }
+  // Side collisions with ground blocks
+  if (gl) {
+    if (ball.y > gl.y - GOO_R && ball.y < gl.y + gl.h) {
+      if (ball.x > gl.x + gl.w - GOO_R && ball.x < gl.x + gl.w + GOO_R) { ball.x = gl.x + gl.w + GOO_R; if (ball.vx < 0) ball.vx = 0; }
+    }
+  }
+  if (gr) {
+    if (ball.y > gr.y - GOO_R && ball.y < gr.y + gr.h) {
+      if (ball.x < gr.x + GOO_R && ball.x > gr.x - GOO_R) { ball.x = gr.x - GOO_R; if (ball.vx > 0) ball.vx = 0; }
+    }
+  }
+}
+
+// --- Auto-anchor starting balls on ground ---
+function autoAnchor() {
+  var lv = LEVELS[level];
+  for (var i = 0; i < goo.length; i++) {
+    if (isOnGround(goo[i], lv)) {
+      goo[i].anchored = true;
+      goo[i].attached = true;
+    }
+  }
+  // Auto-connect nearby starting goo
+  for (var i = 0; i < goo.length; i++) {
+    if (!goo[i].attached) continue;
+    for (var j = i + 1; j < goo.length; j++) {
+      if (!goo[j].attached && !goo[j].anchored) continue;
+      if (goo[i].connections >= MAX_CONNECTIONS || goo[j].connections >= MAX_CONNECTIONS) continue;
+      var d = dist(goo[i], goo[j]);
+      if (d < ATTACH_RANGE * 0.9) {
+        strands.push({ a: i, b: j, rest: d * 0.9 });
+        goo[i].connections++;
+        goo[j].connections++;
+        goo[i].attached = true;
+        goo[j].attached = true;
+      }
+    }
+  }
+}
+autoAnchor();
+
+// --- Update ---
+function update() {
+  if (infoOpen) return;
+  if (levelWon) { pipeAnim += 0.05; return; }
+  var lv = LEVELS[level];
+
+  // Spring physics
+  for (var s = 0; s < strands.length; s++) {
+    var st = strands[s], a = goo[st.a], b = goo[st.b];
+    if (!a.alive || !b.alive) continue;
+    var dx = b.x - a.x, dy = b.y - a.y;
+    var d = Math.sqrt(dx*dx + dy*dy);
+    if (d < 0.1) d = 0.1;
+    var force = (d - st.rest) * STRAND_K;
+    var fx = (dx / d) * force, fy = (dy / d) * force;
+    if (!a.dragged && !a.anchored) { a.vx += fx; a.vy += fy; }
+    if (!b.dragged && !b.anchored) { b.vx -= fx; b.vy -= fy; }
+  }
+
+  // Apply gravity, wind, damping
+  for (var i = 0; i < goo.length; i++) {
+    var g = goo[i];
+    if (!g.alive || g.dragged) continue;
+    if (g.anchored) { g.vx = 0; g.vy = 0; continue; }
+    g.vy += GRAVITY;
+    g.vx += lv.wind;
+    g.vx *= STRAND_DAMP;
+    g.vy *= STRAND_DAMP;
+    g.x += g.vx;
+    g.y += g.vy;
+    groundCollide(g, lv);
+  }
+
+  // Ball-ball collision (simple push apart)
+  for (var i = 0; i < goo.length; i++) {
+    if (!goo[i].alive || goo[i].dragged) continue;
+    for (var j = i + 1; j < goo.length; j++) {
+      if (!goo[j].alive || goo[j].dragged) continue;
+      var dx = goo[j].x - goo[i].x, dy = goo[j].y - goo[i].y;
+      var d = Math.sqrt(dx*dx + dy*dy);
+      if (d < GOO_R * 2 && d > 0.1) {
+        var overlap = (GOO_R * 2 - d) * 0.5;
+        var nx = dx / d, ny = dy / d;
+        if (!goo[i].anchored) { goo[i].x -= nx * overlap; goo[i].y -= ny * overlap; }
+        if (!goo[j].anchored) { goo[j].x += nx * overlap; goo[j].y += ny * overlap; }
+      }
+    }
+  }
+
+  // Strand breaking (if too stretched)
+  for (var s = strands.length - 1; s >= 0; s--) {
+    var st = strands[s], a = goo[st.a], b = goo[st.b];
+    var d = dist(a, b);
+    if (d > st.rest * 3.5) {
+      a.connections--; b.connections--;
+      strands.splice(s, 1);
+      // Particles
+      for (var p = 0; p < 5; p++) {
+        particles.push({ x: (a.x+b.x)/2, y: (a.y+b.y)/2, vx: (Math.random()-0.5)*3, vy: (Math.random()-0.5)*3, life: 30, color: '#8f8' });
+      }
+    }
+  }
+
+  // Check if balls fell off screen
+  for (var i = 0; i < goo.length; i++) {
+    if (goo[i].y > H + 50) { goo[i].alive = false; }
+  }
+
+  // Pipe suction — collect free goo near pipe
+  var pipe = lv.pipe;
+  for (var i = 0; i < goo.length; i++) {
+    var g = goo[i];
+    if (!g.alive) continue;
+    var d = dist(g, pipe);
+    // Gentle attraction when close
+    if (d < PIPE_SUCK_RANGE * 3 && !g.attached && !g.dragged) {
+      var pull = 0.5 / (d + 1);
+      g.vx += (pipe.x - g.x) * pull * 0.1;
+      g.vy += (pipe.y - g.y) * pull * 0.1;
+    }
+    // Collect
+    if (d < PIPE_SUCK_RANGE && !g.dragged) {
+      // Detach first
+      if (g.attached) {
+        // Remove strands
+        for (var s = strands.length - 1; s >= 0; s--) {
+          if (strands[s].a === i || strands[s].b === i) {
+            goo[strands[s].a].connections--;
+            goo[strands[s].b].connections--;
+            strands.splice(s, 1);
+          }
+        }
+        g.attached = false;
+        g.anchored = false;
+      }
+      g.alive = false;
+      score++;
+      // Particles
+      for (var p = 0; p < 8; p++) {
+        particles.push({ x: g.x, y: g.y, vx: (Math.random()-0.5)*4, vy: (Math.random()-0.5)*4 - 2, life: 40, color: '#ff0' });
+      }
+    }
+  }
+
+  // Win condition
+  if (score >= lv.goal) {
+    levelWon = true;
+  }
+
+  // Eye tracking
+  for (var i = 0; i < goo.length; i++) {
+    if (!goo[i].alive) continue;
+    var dx = mouseX - goo[i].x, dy = mouseY - goo[i].y;
+    goo[i].eyeAngle = Math.atan2(dy, dx);
+  }
+
+  // Particles
+  for (var p = particles.length - 1; p >= 0; p--) {
+    var pt = particles[p];
+    pt.x += pt.vx; pt.y += pt.vy; pt.vy += 0.1; pt.life--;
+    if (pt.life <= 0) particles.splice(p, 1);
+  }
+}
+
+// --- Draw ---
+function draw() {
+  var lv = LEVELS[level];
+
+  // Background gradient
+  X.fillStyle = '#0a0e1a';
+  X.fillRect(0, 0, W, H);
+  // Stars
+  X.fillStyle = '#335';
+  for (var i = 0; i < 60; i++) {
+    var sx = (i * 137 + 50) % W, sy = (i * 97 + 30) % (H * 0.6);
+    X.fillRect(sx, sy, 1 + (i % 2), 1);
+  }
+
+  // Ground
+  X.fillStyle = '#2a4a2a';
+  if (lv.groundLeft) {
+    var gl = lv.groundLeft;
+    X.fillRect(gl.x, gl.y, gl.w, gl.h);
+    X.fillStyle = '#4a7a3a';
+    X.fillRect(gl.x, gl.y, gl.w, 8);
+    X.fillStyle = '#2a4a2a';
+  }
+  if (lv.groundRight) {
+    var gr = lv.groundRight;
+    X.fillRect(gr.x, gr.y, gr.w, gr.h);
+    X.fillStyle = '#4a7a3a';
+    X.fillRect(gr.x, gr.y, gr.w, 8);
+  }
+
+  // Pipe
+  var pipe = lv.pipe;
+  var ps = Math.sin(pipeAnim) * 3;
+  X.fillStyle = '#555';
+  X.fillRect(pipe.x - 18, pipe.y - 35 + ps, 36, 50);
+  X.fillStyle = '#777';
+  X.fillRect(pipe.x - 22, pipe.y - 35 + ps, 44, 10);
+  X.fillStyle = '#666';
+  X.fillRect(pipe.x - 22, pipe.y + 5 + ps, 44, 10);
+  // Pipe opening
+  X.fillStyle = '#222';
+  X.beginPath();
+  X.arc(pipe.x, pipe.y - 10 + ps, 14, 0, Math.PI * 2);
+  X.fill();
+  // Suction indicator
+  if (!levelWon) {
+    X.strokeStyle = 'rgba(100,255,100,0.15)';
+    X.lineWidth = 1;
+    X.beginPath();
+    X.arc(pipe.x, pipe.y, PIPE_SUCK_RANGE * 3, 0, Math.PI * 2);
+    X.stroke();
+  }
+
+  // Strands
+  X.lineWidth = 3;
+  for (var s = 0; s < strands.length; s++) {
+    var st = strands[s], a = goo[st.a], b = goo[st.b];
+    if (!a.alive || !b.alive) continue;
+    var d = dist(a, b);
+    var stretch = d / st.rest;
+    if (stretch > 2) X.strokeStyle = '#f44';
+    else if (stretch > 1.5) X.strokeStyle = '#fa4';
+    else X.strokeStyle = '#6c6';
+    X.beginPath();
+    X.moveTo(a.x, a.y);
+    X.lineTo(b.x, b.y);
+    X.stroke();
+  }
+
+  // Goo balls
+  for (var i = 0; i < goo.length; i++) {
+    var g = goo[i];
+    if (!g.alive) continue;
+    var isBeingDragged = (dragging === i);
+
+    // Body
+    X.fillStyle = isBeingDragged ? '#afa' : (g.attached ? '#5a5' : '#8e8');
+    X.beginPath();
+    X.arc(g.x, g.y, GOO_R + (isBeingDragged ? 2 : 0), 0, Math.PI * 2);
+    X.fill();
+    // Outline
+    X.strokeStyle = '#2a2';
+    X.lineWidth = 1.5;
+    X.stroke();
+
+    // Eyes
+    var eyeOff = 3, eyeR = 3.5, pupilR = 1.8;
+    var ea = g.eyeAngle;
+    for (var e = -1; e <= 1; e += 2) {
+      var ex = g.x + e * eyeOff, ey = g.y - 2;
+      X.fillStyle = '#fff';
+      X.beginPath();
+      X.arc(ex, ey, eyeR, 0, Math.PI * 2);
+      X.fill();
+      // Pupil
+      X.fillStyle = '#111';
+      X.beginPath();
+      X.arc(ex + Math.cos(ea) * 1.5, ey + Math.sin(ea) * 1.5, pupilR, 0, Math.PI * 2);
+      X.fill();
+    }
+
+    // Show attach preview while dragging
+    if (isBeingDragged) {
+      for (var j = 0; j < goo.length; j++) {
+        if (j === i || !goo[j].alive || !goo[j].attached) continue;
+        if (goo[j].connections >= MAX_CONNECTIONS) continue;
+        var d = dist(g, goo[j]);
+        if (d < ATTACH_RANGE) {
+          X.strokeStyle = 'rgba(100,255,100,0.3)';
+          X.lineWidth = 2;
+          X.setLineDash([4, 4]);
+          X.beginPath();
+          X.moveTo(g.x, g.y);
+          X.lineTo(goo[j].x, goo[j].y);
+          X.stroke();
+          X.setLineDash([]);
+        }
+      }
+    }
+  }
+
+  // Particles
+  for (var p = 0; p < particles.length; p++) {
+    var pt = particles[p];
+    X.globalAlpha = pt.life / 40;
+    X.fillStyle = pt.color;
+    X.beginPath();
+    X.arc(pt.x, pt.y, 2, 0, Math.PI * 2);
+    X.fill();
+  }
+  X.globalAlpha = 1;
+
+  // Wind indicator
+  if (lv.wind !== 0) {
+    X.fillStyle = '#aaa';
+    X.font = '12px monospace';
+    X.textAlign = 'center';
+    X.fillText('WIND', W / 2, 25);
+    var windLen = lv.wind * 500;
+    X.strokeStyle = '#8cf';
+    X.lineWidth = 2;
+    X.beginPath();
+    X.moveTo(W / 2 - windLen, 35);
+    X.lineTo(W / 2 + windLen, 35);
+    X.stroke();
+    // Arrow
+    var dir = lv.wind > 0 ? 1 : -1;
+    X.beginPath();
+    X.moveTo(W / 2 + windLen, 35);
+    X.lineTo(W / 2 + windLen - dir * 6, 30);
+    X.lineTo(W / 2 + windLen - dir * 6, 40);
+    X.closePath();
+    X.fillStyle = '#8cf';
+    X.fill();
+  }
+
+  // HUD
+  X.fillStyle = '#ddd';
+  X.font = '14px monospace';
+  X.textAlign = 'left';
+  X.fillText('Level ' + (level + 1) + ': ' + lv.name, 10, 22);
+  X.textAlign = 'right';
+  X.fillText('Collected: ' + score + ' / ' + lv.goal, W - 10, 22);
+
+  var freeCount = 0;
+  for (var i = 0; i < goo.length; i++) if (goo[i].alive && !goo[i].attached) freeCount++;
+  X.fillStyle = '#8e8';
+  X.fillText('Free goo: ' + freeCount, W - 10, 42);
+
+  // Level won
+  if (levelWon) {
+    X.fillStyle = 'rgba(0,0,0,0.5)';
+    X.fillRect(0, H / 2 - 60, W, 120);
+    X.fillStyle = '#4f4';
+    X.font = 'bold 32px monospace';
+    X.textAlign = 'center';
+    X.fillText('LEVEL COMPLETE!', W / 2, H / 2 - 15);
+    X.fillStyle = '#ddd';
+    X.font = '18px monospace';
+    X.fillText(score + ' goo balls collected', W / 2, H / 2 + 15);
+    X.fillStyle = '#8cf';
+    X.font = '14px monospace';
+    X.fillText('Press N for next level  |  Press R to replay', W / 2, H / 2 + 45);
+  }
+
+  // Instructions
+  if (!levelWon && strands.length === 0) {
+    X.fillStyle = 'rgba(255,255,255,0.5)';
+    X.font = '12px monospace';
+    X.textAlign = 'center';
+    X.fillText('Click and drag goo balls to build toward the pipe!', W / 2, H - 20);
+  }
+
+  // ? hint
+  X.fillStyle = '#555';
+  X.font = '11px monospace';
+  X.textAlign = 'left';
+  X.fillText('? = info', 10, H - 10);
+}
+
+// --- Loop ---
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>

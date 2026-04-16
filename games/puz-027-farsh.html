@@ -1,0 +1,834 @@
+<!--
+PROTOTYPE: farsh
+SERIES: puz
+NUMBER: 027
+DATE: 2026-03-24
+MECHANIC: carpet path rolling — roll out Persian carpets to create paths across puzzle levels; carpets can bridge gaps, cover hazards, stack; reach the exit
+ANCESTRY: Farsh (2017, Mahdi Bahrami, Tehran), Sokoban (1982, Thinking Rabbit), Baba Is You (2019, Hempuli)
+CONTROLS: Mouse — click carpet then click direction arrow to unroll | WASD/Arrows — move character | R — restart level | N — next level (after win) | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 5 (Deep Learning — spatial reasoning for path construction under constraints)
+AI-INSIGHT: Farsh transforms the simple act of unrolling a carpet into a spatial reasoning puzzle. Each carpet is a rigid body with fixed length — the player must mentally simulate unrolling sequences to construct viable paths, a constraint-propagation problem that mirrors how neural networks learn spatial transformations.
+NOTES: Persian carpet aesthetic with rich reds, golds, and geometric border patterns.
+       Rolling animation makes each placement satisfying.
+       8 hand-crafted puzzle levels with increasing complexity.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PUZ-027 · FARSH</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: pointer; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>PUZ-027 · FARSH</h1>
+    <p><span class="tag series">PUZ — Puzzle</span> <span class="tag">Prototype #027</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Roll out Persian carpets to build paths across treacherous rooms. Guide your character to the exit door.</p>
+    <ul>
+      <li><strong>Click a carpet</strong> (colored rectangle on the grid) to select it</li>
+      <li><strong>Click a direction arrow</strong> that appears to unroll the carpet that way</li>
+      <li><kbd>W/A/S/D</kbd> or <kbd>Arrow keys</kbd> — Move your character on walkable tiles and carpets</li>
+      <li><kbd>R</kbd> — Restart current level</li>
+      <li><kbd>N</kbd> — Next level (after completing current one)</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Rules</h3>
+    <ul>
+      <li>Carpets unroll in one direction to their fixed length (2, 3, or 4 tiles)</li>
+      <li>Carpets bridge water gaps and cover spike hazards</li>
+      <li>Carpets cannot overlap other carpets or walls</li>
+      <li>Once unrolled, a carpet stays in place</li>
+      <li>Reach the golden exit door to complete each level</li>
+    </ul>
+
+    <h2>History</h2>
+    <p>Farsh was created by Iranian game designer <strong>Mahdi Bahrami</strong> in Tehran in 2017. The word "farsh" (فرش) means carpet in Persian. The game transforms the familiar act of rolling out a carpet into an elegant puzzle mechanic, drawing on Iran's deep cultural connection to carpet weaving — an art form dating back over 2,500 years.</p>
+    <p>Bahrami's design philosophy emphasizes finding game mechanics in everyday actions. The fixed-length carpet constraint creates surprisingly deep puzzles from a simple verb: unroll.</p>
+
+    <h2>AI Archaeology</h2>
+    <h3>Classification</h3>
+    <p><strong>Primary:</strong> Spatial path construction<br>
+    <strong>Secondary:</strong> Constraint satisfaction, resource planning<br>
+    <strong>AI Era:</strong> 5 — Deep Learning (spatial reasoning for path construction under constraints)</p>
+    <h3>Insight</h3>
+    <p>Each carpet is a rigid body with fixed length — the player must mentally simulate unrolling sequences to construct viable paths. This mirrors constraint-propagation problems in AI, where each placement decision constrains future possibilities.</p>
+
+    <h2>Prototype Notes</h2>
+    <p>8 hand-crafted levels with progressive difficulty. Persian carpet aesthetic with geometric border patterns rendered procedurally on canvas. The rolling animation unfurls carpets tile-by-tile for tactile satisfaction.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This is an educational prototype created for study and preservation purposes. It demonstrates the carpet-rolling path puzzle mechanic pioneered by Mahdi Bahrami. This is not the original game — it is a minimal, non-commercial reconstruction for understanding game design history.</p>
+  </div>
+</div>
+
+<script>
+// Info panel
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// Canvas setup
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+
+function resize() {
+  const s = Math.min(innerWidth / W, innerHeight / H);
+  canvas.style.width = (W * s) + 'px';
+  canvas.style.height = (H * s) + 'px';
+}
+resize();
+window.addEventListener('resize', resize);
+
+// HUD text helper
+function hudText(text, x, y, size, color, align) {
+  ctx.save();
+  ctx.font = size + 'px monospace';
+  ctx.fillStyle = color || '#fff';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+// Tile types
+const FLOOR = 0, WALL = 1, WATER = 2, SPIKE = 3, EXIT = 4, START = 5;
+
+// Colors
+const COLORS = {
+  floor: '#3a2a1a',
+  wall: '#1a1a2e',
+  water: '#1a3a5e',
+  spike: '#3a1a1a',
+  exit: '#c8a832',
+  start: '#2a4a2a',
+  bg: '#0d0d12'
+};
+
+const CARPET_COLORS = [
+  { main: '#a01020', border: '#d4a840', pattern: '#d4a840' },
+  { main: '#1a4a8a', border: '#c8a020', pattern: '#c8a020' },
+  { main: '#2a6a3a', border: '#d4a840', pattern: '#e8c860' },
+  { main: '#6a2a6a', border: '#d4a840', pattern: '#c890d0' },
+  { main: '#8a5a20', border: '#e8c860', pattern: '#f0d878' },
+  { main: '#20707a', border: '#d4a840', pattern: '#80d0d8' }
+];
+
+// Levels: grid, carpets [{x,y,len,colorIdx}], start, exit
+const LEVELS = [
+  { // Level 1: Simple bridge
+    w: 8, h: 6,
+    grid: [
+      1,1,1,1,1,1,1,1,
+      1,5,0,2,2,0,4,1,
+      1,0,0,2,2,0,0,1,
+      1,0,0,0,0,0,0,1,
+      1,0,0,0,0,0,0,1,
+      1,1,1,1,1,1,1,1
+    ],
+    carpets: [{x:1,y:3,len:4,ci:0}],
+    px:1,py:1, ex:6,ey:1
+  },
+  { // Level 2: Two carpets
+    w: 8, h: 7,
+    grid: [
+      1,1,1,1,1,1,1,1,
+      1,5,0,2,2,2,0,1,
+      1,0,0,2,2,2,0,1,
+      1,0,0,0,0,0,0,1,
+      1,0,2,2,0,0,0,1,
+      1,0,2,2,0,0,4,1,
+      1,1,1,1,1,1,1,1
+    ],
+    carpets: [{x:1,y:3,len:3,ci:0},{x:4,y:3,len:3,ci:1}],
+    px:1,py:1, ex:6,ey:5
+  },
+  { // Level 3: Spikes and water
+    w: 9, h: 7,
+    grid: [
+      1,1,1,1,1,1,1,1,1,
+      1,5,0,3,3,0,0,0,1,
+      1,0,0,0,0,0,2,2,1,
+      1,0,0,0,1,0,2,2,1,
+      1,0,0,0,1,0,0,0,1,
+      1,0,0,0,0,0,0,4,1,
+      1,1,1,1,1,1,1,1,1
+    ],
+    carpets: [{x:1,y:4,len:3,ci:0},{x:5,y:1,len:2,ci:2}],
+    px:1,py:1, ex:7,ey:5
+  },
+  { // Level 4: Winding path
+    w: 10, h: 7,
+    grid: [
+      1,1,1,1,1,1,1,1,1,1,
+      1,5,0,0,1,2,2,2,0,1,
+      1,0,0,0,1,2,2,2,0,1,
+      1,0,1,1,1,0,0,0,0,1,
+      1,0,0,0,0,0,1,1,0,1,
+      1,0,0,2,2,0,1,4,0,1,
+      1,1,1,1,1,1,1,1,1,1
+    ],
+    carpets: [{x:1,y:4,len:2,ci:0},{x:5,y:1,len:3,ci:1},{x:5,y:4,len:2,ci:3}],
+    px:1,py:1, ex:7,ey:5
+  },
+  { // Level 5: Big room
+    w: 10, h: 8,
+    grid: [
+      1,1,1,1,1,1,1,1,1,1,
+      1,5,0,0,0,2,2,0,0,1,
+      1,0,0,3,0,2,2,0,0,1,
+      1,0,3,3,0,0,0,0,0,1,
+      1,0,0,0,0,0,3,3,0,1,
+      1,0,0,0,2,2,0,0,0,1,
+      1,0,0,0,2,2,0,0,4,1,
+      1,1,1,1,1,1,1,1,1,1
+    ],
+    carpets: [{x:1,y:3,len:2,ci:0},{x:3,y:1,len:4,ci:1},{x:6,y:4,len:3,ci:2},{x:1,y:5,len:2,ci:3}],
+    px:1,py:1, ex:8,ey:6
+  },
+  { // Level 6: Narrow corridors
+    w: 10, h: 8,
+    grid: [
+      1,1,1,1,1,1,1,1,1,1,
+      1,5,2,1,0,0,0,1,0,1,
+      1,0,2,1,0,1,0,1,0,1,
+      1,0,0,1,0,1,0,0,0,1,
+      1,1,0,1,0,1,1,0,1,1,
+      1,0,0,0,0,0,0,0,0,1,
+      1,0,0,0,2,2,0,0,4,1,
+      1,1,1,1,1,1,1,1,1,1
+    ],
+    carpets: [{x:1,y:5,len:2,ci:0},{x:4,y:1,len:4,ci:1},{x:7,y:1,len:3,ci:2}],
+    px:1,py:1, ex:8,ey:6
+  },
+  { // Level 7: Complex puzzle
+    w: 11, h: 8,
+    grid: [
+      1,1,1,1,1,1,1,1,1,1,1,
+      1,5,0,0,2,2,2,0,0,0,1,
+      1,0,0,0,2,1,2,0,0,0,1,
+      1,0,1,0,0,1,0,0,1,0,1,
+      1,0,1,3,3,1,3,3,1,0,1,
+      1,0,0,0,0,0,0,0,0,0,1,
+      1,0,0,0,0,0,0,0,0,4,1,
+      1,1,1,1,1,1,1,1,1,1,1
+    ],
+    carpets: [{x:1,y:5,len:3,ci:0},{x:3,y:1,len:4,ci:1},{x:6,y:3,len:2,ci:2},{x:7,y:5,len:3,ci:3}],
+    px:1,py:1, ex:9,ey:6
+  },
+  { // Level 8: Finale
+    w: 11, h: 9,
+    grid: [
+      1,1,1,1,1,1,1,1,1,1,1,
+      1,5,0,2,2,1,0,0,0,0,1,
+      1,0,0,2,2,1,0,3,3,0,1,
+      1,0,0,0,0,1,0,0,0,0,1,
+      1,1,1,0,1,1,1,0,1,1,1,
+      1,0,0,0,0,0,0,0,0,0,1,
+      1,0,2,2,0,1,0,2,2,0,1,
+      1,0,2,2,0,1,0,2,2,4,1,
+      1,1,1,1,1,1,1,1,1,1,1
+    ],
+    carpets: [{x:1,y:3,len:4,ci:0},{x:6,y:1,len:3,ci:1},{x:1,y:5,len:3,ci:2},{x:6,y:5,len:4,ci:3},{x:4,y:6,len:2,ci:4}],
+    px:1,py:1, ex:9,ey:7
+  }
+];
+
+// Game state
+let level = 0;
+let grid, carpets, px, py, ex, ey, gridW, gridH;
+let selectedCarpet = -1;
+let animating = false;
+let animCarpet = null, animDir = null, animStep = 0, animTimer = 0;
+let won = false;
+let tileSize, offsetX, offsetY;
+let arrowBtns = []; // {x,y,dir,carpetIdx}
+let playerAnim = 0;
+
+function loadLevel(n) {
+  const L = LEVELS[n];
+  gridW = L.w; gridH = L.h;
+  grid = L.grid.slice();
+  px = L.px; py = L.py;
+  ex = L.ex; ey = L.ey;
+  carpets = L.carpets.map(c => ({
+    ox: c.x, oy: c.y, len: c.len, ci: c.ci,
+    rolled: true, // still rolled up at origin
+    tiles: [] // [{x,y}] when unrolled
+  }));
+  selectedCarpet = -1;
+  animating = false;
+  animCarpet = null;
+  won = false;
+  arrowBtns = [];
+  computeLayout();
+}
+
+function computeLayout() {
+  const maxTW = Math.floor((W - 40) / gridW);
+  const maxTH = Math.floor((H - 80) / gridH);
+  tileSize = Math.min(maxTW, maxTH, 64);
+  offsetX = Math.floor((W - gridW * tileSize) / 2);
+  offsetY = Math.floor((H - gridH * tileSize) / 2) + 20;
+}
+
+function tileAt(x, y) {
+  if (x < 0 || x >= gridW || y < 0 || y >= gridH) return WALL;
+  return grid[y * gridW + x];
+}
+
+function hasCarpetAt(x, y) {
+  for (const c of carpets) {
+    if (!c.rolled) {
+      for (const t of c.tiles) {
+        if (t.x === x && t.y === y) return true;
+      }
+    }
+  }
+  return false;
+}
+
+function canWalk(x, y) {
+  const t = tileAt(x, y);
+  if (t === WALL) return false;
+  if (t === WATER || t === SPIKE) return hasCarpetAt(x, y);
+  return true;
+}
+
+function canPlaceCarpet(cx, cy, dx, dy, len) {
+  for (let i = 0; i < len; i++) {
+    const nx = cx + dx * i, ny = cy + dy * i;
+    if (nx < 0 || nx >= gridW || ny < 0 || ny >= gridH) return false;
+    const t = tileAt(nx, ny);
+    if (t === WALL) return false;
+    if (hasCarpetAt(nx, ny)) return false;
+  }
+  return true;
+}
+
+function buildArrows(ci) {
+  arrowBtns = [];
+  const c = carpets[ci];
+  if (!c.rolled) return;
+  const dirs = [{dx:0,dy:-1,label:'↑'},{dx:0,dy:1,label:'↓'},{dx:-1,dy:0,label:'←'},{dx:1,dy:0,label:'→'}];
+  for (const d of dirs) {
+    if (canPlaceCarpet(c.ox + d.dx, c.oy + d.dy, d.dx, d.dy, c.len)) {
+      arrowBtns.push({
+        x: c.ox + d.dx, y: c.oy + d.dy,
+        dx: d.dx, dy: d.dy,
+        label: d.label, carpetIdx: ci
+      });
+    }
+  }
+}
+
+function startUnroll(ci, dx, dy) {
+  const c = carpets[ci];
+  animating = true;
+  animCarpet = ci;
+  animDir = {dx, dy};
+  animStep = 0;
+  animTimer = 0;
+  c.tiles = [];
+  // First tile starts from carpet origin in the direction
+  for (let i = 0; i < c.len; i++) {
+    c.tiles.push({x: c.ox + dx * (i + 1), y: c.oy + dy * (i + 1)});
+  }
+  c.rolled = false;
+  selectedCarpet = -1;
+  arrowBtns = [];
+}
+
+// Input
+const keys = {};
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+  if (infoOpen) return;
+  keys[e.key.toLowerCase()] = true;
+
+  if (e.key.toLowerCase() === 'r') { loadLevel(level); return; }
+  if (e.key.toLowerCase() === 'n' && won) {
+    level = Math.min(level + 1, LEVELS.length - 1);
+    loadLevel(level);
+    return;
+  }
+
+  if (animating || won) return;
+
+  let dx = 0, dy = 0;
+  if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') dx = -1;
+  if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') dx = 1;
+  if (e.key === 'ArrowUp' || e.key.toLowerCase() === 'w') dy = -1;
+  if (e.key === 'ArrowDown' || e.key.toLowerCase() === 's') dy = 1;
+  if (dx !== 0 || dy !== 0) {
+    const nx = px + dx, ny = py + dy;
+    if (canWalk(nx, ny)) {
+      px = nx; py = ny;
+      playerAnim = 6;
+      if (px === ex && py === ey) won = true;
+    }
+  }
+});
+window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+
+// Mouse
+let mouseX = 0, mouseY = 0;
+canvas.addEventListener('mousemove', e => {
+  const r = canvas.getBoundingClientRect();
+  mouseX = (e.clientX - r.left) * (W / r.width);
+  mouseY = (e.clientY - r.top) * (H / r.height);
+});
+
+canvas.addEventListener('click', e => {
+  if (infoOpen || animating || won) return;
+  const r = canvas.getBoundingClientRect();
+  const mx = (e.clientX - r.left) * (W / r.width);
+  const my = (e.clientY - r.top) * (H / r.height);
+  const gx = Math.floor((mx - offsetX) / tileSize);
+  const gy = Math.floor((my - offsetY) / tileSize);
+
+  // Check arrow buttons first
+  for (const a of arrowBtns) {
+    if (gx === a.x && gy === a.y) {
+      startUnroll(a.carpetIdx, a.dx, a.dy);
+      return;
+    }
+  }
+
+  // Check carpet selection
+  for (let i = 0; i < carpets.length; i++) {
+    const c = carpets[i];
+    if (c.rolled && gx === c.ox && gy === c.oy) {
+      selectedCarpet = i;
+      buildArrows(i);
+      return;
+    }
+  }
+
+  // Deselect
+  selectedCarpet = -1;
+  arrowBtns = [];
+});
+
+// Drawing helpers
+function drawTile(x, y, color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(offsetX + x * tileSize + 1, offsetY + y * tileSize + 1, tileSize - 2, tileSize - 2);
+}
+
+function drawGeometricBorder(x, y, w, h, color) {
+  const px1 = offsetX + x * tileSize;
+  const py1 = offsetY + y * tileSize;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(px1 + 3, py1 + 3, w * tileSize - 6, h * tileSize - 6);
+  ctx.strokeRect(px1 + 6, py1 + 6, w * tileSize - 12, h * tileSize - 12);
+}
+
+function drawCarpetPattern(tx, ty, col) {
+  const cx = offsetX + tx * tileSize + tileSize / 2;
+  const cy = offsetY + ty * tileSize + tileSize / 2;
+  const s = tileSize * 0.15;
+  ctx.strokeStyle = col.pattern;
+  ctx.lineWidth = 1.5;
+  // Diamond pattern
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - s);
+  ctx.lineTo(cx + s, cy);
+  ctx.lineTo(cx, cy + s);
+  ctx.lineTo(cx - s, cy);
+  ctx.closePath();
+  ctx.stroke();
+  // Corner dots
+  const d = tileSize * 0.3;
+  ctx.fillStyle = col.border;
+  for (let i = -1; i <= 1; i += 2) {
+    for (let j = -1; j <= 1; j += 2) {
+      ctx.beginPath();
+      ctx.arc(cx + i * d, cy + j * d, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+function drawWater(x, y, t) {
+  drawTile(x, y, COLORS.water);
+  const px1 = offsetX + x * tileSize;
+  const py1 = offsetY + y * tileSize;
+  ctx.strokeStyle = '#2a5a8a';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 3; i++) {
+    const waveY = py1 + 15 + i * 14;
+    const phase = t * 0.002 + i * 1.5 + x * 0.8;
+    ctx.beginPath();
+    for (let wx = 0; wx < tileSize - 2; wx += 4) {
+      const wy = Math.sin(phase + wx * 0.15) * 3;
+      if (wx === 0) ctx.moveTo(px1 + 3 + wx, waveY + wy);
+      else ctx.lineTo(px1 + 3 + wx, waveY + wy);
+    }
+    ctx.stroke();
+  }
+}
+
+function drawSpike(x, y) {
+  drawTile(x, y, COLORS.spike);
+  const px1 = offsetX + x * tileSize;
+  const py1 = offsetY + y * tileSize;
+  ctx.fillStyle = '#888';
+  const spikes = 3;
+  const sw = (tileSize - 10) / spikes;
+  for (let i = 0; i < spikes; i++) {
+    ctx.beginPath();
+    ctx.moveTo(px1 + 6 + i * sw, py1 + tileSize - 8);
+    ctx.lineTo(px1 + 6 + i * sw + sw / 2, py1 + 10);
+    ctx.lineTo(px1 + 6 + (i + 1) * sw, py1 + tileSize - 8);
+    ctx.closePath();
+    ctx.fill();
+  }
+}
+
+function drawPlayer(x, y) {
+  const cx = offsetX + x * tileSize + tileSize / 2;
+  const cy = offsetY + y * tileSize + tileSize / 2;
+  const bob = playerAnim > 0 ? Math.sin(playerAnim * 0.8) * 2 : 0;
+  // Body
+  ctx.fillStyle = '#e8d070';
+  ctx.beginPath();
+  ctx.arc(cx, cy - 4 + bob, tileSize * 0.22, 0, Math.PI * 2);
+  ctx.fill();
+  // Robe
+  ctx.fillStyle = '#c05020';
+  ctx.beginPath();
+  ctx.moveTo(cx - tileSize * 0.2, cy + 2 + bob);
+  ctx.lineTo(cx + tileSize * 0.2, cy + 2 + bob);
+  ctx.lineTo(cx + tileSize * 0.15, cy + tileSize * 0.35 + bob);
+  ctx.lineTo(cx - tileSize * 0.15, cy + tileSize * 0.35 + bob);
+  ctx.closePath();
+  ctx.fill();
+  // Eyes
+  ctx.fillStyle = '#222';
+  ctx.beginPath();
+  ctx.arc(cx - 4, cy - 5 + bob, 2, 0, Math.PI * 2);
+  ctx.arc(cx + 4, cy - 5 + bob, 2, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawExit(x, y, t) {
+  const px1 = offsetX + x * tileSize;
+  const py1 = offsetY + y * tileSize;
+  const glow = 0.5 + 0.3 * Math.sin(t * 0.003);
+  ctx.fillStyle = `rgba(200,168,50,${glow})`;
+  ctx.fillRect(px1 + 2, py1 + 2, tileSize - 4, tileSize - 4);
+  // Door shape
+  ctx.fillStyle = '#c8a832';
+  ctx.fillRect(px1 + tileSize * 0.25, py1 + tileSize * 0.15, tileSize * 0.5, tileSize * 0.7);
+  // Door arch
+  ctx.beginPath();
+  ctx.arc(px1 + tileSize * 0.5, py1 + tileSize * 0.35, tileSize * 0.25, Math.PI, 0);
+  ctx.fill();
+  // Knob
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(px1 + tileSize * 0.6, py1 + tileSize * 0.55, 3, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawRolledCarpet(c, idx) {
+  const px1 = offsetX + c.ox * tileSize;
+  const py1 = offsetY + c.oy * tileSize;
+  const col = CARPET_COLORS[c.ci % CARPET_COLORS.length];
+  const sel = idx === selectedCarpet;
+
+  // Rolled carpet cylinder
+  ctx.fillStyle = sel ? '#fff' : col.border;
+  ctx.fillRect(px1 + 8, py1 + tileSize * 0.3, tileSize - 16, tileSize * 0.4);
+  ctx.fillStyle = col.main;
+  ctx.fillRect(px1 + 10, py1 + tileSize * 0.35, tileSize - 20, tileSize * 0.3);
+  // Spiral end
+  ctx.strokeStyle = col.border;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(px1 + tileSize / 2, py1 + tileSize / 2, 6, 0, Math.PI * 1.5);
+  ctx.stroke();
+  // Length label
+  ctx.fillStyle = '#fff';
+  ctx.font = '10px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(c.len + '', px1 + tileSize / 2, py1 + tileSize - 8);
+
+  if (sel) {
+    ctx.strokeStyle = '#ff0';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(px1 + 2, py1 + 2, tileSize - 4, tileSize - 4);
+  }
+}
+
+function drawUnrolledCarpet(c, step) {
+  const col = CARPET_COLORS[c.ci % CARPET_COLORS.length];
+  const tilesToDraw = step !== undefined ? Math.min(step, c.tiles.length) : c.tiles.length;
+  for (let i = 0; i < tilesToDraw; i++) {
+    const t = c.tiles[i];
+    const px1 = offsetX + t.x * tileSize;
+    const py1 = offsetY + t.y * tileSize;
+    // Main carpet color
+    ctx.fillStyle = col.main;
+    ctx.fillRect(px1 + 1, py1 + 1, tileSize - 2, tileSize - 2);
+    // Border
+    ctx.strokeStyle = col.border;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(px1 + 4, py1 + 4, tileSize - 8, tileSize - 8);
+    // Pattern
+    drawCarpetPattern(t.x, t.y, col);
+  }
+  // Draw connected border around all tiles
+  if (tilesToDraw > 0) {
+    ctx.strokeStyle = col.border;
+    ctx.lineWidth = 2.5;
+    // Outer border for first and last
+    const first = c.tiles[0];
+    const last = c.tiles[Math.min(tilesToDraw - 1, c.tiles.length - 1)];
+    const minX = Math.min(first.x, last.x);
+    const minY = Math.min(first.y, last.y);
+    const maxX = Math.max(first.x, last.x);
+    const maxY = Math.max(first.y, last.y);
+    ctx.strokeRect(
+      offsetX + minX * tileSize + 1,
+      offsetY + minY * tileSize + 1,
+      (maxX - minX + 1) * tileSize - 2,
+      (maxY - minY + 1) * tileSize - 2
+    );
+  }
+}
+
+function drawArrow(a) {
+  const cx = offsetX + a.x * tileSize + tileSize / 2;
+  const cy = offsetY + a.y * tileSize + tileSize / 2;
+  // Highlight bg
+  ctx.fillStyle = 'rgba(255,255,0,0.2)';
+  ctx.fillRect(offsetX + a.x * tileSize, offsetY + a.y * tileSize, tileSize, tileSize);
+  // Arrow
+  ctx.fillStyle = '#ff0';
+  ctx.font = (tileSize * 0.5) + 'px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(a.label, cx, cy);
+}
+
+// Main loop
+let lastTime = 0;
+loadLevel(0);
+
+function update(dt, t) {
+  if (infoOpen) return;
+  if (playerAnim > 0) playerAnim--;
+  if (animating) {
+    animTimer += dt;
+    if (animTimer > 120) {
+      animTimer = 0;
+      animStep++;
+      if (animStep > carpets[animCarpet].len) {
+        animating = false;
+        animCarpet = null;
+      }
+    }
+  }
+}
+
+function draw(t) {
+  ctx.fillStyle = COLORS.bg;
+  ctx.fillRect(0, 0, W, H);
+
+  // Title bar
+  hudText('FARSH', 20, 10, 18, '#c8a832');
+  hudText('Level ' + (level + 1) + '/' + LEVELS.length, W / 2, 10, 14, '#888', 'center');
+  hudText('[?] Info  [R] Restart', W - 20, 10, 11, '#555', 'right');
+
+  // Draw grid
+  for (let y = 0; y < gridH; y++) {
+    for (let x = 0; x < gridW; x++) {
+      const tile = tileAt(x, y);
+      switch (tile) {
+        case FLOOR: case START: drawTile(x, y, COLORS.floor); break;
+        case WALL:
+          ctx.fillStyle = COLORS.wall;
+          ctx.fillRect(offsetX + x * tileSize, offsetY + y * tileSize, tileSize, tileSize);
+          // Brick pattern
+          ctx.strokeStyle = '#2a2a4e';
+          ctx.lineWidth = 1;
+          const bx = offsetX + x * tileSize, by = offsetY + y * tileSize;
+          ctx.strokeRect(bx + 2, by + 2, tileSize / 2 - 3, tileSize / 2 - 3);
+          ctx.strokeRect(bx + tileSize / 2 + 1, by + 2, tileSize / 2 - 3, tileSize / 2 - 3);
+          ctx.strokeRect(bx + tileSize / 4, by + tileSize / 2 + 1, tileSize / 2 - 2, tileSize / 2 - 3);
+          break;
+        case WATER: drawWater(x, y, t); break;
+        case SPIKE: drawSpike(x, y); break;
+        case EXIT: drawExit(x, y, t); break;
+      }
+    }
+  }
+
+  // Draw unrolled carpets
+  for (let i = 0; i < carpets.length; i++) {
+    const c = carpets[i];
+    if (!c.rolled) {
+      if (animating && animCarpet === i) {
+        drawUnrolledCarpet(c, animStep);
+      } else {
+        drawUnrolledCarpet(c);
+      }
+    }
+  }
+
+  // Draw rolled carpets
+  for (let i = 0; i < carpets.length; i++) {
+    if (carpets[i].rolled) {
+      drawRolledCarpet(carpets[i], i);
+    }
+  }
+
+  // Draw arrows
+  for (const a of arrowBtns) drawArrow(a);
+
+  // Draw player
+  if (!animating) drawPlayer(px, py);
+
+  // Win overlay
+  if (won) {
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(0, 0, W, H);
+    hudText('LEVEL COMPLETE!', W / 2, H / 2 - 30, 28, '#c8a832', 'center');
+    if (level < LEVELS.length - 1) {
+      hudText('Press N for next level', W / 2, H / 2 + 10, 16, '#aaa', 'center');
+    } else {
+      hudText('All levels complete! Congratulations!', W / 2, H / 2 + 10, 16, '#4f4', 'center');
+    }
+  }
+
+  // Bottom hints
+  if (!won && !animating) {
+    const hint = selectedCarpet >= 0 ? 'Click an arrow to unroll carpet' : 'Click a rolled carpet to select it, then move with WASD';
+    hudText(hint, W / 2, H - 18, 11, '#666', 'center');
+  }
+}
+
+function loop(t) {
+  const dt = t - lastTime;
+  lastTime = t;
+  update(dt, t);
+  draw(t);
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: twin-stick ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("twin-stick");
+</script>
+</body>
+</html>

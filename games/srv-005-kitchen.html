@@ -1,0 +1,1078 @@
+<!--
+PROTOTYPE: kitchen
+SERIES: srv
+NUMBER: 005
+DATE: 2026-03-23
+MECHANIC: kitchen service — grab ingredients, cook dishes in sequence, plate and serve orders before they expire; manage multiple orders under time pressure
+ANCESTRY: BurgerTime (1982), Cooking Mama (2006), Overcooked (2016), PlateUp! (2022)
+CONTROLS: Arrow keys or WASD — move | Space — pick up/put down/interact | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 6 (Deep Learning — task scheduling, resource allocation)
+AI-INSIGHT: Kitchen service is a real-time scheduling problem with resource constraints: multiple orders compete for limited cooking stations, ingredients, and player time. The player must solve a dynamic job-shop scheduling problem — the same NP-hard optimization problem that factory automation and logistics AI tackles. Overcooked proved that scheduling stress, when framed as cooperative chaos, is inherently fun.
+NOTES: Overcooked (2016) by Ghost Town Games turned cooking into controlled chaos. The genre descends from BurgerTime (1982) and Tapper (1983) but adds spatial movement and multi-step recipes. The cognitive load of tracking multiple timers and order priorities creates satisfying flow state.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SRV-005 · KITCHEN</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SRV-005 · KITCHEN</h1>
+    <p><span class="tag series">SRV — Service / Serve 'em Up</span> <span class="tag">Prototype #004</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Run a kitchen! Grab ingredients, cook and chop them at stations, assemble plates, and serve orders before they expire. Manage multiple orders under time pressure.</p>
+    <ul>
+      <li><kbd>&#8592;</kbd> <kbd>&#8593;</kbd> <kbd>&#8594;</kbd> <kbd>&#8595;</kbd> or <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> — Move chef</li>
+      <li><kbd>Space</kbd> — Pick up / put down / interact with station</li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Read the orders:</strong> Tickets at the top show what each customer wants. The timer bar shows urgency.</li>
+      <li><strong>Cook meat on the stove:</strong> Place raw meat on the stove and wait. But don't leave it too long — it burns!</li>
+      <li><strong>Chop veggies on the cutting board:</strong> Place lettuce, tomato, or cheese on the cutting board to prepare them.</li>
+      <li><strong>Assemble on plates:</strong> Place prepared items on an empty plate at the counter. Build the recipe in any order.</li>
+      <li><strong>Serve at the window:</strong> Carry a completed plate to the serving window to fulfill an order.</li>
+      <li><strong>Trash mistakes:</strong> Carry burnt food or wrong items to the trash can to dispose of them.</li>
+      <li><strong>Speed tips:</strong> Faster service earns bonus tip points. Plan your route through the kitchen!</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> BurgerTime (1982) &rarr; Cooking Mama (2006) &rarr; Overcooked (2016) &rarr; PlateUp! (2022)</p>
+    <p><strong>BurgerTime</strong> (1982) by Data East is the genre&rsquo;s ancestor, casting the player as a chef assembling burgers while dodging food enemies. <strong>Cooking Mama</strong> (2006) by Office Create on the DS focused on the tactile joy of individual cooking steps, bringing kitchen gameplay to a wider audience.</p>
+    <p><strong>Overcooked</strong> (2016) by Phil Duncan and Ol De-Gaulle at Ghost Town Games, published by Team17, turned kitchen service into cooperative chaos, requiring players to coordinate ingredient prep, cooking, plating, and serving across increasingly absurd kitchen layouts. <strong>PlateUp!</strong> (2022) by It&rsquo;s Happening added roguelike elements and kitchen customization. The throughline from BurgerTime to PlateUp! is the satisfaction of completing complex multi-step processes under time pressure.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 6 — Deep Learning (2012-present)</p>
+    <p><strong>Contemporary AI:</strong> Deep reinforcement learning, transformer architectures, multi-agent coordination systems.</p>
+    <p><strong>Hidden Intelligence:</strong> Kitchen service is a real-time scheduling problem with resource constraints. Multiple orders compete for limited cooking stations, ingredients, and player time. The player must solve a dynamic job-shop scheduling problem — the same NP-hard optimization problem that factory automation and logistics AI tackles. Each order is a job with ordered operations (chop, cook, plate), each requiring specific machines (stations) for specific durations. The player is the scheduler, and unlike algorithmic solvers, must also physically move between stations.</p>
+    <p><strong>Modern Parallel:</strong> Amazon warehouse robots solve a similar problem — moving items between stations in optimal order. DeepMind's AlphaStar demonstrated that real-time resource management and multi-task scheduling can be learned by neural networks, achieving superhuman performance in StarCraft II's macro-management.</p>
+
+    <h2>Classification</h2>
+    <p><strong>Series:</strong> SRV — Service / Serve 'em Up</p>
+    <p><strong>Mechanic:</strong> Kitchen service — grab, cook, chop, plate, serve under time pressure</p>
+    <p><strong>Input profile:</strong> 4-directional movement + action button</p>
+    <p><strong>State complexity:</strong> High (multiple order states, station timers, ingredient states, player position)</p>
+
+    <h2>Prototype Notes</h2>
+    <p>Single-file HTML5 Canvas implementation. Top-down kitchen layout with ingredient stations, cooking stations, plating counters, serving window, and trash. Four recipe types: Burger, Salad, Sandwich, and Soup. Burning mechanic on stove. 2.5-minute rounds with progressive difficulty (more orders, shorter timers).</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+const C = document.getElementById('c');
+const X = C.getContext('2d');
+C.width = 800; C.height = 600;
+
+// --- Info Panel ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// --- Constants ---
+const TILE = 50;
+const COLS = 16, ROWS = 12;
+const ROUND_TIME = 150; // 2.5 minutes
+const COOK_TIME = 3;    // seconds to cook meat
+const BURN_TIME = 6;    // seconds until burnt
+const CHOP_TIME = 2;    // seconds to chop
+const ORDER_BASE_TIME = 45; // seconds per order
+
+// Ingredient types
+const ING = {
+  LETTUCE: 'lettuce', TOMATO: 'tomato', MEAT: 'meat',
+  BREAD: 'bread', CHEESE: 'cheese'
+};
+
+// Ingredient states
+const STATE = { RAW: 'raw', CHOPPED: 'chopped', COOKED: 'cooked', BURNT: 'burnt' };
+
+// Colors
+const COLORS = {
+  floor: '#c4a26e', counter: '#8B6914', counterTop: '#d4a843',
+  wall: '#555', stove: '#666', stoveTop: '#444',
+  cutting: '#ddd', cuttingTop: '#f5f5dc', serve: '#4a9',
+  trash: '#722', plate: '#eee',
+  lettuce: '#4d4', tomato: '#e33', meat: '#964', meatCooked: '#831',
+  meatBurnt: '#222', bread: '#da5', cheese: '#fd2',
+  chef: '#fff', chefHat: '#fff', chefApron: '#48f'
+};
+
+// Recipes
+const RECIPES = {
+  burger: { name: 'Burger', items: ['bread', 'meat:cooked', 'lettuce:chopped'], color: '#da5', icon: 'B' },
+  salad:  { name: 'Salad',  items: ['lettuce:chopped', 'tomato:chopped', 'cheese:chopped'], color: '#4d4', icon: 'S' },
+  sandwich: { name: 'Sandwich', items: ['bread', 'cheese:chopped', 'tomato:chopped'], color: '#da5', icon: 'W' },
+  soup:   { name: 'Soup',   items: ['tomato:chopped', 'meat:cooked'], color: '#e55', icon: 'P' }
+};
+const RECIPE_KEYS = Object.keys(RECIPES);
+
+// Kitchen layout: 0=floor, 1=counter, 2=stove, 3=cutting, 4=serve, 5=trash, 6=wall
+// 10-14 = ingredient stations (lettuce, tomato, meat, bread, cheese)
+const MAP = [
+  [6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6],
+  [6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6],
+  [6,10,0,0,11,0,0,12,0,0,13,0,0,14,0,6],
+  [6,1,0,0,1,0,0,1,0,0,1,0,0,1,0,6],
+  [6,0,0,0,0,0,0,0,0,0,0,0,0,0,0,6],
+  [6,0,0,0,0,0,0,0,0,0,0,0,0,0,0,6],
+  [6,0,0,0,0,0,0,0,0,0,0,0,0,0,0,6],
+  [6,0,0,0,0,0,0,0,0,0,0,0,0,0,0,6],
+  [6,2,2,0,3,3,0,1,1,1,0,5,0,4,4,6],
+  [6,6,6,0,6,6,0,6,6,6,0,6,0,6,6,6],
+  [6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6],
+  [6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6]
+];
+
+// Map ingredient stations
+const ING_STATIONS = { 10: ING.LETTUCE, 11: ING.TOMATO, 12: ING.MEAT, 13: ING.BREAD, 14: ING.CHEESE };
+
+// Station labels
+const STATION_LABELS = {
+  2: 'STOVE', 3: 'CUTTING', 4: 'SERVE', 5: 'TRASH',
+  10: 'LETTUCE', 11: 'TOMATO', 12: 'MEAT', 13: 'BREAD', 14: 'CHEESE'
+};
+
+// --- Game State ---
+let state, chef, orders, stations, roundTimer, score, totalServed, totalMissed;
+let keys = {};
+let lastTime = 0;
+let gameOver = false;
+let moveCD = 0;
+let particles = [];
+let flashMsg = '';
+let flashTimer = 0;
+
+function initGame() {
+  gameOver = false;
+  score = 0;
+  totalServed = 0;
+  totalMissed = 0;
+  roundTimer = ROUND_TIME;
+  chef = { x: 7, y: 6, holding: null, dir: 0 };
+  orders = [];
+  particles = [];
+  flashMsg = '';
+  flashTimer = 0;
+
+  // Station states: track what's on stoves, cutting boards, and counters
+  stations = {};
+  // Stoves at (1,8) and (2,8)
+  stations['1,8'] = { type: 'stove', item: null, timer: 0 };
+  stations['2,8'] = { type: 'stove', item: null, timer: 0 };
+  // Cutting boards at (4,8) and (5,8)
+  stations['4,8'] = { type: 'cutting', item: null, timer: 0 };
+  stations['5,8'] = { type: 'cutting', item: null, timer: 0 };
+  // Counters (plating) at (7,8), (8,8), (9,8)
+  stations['7,8'] = { type: 'counter', plate: null };
+  stations['8,8'] = { type: 'counter', plate: null };
+  stations['9,8'] = { type: 'counter', plate: null };
+  // Serve windows at (13,8), (14,8)
+  stations['13,8'] = { type: 'serve' };
+  stations['14,8'] = { type: 'serve' };
+  // Trash at (11,8)
+  stations['11,8'] = { type: 'trash' };
+
+  // Spawn initial orders
+  spawnOrder();
+  spawnOrder();
+}
+
+function spawnOrder() {
+  if (orders.length >= 5) return;
+  let recipe = RECIPE_KEYS[Math.floor(Math.random() * RECIPE_KEYS.length)];
+  let timeLimit = ORDER_BASE_TIME - Math.min(15, totalServed * 2);
+  if (timeLimit < 20) timeLimit = 20;
+  orders.push({
+    recipe: recipe,
+    timeLeft: timeLimit,
+    maxTime: timeLimit,
+    x: 0 // will be set in draw
+  });
+}
+
+let orderSpawnTimer = 0;
+const ORDER_SPAWN_INTERVAL = 12; // new order every 12 seconds
+
+function update(dt) {
+  if (infoOpen) return;
+  if (gameOver) return;
+
+  // Round timer
+  roundTimer -= dt;
+  if (roundTimer <= 0) {
+    roundTimer = 0;
+    gameOver = true;
+    return;
+  }
+
+  // Order spawn
+  orderSpawnTimer -= dt;
+  if (orderSpawnTimer <= 0) {
+    spawnOrder();
+    orderSpawnTimer = ORDER_SPAWN_INTERVAL - Math.min(5, totalServed);
+    if (orderSpawnTimer < 5) orderSpawnTimer = 5;
+  }
+
+  // Order timers
+  for (let i = orders.length - 1; i >= 0; i--) {
+    orders[i].timeLeft -= dt;
+    if (orders[i].timeLeft <= 0) {
+      orders.splice(i, 1);
+      totalMissed++;
+      score -= 10;
+      if (score < 0) score = 0;
+      flash('ORDER EXPIRED!', '#f44');
+    }
+  }
+
+  // Station timers (stoves and cutting boards)
+  for (let key in stations) {
+    let s = stations[key];
+    if (s.type === 'stove' && s.item) {
+      s.timer += dt;
+      if (s.item.state === STATE.RAW && s.timer >= COOK_TIME) {
+        s.item.state = STATE.COOKED;
+      }
+      if (s.timer >= BURN_TIME) {
+        s.item.state = STATE.BURNT;
+      }
+    }
+    if (s.type === 'cutting' && s.item && s.item.state === STATE.RAW) {
+      s.timer += dt;
+      if (s.timer >= CHOP_TIME) {
+        s.item.state = STATE.CHOPPED;
+      }
+    }
+  }
+
+  // Movement
+  moveCD -= dt;
+  if (moveCD <= 0) {
+    let dx = 0, dy = 0;
+    if (keys['ArrowLeft'] || keys['a'] || keys['A']) { dx = -1; chef.dir = 2; }
+    else if (keys['ArrowRight'] || keys['d'] || keys['D']) { dx = 1; chef.dir = 0; }
+    else if (keys['ArrowUp'] || keys['w'] || keys['W']) { dy = -1; chef.dir = 3; }
+    else if (keys['ArrowDown'] || keys['s'] || keys['S']) { dy = 1; chef.dir = 1; }
+
+    if (dx !== 0 || dy !== 0) {
+      let nx = chef.x + dx, ny = chef.y + dy;
+      if (nx >= 0 && nx < COLS && ny >= 0 && ny < ROWS && MAP[ny][nx] === 0) {
+        chef.x = nx;
+        chef.y = ny;
+        moveCD = 0.1;
+      } else {
+        moveCD = 0.1;
+      }
+    }
+  }
+
+  // Flash message timer
+  if (flashTimer > 0) flashTimer -= dt;
+
+  // Particles
+  for (let i = particles.length - 1; i >= 0; i--) {
+    particles[i].life -= dt;
+    particles[i].y -= 30 * dt;
+    if (particles[i].life <= 0) particles.splice(i, 1);
+  }
+}
+
+function interact() {
+  if (infoOpen || gameOver) return;
+
+  // Find adjacent station (in direction chef faces, or any adjacent)
+  let dirs = [[1,0],[0,1],[-1,0],[0,-1]];
+  // Prioritize the direction the chef faces
+  let ordered = [dirs[chef.dir], ...dirs.filter((_,i) => i !== chef.dir)];
+
+  for (let [dx, dy] of ordered) {
+    let tx = chef.x + dx, ty = chef.y + dy;
+    let tile = MAP[ty] && MAP[ty][tx];
+    let skey = tx + ',' + ty;
+    let station = stations[skey];
+
+    // Ingredient station — pick up ingredient
+    if (tile >= 10 && tile <= 14 && !chef.holding) {
+      let ingType = ING_STATIONS[tile];
+      chef.holding = { type: ingType, state: STATE.RAW };
+      flash('Picked up ' + ingType, '#ff0');
+      return;
+    }
+
+    // Stove — place raw meat or pick up
+    if (station && station.type === 'stove') {
+      if (!chef.holding && station.item) {
+        chef.holding = station.item;
+        station.item = null;
+        station.timer = 0;
+        flash('Picked up from stove', '#ff0');
+        return;
+      }
+      if (chef.holding && !station.item && chef.holding.type === ING.MEAT && chef.holding.state === STATE.RAW) {
+        station.item = chef.holding;
+        station.timer = 0;
+        chef.holding = null;
+        flash('Cooking meat...', '#f80');
+        return;
+      }
+      if (chef.holding && !station.item) {
+        flash('Only raw meat goes on stove!', '#f44');
+        return;
+      }
+    }
+
+    // Cutting board — place choppable items or pick up
+    if (station && station.type === 'cutting') {
+      if (!chef.holding && station.item) {
+        chef.holding = station.item;
+        station.item = null;
+        station.timer = 0;
+        flash('Picked up from board', '#ff0');
+        return;
+      }
+      let choppable = [ING.LETTUCE, ING.TOMATO, ING.CHEESE];
+      if (chef.holding && !station.item && choppable.includes(chef.holding.type) && chef.holding.state === STATE.RAW) {
+        station.item = chef.holding;
+        station.timer = 0;
+        chef.holding = null;
+        flash('Chopping...', '#4d4');
+        return;
+      }
+      if (chef.holding && !station.item) {
+        flash('Can\'t chop that!', '#f44');
+        return;
+      }
+    }
+
+    // Counter — plate assembly
+    if (station && station.type === 'counter') {
+      // Place a plate if counter is empty and chef has nothing (auto plate)
+      if (!chef.holding && station.plate && station.plate.length > 0) {
+        // Pick up plate
+        chef.holding = { type: 'plate', items: station.plate };
+        station.plate = null;
+        flash('Picked up plate', '#ff0');
+        return;
+      }
+      if (!chef.holding && !station.plate) {
+        // Create empty plate
+        station.plate = [];
+        flash('Placed empty plate', '#eee');
+        return;
+      }
+      if (chef.holding && chef.holding.type === 'plate') {
+        // Put plate down
+        if (!station.plate) {
+          station.plate = chef.holding.items;
+          chef.holding = null;
+          flash('Put plate down', '#eee');
+          return;
+        }
+      }
+      if (chef.holding && chef.holding.type !== 'plate') {
+        // Add item to plate
+        if (station.plate === null) station.plate = [];
+        if (chef.holding.state === STATE.BURNT) {
+          flash('Can\'t plate burnt food!', '#f44');
+          return;
+        }
+        if (chef.holding.state === STATE.RAW && chef.holding.type !== ING.BREAD) {
+          flash('Must prepare ingredient first!', '#f44');
+          return;
+        }
+        if (station.plate.length >= 4) {
+          flash('Plate is full!', '#f44');
+          return;
+        }
+        let itemStr = chef.holding.type + (chef.holding.state !== STATE.RAW ? ':' + chef.holding.state : '');
+        station.plate.push(itemStr);
+        chef.holding = null;
+        flash('Added to plate', '#4d4');
+        return;
+      }
+    }
+
+    // Serve window
+    if (station && station.type === 'serve') {
+      if (chef.holding && chef.holding.type === 'plate') {
+        let plateItems = chef.holding.items || [];
+        // Check against orders
+        let served = false;
+        for (let i = 0; i < orders.length; i++) {
+          let recipe = RECIPES[orders[i].recipe];
+          if (matchRecipe(plateItems, recipe.items)) {
+            let timeBonus = Math.floor(orders[i].timeLeft / orders[i].maxTime * 20);
+            let pts = 25 + timeBonus;
+            score += pts;
+            totalServed++;
+            addParticles(13 * TILE, 8 * TILE, '#ff0', 8);
+            flash('+' + pts + ' ' + recipe.name + ' served!', '#4f4');
+            orders.splice(i, 1);
+            chef.holding = null;
+            served = true;
+            break;
+          }
+        }
+        if (!served) {
+          flash('No matching order!', '#f44');
+        }
+        return;
+      }
+      if (!chef.holding) {
+        flash('Bring a plate to serve!', '#f80');
+        return;
+      }
+    }
+
+    // Trash
+    if (station && station.type === 'trash') {
+      if (chef.holding) {
+        chef.holding = null;
+        flash('Trashed!', '#888');
+        return;
+      }
+    }
+
+    // Found something to interact with
+    if (tile !== undefined && tile !== 0 && tile !== 6) {
+      // Generic "can't do that" for stations not handled above
+    }
+  }
+}
+
+function matchRecipe(plateItems, recipeItems) {
+  if (plateItems.length !== recipeItems.length) return false;
+  let plate = [...plateItems].sort();
+  let recipe = [...recipeItems].sort();
+  for (let i = 0; i < plate.length; i++) {
+    if (plate[i] !== recipe[i]) return false;
+  }
+  return true;
+}
+
+function flash(msg, color) {
+  flashMsg = msg;
+  flashTimer = 1.5;
+  flashColor = color || '#fff';
+}
+let flashColor = '#fff';
+
+function addParticles(px, py, color, n) {
+  for (let i = 0; i < n; i++) {
+    particles.push({
+      x: px + Math.random() * 30 - 15,
+      y: py + Math.random() * 20,
+      color: color,
+      life: 0.8 + Math.random() * 0.5
+    });
+  }
+}
+
+// --- Drawing ---
+function draw() {
+  X.fillStyle = '#1a1a1a';
+  X.fillRect(0, 0, 800, 600);
+
+  // Draw map
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      let tile = MAP[r][c];
+      let px = c * TILE, py = r * TILE;
+
+      // Floor
+      X.fillStyle = COLORS.floor;
+      X.fillRect(px, py, TILE, TILE);
+
+      // Checkerboard floor
+      if (tile === 0 && (r + c) % 2 === 0) {
+        X.fillStyle = '#b89860';
+        X.fillRect(px, py, TILE, TILE);
+      }
+
+      if (tile === 6) { // Wall
+        X.fillStyle = COLORS.wall;
+        X.fillRect(px, py, TILE, TILE);
+        X.fillStyle = '#444';
+        X.fillRect(px + 2, py + 2, TILE - 4, TILE - 4);
+      } else if (tile === 1) { // Counter
+        X.fillStyle = COLORS.counter;
+        X.fillRect(px, py, TILE, TILE);
+        X.fillStyle = COLORS.counterTop;
+        X.fillRect(px + 2, py + 2, TILE - 4, TILE - 4);
+      } else if (tile >= 10 && tile <= 14) { // Ingredient station
+        X.fillStyle = COLORS.counter;
+        X.fillRect(px, py, TILE, TILE);
+        X.fillStyle = COLORS.counterTop;
+        X.fillRect(px + 2, py + 2, TILE - 4, TILE - 4);
+        // Draw ingredient icon
+        drawIngredientIcon(px + TILE/2, py + TILE/2, ING_STATIONS[tile]);
+        // Label
+        X.fillStyle = '#000';
+        X.font = '8px monospace';
+        X.textAlign = 'center';
+        X.fillText(STATION_LABELS[tile], px + TILE/2, py + TILE - 4);
+      }
+    }
+  }
+
+  // Draw stations (stoves, cutting boards, counters, etc.)
+  for (let key in stations) {
+    let [cx, cy] = key.split(',').map(Number);
+    let px = cx * TILE, py = cy * TILE;
+    let s = stations[key];
+
+    if (s.type === 'stove') {
+      X.fillStyle = COLORS.stove;
+      X.fillRect(px, py, TILE, TILE);
+      X.fillStyle = COLORS.stoveTop;
+      X.fillRect(px + 3, py + 3, TILE - 6, TILE - 6);
+      // Burner rings
+      X.strokeStyle = '#888';
+      X.lineWidth = 2;
+      X.beginPath();
+      X.arc(px + TILE/2, py + TILE/2, 12, 0, Math.PI * 2);
+      X.stroke();
+      // Item on stove
+      if (s.item) {
+        drawItem(px + TILE/2, py + TILE/2 - 5, s.item);
+        // Cook progress bar
+        let progress = Math.min(s.timer / COOK_TIME, 1);
+        let burnProgress = Math.min(s.timer / BURN_TIME, 1);
+        X.fillStyle = s.item.state === STATE.BURNT ? '#f00' : (s.item.state === STATE.COOKED ? '#4f4' : '#ff0');
+        X.fillRect(px + 4, py + TILE - 8, (TILE - 8) * (s.item.state === STATE.COOKED ? burnProgress : progress), 4);
+        X.strokeStyle = '#333';
+        X.strokeRect(px + 4, py + TILE - 8, TILE - 8, 4);
+        // Flame effect if cooking
+        if (s.item.state === STATE.RAW || s.item.state === STATE.COOKED) {
+          X.fillStyle = `rgba(255,${100 + Math.random()*100|0},0,0.6)`;
+          X.fillRect(px + 8 + Math.random()*8, py + TILE - 14, 4, 4);
+          X.fillRect(px + TILE - 16 + Math.random()*8, py + TILE - 14, 4, 4);
+        }
+        if (s.item.state === STATE.BURNT) {
+          X.fillStyle = 'rgba(50,50,50,0.5)';
+          for (let i = 0; i < 3; i++) {
+            X.fillRect(px + 10 + Math.random() * 20, py + Math.random() * 15, 6, 6);
+          }
+        }
+      }
+      // Label
+      X.fillStyle = '#ccc';
+      X.font = '8px monospace';
+      X.textAlign = 'center';
+      X.fillText('STOVE', px + TILE/2, py + TILE - 1);
+    }
+
+    if (s.type === 'cutting') {
+      X.fillStyle = COLORS.cutting;
+      X.fillRect(px, py, TILE, TILE);
+      X.fillStyle = COLORS.cuttingTop;
+      X.fillRect(px + 3, py + 3, TILE - 6, TILE - 6);
+      // Knife icon
+      X.fillStyle = '#999';
+      X.fillRect(px + TILE - 14, py + 6, 2, 20);
+      X.fillStyle = '#654';
+      X.fillRect(px + TILE - 16, py + 4, 6, 6);
+      // Item
+      if (s.item) {
+        drawItem(px + TILE/2 - 5, py + TILE/2, s.item);
+        // Chop progress
+        if (s.item.state === STATE.RAW) {
+          let progress = Math.min(s.timer / CHOP_TIME, 1);
+          X.fillStyle = '#4f4';
+          X.fillRect(px + 4, py + TILE - 8, (TILE - 8) * progress, 4);
+          X.strokeStyle = '#333';
+          X.strokeRect(px + 4, py + TILE - 8, TILE - 8, 4);
+        }
+      }
+      X.fillStyle = '#555';
+      X.font = '8px monospace';
+      X.textAlign = 'center';
+      X.fillText('CHOP', px + TILE/2, py + TILE - 1);
+    }
+
+    if (s.type === 'counter') {
+      // Already drawn as tile=1, but draw plate if present
+      if (s.plate !== null) {
+        // Plate
+        X.fillStyle = COLORS.plate;
+        X.beginPath();
+        X.arc(px + TILE/2, py + TILE/2, 16, 0, Math.PI * 2);
+        X.fill();
+        X.strokeStyle = '#ccc';
+        X.lineWidth = 1;
+        X.stroke();
+        // Items on plate
+        let items = s.plate;
+        for (let i = 0; i < items.length; i++) {
+          let angle = (i / Math.max(items.length, 1)) * Math.PI * 2 - Math.PI/2;
+          let ix = px + TILE/2 + Math.cos(angle) * 8;
+          let iy = py + TILE/2 + Math.sin(angle) * 8;
+          drawPlateItem(ix, iy, items[i]);
+        }
+        // Count
+        X.fillStyle = '#000';
+        X.font = 'bold 10px monospace';
+        X.textAlign = 'center';
+        X.fillText(items.length + '', px + TILE/2, py + TILE - 3);
+      }
+    }
+
+    if (s.type === 'serve') {
+      X.fillStyle = COLORS.serve;
+      X.fillRect(px, py, TILE, TILE);
+      X.fillStyle = '#3a8';
+      X.fillRect(px + 3, py + 3, TILE - 6, TILE - 6);
+      // Arrow
+      X.fillStyle = '#fff';
+      X.font = '20px monospace';
+      X.textAlign = 'center';
+      X.fillText('\u2191', px + TILE/2, py + TILE/2 + 6);
+      X.font = '8px monospace';
+      X.fillText('SERVE', px + TILE/2, py + TILE - 1);
+    }
+
+    if (s.type === 'trash') {
+      X.fillStyle = COLORS.trash;
+      X.fillRect(px, py, TILE, TILE);
+      X.fillStyle = '#933';
+      X.fillRect(px + 3, py + 3, TILE - 6, TILE - 6);
+      X.fillStyle = '#ddd';
+      X.font = '18px monospace';
+      X.textAlign = 'center';
+      X.fillText('X', px + TILE/2, py + TILE/2 + 6);
+      X.font = '8px monospace';
+      X.fillText('TRASH', px + TILE/2, py + TILE - 1);
+    }
+  }
+
+  // Draw chef
+  drawChef();
+
+  // Draw orders at top
+  drawOrders();
+
+  // Draw HUD
+  drawHUD();
+
+  // Flash message
+  if (flashTimer > 0) {
+    X.globalAlpha = Math.min(1, flashTimer * 2);
+    X.fillStyle = flashColor;
+    X.font = 'bold 16px monospace';
+    X.textAlign = 'center';
+    X.fillText(flashMsg, 400, 540);
+    X.globalAlpha = 1;
+  }
+
+  // Particles
+  for (let p of particles) {
+    X.globalAlpha = p.life;
+    X.fillStyle = p.color;
+    X.fillRect(p.x, p.y, 4, 4);
+  }
+  X.globalAlpha = 1;
+
+  // Game over screen
+  if (gameOver) {
+    X.fillStyle = 'rgba(0,0,0,0.7)';
+    X.fillRect(0, 0, 800, 600);
+    X.fillStyle = '#fff';
+    X.font = 'bold 36px monospace';
+    X.textAlign = 'center';
+    X.fillText('TIME\'S UP!', 400, 240);
+    X.font = '20px monospace';
+    X.fillText('Score: ' + score, 400, 290);
+    X.fillText('Served: ' + totalServed + '  Missed: ' + totalMissed, 400, 320);
+    X.font = '16px monospace';
+    X.fillStyle = '#ff0';
+    X.fillText('Press R to restart', 400, 370);
+
+    // Rating
+    let rating = 'D';
+    if (score >= 200) rating = 'C';
+    if (score >= 400) rating = 'B';
+    if (score >= 600) rating = 'A';
+    if (score >= 800) rating = 'S';
+    X.font = 'bold 48px monospace';
+    X.fillStyle = rating === 'S' ? '#ff0' : rating === 'A' ? '#4f4' : rating === 'B' ? '#48f' : '#f88';
+    X.fillText('Rating: ' + rating, 400, 440);
+  }
+}
+
+function drawChef() {
+  let px = chef.x * TILE + TILE/2;
+  let py = chef.y * TILE + TILE/2;
+
+  // Body
+  X.fillStyle = COLORS.chefApron;
+  X.fillRect(px - 10, py - 5, 20, 22);
+
+  // Head
+  X.fillStyle = '#fdb';
+  X.beginPath();
+  X.arc(px, py - 10, 9, 0, Math.PI * 2);
+  X.fill();
+
+  // Hat
+  X.fillStyle = COLORS.chefHat;
+  X.fillRect(px - 8, py - 24, 16, 8);
+  X.fillRect(px - 6, py - 30, 12, 8);
+
+  // Eyes (direction)
+  let ex = chef.dir === 0 ? 3 : chef.dir === 2 ? -3 : 0;
+  let ey = chef.dir === 1 ? 2 : chef.dir === 3 ? -2 : 0;
+  X.fillStyle = '#000';
+  X.fillRect(px - 3 + ex, py - 12 + ey, 2, 2);
+  X.fillRect(px + 2 + ex, py - 12 + ey, 2, 2);
+
+  // Held item
+  if (chef.holding) {
+    let hx = px + (chef.dir === 0 ? 18 : chef.dir === 2 ? -18 : 0);
+    let hy = py + (chef.dir === 1 ? 18 : chef.dir === 3 ? -18 : -2);
+    if (chef.holding.type === 'plate') {
+      X.fillStyle = COLORS.plate;
+      X.beginPath();
+      X.arc(hx, hy, 12, 0, Math.PI * 2);
+      X.fill();
+      X.strokeStyle = '#ccc';
+      X.stroke();
+      let items = chef.holding.items || [];
+      for (let i = 0; i < items.length; i++) {
+        let angle = (i / Math.max(items.length, 1)) * Math.PI * 2 - Math.PI/2;
+        drawPlateItem(hx + Math.cos(angle) * 5, hy + Math.sin(angle) * 5, items[i]);
+      }
+    } else {
+      drawItem(hx, hy, chef.holding);
+    }
+  }
+}
+
+function drawItem(px, py, item) {
+  let color;
+  if (item.type === ING.LETTUCE) color = COLORS.lettuce;
+  else if (item.type === ING.TOMATO) color = COLORS.tomato;
+  else if (item.type === ING.MEAT) {
+    color = item.state === STATE.BURNT ? COLORS.meatBurnt :
+            item.state === STATE.COOKED ? COLORS.meatCooked : COLORS.meat;
+  }
+  else if (item.type === ING.BREAD) color = COLORS.bread;
+  else if (item.type === ING.CHEESE) color = COLORS.cheese;
+  else color = '#fff';
+
+  X.fillStyle = color;
+  if (item.state === STATE.CHOPPED) {
+    // Chopped = smaller pieces
+    X.fillRect(px - 6, py - 3, 5, 5);
+    X.fillRect(px + 1, py - 5, 5, 5);
+    X.fillRect(px - 2, py + 1, 5, 5);
+  } else {
+    X.beginPath();
+    X.arc(px, py, 8, 0, Math.PI * 2);
+    X.fill();
+    if (item.state === STATE.COOKED && item.type === ING.MEAT) {
+      X.strokeStyle = '#621';
+      X.lineWidth = 1;
+      X.stroke();
+      // Grill marks
+      X.strokeStyle = '#400';
+      X.beginPath();
+      X.moveTo(px - 4, py - 3); X.lineTo(px + 4, py - 3);
+      X.moveTo(px - 4, py + 1); X.lineTo(px + 4, py + 1);
+      X.stroke();
+    }
+    if (item.state === STATE.BURNT) {
+      X.strokeStyle = '#000';
+      X.lineWidth = 2;
+      X.stroke();
+    }
+  }
+}
+
+function drawIngredientIcon(px, py, type) {
+  let color;
+  if (type === ING.LETTUCE) color = COLORS.lettuce;
+  else if (type === ING.TOMATO) color = COLORS.tomato;
+  else if (type === ING.MEAT) color = COLORS.meat;
+  else if (type === ING.BREAD) color = COLORS.bread;
+  else if (type === ING.CHEESE) color = COLORS.cheese;
+
+  X.fillStyle = color;
+  X.beginPath();
+  X.arc(px, py, 10, 0, Math.PI * 2);
+  X.fill();
+  X.strokeStyle = '#0004';
+  X.lineWidth = 1;
+  X.stroke();
+}
+
+function drawPlateItem(px, py, itemStr) {
+  let [type, st] = itemStr.split(':');
+  let color;
+  if (type === ING.LETTUCE) color = COLORS.lettuce;
+  else if (type === ING.TOMATO) color = COLORS.tomato;
+  else if (type === ING.MEAT) color = st === 'cooked' ? COLORS.meatCooked : COLORS.meat;
+  else if (type === ING.BREAD) color = COLORS.bread;
+  else if (type === ING.CHEESE) color = COLORS.cheese;
+  else color = '#fff';
+
+  X.fillStyle = color;
+  X.fillRect(px - 3, py - 3, 6, 6);
+}
+
+function drawOrders() {
+  // Order tickets at top
+  let ticketW = 140;
+  let startX = 10;
+  X.fillStyle = '#222';
+  X.fillRect(0, 0, 800, TILE * 2);
+
+  X.fillStyle = '#888';
+  X.font = '10px monospace';
+  X.textAlign = 'left';
+  X.fillText('ORDERS:', 10, 14);
+
+  for (let i = 0; i < orders.length; i++) {
+    let o = orders[i];
+    let recipe = RECIPES[o.recipe];
+    let ox = startX + i * (ticketW + 10);
+    let oy = 20;
+
+    // Ticket background
+    let urgency = o.timeLeft / o.maxTime;
+    X.fillStyle = urgency < 0.25 ? '#622' : urgency < 0.5 ? '#553' : '#ddd';
+    X.fillRect(ox, oy, ticketW, 70);
+
+    // Ticket top (colored)
+    X.fillStyle = recipe.color;
+    X.fillRect(ox, oy, ticketW, 18);
+
+    // Recipe name
+    X.fillStyle = '#000';
+    X.font = 'bold 12px monospace';
+    X.textAlign = 'center';
+    X.fillText(recipe.name, ox + ticketW/2, oy + 13);
+
+    // Ingredients list
+    X.font = '9px monospace';
+    X.textAlign = 'left';
+    X.fillStyle = urgency < 0.25 ? '#fcc' : '#333';
+    for (let j = 0; j < recipe.items.length; j++) {
+      let item = recipe.items[j].replace(':', ' ');
+      X.fillText('- ' + item, ox + 6, oy + 32 + j * 11);
+    }
+
+    // Timer bar
+    X.fillStyle = urgency < 0.25 ? '#f33' : urgency < 0.5 ? '#fa0' : '#4a4';
+    X.fillRect(ox + 2, oy + 65, (ticketW - 4) * urgency, 4);
+    X.strokeStyle = '#0004';
+    X.strokeRect(ox + 2, oy + 65, ticketW - 4, 4);
+
+    // Flashing if urgent
+    if (urgency < 0.25 && Math.sin(Date.now() * 0.01) > 0) {
+      X.strokeStyle = '#f00';
+      X.lineWidth = 2;
+      X.strokeRect(ox, oy, ticketW, 70);
+      X.lineWidth = 1;
+    }
+  }
+}
+
+function drawHUD() {
+  // Score
+  X.fillStyle = '#fff';
+  X.font = 'bold 14px monospace';
+  X.textAlign = 'right';
+  X.fillText('Score: ' + score, 790, 14);
+
+  // Timer
+  let mins = Math.floor(roundTimer / 60);
+  let secs = Math.floor(roundTimer % 60);
+  let timeStr = mins + ':' + (secs < 10 ? '0' : '') + secs;
+  X.fillStyle = roundTimer < 30 ? '#f44' : '#ff0';
+  X.fillText(timeStr, 790, 84);
+
+  // Served/missed
+  X.fillStyle = '#aaa';
+  X.font = '11px monospace';
+  X.fillText('Served: ' + totalServed, 790, 54);
+  X.fillText('Missed: ' + totalMissed, 790, 68);
+
+  // Holding indicator
+  if (chef.holding) {
+    X.fillStyle = '#ff0';
+    X.font = '11px monospace';
+    X.textAlign = 'left';
+    let label = chef.holding.type === 'plate' ?
+      'PLATE (' + (chef.holding.items ? chef.holding.items.length : 0) + ' items)' :
+      chef.holding.type + ' (' + chef.holding.state + ')';
+    X.fillText('Holding: ' + label, 10, 590);
+  }
+
+  // Controls hint
+  X.fillStyle = '#555';
+  X.font = '10px monospace';
+  X.textAlign = 'right';
+  X.fillText('[?] Info  [R] Restart  [Space] Interact', 790, 590);
+}
+
+// --- Input ---
+window.addEventListener('keydown', e => {
+  keys[e.key] = true;
+
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
+    e.preventDefault();
+    toggleInfo();
+    return;
+  }
+  if (e.key === 'Escape' && infoOpen) {
+    e.preventDefault();
+    toggleInfo();
+    return;
+  }
+  if (e.key === 'r' || e.key === 'R') {
+    e.preventDefault();
+    initGame();
+    return;
+  }
+  if (e.key === ' ') {
+    e.preventDefault();
+    interact();
+    return;
+  }
+});
+
+window.addEventListener('keyup', e => {
+  keys[e.key] = false;
+});
+
+// --- Main Loop ---
+function gameLoop(ts) {
+  let dt = Math.min((ts - lastTime) / 1000, 0.05);
+  lastTime = ts;
+  update(dt);
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+initGame();
+requestAnimationFrame(gameLoop);
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: twin-stick ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("twin-stick");
+</script>
+</body>
+</html>

@@ -1,0 +1,801 @@
+<!--
+PROTOTYPE: munin
+SERIES: puz
+NUMBER: 028
+DATE: 2026-03-24
+MECHANIC: level-section rotation — rotate rectangular sections of the level to create connected paths; the landscape shifts like puzzle pieces; you are Odin's raven seeking your wings
+ANCESTRY: Munin (2014, Gojira — Sweden), Braid (2008), Tetris rotation, slide puzzles
+CONTROLS: Click section — rotate 90° clockwise | R — restart level | N — next level (after solving) | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 5 (Deep Learning — spatial reasoning, path planning through rotational transforms)
+AI-INSIGHT: Section rotation creates a combinatorial state space where each rotation changes connectivity. Unlike sliding puzzles where tiles translate, rotation fundamentally reshapes the topology — platforms become walls, gaps become bridges. The AI challenge is reasoning about how local rotations create global path connectivity.
+NOTES: Munin is Odin's memory-raven in Norse mythology.
+       Gojira's original used hand-painted Nordic art with section rotation as its core mechanic.
+       The visual of the world rotating is the signature moment — landscape as puzzle piece.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PUZ-028 · MUNIN</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: pointer; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+#info-panel .notice { background: #1a1a2e; border-left: 3px solid #e94560; padding: 10px 14px; margin: 14px 0; font-size: 12px; color: #ccc; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>PUZ-028 · MUNIN</h1>
+    <p><span class="tag series">PUZ — Puzzle</span> <span class="tag">Prototype #028</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>You are Munin, Odin's raven, stripped of your wings. Rotate sections of the Norse landscape to create connected paths and collect feathers to regain flight.</p>
+    <ul>
+      <li><strong>Click</strong> a section to rotate it 90° clockwise</li>
+      <li>The raven walks automatically along platforms</li>
+      <li>Create connected paths so the raven can reach all feathers</li>
+      <li><kbd>R</kbd> — restart the current level</li>
+      <li><kbd>N</kbd> — next level (after solving)</li>
+      <li><kbd>?</kbd> — toggle this info panel</li>
+    </ul>
+
+    <h2>History</h2>
+    <p>Munin was developed by <strong>Gojira</strong>, a small Swedish studio, released in 2014. The game draws deeply from Norse mythology — Munin is one of Odin's two ravens (the other being Huginn), representing memory. In the myth, the ravens fly across the world gathering information for Odin.</p>
+    <p>The core mechanic — rotating rectangular sections of the level — creates an elegant puzzle where the landscape itself becomes the puzzle piece. Platforms, walls, and paths shift as sections rotate, fundamentally changing the topology of each level.</p>
+    <p>The game belongs to a lineage of rotation-based puzzles including Rubik's Cube (1974) and digital descendants like <em>Braid</em>'s time manipulation and <em>FEZ</em>'s perspective rotation.</p>
+
+    <h2>AI Archaeology</h2>
+    <h3>Classification</h3>
+    <p>AI-ERA 5 (Deep Learning). Section rotation creates a combinatorial state space where spatial reasoning must account for how local rotations affect global path connectivity — a challenge for modern spatial AI.</p>
+    <h3>Mechanical Lineage</h3>
+    <p>Rotation puzzles → section-based level manipulation → topology-changing mechanics. Each rotation is a discrete transform that reshapes the playfield's connectivity graph.</p>
+
+    <h2>Prototype Notes</h2>
+    <p>This prototype distills Munin's section-rotation mechanic into 8 puzzles with increasing complexity. The raven auto-walks, emphasizing the pure puzzle of section rotation. Norse visual motifs (dark blues, golds, runic borders) echo the original's hand-painted Scandinavian art style.</p>
+
+    <div class="notice">
+      <strong>Educational Notice:</strong> This is a non-commercial prototype created for studying game design history and AI archaeology. Munin™ is a trademark of Gojira / Daedalic Entertainment. This prototype is not affiliated with or endorsed by the original creators.
+    </div>
+  </div>
+</div>
+
+<script>
+// --- Info Panel ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// --- Canvas Setup ---
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+
+function resize() {
+  const s = Math.min(innerWidth / W, innerHeight / H);
+  canvas.style.width = (W * s) + 'px';
+  canvas.style.height = (H * s) + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+// --- HUD Text Helper ---
+function hudText(txt, x, y, size, color, align) {
+  ctx.save();
+  ctx.font = size + 'px monospace';
+  ctx.fillStyle = color || '#fff';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(txt, x, y);
+  ctx.restore();
+}
+
+// --- Colors (Norse palette) ---
+const C = {
+  bg: '#0a0e1a',
+  sky: '#0f1629',
+  ground: '#1a2744',
+  platform: '#2a3a5e',
+  platformEdge: '#3d5280',
+  gold: '#d4a843',
+  goldBright: '#f0c858',
+  rune: '#2a3a5e',
+  runeGlow: '#4a6a9e',
+  raven: '#1a1a2a',
+  ravenEye: '#f0c858',
+  feather: '#f0c858',
+  wall: '#1e2d4a',
+  sectionBorder: '#3d5280',
+  gridLine: '#1a2a4a',
+  solved: '#2a6a3a',
+  text: '#c8d8f0',
+  textDim: '#5a6a8a',
+};
+
+// --- Level Definitions ---
+// Each level: cols x rows of sections, section size in tiles, tile grid per section
+// Tiles: 0=empty, 1=platform, 2=wall, 3=feather, 4=raven start
+// Sections are stored as 2D arrays [row][col] of tiles
+
+const TILE = 24;  // pixel size of each tile
+const SEC_W = 5;  // tiles per section width
+const SEC_H = 5;  // tiles per section height
+
+// Level format: { cols, rows, sections: [row][col] = {tiles: [SEC_H][SEC_W]} }
+// feathers: [{sx, sy, tx, ty}] section coords + tile coords
+// start: {sx, sy, tx, ty}
+
+function makeLevel(cols, rows, sectionData, feathers, start) {
+  const sections = [];
+  for (let r = 0; r < rows; r++) {
+    sections[r] = [];
+    for (let c = 0; c < cols; c++) {
+      sections[r][c] = {
+        tiles: sectionData[r * cols + c].map(row => [...row]),
+        rotation: 0,
+        animAngle: 0,
+        animating: false,
+      };
+    }
+  }
+  return { cols, rows, sections, feathers: feathers.map(f => ({...f, collected: false})), start: {...start}, solved: false };
+}
+
+// Helper to define section tiles
+function S(...rows) { return rows; }
+const _ = 0, P = 1, W2 = 2, F = 3, R = 4;
+
+const LEVELS = [
+  // Level 1: Simple 2x1 — connect two platforms
+  () => makeLevel(2, 1, [
+    S([_,_,_,_,_],[_,_,_,_,_],[P,P,P,P,P],[_,_,_,_,_],[_,_,_,_,_]),
+    S([_,_,_,_,_],[_,_,_,_,_],[_,_,_,_,P],[_,_,_,_,_],[_,_,_,_,_]),
+  ], [{sx:1,sy:0,tx:4,ty:2}], {sx:0,sy:0,tx:0,ty:1}),
+
+  // Level 2: 2x1 — rotate right section to connect
+  () => makeLevel(2, 1, [
+    S([_,_,_,_,_],[_,_,_,_,_],[P,P,P,P,P],[_,_,_,_,_],[_,_,_,_,_]),
+    S([_,_,P,_,_],[_,_,P,_,_],[_,_,P,_,_],[_,_,P,_,_],[_,_,P,_,_]),
+  ], [{sx:1,sy:0,tx:2,ty:0}], {sx:0,sy:0,tx:0,ty:1}),
+
+  // Level 3: 2x2 — navigate through 4 sections
+  () => makeLevel(2, 2, [
+    S([_,_,_,_,_],[_,_,_,_,_],[P,P,P,P,P],[_,_,_,_,_],[_,_,_,_,_]),
+    S([_,_,_,_,_],[_,_,_,_,_],[_,_,_,_,_],[_,_,_,_,_],[P,P,P,P,P]),
+    S([_,_,_,_,_],[_,_,_,_,_],[_,_,_,_,_],[_,_,_,_,_],[P,P,P,P,P]),
+    S([_,_,_,_,_],[_,_,_,_,_],[P,P,P,P,P],[_,_,_,_,_],[_,_,_,_,_]),
+  ], [{sx:1,sy:1,tx:4,ty:2}], {sx:0,sy:0,tx:0,ty:1}),
+
+  // Level 4: 3x1 — three sections in a row
+  () => makeLevel(3, 1, [
+    S([_,_,_,_,_],[_,_,_,_,_],[P,P,P,P,P],[_,_,_,_,_],[_,_,_,_,_]),
+    S([_,_,P,_,_],[_,_,P,_,_],[_,_,P,_,_],[_,_,P,_,_],[_,_,P,_,_]),
+    S([_,_,_,_,_],[_,_,_,_,_],[P,P,P,P,P],[_,_,_,_,_],[_,_,_,_,_]),
+  ], [{sx:2,sy:0,tx:4,ty:2}], {sx:0,sy:0,tx:0,ty:1}),
+
+  // Level 5: 2x2 — two feathers
+  () => makeLevel(2, 2, [
+    S([_,_,_,_,_],[_,_,_,_,_],[P,P,P,P,P],[_,_,_,_,_],[_,_,_,_,_]),
+    S([_,_,_,_,_],[_,_,_,_,_],[_,_,_,_,P],[_,_,_,_,P],[_,_,_,_,P]),
+    S([P,_,_,_,_],[P,_,_,_,_],[P,P,P,P,P],[_,_,_,_,_],[_,_,_,_,_]),
+    S([_,_,_,_,_],[_,_,_,_,_],[P,P,P,P,P],[_,_,_,_,_],[_,_,_,_,_]),
+  ], [
+    {sx:1,sy:0,tx:4,ty:1},
+    {sx:0,sy:1,tx:0,ty:0},
+  ], {sx:0,sy:0,tx:0,ty:1}),
+
+  // Level 6: 3x2 — complex paths
+  () => makeLevel(3, 2, [
+    S([_,_,_,_,_],[_,_,_,_,_],[P,P,P,P,P],[_,_,_,_,_],[_,_,_,_,_]),
+    S([_,_,_,_,_],[_,_,_,_,_],[_,_,P,_,_],[_,_,P,_,_],[_,_,P,_,_]),
+    S([_,_,_,_,_],[_,_,_,_,_],[_,_,_,_,_],[_,_,_,_,_],[P,P,P,P,P]),
+    S([_,_,_,_,_],[_,_,_,_,_],[_,_,_,_,_],[_,_,_,_,_],[P,P,P,P,P]),
+    S([_,_,_,_,_],[_,_,_,_,_],[P,P,P,P,P],[_,_,_,_,_],[_,_,_,_,_]),
+    S([_,_,_,_,_],[_,_,_,_,_],[P,P,P,P,P],[_,_,_,_,_],[_,_,_,_,_]),
+  ], [
+    {sx:2,sy:0,tx:4,ty:4},
+    {sx:2,sy:1,tx:4,ty:2},
+  ], {sx:0,sy:0,tx:0,ty:1}),
+
+  // Level 7: 2x2 — walls block paths
+  () => makeLevel(2, 2, [
+    S([_,_,_,_,_],[_,_,_,_,_],[P,P,P,P,P],[W2,W2,_,_,_],[_,_,_,_,_]),
+    S([_,_,_,_,_],[_,_,_,_,_],[P,_,_,_,_],[P,_,_,_,_],[P,P,P,P,P]),
+    S([P,P,P,P,P],[_,_,_,_,_],[_,_,_,_,_],[_,_,_,_,_],[_,_,_,_,_]),
+    S([_,_,_,_,_],[_,_,_,_,_],[P,P,P,P,P],[_,_,W2,W2,_],[_,_,_,_,_]),
+  ], [
+    {sx:1,sy:1,tx:4,ty:2},
+    {sx:0,sy:1,tx:0,ty:0},
+  ], {sx:0,sy:0,tx:0,ty:1}),
+
+  // Level 8: 3x2 — final challenge, 3 feathers
+  () => makeLevel(3, 2, [
+    S([_,_,_,_,_],[_,_,_,_,_],[P,P,P,P,P],[_,_,_,_,_],[_,_,_,_,_]),
+    S([_,_,P,_,_],[_,_,P,_,_],[_,_,P,_,_],[_,_,_,_,_],[_,_,_,_,_]),
+    S([_,_,_,_,_],[_,_,_,_,_],[_,_,_,_,_],[P,P,P,P,P],[_,_,_,_,_]),
+    S([_,_,_,_,P],[_,_,_,_,P],[P,P,P,P,P],[_,_,_,_,_],[_,_,_,_,_]),
+    S([_,_,_,_,_],[_,_,_,_,_],[P,P,P,P,P],[_,_,_,_,_],[_,_,_,_,_]),
+    S([_,_,_,_,_],[_,_,_,_,_],[P,P,P,P,P],[_,_,_,_,_],[_,_,_,_,_]),
+  ], [
+    {sx:2,sy:0,tx:3,ty:3},
+    {sx:0,sy:1,tx:4,ty:1},
+    {sx:2,sy:1,tx:4,ty:2},
+  ], {sx:0,sy:0,tx:0,ty:1}),
+];
+
+// --- Game State ---
+let currentLevel = 0;
+let level = null;
+let raven = { x: 0, y: 0, dir: 1, walking: false, speed: 1.5, frame: 0 };
+let rotAnim = { active: false, sx: 0, sy: 0, angle: 0, targetAngle: 0 };
+let moves = 0;
+let levelStartTime = 0;
+
+// Grid offset for centering
+let gridOffX = 0, gridOffY = 0;
+
+function initLevel(idx) {
+  level = LEVELS[idx]();
+  moves = 0;
+  levelStartTime = Date.now();
+  // Calculate grid offset to center
+  const totalW = level.cols * SEC_W * TILE;
+  const totalH = level.rows * SEC_H * TILE;
+  gridOffX = Math.floor((W - totalW) / 2);
+  gridOffY = Math.floor((H - totalH) / 2) + 20;
+  // Place raven
+  const st = level.start;
+  raven.x = gridOffX + st.sx * SEC_W * TILE + st.tx * TILE + TILE / 2;
+  raven.y = gridOffY + st.sy * SEC_H * TILE + st.ty * TILE;
+  raven.dir = 1;
+  raven.walking = true;
+  raven.frame = 0;
+  rotAnim.active = false;
+}
+
+initLevel(0);
+
+// --- Rotation Logic ---
+function getRotatedTile(section, tx, ty) {
+  const r = ((section.rotation % 4) + 4) % 4;
+  let rx = tx, ry = ty;
+  for (let i = 0; i < r; i++) {
+    const tmp = rx;
+    rx = (SEC_H - 1) - ry;
+    ry = tmp;
+  }
+  return section.tiles[ry][rx];
+}
+
+function getTileAt(px, py) {
+  // Convert pixel coords to section + tile
+  const lx = px - gridOffX;
+  const ly = py - gridOffY;
+  if (lx < 0 || ly < 0) return { tile: 0 };
+  const sx = Math.floor(lx / (SEC_W * TILE));
+  const sy = Math.floor(ly / (SEC_H * TILE));
+  if (sx < 0 || sx >= level.cols || sy < 0 || sy >= level.rows) return { tile: 0 };
+  const tx = Math.floor((lx - sx * SEC_W * TILE) / TILE);
+  const ty = Math.floor((ly - sy * SEC_H * TILE) / TILE);
+  if (tx < 0 || tx >= SEC_W || ty < 0 || ty >= SEC_H) return { tile: 0 };
+  return { tile: getRotatedTile(level.sections[sy][sx], tx, ty), sx, sy, tx, ty };
+}
+
+function getTileWorld(sx, sy, tx, ty) {
+  if (sx < 0 || sx >= level.cols || sy < 0 || sy >= level.rows) return 0;
+  if (tx < 0) { sx--; tx = SEC_W - 1; }
+  if (tx >= SEC_W) { sx++; tx = 0; }
+  if (ty < 0) { sy--; ty = SEC_H - 1; }
+  if (ty >= SEC_H) { sy++; ty = 0; }
+  if (sx < 0 || sx >= level.cols || sy < 0 || sy >= level.rows) return 0;
+  return getRotatedTile(level.sections[sy][sx], tx, ty);
+}
+
+function rotateSection(sx, sy) {
+  if (rotAnim.active || level.solved) return;
+  const sec = level.sections[sy][sx];
+  sec.rotation = (sec.rotation + 1) % 4;
+  rotAnim.active = true;
+  rotAnim.sx = sx;
+  rotAnim.sy = sy;
+  rotAnim.angle = -Math.PI / 2;
+  rotAnim.targetAngle = 0;
+  moves++;
+}
+
+// --- Feather collection detection ---
+function getFeatherWorldPos(f) {
+  const sec = level.sections[f.sy][f.sx];
+  const r = ((sec.rotation % 4) + 4) % 4;
+  let rx = f.tx, ry = f.ty;
+  for (let i = 0; i < r; i++) {
+    const tmp = rx;
+    rx = ry;
+    ry = (SEC_H - 1) - tmp;
+  }
+  return {
+    x: gridOffX + f.sx * SEC_W * TILE + rx * TILE + TILE / 2,
+    y: gridOffY + f.sy * SEC_H * TILE + ry * TILE + TILE / 2,
+  };
+}
+
+// --- Raven Physics ---
+function updateRaven() {
+  if (!raven.walking || rotAnim.active) return;
+
+  raven.frame += 0.15;
+
+  // Gravity — find ground
+  const footX = raven.x;
+  const footY = raven.y + TILE;
+
+  // Check tile below feet
+  const belowInfo = getTileAt(footX, footY);
+  const standInfo = getTileAt(footX, raven.y + TILE - 2);
+
+  // Check if standing on a platform
+  const onGround = belowInfo.tile === P || belowInfo.tile === W2;
+
+  if (!onGround) {
+    // Fall
+    raven.y += 2;
+    // Check if fell off level
+    if (raven.y > gridOffY + level.rows * SEC_H * TILE + 50) {
+      // Reset raven to start
+      const st = level.start;
+      raven.x = gridOffX + st.sx * SEC_W * TILE + st.tx * TILE + TILE / 2;
+      raven.y = gridOffY + st.sy * SEC_H * TILE + st.ty * TILE;
+      raven.dir = 1;
+    }
+    return;
+  }
+
+  // Snap to top of platform
+  if (belowInfo.tile === P || belowInfo.tile === W2) {
+    const tileTopY = gridOffY + belowInfo.sy * SEC_H * TILE + belowInfo.ty * TILE;
+    raven.y = tileTopY - TILE;
+  }
+
+  // Walk forward
+  const nextX = raven.x + raven.dir * raven.speed;
+
+  // Check ahead at foot level
+  const aheadInfo = getTileAt(nextX + raven.dir * (TILE/2 - 2), raven.y + TILE/2);
+  if (aheadInfo.tile === W2) {
+    raven.dir *= -1;
+    return;
+  }
+
+  // Check if there's ground ahead
+  const aheadGroundInfo = getTileAt(nextX, raven.y + TILE + 2);
+  const hasGroundAhead = aheadGroundInfo.tile === P || aheadGroundInfo.tile === W2;
+
+  // Check if ahead is off the level
+  const aheadLx = nextX + raven.dir * (TILE/2) - gridOffX;
+  if (aheadLx < 0 || aheadLx >= level.cols * SEC_W * TILE) {
+    raven.dir *= -1;
+    return;
+  }
+
+  if (!hasGroundAhead) {
+    // Check if can fall to next platform below
+    let foundBelow = false;
+    for (let dy = TILE; dy < TILE * 6; dy += TILE/2) {
+      const checkInfo = getTileAt(nextX, raven.y + TILE + dy);
+      if (checkInfo.tile === P || checkInfo.tile === W2) {
+        foundBelow = true;
+        break;
+      }
+    }
+    if (!foundBelow) {
+      raven.dir *= -1;
+      return;
+    }
+  }
+
+  raven.x = nextX;
+
+  // Collect feathers
+  for (const f of level.feathers) {
+    if (f.collected) continue;
+    const fp = getFeatherWorldPos(f);
+    const dx = raven.x - fp.x;
+    const dy = (raven.y + TILE/2) - fp.y;
+    if (dx * dx + dy * dy < (TILE * 1.2) * (TILE * 1.2)) {
+      f.collected = true;
+    }
+  }
+
+  // Check win
+  if (level.feathers.every(f => f.collected)) {
+    level.solved = true;
+    raven.walking = false;
+  }
+}
+
+// --- Drawing ---
+function drawRuneDecoration(x, y, w, h) {
+  ctx.save();
+  ctx.strokeStyle = C.runeGlow;
+  ctx.lineWidth = 1;
+  ctx.globalAlpha = 0.3;
+  // Corner runes
+  const s = 6;
+  // Top-left
+  ctx.beginPath(); ctx.moveTo(x+2,y+s+2); ctx.lineTo(x+2,y+2); ctx.lineTo(x+s+2,y+2); ctx.stroke();
+  // Top-right
+  ctx.beginPath(); ctx.moveTo(x+w-s-2,y+2); ctx.lineTo(x+w-2,y+2); ctx.lineTo(x+w-2,y+s+2); ctx.stroke();
+  // Bottom-left
+  ctx.beginPath(); ctx.moveTo(x+2,y+h-s-2); ctx.lineTo(x+2,y+h-2); ctx.lineTo(x+s+2,y+h-2); ctx.stroke();
+  // Bottom-right
+  ctx.beginPath(); ctx.moveTo(x+w-s-2,y+h-2); ctx.lineTo(x+w-2,y+h-2); ctx.lineTo(x+w-2,y+h-s-2); ctx.stroke();
+  ctx.restore();
+}
+
+function drawSection(sx, sy, skipRotAnim) {
+  const sec = level.sections[sy][sx];
+  const ox = gridOffX + sx * SEC_W * TILE;
+  const oy = gridOffY + sy * SEC_H * TILE;
+  const sw = SEC_W * TILE;
+  const sh = SEC_H * TILE;
+
+  ctx.save();
+
+  // Apply rotation animation
+  if (rotAnim.active && rotAnim.sx === sx && rotAnim.sy === sy && !skipRotAnim) {
+    const cx = ox + sw / 2;
+    const cy = oy + sh / 2;
+    ctx.translate(cx, cy);
+    ctx.rotate(rotAnim.angle);
+    ctx.translate(-cx, -cy);
+  }
+
+  // Section background
+  ctx.fillStyle = C.ground;
+  ctx.fillRect(ox, oy, sw, sh);
+
+  // Draw tiles
+  const r = ((sec.rotation % 4) + 4) % 4;
+  for (let ty = 0; ty < SEC_H; ty++) {
+    for (let tx = 0; tx < SEC_W; tx++) {
+      // Get rotated source tile
+      let rtx = tx, rty = ty;
+      for (let i = 0; i < r; i++) {
+        const tmp = rtx;
+        rtx = (SEC_H - 1) - rty;
+        rty = tmp;
+      }
+      const tile = sec.tiles[rty][rtx];
+      const px = ox + tx * TILE;
+      const py = oy + ty * TILE;
+
+      if (tile === P) {
+        // Platform
+        ctx.fillStyle = C.platform;
+        ctx.fillRect(px, py, TILE, TILE);
+        ctx.fillStyle = C.platformEdge;
+        ctx.fillRect(px, py, TILE, 3);
+        // Subtle texture
+        ctx.fillStyle = 'rgba(255,255,255,0.03)';
+        if ((tx + ty) % 2 === 0) ctx.fillRect(px, py, TILE, TILE);
+      } else if (tile === W2) {
+        // Wall
+        ctx.fillStyle = C.wall;
+        ctx.fillRect(px, py, TILE, TILE);
+        ctx.fillStyle = C.platform;
+        ctx.fillRect(px + 2, py + 2, TILE - 4, TILE - 4);
+        // Runic cross
+        ctx.strokeStyle = C.runeGlow;
+        ctx.lineWidth = 1;
+        ctx.globalAlpha = 0.4;
+        ctx.beginPath();
+        ctx.moveTo(px + TILE/2, py + 4);
+        ctx.lineTo(px + TILE/2, py + TILE - 4);
+        ctx.moveTo(px + 4, py + TILE/2);
+        ctx.lineTo(px + TILE - 4, py + TILE/2);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+    }
+  }
+
+  // Section border
+  ctx.strokeStyle = level.solved ? C.solved : C.sectionBorder;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(ox + 1, oy + 1, sw - 2, sh - 2);
+
+  // Rune decorations on section corners
+  drawRuneDecoration(ox, oy, sw, sh);
+
+  ctx.restore();
+}
+
+function drawFeather(x, y, time) {
+  ctx.save();
+  ctx.translate(x, y);
+  // Floating bob
+  const bob = Math.sin(time * 3) * 3;
+  ctx.translate(0, bob);
+  // Glow
+  ctx.globalAlpha = 0.3 + Math.sin(time * 4) * 0.15;
+  ctx.fillStyle = C.goldBright;
+  ctx.beginPath();
+  ctx.arc(0, 0, TILE * 0.6, 0, Math.PI * 2);
+  ctx.fill();
+  // Feather shape
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = C.gold;
+  ctx.beginPath();
+  ctx.moveTo(0, -8);
+  ctx.quadraticCurveTo(6, -2, 4, 8);
+  ctx.quadraticCurveTo(0, 6, 0, 8);
+  ctx.quadraticCurveTo(0, 6, -4, 8);
+  ctx.quadraticCurveTo(-6, -2, 0, -8);
+  ctx.fill();
+  // Quill line
+  ctx.strokeStyle = C.goldBright;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, -7);
+  ctx.lineTo(0, 7);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawRaven(x, y, dir, frame) {
+  ctx.save();
+  ctx.translate(x, y + TILE / 2);
+  ctx.scale(dir, 1);
+
+  // Body
+  ctx.fillStyle = '#1a1a2e';
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 10, 7, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Head
+  ctx.fillStyle = '#22223a';
+  ctx.beginPath();
+  ctx.arc(8, -4, 5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Eye
+  ctx.fillStyle = C.ravenEye;
+  ctx.beginPath();
+  ctx.arc(10, -5, 1.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Beak
+  ctx.fillStyle = '#555';
+  ctx.beginPath();
+  ctx.moveTo(13, -4);
+  ctx.lineTo(17, -3);
+  ctx.lineTo(13, -2);
+  ctx.fill();
+
+  // Wings (animated — stumpy, no flight feathers)
+  const wingAngle = Math.sin(frame) * 0.3;
+  ctx.save();
+  ctx.translate(-2, -5);
+  ctx.rotate(wingAngle);
+  ctx.fillStyle = '#15152a';
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(-8, -3);
+  ctx.lineTo(-6, 2);
+  ctx.fill();
+  ctx.restore();
+
+  // Legs (walking animation)
+  const legAnim = Math.sin(frame * 2) * 4;
+  ctx.strokeStyle = '#444';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(-2, 6);
+  ctx.lineTo(-2 + legAnim, 11);
+  ctx.moveTo(3, 6);
+  ctx.lineTo(3 - legAnim, 11);
+  ctx.stroke();
+
+  // Feet
+  ctx.beginPath();
+  ctx.moveTo(-2 + legAnim, 11);
+  ctx.lineTo(-2 + legAnim + 3, 11);
+  ctx.moveTo(3 - legAnim, 11);
+  ctx.lineTo(3 - legAnim + 3, 11);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+function drawBackground() {
+  // Dark sky gradient
+  const grd = ctx.createLinearGradient(0, 0, 0, H);
+  grd.addColorStop(0, '#050810');
+  grd.addColorStop(0.5, '#0a1225');
+  grd.addColorStop(1, '#0f1a35');
+  ctx.fillStyle = grd;
+  ctx.fillRect(0, 0, W, H);
+
+  // Stars
+  ctx.fillStyle = '#ffffff';
+  const starSeed = currentLevel * 137;
+  for (let i = 0; i < 40; i++) {
+    const sx = ((starSeed + i * 97) * 7919) % W;
+    const sy = ((starSeed + i * 53) * 6271) % (H * 0.4);
+    const sz = ((i * 31) % 3) * 0.5 + 0.5;
+    ctx.globalAlpha = 0.3 + ((i * 17) % 5) * 0.1;
+    ctx.fillRect(sx, sy, sz, sz);
+  }
+  ctx.globalAlpha = 1;
+
+  // Runic border decoration at edges
+  ctx.strokeStyle = C.runeGlow;
+  ctx.lineWidth = 1;
+  ctx.globalAlpha = 0.15;
+  // Top border
+  for (let x = 0; x < W; x += 40) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x + 10, 8);
+    ctx.lineTo(x + 20, 0);
+    ctx.lineTo(x + 30, 8);
+    ctx.lineTo(x + 40, 0);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function draw() {
+  const time = Date.now() / 1000;
+
+  drawBackground();
+
+  // Draw grid lines
+  if (level) {
+    const totalW = level.cols * SEC_W * TILE;
+    const totalH = level.rows * SEC_H * TILE;
+
+    // Draw all sections
+    for (let sy = 0; sy < level.rows; sy++) {
+      for (let sx = 0; sx < level.cols; sx++) {
+        drawSection(sx, sy, false);
+      }
+    }
+
+    // Draw feathers
+    for (const f of level.feathers) {
+      if (f.collected) continue;
+      const fp = getFeatherWorldPos(f);
+      drawFeather(fp.x, fp.y, time);
+    }
+
+    // Draw raven
+    drawRaven(raven.x, raven.y, raven.dir, raven.frame);
+
+    // HUD
+    hudText('MUNIN', 10, 8, 16, C.gold, 'left');
+    hudText('Level ' + (currentLevel + 1) + '/8', W - 10, 8, 14, C.text, 'right');
+    hudText('Moves: ' + moves, W - 10, 26, 12, C.textDim, 'right');
+
+    // Feather count
+    const collected = level.feathers.filter(f => f.collected).length;
+    const total = level.feathers.length;
+    hudText('Feathers: ' + collected + '/' + total, 10, 28, 12, C.gold, 'left');
+
+    // Controls hint
+    hudText('Click section to rotate · R restart · ? info', W / 2, H - 16, 11, C.textDim, 'center');
+
+    // Solved message
+    if (level.solved) {
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillRect(W/2 - 160, H/2 - 40, 320, 80);
+      ctx.strokeStyle = C.gold;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(W/2 - 160, H/2 - 40, 320, 80);
+      hudText('FEATHERS COLLECTED!', W/2, H/2 - 22, 18, C.goldBright, 'center');
+      if (currentLevel < LEVELS.length - 1) {
+        hudText('Press N for next level', W/2, H/2 + 8, 14, C.text, 'center');
+      } else {
+        hudText('All puzzles complete! Munin flies!', W/2, H/2 + 8, 14, C.goldBright, 'center');
+      }
+    }
+  }
+}
+
+// --- Update ---
+function update() {
+  if (infoOpen) return;
+
+  // Rotation animation
+  if (rotAnim.active) {
+    rotAnim.angle += 0.12;
+    if (rotAnim.angle >= rotAnim.targetAngle) {
+      rotAnim.angle = 0;
+      rotAnim.active = false;
+    }
+  }
+
+  updateRaven();
+}
+
+// --- Input ---
+canvas.addEventListener('click', (e) => {
+  if (infoOpen || !level || rotAnim.active) return;
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = W / rect.width;
+  const scaleY = H / rect.height;
+  const mx = (e.clientX - rect.left) * scaleX;
+  const my = (e.clientY - rect.top) * scaleY;
+
+  // Find which section was clicked
+  const lx = mx - gridOffX;
+  const ly = my - gridOffY;
+  const sx = Math.floor(lx / (SEC_W * TILE));
+  const sy = Math.floor(ly / (SEC_H * TILE));
+
+  if (sx >= 0 && sx < level.cols && sy >= 0 && sy < level.rows) {
+    rotateSection(sx, sy);
+  }
+});
+
+window.addEventListener('keydown', (e) => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
+    e.preventDefault();
+    toggleInfo();
+    return;
+  }
+  if (e.key === 'Escape' && infoOpen) {
+    toggleInfo();
+    return;
+  }
+  if (infoOpen) return;
+
+  if (e.key === 'r' || e.key === 'R') {
+    initLevel(currentLevel);
+  }
+  if ((e.key === 'n' || e.key === 'N') && level && level.solved) {
+    if (currentLevel < LEVELS.length - 1) {
+      currentLevel++;
+      initLevel(currentLevel);
+    }
+  }
+});
+
+// --- Game Loop ---
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>

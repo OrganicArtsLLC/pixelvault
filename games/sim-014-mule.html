@@ -1,0 +1,893 @@
+<!--
+PROTOTYPE: mule
+SERIES: sim
+NUMBER: 014
+DATE: 2026-03-24
+MECHANIC: economic colonization — claim land plots, deploy mules to harvest food/energy/ore, trade in real-time auctions with supply/demand pricing
+ANCESTRY: M.U.L.E. (1983, Ozark Softscape / Electronic Arts), creator Dani Bunten Berry
+CONTROLS: Mouse — click to select plots, resources, auction actions | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Expert Systems — supply/demand pricing, resource optimization heuristics)
+AI-INSIGHT: M.U.L.E. is a landmark in multiplayer economic game design. Its real-time auction mechanic — where buyers walk down and sellers walk up until they meet — elegantly encodes supply and demand into physical movement. Dani Bunten Berry pioneered cooperative-competitive design where player interaction IS the game, not combat overlaid on it. The AI opponents must balance resource production, cash reserves, and auction strategy — a multi-objective optimization problem that early expert systems approached with hand-tuned heuristics.
+NOTES: Simplified colony management with the iconic auction mechanic intact.
+       4 players (1 human + 3 AI), 6 rounds, grid-based land claims.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SIM-014 · COLONY TRADE</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: crosshair; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SIM-014 · COLONY TRADE</h1>
+    <p><span class="tag series">SIM — Simulation</span> <span class="tag">Prototype #014</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Colonize the planet Irata! Claim land, equip M.U.L.E.s (Multiple Use Labor Elements) to produce resources, and trade in real-time auctions. Highest net worth after 6 rounds wins.</p>
+    <ul>
+      <li><kbd>Click</kbd> a plot during Land Grant to claim it</li>
+      <li><kbd>Click</kbd> Food / Energy / Ore buttons to equip your M.U.L.E.</li>
+      <li>During Auction: <kbd>Click &amp; hold</kbd> to raise/lower your price</li>
+      <li><kbd>Mouse up/down</kbd> in auction to adjust price</li>
+      <li><kbd>R</kbd> — Restart game</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Resources</h3>
+    <ul>
+      <li><strong>Food</strong> — needed each round; shortages cost time. Plains produce most.</li>
+      <li><strong>Energy</strong> — powers your M.U.L.E.s; without it, production halves. Mountains produce most.</li>
+      <li><strong>Ore</strong> — valuable export; mountains yield the most ore.</li>
+    </ul>
+    <h3>Auction</h3>
+    <ul>
+      <li>Sellers start at bottom, buyers at top of the price bar</li>
+      <li>Move toward each other — trade happens when you meet</li>
+      <li>Supply and demand set the range; strategy sets the final price</li>
+    </ul>
+
+    <h2>History</h2>
+    <p>M.U.L.E. (1983) was designed by Dani Bunten Berry for Ozark Softscape and published by Electronic Arts. It is widely considered one of the greatest multiplayer games ever made, pioneering cooperative-competitive economic gameplay. The real-time auction mechanic — where players physically walk toward each other to negotiate price — remains one of the most elegant trading systems in game history. Bunten Berry was a visionary designer who believed games should bring people together, and M.U.L.E. embodies that philosophy perfectly.</p>
+
+    <h2>AI Archaeology</h2>
+    <p>The AI opponents use simple heuristic strategies: they balance resource production, assess supply shortages, and bid in auctions based on need and available cash. The original game's AI was remarkably sophisticated for 1983, creating the illusion of intelligent economic actors through carefully tuned expert-system rules.</p>
+
+    <h2>Classification</h2>
+    <p><strong>Mechanic:</strong> Economic colonization with real-time auction trading</p>
+    <p><strong>AI-ERA 3:</strong> Expert Systems — supply/demand pricing, resource optimization heuristics</p>
+
+    <h2>Prototype Notes</h2>
+    <p>This prototype captures the core M.U.L.E. loop: claim land, equip mules, harvest, auction. The map is simplified to a 9x5 grid with varied terrain. Three AI players use different strategies (balanced, food-focused, ore-focused) to create varied auction dynamics. The auction mechanic preserves the original's buyer-walks-down, seller-walks-up interaction.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This is an educational prototype exploring historical game mechanics. M.U.L.E. is a trademark of Electronic Arts. This project is not affiliated with or endorsed by Electronic Arts or the estate of Dani Bunten Berry. Created for study of game design history.</p>
+  </div>
+</div>
+
+<script>
+// ── Info Panel ──
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// ── Canvas Setup ──
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+
+function resize() {
+  const s = Math.min(innerWidth / W, innerHeight / H);
+  canvas.style.width = (W * s) + 'px';
+  canvas.style.height = (H * s) + 'px';
+}
+resize();
+addEventListener('resize', resize);
+
+// ── HUD Text Helper ──
+function hudText(txt, x, y, size, color, align) {
+  ctx.save();
+  ctx.font = size + 'px monospace';
+  ctx.fillStyle = color || '#fff';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(txt, x, y);
+  ctx.restore();
+}
+
+// ── Constants ──
+const COLS = 9, ROWS = 5;
+const TILE_W = 70, TILE_H = 60;
+const MAP_X = (W - COLS * TILE_W) / 2;
+const MAP_Y = 80;
+const ROUNDS = 6;
+const COLORS = ['#4af', '#f44', '#4f4', '#fa0'];
+const NAMES = ['You', 'Red AI', 'Green AI', 'Orange AI'];
+const RESOURCE_NAMES = ['Food', 'Energy', 'Ore'];
+const RESOURCE_COLORS = ['#0c0', '#ff0', '#88f'];
+
+// Terrain: 0=plains, 1=river, 2=mountain, 3=hills
+const TERRAIN_MAP = [
+  [2,3,0,0,1,0,0,3,2],
+  [3,0,0,3,1,3,0,0,3],
+  [0,0,3,0,1,0,3,0,0],
+  [3,0,0,3,1,3,0,0,3],
+  [2,3,0,0,1,0,0,3,2],
+];
+const TERRAIN_NAMES = ['Plains','River','Mountain','Hills'];
+const TERRAIN_COLORS = ['#2a5', '#28f', '#777', '#a85'];
+
+// Production rates: [food, energy, ore] per terrain type
+const PRODUCTION = [
+  [4, 2, 1], // plains
+  [3, 1, 0], // river
+  [1, 1, 4], // mountain
+  [2, 3, 2], // hills
+];
+
+// ── Game State ──
+let state, round, turnPlayer, phase;
+let players, grid, selectedResource;
+let auctionResource, auctionBuyers, auctionSellers;
+let auctionTimer, auctionPrice, auctionActive;
+let humanAuctionY, auctionDone, auctionTrades;
+let mouseX = 0, mouseY = 0, mouseDown = false;
+let message = '', messageTimer = 0;
+let gameOver = false;
+let claimOrder = [];
+let equipPhasePlayer = 0;
+let harvestDone = false;
+let auctionResourceIdx = 0;
+let productionReport = null;
+let productionReportTimer = 0;
+let roundStartTimer = 0;
+
+function initGame() {
+  gameOver = false;
+  round = 1;
+  phase = 'claim'; // claim, equip, harvest, auction, end
+  turnPlayer = 0;
+  selectedResource = -1;
+  auctionActive = false;
+  message = '';
+  messageTimer = 0;
+  productionReport = null;
+  productionReportTimer = 0;
+  roundStartTimer = 60;
+
+  players = [];
+  for (let i = 0; i < 4; i++) {
+    players.push({
+      name: NAMES[i],
+      color: COLORS[i],
+      money: 1000,
+      resources: [8, 4, 0], // food, energy, ore
+      plots: [],
+      ai: i > 0,
+      aiStrategy: i === 1 ? 'balanced' : i === 2 ? 'food' : 'ore',
+    });
+  }
+
+  grid = [];
+  for (let r = 0; r < ROWS; r++) {
+    grid[r] = [];
+    for (let c = 0; c < COLS; c++) {
+      grid[r][c] = {
+        terrain: TERRAIN_MAP[r][c],
+        owner: -1,
+        mule: -1, // -1=none, 0=food, 1=energy, 2=ore
+      };
+    }
+  }
+
+  claimOrder = [0, 1, 2, 3];
+  turnPlayer = claimOrder[0];
+}
+
+initGame();
+
+// ── Input ──
+function getCanvasPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  const sx = W / rect.width;
+  const sy = H / rect.height;
+  return {
+    x: (e.clientX - rect.left) * sx,
+    y: (e.clientY - rect.top) * sy
+  };
+}
+
+canvas.addEventListener('mousedown', (e) => {
+  const p = getCanvasPos(e);
+  mouseX = p.x; mouseY = p.y;
+  mouseDown = true;
+  handleClick(p.x, p.y);
+});
+
+canvas.addEventListener('mousemove', (e) => {
+  const p = getCanvasPos(e);
+  mouseX = p.x; mouseY = p.y;
+});
+
+canvas.addEventListener('mouseup', () => { mouseDown = false; });
+
+addEventListener('keydown', (e) => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); return; }
+  if (e.key === 'r' || e.key === 'R') { initGame(); return; }
+});
+
+function handleClick(x, y) {
+  if (gameOver) return;
+
+  if (phase === 'claim' && !players[turnPlayer].ai) {
+    // Check if clicked on a map tile
+    const col = Math.floor((x - MAP_X) / TILE_W);
+    const row = Math.floor((y - MAP_Y) / TILE_H);
+    if (col >= 0 && col < COLS && row >= 0 && row < ROWS) {
+      if (grid[row][col].owner === -1 && grid[row][col].terrain !== 1) {
+        claimPlot(turnPlayer, row, col);
+      }
+    }
+  }
+
+  if (phase === 'equip' && equipPhasePlayer === 0) {
+    // Check resource buttons
+    const btnY = MAP_Y + ROWS * TILE_H + 20;
+    for (let i = 0; i < 3; i++) {
+      const btnX = W / 2 - 150 + i * 120;
+      if (x >= btnX && x < btnX + 100 && y >= btnY && y < btnY + 35) {
+        equipMule(0, i);
+        return;
+      }
+    }
+    // Skip button
+    const skipX = W / 2 - 40;
+    if (x >= skipX && x < skipX + 80 && y >= btnY + 45 && y < btnY + 75) {
+      nextEquipPlayer();
+    }
+  }
+}
+
+// ── Game Logic ──
+function claimPlot(player, row, col) {
+  grid[row][col].owner = player;
+  players[player].plots.push({ r: row, c: col });
+  showMessage(players[player].name + ' claims ' + TERRAIN_NAMES[grid[row][col].terrain] + ' at (' + col + ',' + row + ')');
+  nextClaimPlayer();
+}
+
+function nextClaimPlayer() {
+  const idx = claimOrder.indexOf(turnPlayer);
+  if (idx < claimOrder.length - 1) {
+    turnPlayer = claimOrder[idx + 1];
+    if (players[turnPlayer].ai) {
+      setTimeout(() => aiClaim(turnPlayer), 400);
+    }
+  } else {
+    phase = 'equip';
+    equipPhasePlayer = 0;
+    showMessage('Equip M.U.L.E.s with resources!');
+    if (players[0].ai) {
+      setTimeout(() => aiEquip(0), 400);
+    }
+  }
+}
+
+function aiClaim(player) {
+  if (phase !== 'claim') return;
+  // AI picks best unclaimed plot based on strategy
+  let bestScore = -1, bestR = -1, bestC = -1;
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (grid[r][c].owner === -1 && grid[r][c].terrain !== 1) {
+        const t = grid[r][c].terrain;
+        let score = 0;
+        const strat = players[player].aiStrategy;
+        if (strat === 'food') score = PRODUCTION[t][0] * 3 + PRODUCTION[t][1] + PRODUCTION[t][2];
+        else if (strat === 'ore') score = PRODUCTION[t][0] + PRODUCTION[t][1] + PRODUCTION[t][2] * 3;
+        else score = PRODUCTION[t][0] * 2 + PRODUCTION[t][1] * 2 + PRODUCTION[t][2] * 2;
+        score += Math.random() * 2;
+        if (score > bestScore) { bestScore = score; bestR = r; bestC = c; }
+      }
+    }
+  }
+  if (bestR >= 0) claimPlot(player, bestR, bestC);
+}
+
+function equipMule(player, resource) {
+  // Equip the most recently claimed plot (last one this round)
+  const p = players[player];
+  const latestPlot = p.plots[p.plots.length - 1];
+  if (latestPlot && grid[latestPlot.r][latestPlot.c].mule === -1) {
+    grid[latestPlot.r][latestPlot.c].mule = resource;
+    showMessage(p.name + ' equips ' + RESOURCE_NAMES[resource] + ' M.U.L.E.');
+  }
+  nextEquipPlayer();
+}
+
+function nextEquipPlayer() {
+  equipPhasePlayer++;
+  if (equipPhasePlayer >= 4) {
+    phase = 'harvest';
+    harvestDone = false;
+    setTimeout(doHarvest, 500);
+  } else if (players[equipPhasePlayer].ai) {
+    setTimeout(() => aiEquip(equipPhasePlayer), 400);
+  }
+}
+
+function aiEquip(player) {
+  if (phase !== 'equip') return;
+  const p = players[player];
+  const strat = p.aiStrategy;
+  let res = 0;
+  if (strat === 'food') res = p.resources[0] < 6 ? 0 : (p.resources[1] < 3 ? 1 : 2);
+  else if (strat === 'ore') res = p.resources[2] < 4 ? 2 : (p.resources[0] < 4 ? 0 : 1);
+  else {
+    // balanced: pick what's lowest
+    let min = 0;
+    for (let i = 1; i < 3; i++) if (p.resources[i] < p.resources[min]) min = i;
+    res = min;
+  }
+  equipMule(player, res);
+}
+
+function doHarvest() {
+  productionReport = [];
+  for (let p = 0; p < 4; p++) {
+    let produced = [0, 0, 0];
+    const pl = players[p];
+    for (const plot of pl.plots) {
+      const tile = grid[plot.r][plot.c];
+      if (tile.mule >= 0) {
+        let amount = PRODUCTION[tile.terrain][tile.mule];
+        // Energy penalty: if low energy, halve production
+        if (pl.resources[1] < 2 && tile.mule !== 1) amount = Math.ceil(amount / 2);
+        produced[tile.mule] += amount;
+      }
+    }
+    // Consume food and energy
+    const foodCost = 3 + pl.plots.length;
+    const energyCost = pl.plots.filter(pp => grid[pp.r][pp.c].mule >= 0).length;
+    pl.resources[0] += produced[0] - foodCost;
+    pl.resources[1] += produced[1] - energyCost;
+    pl.resources[2] += produced[2];
+    // Floor at 0
+    for (let i = 0; i < 3; i++) if (pl.resources[i] < 0) pl.resources[i] = 0;
+    productionReport.push({ name: pl.name, produced, foodCost, energyCost });
+  }
+  productionReportTimer = 180;
+  phase = 'harvest-report';
+}
+
+// ── Auction System ──
+function startAuction() {
+  auctionResourceIdx = 0;
+  beginAuctionForResource(0);
+}
+
+function beginAuctionForResource(resIdx) {
+  auctionResourceIdx = resIdx;
+  auctionResource = resIdx;
+  phase = 'auction';
+  auctionActive = true;
+  auctionTimer = 300; // 5 seconds at 60fps
+  auctionTrades = [];
+  auctionDone = false;
+
+  // Determine who buys and sells
+  auctionBuyers = [];
+  auctionSellers = [];
+  for (let i = 0; i < 4; i++) {
+    const p = players[i];
+    const threshold = resIdx === 0 ? 6 : resIdx === 1 ? 3 : 2;
+    if (p.resources[resIdx] > threshold + 2) {
+      auctionSellers.push({ player: i, price: 20, units: p.resources[resIdx] - threshold });
+    } else if (p.resources[resIdx] < threshold) {
+      auctionBuyers.push({ player: i, price: 80, units: threshold - p.resources[resIdx] });
+    }
+  }
+
+  // If no trade possible, skip
+  if (auctionBuyers.length === 0 || auctionSellers.length === 0) {
+    showMessage('No ' + RESOURCE_NAMES[resIdx] + ' trades needed');
+    setTimeout(() => nextAuctionResource(), 800);
+    auctionActive = false;
+    return;
+  }
+
+  humanAuctionY = 0.8; // Human starts as buyer at top (high price)
+  // Check if human is in the auction
+  const humanBuyer = auctionBuyers.find(b => b.player === 0);
+  const humanSeller = auctionSellers.find(s => s.player === 0);
+  if (humanBuyer) humanAuctionY = 0.8;
+  else if (humanSeller) humanAuctionY = 0.2;
+
+  showMessage(RESOURCE_NAMES[resIdx] + ' Auction! Move mouse to set price.');
+}
+
+function nextAuctionResource() {
+  if (auctionResourceIdx < 2) {
+    beginAuctionForResource(auctionResourceIdx + 1);
+  } else {
+    // All auctions done, next round
+    round++;
+    if (round > ROUNDS) {
+      phase = 'end';
+      gameOver = true;
+    } else {
+      phase = 'claim';
+      turnPlayer = claimOrder[0];
+      roundStartTimer = 60;
+      showMessage('Round ' + round + ' — Land Grant');
+      if (players[turnPlayer].ai) {
+        setTimeout(() => aiClaim(turnPlayer), 600);
+      }
+    }
+  }
+}
+
+function updateAuction() {
+  if (!auctionActive) return;
+  auctionTimer--;
+
+  // AI movement: sellers increase price, buyers decrease price
+  for (const s of auctionSellers) {
+    if (s.player > 0) s.price = Math.min(100, s.price + 0.3 + Math.random() * 0.2);
+  }
+  for (const b of auctionBuyers) {
+    if (b.player > 0) b.price = Math.max(0, b.price - 0.3 - Math.random() * 0.2);
+  }
+
+  // Human price from mouse
+  const humanBuyer = auctionBuyers.find(b => b.player === 0);
+  const humanSeller = auctionSellers.find(s => s.player === 0);
+  const barTop = 200, barBot = 480;
+  const barH = barBot - barTop;
+  if (humanBuyer) {
+    humanBuyer.price = 100 - ((mouseY - barTop) / barH) * 100;
+    humanBuyer.price = Math.max(0, Math.min(100, humanBuyer.price));
+  }
+  if (humanSeller) {
+    humanSeller.price = 100 - ((mouseY - barTop) / barH) * 100;
+    humanSeller.price = Math.max(0, Math.min(100, humanSeller.price));
+  }
+
+  // Check for trades: if any buyer price >= seller price, trade occurs
+  for (let bi = auctionBuyers.length - 1; bi >= 0; bi--) {
+    for (let si = auctionSellers.length - 1; si >= 0; si--) {
+      const buyer = auctionBuyers[bi];
+      const seller = auctionSellers[si];
+      if (buyer && seller && buyer.price <= seller.price) {
+        // Trade at midpoint
+        const tradePrice = Math.round((buyer.price + seller.price) / 2);
+        const units = Math.min(buyer.units, seller.units);
+        const cost = tradePrice * units;
+        if (players[buyer.player].money >= cost) {
+          players[buyer.player].money -= cost;
+          players[seller.player].money += cost;
+          players[buyer.player].resources[auctionResource] += units;
+          players[seller.player].resources[auctionResource] -= units;
+          auctionTrades.push({
+            buyer: buyer.player, seller: seller.player,
+            price: tradePrice, units: units
+          });
+          showMessage(players[buyer.player].name + ' buys ' + units + ' ' + RESOURCE_NAMES[auctionResource] + ' from ' + players[seller.player].name + ' @ $' + tradePrice);
+          auctionBuyers.splice(bi, 1);
+          auctionSellers.splice(si, 1);
+        }
+        break;
+      }
+    }
+  }
+
+  if (auctionTimer <= 0 || (auctionBuyers.length === 0 || auctionSellers.length === 0)) {
+    auctionActive = false;
+    auctionDone = true;
+    setTimeout(() => nextAuctionResource(), 1000);
+  }
+}
+
+// ── Scoring ──
+function getNetWorth(p) {
+  return p.money + p.resources[0] * 20 + p.resources[1] * 25 + p.resources[2] * 40 + p.plots.length * 100;
+}
+
+// ── Message ──
+function showMessage(msg) {
+  message = msg;
+  messageTimer = 120;
+}
+
+// ── Update ──
+function update() {
+  if (infoOpen) return;
+
+  if (messageTimer > 0) messageTimer--;
+
+  if (phase === 'harvest-report') {
+    productionReportTimer--;
+    if (productionReportTimer <= 0) {
+      productionReport = null;
+      startAuction();
+    }
+  }
+
+  if (phase === 'claim' && roundStartTimer > 0) {
+    roundStartTimer--;
+  }
+
+  if (phase === 'auction') {
+    updateAuction();
+  }
+}
+
+// ── Draw ──
+function draw() {
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0, 0, W, H);
+
+  // Title bar
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fillRect(0, 0, W, 30);
+  hudText('SIM-014 · COLONY TRADE', 10, 15, 13, '#7bf', 'left');
+  hudText('Round ' + Math.min(round, ROUNDS) + '/' + ROUNDS, W / 2, 15, 13, '#fff', 'center');
+  hudText('Press ? for info', W - 10, 15, 11, '#555', 'right');
+
+  // Draw phase-specific content
+  if (phase === 'end') {
+    drawEndScreen();
+  } else if (phase === 'auction' || (phase === 'harvest-report' && !auctionActive && auctionDone)) {
+    drawAuction();
+  } else {
+    drawMap();
+    drawPlayerPanel();
+    drawPhaseUI();
+  }
+
+  // Message
+  if (messageTimer > 0 && message) {
+    const alpha = Math.min(1, messageTimer / 30);
+    ctx.fillStyle = 'rgba(0,0,0,' + (0.7 * alpha) + ')';
+    ctx.fillRect(0, H - 50, W, 50);
+    hudText(message, W / 2, H - 25, 14, 'rgba(255,255,255,' + alpha + ')', 'center');
+  }
+}
+
+function drawMap() {
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const x = MAP_X + c * TILE_W;
+      const y = MAP_Y + r * TILE_H;
+      const tile = grid[r][c];
+
+      // Terrain fill
+      ctx.fillStyle = TERRAIN_COLORS[tile.terrain];
+      ctx.fillRect(x + 1, y + 1, TILE_W - 2, TILE_H - 2);
+
+      // Terrain detail
+      if (tile.terrain === 1) {
+        // River: wavy lines
+        ctx.strokeStyle = '#5af';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let i = 0; i < 3; i++) {
+          const ry = y + 15 + i * 15;
+          ctx.moveTo(x + 5, ry);
+          ctx.quadraticCurveTo(x + TILE_W / 4, ry - 5, x + TILE_W / 2, ry);
+          ctx.quadraticCurveTo(x + 3 * TILE_W / 4, ry + 5, x + TILE_W - 5, ry);
+        }
+        ctx.stroke();
+      } else if (tile.terrain === 2) {
+        // Mountain: triangle
+        ctx.fillStyle = '#999';
+        ctx.beginPath();
+        ctx.moveTo(x + TILE_W / 2, y + 8);
+        ctx.lineTo(x + TILE_W - 12, y + TILE_H - 10);
+        ctx.lineTo(x + 12, y + TILE_H - 10);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#ccc';
+        ctx.beginPath();
+        ctx.moveTo(x + TILE_W / 2, y + 8);
+        ctx.lineTo(x + TILE_W / 2 + 10, y + 22);
+        ctx.lineTo(x + TILE_W / 2 - 10, y + 22);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      // Owner border
+      if (tile.owner >= 0) {
+        ctx.strokeStyle = players[tile.owner].color;
+        ctx.lineWidth = 3;
+        ctx.strokeRect(x + 2, y + 2, TILE_W - 4, TILE_H - 4);
+      }
+
+      // MULE indicator
+      if (tile.mule >= 0) {
+        ctx.fillStyle = RESOURCE_COLORS[tile.mule];
+        ctx.fillRect(x + TILE_W - 18, y + 4, 14, 14);
+        hudText(RESOURCE_NAMES[tile.mule][0], x + TILE_W - 11, y + 11, 10, '#000', 'center');
+      }
+
+      // Hover highlight for claim phase
+      if (phase === 'claim' && !players[turnPlayer].ai && tile.owner === -1 && tile.terrain !== 1) {
+        const mx = Math.floor((mouseX - MAP_X) / TILE_W);
+        const my = Math.floor((mouseY - MAP_Y) / TILE_H);
+        if (mx === c && my === r) {
+          ctx.fillStyle = 'rgba(255,255,255,0.15)';
+          ctx.fillRect(x + 1, y + 1, TILE_W - 2, TILE_H - 2);
+        }
+      }
+    }
+  }
+}
+
+function drawPlayerPanel() {
+  const panelY = MAP_Y + ROWS * TILE_H + 80;
+  const colW = W / 4;
+
+  for (let i = 0; i < 4; i++) {
+    const p = players[i];
+    const px = i * colW + 10;
+    const nw = getNetWorth(p);
+
+    // Highlight current player
+    if ((phase === 'claim' && turnPlayer === i) || (phase === 'equip' && equipPhasePlayer === i)) {
+      ctx.fillStyle = 'rgba(255,255,255,0.08)';
+      ctx.fillRect(i * colW, panelY - 5, colW, 120);
+    }
+
+    ctx.fillStyle = p.color;
+    ctx.fillRect(px, panelY, 8, 8);
+    hudText(p.name, px + 14, panelY + 4, 12, p.color, 'left');
+    hudText('$' + p.money, px, panelY + 20, 11, '#ccc', 'left');
+    hudText('NW: $' + nw, px, panelY + 35, 10, '#888', 'left');
+
+    for (let r = 0; r < 3; r++) {
+      hudText(RESOURCE_NAMES[r][0] + ':' + p.resources[r], px, panelY + 52 + r * 14, 10, RESOURCE_COLORS[r], 'left');
+    }
+    hudText('Plots: ' + p.plots.length, px, panelY + 95, 10, '#666', 'left');
+  }
+}
+
+function drawPhaseUI() {
+  const uiY = MAP_Y + ROWS * TILE_H + 10;
+
+  if (phase === 'claim') {
+    hudText('LAND GRANT — ' + players[turnPlayer].name + ' claims a plot', W / 2, uiY, 14, players[turnPlayer].color, 'center');
+    if (!players[turnPlayer].ai) {
+      hudText('Click an unclaimed plot (not river)', W / 2, uiY + 20, 11, '#888', 'center');
+    } else {
+      hudText(players[turnPlayer].name + ' is choosing...', W / 2, uiY + 20, 11, '#888', 'center');
+    }
+  }
+
+  if (phase === 'equip') {
+    const ep = players[equipPhasePlayer];
+    hudText('EQUIP UNIT — ' + ep.name, W / 2, uiY, 14, ep.color, 'center');
+
+    if (equipPhasePlayer === 0) {
+      // Draw resource buttons
+      const btnY = uiY + 15;
+      for (let i = 0; i < 3; i++) {
+        const btnX = W / 2 - 150 + i * 120;
+        const hover = mouseX >= btnX && mouseX < btnX + 100 && mouseY >= btnY && mouseY < btnY + 35;
+        ctx.fillStyle = hover ? RESOURCE_COLORS[i] : '#333';
+        ctx.fillRect(btnX, btnY, 100, 35);
+        hudText(RESOURCE_NAMES[i], btnX + 50, btnY + 17, 13, hover ? '#000' : RESOURCE_COLORS[i], 'center');
+      }
+      // Skip button
+      const skipX = W / 2 - 40;
+      const skipHover = mouseX >= skipX && mouseX < skipX + 80 && mouseY >= btnY + 45 && mouseY < btnY + 75;
+      ctx.fillStyle = skipHover ? '#555' : '#222';
+      ctx.fillRect(skipX, btnY + 45, 80, 30);
+      hudText('Skip', skipX + 40, btnY + 60, 12, '#888', 'center');
+    } else {
+      hudText(ep.name + ' is equipping...', W / 2, uiY + 20, 11, '#888', 'center');
+    }
+  }
+
+  if (phase === 'harvest-report' && productionReport) {
+    ctx.fillStyle = 'rgba(0,0,0,0.85)';
+    ctx.fillRect(100, 120, 600, 320);
+    ctx.strokeStyle = '#f80';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(100, 120, 600, 320);
+    hudText('HARVEST REPORT — Round ' + round, W / 2, 150, 18, '#f80', 'center');
+
+    for (let i = 0; i < 4; i++) {
+      const pr = productionReport[i];
+      const ry = 190 + i * 55;
+      hudText(pr.name, 140, ry, 14, players[i].color, 'left');
+      hudText('Produced: F+' + pr.produced[0] + ' E+' + pr.produced[1] + ' O+' + pr.produced[2], 260, ry, 12, '#aaa', 'left');
+      hudText('Costs: F-' + pr.foodCost + ' E-' + pr.energyCost, 260, ry + 18, 11, '#f66', 'left');
+      hudText('Now: F:' + players[i].resources[0] + ' E:' + players[i].resources[1] + ' O:' + players[i].resources[2], 260, ry + 34, 11, '#8f8', 'left');
+    }
+    hudText('Auction starts in ' + Math.ceil(productionReportTimer / 60) + 's...', W / 2, 420, 12, '#888', 'center');
+  }
+}
+
+function drawAuction() {
+  // Auction background
+  ctx.fillStyle = '#0a0a1a';
+  ctx.fillRect(0, 30, W, H - 30);
+
+  hudText(RESOURCE_NAMES[auctionResource] + ' AUCTION', W / 2, 55, 20, RESOURCE_COLORS[auctionResource], 'center');
+
+  if (!auctionActive && !auctionDone) {
+    hudText('No trades needed — skipping...', W / 2, H / 2, 16, '#888', 'center');
+    drawPlayerPanel();
+    return;
+  }
+
+  // Price bar
+  const barX = W / 2 - 30, barW = 60;
+  const barTop = 100, barBot = 460;
+  const barH = barBot - barTop;
+
+  // Bar background
+  ctx.fillStyle = '#222';
+  ctx.fillRect(barX, barTop, barW, barH);
+
+  // Price scale
+  for (let p = 0; p <= 100; p += 10) {
+    const y = barBot - (p / 100) * barH;
+    ctx.strokeStyle = '#444';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(barX - 5, y);
+    ctx.lineTo(barX + barW + 5, y);
+    ctx.stroke();
+    hudText('$' + p, barX - 35, y, 10, '#666', 'left');
+  }
+
+  // Draw sellers (walking up from bottom)
+  if (auctionSellers) {
+    for (const s of auctionSellers) {
+      const y = barBot - (s.price / 100) * barH;
+      const px = barX + barW + 20 + auctionSellers.indexOf(s) * 60;
+      ctx.fillStyle = players[s.player].color;
+      // Seller arrow pointing up
+      ctx.beginPath();
+      ctx.moveTo(px, y - 10);
+      ctx.lineTo(px - 8, y + 5);
+      ctx.lineTo(px + 8, y + 5);
+      ctx.closePath();
+      ctx.fill();
+      hudText(players[s.player].name, px, y + 18, 10, players[s.player].color, 'center');
+      hudText('Sell ' + s.units, px, y + 30, 9, '#aaa', 'center');
+    }
+  }
+
+  // Draw buyers (walking down from top)
+  if (auctionBuyers) {
+    for (const b of auctionBuyers) {
+      const y = barBot - (b.price / 100) * barH;
+      const px = barX - 50 - auctionBuyers.indexOf(b) * 60;
+      ctx.fillStyle = players[b.player].color;
+      // Buyer arrow pointing down
+      ctx.beginPath();
+      ctx.moveTo(px, y + 10);
+      ctx.lineTo(px - 8, y - 5);
+      ctx.lineTo(px + 8, y - 5);
+      ctx.closePath();
+      ctx.fill();
+      hudText(players[b.player].name, px, y - 15, 10, players[b.player].color, 'center');
+      hudText('Buy ' + b.units, px, y - 27, 9, '#aaa', 'center');
+    }
+  }
+
+  // Timer
+  if (auctionActive) {
+    const timeLeft = Math.ceil(auctionTimer / 60);
+    hudText('Time: ' + timeLeft + 's', W / 2, barBot + 30, 14, timeLeft <= 2 ? '#f44' : '#fff', 'center');
+    hudText('Move mouse up/down to set your price', W / 2, barBot + 50, 11, '#888', 'center');
+  }
+
+  // Trade log
+  if (auctionTrades && auctionTrades.length > 0) {
+    hudText('Trades:', W / 2, barBot + 70, 12, '#f80', 'center');
+    for (let i = 0; i < auctionTrades.length && i < 3; i++) {
+      const t = auctionTrades[i];
+      hudText(players[t.buyer].name + ' bought ' + t.units + ' from ' + players[t.seller].name + ' @ $' + t.price,
+        W / 2, barBot + 85 + i * 15, 10, '#aaa', 'center');
+    }
+  }
+
+  if (auctionDone && !auctionActive) {
+    hudText('Auction complete!', W / 2, barBot + 30, 14, '#4f4', 'center');
+  }
+
+  // Mini player panel at bottom
+  const panelY = H - 75;
+  const colW = W / 4;
+  for (let i = 0; i < 4; i++) {
+    const p = players[i];
+    const px = i * colW + 10;
+    hudText(p.name, px, panelY, 11, p.color, 'left');
+    hudText('$' + p.money, px, panelY + 14, 10, '#ccc', 'left');
+    for (let r = 0; r < 3; r++) {
+      hudText(RESOURCE_NAMES[r][0] + ':' + p.resources[r], px + r * 35, panelY + 28, 9, RESOURCE_COLORS[r], 'left');
+    }
+  }
+}
+
+function drawEndScreen() {
+  ctx.fillStyle = '#0a0a2a';
+  ctx.fillRect(0, 30, W, H - 30);
+
+  hudText('COLONY ASSESSMENT', W / 2, 80, 24, '#f80', 'center');
+  hudText('After ' + ROUNDS + ' rounds of colonization...', W / 2, 110, 13, '#888', 'center');
+
+  // Sort by net worth
+  const sorted = [0, 1, 2, 3].sort((a, b) => getNetWorth(players[b]) - getNetWorth(players[a]));
+  const medals = ['1st', '2nd', '3rd', '4th'];
+  const medalColors = ['#fd0', '#ccc', '#c84', '#666'];
+
+  for (let i = 0; i < 4; i++) {
+    const pi = sorted[i];
+    const p = players[pi];
+    const y = 160 + i * 90;
+
+    ctx.fillStyle = i === 0 ? 'rgba(255,215,0,0.1)' : 'rgba(255,255,255,0.03)';
+    ctx.fillRect(100, y - 15, 600, 80);
+
+    hudText(medals[i], 130, y + 10, 20, medalColors[i], 'center');
+    hudText(p.name, 180, y, 16, p.color, 'left');
+    hudText('Net Worth: $' + getNetWorth(p), 180, y + 22, 14, '#fff', 'left');
+    hudText('Cash: $' + p.money + '  |  F:' + p.resources[0] + '  E:' + p.resources[1] + '  O:' + p.resources[2] + '  |  Plots: ' + p.plots.length,
+      180, y + 42, 11, '#888', 'left');
+  }
+
+  const winner = players[sorted[0]];
+  if (sorted[0] === 0) {
+    hudText('You are the top colonist! Well done!', W / 2, 530, 16, '#4f4', 'center');
+  } else {
+    hudText(winner.name + ' wins the colony! Try again?', W / 2, 530, 16, '#f88', 'center');
+  }
+  hudText('Press R to restart', W / 2, 560, 13, '#666', 'center');
+}
+
+// ── Game Loop ──
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

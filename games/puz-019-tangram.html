@@ -1,0 +1,544 @@
+<!--
+PROTOTYPE: tangram
+SERIES: puz
+NUMBER: 019
+DATE: 2026-03-24
+MECHANIC: shape fitting — arrange 7 geometric pieces (tans) to exactly fill a target silhouette shape
+ANCESTRY: Tangram (~1800 China), dissection puzzles, spatial reasoning tests
+CONTROLS: Click+drag — move piece | R-click or scroll — rotate piece | F — flip piece | N — next puzzle | R — reset | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 5 (Statistical Learning — computer vision, geometric constraint satisfaction)
+AI-INSIGHT: Tangram is a geometric constraint satisfaction problem: 7 pieces must tile a region with zero gaps and zero overlap. This is equivalent to polygon packing — an NP-hard problem that computer vision and robotics solve for bin packing, nesting, and assembly planning.
+NOTES: The 7 tans (2 large triangles, 1 medium triangle, 2 small triangles, 1 square, 1 parallelogram) can form over 6500 different shapes. Universal across languages — no text needed. Used in cognitive psychology research on spatial reasoning.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PUZ-019 · TANGRAM</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: pointer; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+<div class="inner">
+<span class="close-btn" onclick="toggleInfo()">&times;</span>
+<h1>TANGRAM</h1>
+<p><span class="tag series">PUZ-019</span> <span class="tag">Shape Fitting</span> <span class="tag">Spatial Puzzle</span></p>
+
+<h2>How to Play</h2>
+<ul>
+<li><kbd>Click+Drag</kbd> — Move a piece</li>
+<li><kbd>Right-click</kbd> or <kbd>Scroll</kbd> — Rotate piece 45°</li>
+<li><kbd>F</kbd> — Flip piece (parallelogram only)</li>
+<li><kbd>N</kbd> — Next puzzle</li>
+<li><kbd>R</kbd> — Reset current puzzle</li>
+<li><kbd>?</kbd> — Toggle this info panel</li>
+</ul>
+<p>Arrange all 7 tangram pieces (tans) to exactly fill the grey target silhouette. Pieces snap to a grid for clean placement.</p>
+
+<h2>History</h2>
+<p>The tangram originated in China around 1800, though some historians trace it to the Song Dynasty. It consists of seven flat polygons called "tans" cut from a single square: 2 large right triangles, 1 medium right triangle, 2 small right triangles, 1 square, and 1 parallelogram. The puzzle spread to Europe in the early 19th century and became a worldwide craze. Napoleon reportedly played tangrams during his exile. Lewis Carroll and Edgar Allan Poe were also enthusiasts.</p>
+<p>The 7 pieces can form over 6,500 distinct convex and non-convex shapes. The tangram is universal — it requires no language or literacy, making it one of the most culturally portable puzzles ever created.</p>
+
+<h2>AI Archaeology</h2>
+<h3>Era 5 — Statistical Learning</h3>
+<p>Tangram solving is a geometric constraint satisfaction problem: 7 polygons must tile a target region with zero gaps and zero overlap. This is equivalent to polygon packing — an NP-hard problem. Modern approaches use computer vision for shape recognition, geometric constraint solvers for piece placement, and reinforcement learning for sequential assembly strategies.</p>
+<p>Applications include robotic bin packing, sheet metal nesting optimization, and automated jigsaw puzzle assembly — all descendants of the humble tangram's spatial logic.</p>
+
+<h2>Classification</h2>
+<p><strong>Mechanic:</strong> Shape fitting — arrange geometric pieces to fill a silhouette</p>
+<p><strong>Ancestry:</strong> Tangram (~1800 China) → dissection puzzles → spatial reasoning tests</p>
+
+<h2>Prototype Notes</h2>
+<p>7 classic tans with grid-snapped placement. 6 target silhouettes of increasing complexity. Parallelogram can be flipped. Win detection checks coverage of the target region.</p>
+
+<h2>Educational Notice</h2>
+<p>This is an educational prototype created for the study of game design history and AI archaeology. It is a non-commercial, transformative reconstruction intended for research, criticism, and commentary on the evolution of puzzle game mechanics.</p>
+</div>
+</div>
+
+<script>
+// Info panel
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// Canvas setup
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+
+function resize() {
+  const s = Math.min(innerWidth / W, innerHeight / H);
+  canvas.style.width = (W * s) + 'px';
+  canvas.style.height = (H * s) + 'px';
+}
+resize();
+addEventListener('resize', resize);
+
+function hudText(text, x, y, size, color, align) {
+  ctx.save();
+  ctx.font = size + 'px monospace';
+  ctx.fillStyle = color || '#fff';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+// Grid for snapping — all piece geometry defined in pixel coords as multiples of GRID
+const GRID = 30;
+const SNAP = GRID; // snap unit
+
+const pieces = [];
+let currentPuzzle = 0;
+let dragging = null;
+let dragOff = { x: 0, y: 0 };
+let won = false;
+let winTime = 0;
+
+// Tangram pieces — 7 tans with proper area ratios
+// Large tri legs=4g, medium tri legs=3g, small tri legs=2g
+function createPieces() {
+  const g = GRID;
+  const defs = [
+    { name: 'lgTri1', color: '#e74c3c',
+      verts: [[0,0],[4*g,0],[0,4*g]], canFlip: false },
+    { name: 'lgTri2', color: '#e67e22',
+      verts: [[0,0],[4*g,0],[0,4*g]], canFlip: false },
+    { name: 'medTri', color: '#f1c40f',
+      verts: [[0,0],[3*g,0],[0,3*g]], canFlip: false },
+    { name: 'smTri1', color: '#2ecc71',
+      verts: [[0,0],[2*g,0],[0,2*g]], canFlip: false },
+    { name: 'smTri2', color: '#3498db',
+      verts: [[0,0],[2*g,0],[0,2*g]], canFlip: false },
+    { name: 'square', color: '#9b59b6',
+      verts: [[0,0],[2*g,0],[2*g,2*g],[0,2*g]], canFlip: false },
+    { name: 'para', color: '#1abc9c',
+      verts: [[0,0],[3*g,0],[2*g,2*g],[-g,2*g]], canFlip: true }
+  ];
+
+  const result = [];
+  const startPositions = [
+    [50, 80], [50, 250], [180, 80], [180, 200],
+    [50, 420], [180, 340], [50, 340]
+  ];
+
+  for (let i = 0; i < defs.length; i++) {
+    const d = defs[i];
+    result.push({
+      name: d.name,
+      color: d.color,
+      baseVerts: d.verts.map(v => [...v]),
+      verts: d.verts.map(v => [...v]),
+      x: startPositions[i][0],
+      y: startPositions[i][1],
+      rotation: 0, // in 45° increments (0-7)
+      flipped: false,
+      canFlip: d.canFlip
+    });
+  }
+  return result;
+}
+
+function rotatePoint(px, py, angle) {
+  const c = Math.cos(angle), s = Math.sin(angle);
+  return [px * c - py * s, px * s + py * c];
+}
+
+function updatePieceVerts(piece) {
+  const angle = piece.rotation * Math.PI / 4;
+  piece.verts = piece.baseVerts.map(v => {
+    let [x, y] = v;
+    if (piece.flipped) x = -x;
+    return rotatePoint(x, y, angle);
+  });
+}
+
+function getWorldVerts(piece) {
+  return piece.verts.map(v => [v[0] + piece.x, v[1] + piece.y]);
+}
+
+function drawPiece(piece, alpha) {
+  const wv = getWorldVerts(piece);
+  ctx.beginPath();
+  ctx.moveTo(wv[0][0], wv[0][1]);
+  for (let i = 1; i < wv.length; i++) ctx.lineTo(wv[i][0], wv[i][1]);
+  ctx.closePath();
+  ctx.globalAlpha = alpha || 1;
+  ctx.fillStyle = piece.color;
+  ctx.fill();
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+}
+
+// Target silhouettes defined as polygons (in pixel coords, positioned on right side of screen)
+// Each puzzle has a silhouette shape and a solution (piece positions/rotations)
+const SILHOUETTE_OX = 550; // center x of silhouette area
+const SILHOUETTE_OY = 300; // center y
+
+const puzzles = [
+  { // 0: Square (classic)
+    name: 'Square',
+    silhouette: [[-60,-60],[60,-60],[60,60],[-60,60]],
+    hint: 'The classic square'
+  },
+  { // 1: House
+    name: 'House',
+    silhouette: [[0,-80],[70,-20],[70,60],[-70,60],[-70,-20]],
+    hint: 'A cozy house'
+  },
+  { // 2: Arrow
+    name: 'Arrow',
+    silhouette: [[0,-90],[60,-20],[30,-20],[30,70],[-30,70],[-30,-20],[-60,-20]],
+    hint: 'Pointing up'
+  },
+  { // 3: Cat
+    name: 'Cat',
+    silhouette: [[-50,-80],[-30,-50],[30,-50],[50,-80],[50,60],[20,80],[-20,80],[-50,60]],
+    hint: 'A sitting cat'
+  },
+  { // 4: Boat
+    name: 'Boat',
+    silhouette: [[-10,-60],[10,-60],[40,0],[70,0],[50,40],[-50,40],[-70,0],[-40,0]],
+    hint: 'Sailing away'
+  },
+  { // 5: Person
+    name: 'Person',
+    silhouette: [[-15,-90],[15,-90],[15,-50],[40,-50],[40,-20],[15,-20],[15,50],[30,90],[-30,90],[-15,50],[-15,-20],[-40,-20],[-40,-50],[-15,-50]],
+    hint: 'Standing tall'
+  }
+];
+
+function getScaledSilhouette(idx) {
+  const p = puzzles[idx];
+  return p.silhouette.map(v => [v[0] + SILHOUETTE_OX, v[1] + SILHOUETTE_OY]);
+}
+
+function drawSilhouette(idx) {
+  const sv = getScaledSilhouette(idx);
+  ctx.beginPath();
+  ctx.moveTo(sv[0][0], sv[0][1]);
+  for (let i = 1; i < sv.length; i++) ctx.lineTo(sv[i][0], sv[i][1]);
+  ctx.closePath();
+  ctx.fillStyle = '#2a2a3a';
+  ctx.fill();
+  ctx.strokeStyle = '#556';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+// Point-in-polygon test (ray casting)
+function pointInPolygon(px, py, polygon) {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i][0], yi = polygon[i][1];
+    const xj = polygon[j][0], yj = polygon[j][1];
+    if ((yi > py) !== (yj > py) && px < (xj - xi) * (py - yi) / (yj - yi) + xi) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+// Check if point is inside a piece
+function pointInPiece(px, py, piece) {
+  const wv = getWorldVerts(piece);
+  return pointInPolygon(px, py, wv);
+}
+
+// Polygon area (signed)
+function polygonArea(verts) {
+  let area = 0;
+  for (let i = 0, j = verts.length - 1; i < verts.length; j = i++) {
+    area += (verts[j][0] + verts[i][0]) * (verts[j][1] - verts[i][1]);
+  }
+  return Math.abs(area / 2);
+}
+
+// Simple win check: sample points in silhouette, check coverage by pieces
+function checkWin() {
+  const sv = getScaledSilhouette(currentPuzzle);
+
+  // Get bounding box of silhouette
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const v of sv) {
+    minX = Math.min(minX, v[0]);
+    minY = Math.min(minY, v[1]);
+    maxX = Math.max(maxX, v[0]);
+    maxY = Math.max(maxY, v[1]);
+  }
+
+  const step = 8;
+  let totalPoints = 0;
+  let coveredPoints = 0;
+  let outsidePoints = 0;
+
+  // Check that silhouette points are covered by pieces
+  for (let x = minX + step/2; x < maxX; x += step) {
+    for (let y = minY + step/2; y < maxY; y += step) {
+      if (pointInPolygon(x, y, sv)) {
+        totalPoints++;
+        let covered = false;
+        for (const p of pieces) {
+          if (pointInPiece(x, y, p)) {
+            covered = true;
+            break;
+          }
+        }
+        if (covered) coveredPoints++;
+      }
+    }
+  }
+
+  // Check that pieces don't extend too far outside silhouette
+  for (const p of pieces) {
+    const wv = getWorldVerts(p);
+    let pMinX = Infinity, pMinY = Infinity, pMaxX = -Infinity, pMaxY = -Infinity;
+    for (const v of wv) {
+      pMinX = Math.min(pMinX, v[0]);
+      pMinY = Math.min(pMinY, v[1]);
+      pMaxX = Math.max(pMaxX, v[0]);
+      pMaxY = Math.max(pMaxY, v[1]);
+    }
+    for (let x = pMinX + step/2; x < pMaxX; x += step) {
+      for (let y = pMinY + step/2; y < pMaxY; y += step) {
+        if (pointInPiece(x, y, p) && !pointInPolygon(x, y, sv)) {
+          outsidePoints++;
+        }
+      }
+    }
+  }
+
+  if (totalPoints === 0) return false;
+  const coverage = coveredPoints / totalPoints;
+
+  // Need high coverage and low outside spillage
+  return coverage > 0.85 && outsidePoints < totalPoints * 0.15;
+}
+
+function snapToGrid(val) {
+  return Math.round(val / SNAP) * SNAP;
+}
+
+function resetPuzzle() {
+  pieces.length = 0;
+  const newPieces = createPieces();
+  for (const p of newPieces) pieces.push(p);
+  won = false;
+  dragging = null;
+}
+
+function nextPuzzle() {
+  currentPuzzle = (currentPuzzle + 1) % puzzles.length;
+  resetPuzzle();
+}
+
+// Initialize
+resetPuzzle();
+
+// Mouse handling
+function getMousePos(e) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = W / rect.width;
+  const scaleY = H / rect.height;
+  return {
+    x: (e.clientX - rect.left) * scaleX,
+    y: (e.clientY - rect.top) * scaleY
+  };
+}
+
+canvas.addEventListener('mousedown', function(e) {
+  if (infoOpen || won) return;
+  const pos = getMousePos(e);
+
+  if (e.button === 2) {
+    // Right-click: rotate
+    for (let i = pieces.length - 1; i >= 0; i--) {
+      if (pointInPiece(pos.x, pos.y, pieces[i])) {
+        pieces[i].rotation = (pieces[i].rotation + 1) % 8;
+        updatePieceVerts(pieces[i]);
+        break;
+      }
+    }
+    return;
+  }
+
+  // Left click: start drag
+  for (let i = pieces.length - 1; i >= 0; i--) {
+    if (pointInPiece(pos.x, pos.y, pieces[i])) {
+      dragging = pieces[i];
+      // Move to top
+      pieces.splice(i, 1);
+      pieces.push(dragging);
+      dragOff.x = pos.x - dragging.x;
+      dragOff.y = pos.y - dragging.y;
+      break;
+    }
+  }
+});
+
+canvas.addEventListener('mousemove', function(e) {
+  if (!dragging || infoOpen) return;
+  const pos = getMousePos(e);
+  dragging.x = pos.x - dragOff.x;
+  dragging.y = pos.y - dragOff.y;
+});
+
+canvas.addEventListener('mouseup', function(e) {
+  if (dragging) {
+    dragging.x = snapToGrid(dragging.x);
+    dragging.y = snapToGrid(dragging.y);
+    dragging = null;
+
+    if (!won && checkWin()) {
+      won = true;
+      winTime = performance.now();
+    }
+  }
+});
+
+canvas.addEventListener('wheel', function(e) {
+  if (infoOpen || won) return;
+  e.preventDefault();
+  const pos = getMousePos(e);
+  for (let i = pieces.length - 1; i >= 0; i--) {
+    if (pointInPiece(pos.x, pos.y, pieces[i])) {
+      const dir = e.deltaY > 0 ? 1 : -1;
+      pieces[i].rotation = (pieces[i].rotation + dir + 8) % 8;
+      updatePieceVerts(pieces[i]);
+      break;
+    }
+  }
+}, { passive: false });
+
+canvas.addEventListener('contextmenu', function(e) {
+  e.preventDefault();
+});
+
+// Keyboard
+addEventListener('keydown', function(e) {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
+    e.preventDefault();
+    toggleInfo();
+    return;
+  }
+  if (e.key === 'Escape' && infoOpen) {
+    toggleInfo();
+    return;
+  }
+  if (infoOpen) return;
+
+  if (e.key === 'n' || e.key === 'N') {
+    nextPuzzle();
+  } else if (e.key === 'r' || e.key === 'R') {
+    resetPuzzle();
+  } else if (e.key === 'f' || e.key === 'F') {
+    // Flip the parallelogram (or most recently touched piece if it can flip)
+    for (let i = pieces.length - 1; i >= 0; i--) {
+      if (pieces[i].canFlip) {
+        pieces[i].flipped = !pieces[i].flipped;
+        updatePieceVerts(pieces[i]);
+        break;
+      }
+    }
+  }
+});
+
+// Draw
+function draw() {
+  // Background
+  ctx.fillStyle = '#0a0a1a';
+  ctx.fillRect(0, 0, W, H);
+
+  // Draw grid (subtle)
+  ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x <= W; x += GRID) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+  }
+  for (let y = 0; y <= H; y += GRID) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+  }
+
+  // Divider line
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([5, 5]);
+  ctx.beginPath(); ctx.moveTo(400, 0); ctx.lineTo(400, H); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Draw silhouette
+  drawSilhouette(currentPuzzle);
+
+  // Draw pieces
+  for (const p of pieces) {
+    drawPiece(p, p === dragging ? 0.7 : 1);
+  }
+
+  // HUD
+  hudText('TANGRAM', 10, 10, 16, '#7bf');
+  hudText('Puzzle ' + (currentPuzzle + 1) + '/' + puzzles.length + ': ' + puzzles[currentPuzzle].name, 10, 32, 12, '#888');
+  hudText('[?] Info  [N] Next  [R] Reset  [F] Flip', 10, H - 25, 11, '#555');
+  hudText('Drag pieces  |  R-click/Scroll: rotate', 10, H - 45, 11, '#555');
+
+  // Win message
+  if (won) {
+    const t = (performance.now() - winTime) / 1000;
+    const flash = Math.sin(t * 3) * 0.3 + 0.7;
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(200, 250, 400, 100);
+    ctx.strokeStyle = '#4f4';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(200, 250, 400, 100);
+    hudText('PUZZLE COMPLETE!', 400, 275, 24, 'rgba(100,255,100,' + flash + ')', 'center');
+    hudText('Press N for next puzzle', 400, 310, 14, '#888', 'center');
+  }
+}
+
+function update() {
+  if (infoOpen) return;
+  // Game logic updates (mostly event-driven for tangram)
+}
+
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

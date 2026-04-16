@@ -1,0 +1,735 @@
+<!--
+PROTOTYPE: gorillas
+SERIES: fix
+NUMBER: 007
+DATE: 2026-03-24
+MECHANIC: artillery trajectory — two gorillas on skyscrapers throw exploding bananas; set angle and velocity; buildings are destructible; wind affects trajectory
+ANCESTRY: Gorillas (1991, IBM / bundled with MS-DOS 5.0 as QBasic example), Scorched Earth (1991, Wendell Hicken), Artillery (1976, Mike Forman)
+CONTROLS: Left/Right — adjust angle | Up/Down — adjust velocity | Space — fire banana | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 2 (Expert Systems — ballistic calculation with adjustable parameters)
+AI-INSIGHT: Artillery games reduce to parametric projectile physics — angle θ and velocity v₀ define a parabolic arc modified by gravity and wind. The AI opponent solves this inverse kinematics problem with deliberate error injection to simulate human imperfection.
+NOTES: The original Gorillas shipped as GORILLA.BAS with QBasic on MS-DOS 5.0,
+       teaching a generation to program by reading its source code. Pure artillery mechanics
+       with destructible terrain and charming pixel gorillas.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FIX-007 · GORILLAS</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: crosshair; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto; cursor: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>FIX-007 · GORILLAS</h1>
+    <p><span class="tag series">FIX — Fixed Shooter</span> <span class="tag">Prototype #007</span> <span class="tag">★★★★☆</span></p>
+
+    <h2>How to Play</h2>
+    <p>Two gorillas stand atop city skyscrapers, hurling exploding bananas at each other. Adjust your angle and velocity, account for wind, and try to hit your opponent!</p>
+    <ul>
+      <li><kbd>←</kbd> / <kbd>→</kbd> — Adjust angle</li>
+      <li><kbd>↑</kbd> / <kbd>↓</kbd> — Adjust velocity</li>
+      <li><kbd>Space</kbd> — Fire banana</li>
+      <li><kbd>R</kbd> — Restart game</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+      <li><kbd>Escape</kbd> — Close info panel</li>
+    </ul>
+    <h3>Rules</h3>
+    <ul>
+      <li>Players take turns throwing bananas</li>
+      <li>Bananas follow a parabolic arc affected by gravity and wind</li>
+      <li>Hitting a building creates an explosion crater (destructible terrain)</li>
+      <li>Hit the opposing gorilla to score a point</li>
+      <li>First to 3 points wins the match</li>
+      <li>Wind direction and strength change each round</li>
+      <li>Player 2 is controlled by AI</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Gorillas (1991, IBM) &larr; Scorched Earth (1991) &larr; Artillery (1976, Mike Forman)</p>
+    <p>Gorillas shipped as GORILLA.BAS with QBasic on MS-DOS 5.0, making it one of the most widely distributed games in history. Written by IBM, it taught an entire generation of programmers by example — curious kids would read the BASIC source code, modify the gravity constant, change the gorilla sprites, and accidentally learn to program.</p>
+    <p>The artillery genre traces back to 1976's Artillery for the HP 2647A terminal. Scorched Earth (1991) expanded it into a full tactical game with weapons and terrain. But Gorillas, with its charming simplicity and universal distribution, remains the most beloved entry in the genre.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 2 — Expert Systems (1980s-1990s)</p>
+    <p><strong>Contemporary AI:</strong> Expert systems dominated commercial AI. Rule-based reasoning could solve well-defined physics problems like ballistic trajectories, but struggled with the fuzzy spatial reasoning humans use intuitively.</p>
+    <p><strong>Hidden Intelligence:</strong> Artillery games are inverse kinematics problems: given a target position, solve for launch angle and velocity under gravity and wind. The closed-form solution exists (it's high school physics), but the game's challenge comes from the human inability to compute it mentally. The AI opponent approximates the solution with deliberate noise injection — too perfect and it's unfun, too random and it's unchallenging.</p>
+    <p><strong>The Convergence:</strong> Modern artillery game AI uses reinforcement learning to discover non-obvious strategies like deliberately destroying terrain to create better firing angles — emergent tactics that pure physics solvers miss.</p>
+
+    <h2>Classification</h2>
+    <p><strong>Series:</strong> FIX (Fixed Shooter / Fixed Position) — gorillas are stationary on buildings</p>
+    <p><strong>Core Mechanic:</strong> Parametric projectile physics (angle + velocity + wind)</p>
+    <p><strong>Input:</strong> Keyboard — directional adjustment and fire</p>
+
+    <h2>Prototype Notes</h2>
+    <p>This sketch captures the essential Gorillas experience: the QBasic-era color palette, chunky pixel buildings, banana arc physics, and satisfying building destruction. The AI opponent calculates trajectories with human-like imperfection. Wind adds the crucial variable that prevents pure memorization. The victory dance is a love letter to the original's charm.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+var C = document.getElementById('c'), X = C.getContext('2d');
+C.width = 800; C.height = 600;
+var infoOpen = false;
+
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// Resize handler
+function resize() {
+  var s = Math.min(innerWidth / 800, innerHeight / 600);
+  C.style.width = (800 * s) + 'px';
+  C.style.height = (600 * s) + 'px';
+}
+resize();
+addEventListener('resize', resize);
+
+// HUD text helper
+function hudText(text, x, y, size, color, align) {
+  X.save();
+  X.font = (size || 14) + 'px monospace';
+  X.fillStyle = color || '#fff';
+  X.textAlign = align || 'left';
+  X.textBaseline = 'top';
+  X.fillText(text, x, y);
+  X.restore();
+}
+
+// ---- CONSTANTS ----
+var GRAVITY = 0.15;
+var GROUND_Y = 560;
+var GORILLA_W = 28, GORILLA_H = 32;
+var BANANA_R = 5;
+var EXPLOSION_R = 30;
+var WIN_SCORE = 3;
+var BUILDING_COLORS = ['#c00', '#00c', '#0a0', '#880', '#808', '#088', '#a40', '#04a'];
+
+// ---- STATE ----
+var buildings, gorillas, banana, explosions, wind, turn, scores;
+var angle, velocity, phase, roundOver, matchOver, victoryTimer;
+var terrainCanvas, terrainCtx;
+var aiTimer, aiReady;
+
+function init() {
+  buildings = [];
+  gorillas = [{}, {}];
+  scores = [0, 0];
+  phase = 'aim'; // aim, flight, explode, roundOver, matchOver
+  roundOver = false;
+  matchOver = false;
+  victoryTimer = 0;
+  newRound();
+}
+
+function newRound() {
+  generateCity();
+  placeGorillas();
+  wind = (Math.random() - 0.5) * 6;
+  turn = 0;
+  angle = 45;
+  velocity = 80;
+  banana = null;
+  explosions = [];
+  phase = 'aim';
+  aiTimer = 0;
+  aiReady = false;
+  roundOver = false;
+  // Create terrain canvas for destructible buildings
+  terrainCanvas = document.createElement('canvas');
+  terrainCanvas.width = 800;
+  terrainCanvas.height = 600;
+  terrainCtx = terrainCanvas.getContext('2d');
+  drawBuildings(terrainCtx);
+}
+
+function generateCity() {
+  buildings = [];
+  var x = 0;
+  while (x < 800) {
+    var w = 40 + Math.floor(Math.random() * 40);
+    var h = 80 + Math.floor(Math.random() * 280);
+    if (x + w > 800) w = 800 - x;
+    buildings.push({
+      x: x, y: GROUND_Y - h, w: w, h: h,
+      color: BUILDING_COLORS[Math.floor(Math.random() * BUILDING_COLORS.length)]
+    });
+    x += w;
+  }
+}
+
+function drawBuildings(ctx) {
+  for (var i = 0; i < buildings.length; i++) {
+    var b = buildings[i];
+    ctx.fillStyle = b.color;
+    ctx.fillRect(b.x, b.y, b.w, b.h);
+    // Windows
+    ctx.fillStyle = '#ff0';
+    for (var wy = b.y + 8; wy < GROUND_Y - 12; wy += 16) {
+      for (var wx = b.x + 6; wx < b.x + b.w - 6; wx += 12) {
+        if (Math.random() > 0.3) {
+          ctx.fillRect(wx, wy, 5, 7);
+        }
+      }
+    }
+  }
+}
+
+function placeGorillas() {
+  // Left gorilla: pick a building in the left third
+  var leftIdx = 1 + Math.floor(Math.random() * Math.floor(buildings.length / 3));
+  var bl = buildings[leftIdx];
+  gorillas[0] = { x: bl.x + bl.w / 2, y: bl.y - GORILLA_H, alive: true, dance: 0 };
+
+  // Right gorilla: pick a building in the right third
+  var rightIdx = Math.floor(buildings.length * 2 / 3) + Math.floor(Math.random() * Math.floor(buildings.length / 3));
+  if (rightIdx >= buildings.length) rightIdx = buildings.length - 1;
+  var br = buildings[rightIdx];
+  gorillas[1] = { x: br.x + br.w / 2, y: br.y - GORILLA_H, alive: true, dance: 0 };
+}
+
+function drawGorilla(g, idx) {
+  if (!g.alive) return;
+  var cx = g.x, cy = g.y;
+  var dancing = g.dance > 0;
+  var frame = dancing ? Math.floor(g.dance / 8) % 2 : 0;
+
+  // Body (brown)
+  X.fillStyle = '#840';
+  X.fillRect(cx - 10, cy + 8, 20, 16);
+
+  // Head
+  X.fillStyle = '#a60';
+  X.fillRect(cx - 7, cy, 14, 12);
+
+  // Eyes
+  X.fillStyle = '#fff';
+  X.fillRect(cx - 5, cy + 3, 4, 3);
+  X.fillRect(cx + 1, cy + 3, 4, 3);
+  X.fillStyle = '#000';
+  X.fillRect(cx - 4, cy + 4, 2, 2);
+  X.fillRect(cx + 2, cy + 4, 2, 2);
+
+  // Mouth
+  X.fillStyle = '#000';
+  X.fillRect(cx - 3, cy + 8, 6, 2);
+
+  // Arms
+  X.fillStyle = '#840';
+  if (dancing) {
+    if (frame === 0) {
+      X.fillRect(cx - 16, cy + 2, 6, 10);
+      X.fillRect(cx + 10, cy + 8, 6, 10);
+    } else {
+      X.fillRect(cx - 16, cy + 8, 6, 10);
+      X.fillRect(cx + 10, cy + 2, 6, 10);
+    }
+  } else {
+    X.fillRect(cx - 16, cy + 8, 6, 12);
+    X.fillRect(cx + 10, cy + 8, 6, 12);
+  }
+
+  // Legs
+  X.fillStyle = '#840';
+  X.fillRect(cx - 8, cy + 24, 7, 8);
+  X.fillRect(cx + 1, cy + 24, 7, 8);
+}
+
+function fireBanana() {
+  var g = gorillas[turn];
+  var a = turn === 0 ? angle : (180 - angle);
+  var rad = a * Math.PI / 180;
+  banana = {
+    x: g.x,
+    y: g.y + 4,
+    vx: Math.cos(rad) * velocity * 0.08,
+    vy: -Math.sin(rad) * velocity * 0.08,
+    rot: 0,
+    trail: []
+  };
+  phase = 'flight';
+}
+
+function aiTurn() {
+  // Calculate rough trajectory to hit opponent
+  var src = gorillas[1];
+  var tgt = gorillas[0];
+  var dx = tgt.x - src.x;
+  var dy = tgt.y - src.y;
+
+  // Approximate solution with error
+  var dist = Math.sqrt(dx * dx + dy * dy);
+  var baseAngle = 45 + Math.random() * 20 - 10;
+  var baseVelocity = Math.sqrt(Math.abs(dist) * GRAVITY / Math.sin(2 * baseAngle * Math.PI / 180)) / 0.08;
+
+  // Add wind compensation (rough)
+  baseVelocity += wind * 3;
+
+  // Add human-like error
+  angle = Math.max(10, Math.min(80, baseAngle + (Math.random() - 0.5) * 15));
+  velocity = Math.max(30, Math.min(200, baseVelocity + (Math.random() - 0.5) * 30));
+
+  fireBanana();
+}
+
+function createExplosion(ex, ey) {
+  explosions.push({ x: ex, y: ey, r: 0, maxR: EXPLOSION_R, active: true });
+  // Destroy terrain
+  terrainCtx.globalCompositeOperation = 'destination-out';
+  terrainCtx.beginPath();
+  terrainCtx.arc(ex, ey, EXPLOSION_R, 0, Math.PI * 2);
+  terrainCtx.fill();
+  terrainCtx.globalCompositeOperation = 'source-over';
+}
+
+function checkCollision(bx, by) {
+  // Check gorilla hit
+  for (var i = 0; i < 2; i++) {
+    if (i === turn) continue;
+    var g = gorillas[i];
+    if (g.alive && Math.abs(bx - g.x) < 16 && Math.abs(by - (g.y + 12)) < 18) {
+      return { type: 'gorilla', index: i };
+    }
+  }
+  // Check self-hit
+  var self = gorillas[turn];
+  if (Math.abs(bx - self.x) < 16 && Math.abs(by - (self.y + 12)) < 18) {
+    // Only after banana has traveled a bit
+    if (banana && banana.trail.length > 10) {
+      return { type: 'gorilla', index: turn };
+    }
+  }
+  // Check terrain (building) hit via terrain canvas pixel
+  if (bx >= 0 && bx < 800 && by >= 0 && by < 600) {
+    var pixel = terrainCtx.getImageData(Math.floor(bx), Math.floor(by), 1, 1).data;
+    if (pixel[3] > 128) {
+      return { type: 'building' };
+    }
+  }
+  // Check ground
+  if (by >= GROUND_Y) {
+    return { type: 'ground' };
+  }
+  // Off screen
+  if (bx < -50 || bx > 850 || by > 650) {
+    return { type: 'offscreen' };
+  }
+  return null;
+}
+
+// ---- INPUT ----
+var keys = {};
+addEventListener('keydown', function(e) {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
+    e.preventDefault();
+    toggleInfo();
+    return;
+  }
+  if (e.key === 'Escape' && infoOpen) {
+    toggleInfo();
+    return;
+  }
+  keys[e.key] = true;
+  if (e.key === 'r' || e.key === 'R') {
+    init();
+    return;
+  }
+  if (e.key === ' ' && phase === 'aim' && turn === 0) {
+    e.preventDefault();
+    fireBanana();
+  }
+});
+addEventListener('keyup', function(e) { keys[e.key] = false; });
+
+// ---- UPDATE ----
+function update() {
+  if (infoOpen) return;
+
+  if (phase === 'aim') {
+    if (turn === 0) {
+      // Player input
+      if (keys['ArrowLeft']) angle = Math.min(180, angle + 1);
+      if (keys['ArrowRight']) angle = Math.max(0, angle - 1);
+      if (keys['ArrowUp']) velocity = Math.min(200, velocity + 1);
+      if (keys['ArrowDown']) velocity = Math.max(10, velocity - 1);
+    } else {
+      // AI turn
+      aiTimer++;
+      if (aiTimer > 60) {
+        aiTurn();
+      }
+    }
+  }
+
+  if (phase === 'flight' && banana) {
+    // Update banana physics
+    banana.vy += GRAVITY;
+    banana.vx += wind * 0.001;
+    banana.x += banana.vx;
+    banana.y += banana.vy;
+    banana.rot += 0.15;
+
+    banana.trail.push({ x: banana.x, y: banana.y });
+    if (banana.trail.length > 30) banana.trail.shift();
+
+    var hit = checkCollision(banana.x, banana.y);
+    if (hit) {
+      if (hit.type === 'gorilla') {
+        createExplosion(banana.x, banana.y);
+        gorillas[hit.index].alive = false;
+        var scorer = hit.index === 0 ? 1 : 0;
+        scores[scorer]++;
+        gorillas[scorer].dance = 120;
+        banana = null;
+        phase = 'explode';
+      } else if (hit.type === 'building' || hit.type === 'ground') {
+        createExplosion(banana.x, banana.y);
+        banana = null;
+        phase = 'explode';
+      } else {
+        // Off screen — next turn
+        banana = null;
+        turn = 1 - turn;
+        phase = 'aim';
+        aiTimer = 0;
+      }
+    }
+  }
+
+  if (phase === 'explode') {
+    var allDone = true;
+    for (var i = 0; i < explosions.length; i++) {
+      var ex = explosions[i];
+      if (ex.active) {
+        ex.r += 2;
+        if (ex.r >= ex.maxR) {
+          ex.active = false;
+        } else {
+          allDone = false;
+        }
+      }
+    }
+    if (allDone) {
+      // Check if someone died
+      var dead = -1;
+      for (var i = 0; i < 2; i++) {
+        if (!gorillas[i].alive) dead = i;
+      }
+      if (dead >= 0) {
+        victoryTimer = 120;
+        phase = 'roundOver';
+      } else {
+        turn = 1 - turn;
+        phase = 'aim';
+        aiTimer = 0;
+      }
+    }
+  }
+
+  if (phase === 'roundOver') {
+    for (var i = 0; i < 2; i++) {
+      if (gorillas[i].dance > 0) gorillas[i].dance--;
+    }
+    victoryTimer--;
+    if (victoryTimer <= 0) {
+      if (scores[0] >= WIN_SCORE || scores[1] >= WIN_SCORE) {
+        phase = 'matchOver';
+        victoryTimer = 180;
+      } else {
+        newRound();
+      }
+    }
+  }
+
+  if (phase === 'matchOver') {
+    victoryTimer--;
+    if (victoryTimer <= 0) {
+      init();
+    }
+  }
+}
+
+// ---- DRAW ----
+function draw() {
+  // Sky — dark blue gradient (QBasic-esque)
+  var grad = X.createLinearGradient(0, 0, 0, 600);
+  grad.addColorStop(0, '#001');
+  grad.addColorStop(0.6, '#113');
+  grad.addColorStop(1, '#224');
+  X.fillStyle = grad;
+  X.fillRect(0, 0, 800, 600);
+
+  // Stars
+  X.fillStyle = '#fff';
+  for (var i = 0; i < 40; i++) {
+    var sx = (i * 137 + 50) % 800;
+    var sy = (i * 97 + 20) % 350;
+    X.fillRect(sx, sy, 1, 1);
+  }
+
+  // Moon
+  X.fillStyle = '#ff8';
+  X.beginPath();
+  X.arc(680, 60, 20, 0, Math.PI * 2);
+  X.fill();
+
+  // Ground
+  X.fillStyle = '#222';
+  X.fillRect(0, GROUND_Y, 800, 40);
+
+  // Terrain (buildings)
+  X.drawImage(terrainCanvas, 0, 0);
+
+  // Gorillas
+  drawGorilla(gorillas[0], 0);
+  drawGorilla(gorillas[1], 1);
+
+  // Banana trail
+  if (banana && banana.trail.length > 1) {
+    X.strokeStyle = 'rgba(255,255,100,0.3)';
+    X.lineWidth = 1;
+    X.beginPath();
+    X.moveTo(banana.trail[0].x, banana.trail[0].y);
+    for (var i = 1; i < banana.trail.length; i++) {
+      X.lineTo(banana.trail[i].x, banana.trail[i].y);
+    }
+    X.stroke();
+  }
+
+  // Banana
+  if (banana) {
+    X.save();
+    X.translate(banana.x, banana.y);
+    X.rotate(banana.rot);
+    // Banana shape
+    X.fillStyle = '#ff0';
+    X.beginPath();
+    X.ellipse(0, 0, BANANA_R, BANANA_R * 0.5, 0, 0, Math.PI * 2);
+    X.fill();
+    X.fillStyle = '#880';
+    X.fillRect(-1, -BANANA_R * 0.5 - 2, 2, 3);
+    X.restore();
+  }
+
+  // Explosions
+  for (var i = 0; i < explosions.length; i++) {
+    var ex = explosions[i];
+    if (ex.active) {
+      X.beginPath();
+      X.arc(ex.x, ex.y, ex.r, 0, Math.PI * 2);
+      X.fillStyle = 'rgba(255,200,50,' + (1 - ex.r / ex.maxR) + ')';
+      X.fill();
+      X.beginPath();
+      X.arc(ex.x, ex.y, ex.r * 0.6, 0, Math.PI * 2);
+      X.fillStyle = 'rgba(255,100,0,' + (1 - ex.r / ex.maxR) + ')';
+      X.fill();
+    }
+  }
+
+  // Wind indicator
+  X.fillStyle = '#fff';
+  hudText('WIND', 370, 8, 12, '#888', 'center');
+  var windX = 400, windY = 26;
+  X.strokeStyle = '#0ff';
+  X.lineWidth = 2;
+  X.beginPath();
+  X.moveTo(windX - 40, windY);
+  X.lineTo(windX + 40, windY);
+  X.stroke();
+  // Wind arrow
+  var wArrow = wind * 8;
+  X.strokeStyle = '#ff0';
+  X.lineWidth = 3;
+  X.beginPath();
+  X.moveTo(windX, windY);
+  X.lineTo(windX + wArrow, windY);
+  X.stroke();
+  if (Math.abs(wind) > 0.3) {
+    var dir = wind > 0 ? 1 : -1;
+    X.beginPath();
+    X.moveTo(windX + wArrow, windY);
+    X.lineTo(windX + wArrow - dir * 6, windY - 4);
+    X.lineTo(windX + wArrow - dir * 6, windY + 4);
+    X.closePath();
+    X.fillStyle = '#ff0';
+    X.fill();
+  }
+
+  // Scores
+  hudText('P1: ' + scores[0], 10, 8, 16, '#4f4', 'left');
+  hudText('AI: ' + scores[1], 790, 8, 16, '#f44', 'right');
+
+  // Aim indicator (for player)
+  if (phase === 'aim' && turn === 0) {
+    var g = gorillas[0];
+    var rad = angle * Math.PI / 180;
+    var aimLen = 40;
+    var ax = g.x + Math.cos(rad) * aimLen;
+    var ay = g.y + 4 - Math.sin(rad) * aimLen;
+    X.strokeStyle = '#0f0';
+    X.lineWidth = 2;
+    X.setLineDash([4, 4]);
+    X.beginPath();
+    X.moveTo(g.x, g.y + 4);
+    X.lineTo(ax, ay);
+    X.stroke();
+    X.setLineDash([]);
+
+    // Arrow head
+    X.beginPath();
+    X.arc(ax, ay, 3, 0, Math.PI * 2);
+    X.fillStyle = '#0f0';
+    X.fill();
+
+    // HUD
+    hudText('ANGLE: ' + Math.round(angle) + '°', 10, 570, 14, '#0f0', 'left');
+    hudText('POWER: ' + Math.round(velocity), 10, 550, 14, '#0f0', 'left');
+    hudText('[←→] ANGLE  [↑↓] POWER  [SPACE] FIRE', 400, 580, 11, '#666', 'center');
+  }
+
+  // AI thinking
+  if (phase === 'aim' && turn === 1) {
+    hudText('AI THINKING...', 400, 570, 14, '#f88', 'center');
+  }
+
+  // Round over message
+  if (phase === 'roundOver') {
+    var winner = scores[0] > scores[1] ? 'PLAYER 1' : 'AI';
+    hudText(winner + ' SCORES!', 400, 260, 28, '#ff0', 'center');
+  }
+
+  // Match over
+  if (phase === 'matchOver') {
+    X.fillStyle = 'rgba(0,0,0,0.6)';
+    X.fillRect(0, 200, 800, 200);
+    var matchWinner = scores[0] >= WIN_SCORE ? 'PLAYER 1 WINS!' : 'AI WINS!';
+    var color = scores[0] >= WIN_SCORE ? '#0f0' : '#f00';
+    hudText(matchWinner, 400, 260, 36, color, 'center');
+    hudText('Final Score: ' + scores[0] + ' - ' + scores[1], 400, 310, 18, '#fff', 'center');
+    hudText('Press R to play again', 400, 350, 14, '#888', 'center');
+  }
+
+  // Info hint
+  hudText('[?] INFO', 750, 570, 10, '#444', 'center');
+}
+
+// ---- LOOP ----
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+init();
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

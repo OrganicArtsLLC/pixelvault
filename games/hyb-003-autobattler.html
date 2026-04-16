@@ -1,0 +1,1162 @@
+<!--
+PROTOTYPE: autobattler
+SERIES: hyb
+NUMBER: 003
+DATE: 2026-03-23
+MECHANIC: auto-battler — buy and position units on a grid during a planning phase; units then fight automatically, with synergies between unit types driving strategy
+ANCESTRY: Auto Chess (2019 Dota mod), Teamfight Tactics (2019), Super Auto Pets (2021)
+CONTROLS: Click shop — buy unit | Drag unit — position on board | Click sell — sell unit | Space — start battle | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 7 (Generative-Agentic — multi-agent systems, emergent strategy)
+AI-INSIGHT: Auto-battlers separate strategy from execution. The player designs a system (unit composition and positioning) then watches it execute autonomously. This is the core challenge of AI alignment: specifying objectives and constraints rather than actions. The emergent combat behavior from simple unit rules mirrors how complex behavior emerges from simple agent specifications.
+NOTES: Auto Chess (2019) Dota 2 mod by Drodo Studio created the genre overnight. The key insight: removing direct control forces strategic thinking at a higher abstraction level. Players must reason about unit synergies, economy management, and positioning — pure system design.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HYB-003 · AUTO-BATTLER</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #0a0a12; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: pointer; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>HYB-003 · AUTO-BATTLER</h1>
+    <p><span class="tag series">HYB — Hybrid</span> <span class="tag">Prototype #003</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <h3>Planning Phase</h3>
+    <p>Build your army by buying units from the shop and positioning them on your battle grid.</p>
+    <ul>
+      <li><kbd>Click</kbd> a shop unit &mdash; Buy it (costs gold, goes to bench)</li>
+      <li><kbd>Drag</kbd> a unit from bench to grid &mdash; Place on board</li>
+      <li><kbd>Drag</kbd> a unit on the grid &mdash; Reposition</li>
+      <li><kbd>Right-click</kbd> a unit &mdash; Sell for full gold refund</li>
+      <li><kbd>Space</kbd> &mdash; Start battle when ready</li>
+      <li><kbd>R</kbd> &mdash; Restart the game</li>
+      <li><kbd>?</kbd> &mdash; Toggle this info panel</li>
+    </ul>
+    <h3>Battle Phase</h3>
+    <p>Units fight automatically. Melee units walk toward enemies; ranged units shoot from distance. Watch your strategy play out!</p>
+    <h3>Synergies</h3>
+    <ul>
+      <li><strong>2+ Warriors</strong> &mdash; All units gain +20% HP</li>
+      <li><strong>2+ Archers</strong> &mdash; Ranged units gain +25% damage</li>
+      <li><strong>2+ Mages</strong> &mdash; Spell damage splashes to adjacent enemies</li>
+      <li><strong>2+ Tanks</strong> &mdash; Tanks gain +30% HP and taunt nearby enemies</li>
+      <li><strong>2+ Healers</strong> &mdash; Healing amount doubled</li>
+      <li><strong>2+ Assassins</strong> &mdash; Assassins gain +50% crit damage</li>
+    </ul>
+    <h3>Economy</h3>
+    <ul>
+      <li>Earn base gold each round plus 10% interest on savings (max 5 bonus)</li>
+      <li>Win streaks and lose streaks grant bonus gold</li>
+      <li>Buy 3 copies of the same unit to merge into a 2-star version (doubled stats)</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p>In January 2019, Drodo Studio released <em>Auto Chess</em> as a Dota 2 custom game mode, and within weeks it had millions of players. The core innovation: remove direct combat control entirely, forcing players to think at the level of system design — composition, positioning, economy. The genre went from mod to mainstream in months, spawning <em>Teamfight Tactics</em> (2019, Riot Games), <em>Dota Underlords</em> (2019, Valve), and <em>Super Auto Pets</em> (2021, Team Wood Games).</p>
+    <p>The genre draws from gacha mechanics, deck-building, and chess-like positional strategy, creating a uniquely modern hybrid.</p>
+
+    <h2>AI Archaeology</h2>
+    <p>Auto-battlers are fascinating from an AI perspective because the player IS the AI designer. You don't control units — you design a system and watch it execute. This mirrors the fundamental challenge of AI alignment: specifying what you want rather than how to do it. The emergent combat behaviors (focus-fire, kiting, ability timing) arise from simple rules, much like complex AI behavior emerges from simple reward specifications.</p>
+    <p>The genre also embodies multi-agent systems: each unit is an autonomous agent with local perception and simple decision rules, yet the collective behavior can be surprisingly sophisticated.</p>
+
+    <h2>Classification</h2>
+    <p><span class="tag series">HYB — Hybrid</span> <span class="tag">Strategy</span> <span class="tag">Auto-Combat</span> <span class="tag">Economy</span> <span class="tag">Synergy</span></p>
+    <p><span class="tag">AI-ERA: 7 — Generative-Agentic</span></p>
+
+    <h2>Prototype Notes</h2>
+    <p>This prototype focuses on the core loop: shop → position → fight → repeat. The AI opponent generates increasingly difficult armies. Six unit types with distinct combat behaviors create meaningful composition choices. The 5×3 grid keeps positioning decisions manageable while still strategic.</p>
+    <p>Synergy bonuses reward specialization but the shop's randomness forces adaptation. The economy system (interest, streaks) adds a layer of long-term planning over the tactical decisions.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+const C = document.getElementById('c');
+const X = C.getContext('2d');
+C.width = 800; C.height = 600;
+let infoOpen = false;
+
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// --- CONSTANTS ---
+const COLS = 5, ROWS = 3;
+const CELL = 64;
+const BOARD_X = 80, BOARD_Y = 100;
+const ENEMY_BOARD_Y = BOARD_Y - ROWS * CELL - 16;
+const BENCH_Y = 420, BENCH_X = 80, BENCH_SLOTS = 7;
+const SHOP_Y = 500, SHOP_X = 100;
+
+const TYPES = {
+  warrior: { name: 'Warrior', color: '#e44', shape: 'square', hp: 120, dmg: 15, range: 1, speed: 1.2, cost: 1, atkSpd: 1.0 },
+  archer:  { name: 'Archer',  color: '#4e4', shape: 'triangle', hp: 60, dmg: 28, range: 3, speed: 0.8, cost: 2, atkSpd: 0.8 },
+  mage:    { name: 'Mage',    color: '#88f', shape: 'diamond', hp: 55, dmg: 35, range: 3, speed: 0.6, cost: 3, atkSpd: 1.2 },
+  tank:    { name: 'Tank',    color: '#fa0', shape: 'hexagon', hp: 200, dmg: 8, range: 1, speed: 0.8, cost: 2, atkSpd: 1.2 },
+  healer:  { name: 'Healer',  color: '#4f8', shape: 'cross', hp: 50, dmg: 10, range: 3, speed: 0.6, cost: 3, atkSpd: 1.5 },
+  assassin:{ name: 'Assassin',color: '#c4f', shape: 'star', hp: 70, dmg: 40, range: 1, speed: 2.0, cost: 3, atkSpd: 0.7 }
+};
+const TYPE_KEYS = Object.keys(TYPES);
+
+// --- GAME STATE ---
+let G = {};
+
+function initGame() {
+  G = {
+    phase: 'planning', // planning, battle, result, gameover
+    round: 1,
+    gold: 10,
+    playerHP: 100,
+    board: Array.from({length: ROWS}, () => Array(COLS).fill(null)),
+    bench: Array(BENCH_SLOTS).fill(null),
+    shop: [],
+    battleUnits: [],
+    enemyUnits: [],
+    projectiles: [],
+    effects: [],
+    dragging: null,
+    dragFrom: null,
+    resultTimer: 0,
+    resultText: '',
+    winStreak: 0,
+    loseStreak: 0,
+    battleTimer: 0,
+    maxBoardUnits: 4,
+    shopLocked: false
+  };
+  rollShop();
+}
+
+function makeUnit(typeKey, stars) {
+  const t = TYPES[typeKey];
+  const mult = stars === 2 ? 2.2 : 1;
+  return {
+    type: typeKey, name: t.name, color: t.color, shape: t.shape,
+    hp: Math.floor(t.hp * mult), maxHp: Math.floor(t.hp * mult),
+    dmg: Math.floor(t.dmg * mult), range: t.range,
+    speed: t.speed, cost: t.cost * stars,
+    atkSpd: t.atkSpd, stars: stars,
+    atkCd: 0, x: 0, y: 0, targetX: 0, targetY: 0,
+    hasJumped: false, id: Math.random()
+  };
+}
+
+function rollShop() {
+  if (G.shopLocked) return;
+  G.shop = [];
+  // Weight cheaper units more in early rounds
+  for (let i = 0; i < 5; i++) {
+    let pool = TYPE_KEYS.slice();
+    if (G.round < 4) pool = pool.filter(t => TYPES[t].cost <= 2);
+    const tk = pool[Math.floor(Math.random() * pool.length)];
+    G.shop.push({ typeKey: tk, cost: TYPES[tk].cost });
+  }
+}
+
+// --- SYNERGIES ---
+function getSynergies(units) {
+  const counts = {};
+  for (const u of units) {
+    if (u) counts[u.type] = (counts[u.type] || 0) + 1;
+  }
+  const active = {};
+  for (const [type, count] of Object.entries(counts)) {
+    if (count >= 2) active[type] = count;
+  }
+  return active;
+}
+
+function applySynergies(units, synergies) {
+  for (const u of units) {
+    if (synergies.warrior) u.maxHp = Math.floor(u.maxHp * 1.2);
+    if (synergies.archer && u.range > 1) u.dmg = Math.floor(u.dmg * 1.25);
+    if (synergies.tank && u.type === 'tank') u.maxHp = Math.floor(u.maxHp * 1.3);
+    if (synergies.assassin && u.type === 'assassin') u.dmg = Math.floor(u.dmg * 1.5);
+    u.hp = u.maxHp;
+  }
+}
+
+// --- BOARD HELPERS ---
+function boardUnits() {
+  const units = [];
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++)
+      if (G.board[r][c]) units.push(G.board[r][c]);
+  return units;
+}
+
+function boardCount() {
+  let n = 0;
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++)
+      if (G.board[r][c]) n++;
+  return n;
+}
+
+// --- MERGE CHECK ---
+function tryMerge() {
+  const all = [...boardUnits()];
+  for (let i = 0; i < BENCH_SLOTS; i++) if (G.bench[i]) all.push(G.bench[i]);
+
+  for (const typeKey of TYPE_KEYS) {
+    const star1 = all.filter(u => u.type === typeKey && u.stars === 1);
+    if (star1.length >= 3) {
+      // Remove 2 from wherever they are and upgrade the third
+      let removed = 0;
+      for (let r = 0; r < ROWS && removed < 2; r++)
+        for (let c = 0; c < COLS && removed < 2; c++)
+          if (G.board[r][c] && G.board[r][c].type === typeKey && G.board[r][c].stars === 1 && G.board[r][c] !== star1[0]) {
+            G.board[r][c] = null; removed++;
+          }
+      for (let i = 0; i < BENCH_SLOTS && removed < 2; i++)
+        if (G.bench[i] && G.bench[i].type === typeKey && G.bench[i].stars === 1 && G.bench[i] !== star1[0]) {
+          G.bench[i] = null; removed++;
+        }
+      // Upgrade the remaining one
+      const upgraded = makeUnit(typeKey, 2);
+      // Find it and replace
+      for (let r = 0; r < ROWS; r++)
+        for (let c = 0; c < COLS; c++)
+          if (G.board[r][c] === star1[0]) { G.board[r][c] = upgraded; return true; }
+      for (let i = 0; i < BENCH_SLOTS; i++)
+        if (G.bench[i] === star1[0]) { G.bench[i] = upgraded; return true; }
+    }
+  }
+  return false;
+}
+
+// --- ENEMY GENERATION ---
+function generateEnemy() {
+  const count = Math.min(3 + Math.floor(G.round / 2), 8);
+  const units = [];
+  const stars = G.round >= 6 ? 2 : 1;
+  for (let i = 0; i < count; i++) {
+    let pool = TYPE_KEYS.slice();
+    if (G.round < 4) pool = pool.filter(t => TYPES[t].cost <= 2);
+    const tk = pool[Math.floor(Math.random() * pool.length)];
+    const u = makeUnit(tk, G.round >= 8 && Math.random() < 0.3 ? 2 : stars > 1 && Math.random() < 0.5 ? 2 : 1);
+    // Scale with round
+    const scale = 1 + (G.round - 1) * 0.12;
+    u.hp = Math.floor(u.hp * scale);
+    u.maxHp = u.hp;
+    u.dmg = Math.floor(u.dmg * scale);
+    // Position on enemy grid
+    const col = i % COLS;
+    const row = Math.floor(i / COLS);
+    u.x = BOARD_X + col * CELL + CELL / 2;
+    u.y = ENEMY_BOARD_Y + row * CELL + CELL / 2;
+    u.targetX = u.x; u.targetY = u.y;
+    units.push(u);
+  }
+  return units;
+}
+
+// --- BATTLE ---
+function startBattle() {
+  if (boardCount() === 0) return;
+  G.phase = 'battle';
+  G.battleTimer = 0;
+  G.projectiles = [];
+  G.effects = [];
+
+  // Clone player units
+  G.battleUnits = [];
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++)
+      if (G.board[r][c]) {
+        const u = {...G.board[r][c]};
+        u.x = BOARD_X + c * CELL + CELL / 2;
+        u.y = BOARD_Y + r * CELL + CELL / 2;
+        u.targetX = u.x; u.targetY = u.y;
+        u.atkCd = 0; u.hasJumped = false;
+        u.side = 'player';
+        G.battleUnits.push(u);
+      }
+
+  // Generate and store enemies
+  G.enemyUnits = generateEnemy();
+  for (const u of G.enemyUnits) u.side = 'enemy';
+
+  // Apply synergies
+  const pSyn = getSynergies(G.battleUnits);
+  applySynergies(G.battleUnits, pSyn);
+  const eSyn = getSynergies(G.enemyUnits);
+  applySynergies(G.enemyUnits, eSyn);
+
+  // Assassins jump to backline
+  for (const u of G.battleUnits) {
+    if (u.type === 'assassin' && !u.hasJumped) {
+      u.hasJumped = true;
+      const targets = G.enemyUnits.filter(e => e.hp > 0);
+      if (targets.length) {
+        const t = targets[targets.length - 1]; // backline
+        u.x = t.x + (Math.random() - 0.5) * 30;
+        u.y = t.y + 20;
+      }
+    }
+  }
+  for (const u of G.enemyUnits) {
+    if (u.type === 'assassin' && !u.hasJumped) {
+      u.hasJumped = true;
+      const targets = G.battleUnits.filter(e => e.hp > 0);
+      if (targets.length) {
+        const t = targets[targets.length - 1];
+        u.x = t.x + (Math.random() - 0.5) * 30;
+        u.y = t.y - 20;
+      }
+    }
+  }
+}
+
+function dist(a, b) { return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2); }
+
+function findTarget(unit, enemies) {
+  let best = null, bestDist = Infinity;
+  // Tanks with taunt synergy
+  const taunters = enemies.filter(e => e.hp > 0 && e.type === 'tank');
+  const pool = taunters.length > 0 && unit.type !== 'assassin' ? taunters : enemies.filter(e => e.hp > 0);
+
+  if (unit.type === 'healer') {
+    // Healers target lowest HP ally
+    return null; // handled separately
+  }
+
+  for (const e of pool) {
+    const d = dist(unit, e);
+    if (d < bestDist) { bestDist = d; best = e; }
+  }
+  return best;
+}
+
+function findHealTarget(unit, allies) {
+  let best = null, lowestRatio = 2;
+  for (const a of allies) {
+    if (a.hp > 0 && a !== unit && a.hp / a.maxHp < lowestRatio) {
+      lowestRatio = a.hp / a.maxHp;
+      best = a;
+    }
+  }
+  return lowestRatio < 1 ? best : null;
+}
+
+function updateBattle(dt) {
+  G.battleTimer += dt;
+  const all = [...G.battleUnits, ...G.enemyUnits].filter(u => u.hp > 0);
+  const pAlive = G.battleUnits.filter(u => u.hp > 0);
+  const eAlive = G.enemyUnits.filter(u => u.hp > 0);
+
+  if (pAlive.length === 0 || eAlive.length === 0 || G.battleTimer > 30) {
+    endBattle(pAlive.length, eAlive.length);
+    return;
+  }
+
+  for (const u of all) {
+    u.atkCd = Math.max(0, u.atkCd - dt);
+    const enemies = u.side === 'player' ? eAlive : pAlive;
+    const allies = u.side === 'player' ? pAlive : eAlive;
+
+    if (u.type === 'healer') {
+      const healTarget = findHealTarget(u, allies);
+      if (healTarget && u.atkCd <= 0) {
+        const hasSynergy = getSynergies(allies).healer;
+        const healAmt = Math.floor(u.dmg * (hasSynergy ? 2 : 1));
+        healTarget.hp = Math.min(healTarget.maxHp, healTarget.hp + healAmt);
+        u.atkCd = u.atkSpd;
+        G.effects.push({ x: healTarget.x, y: healTarget.y, t: 0, type: 'heal' });
+        G.projectiles.push({ x: u.x, y: u.y, tx: healTarget.x, ty: healTarget.y, t: 0, color: '#4f8', type: 'heal' });
+      }
+      // Still move toward nearest ally that needs healing
+      if (healTarget) {
+        const d = dist(u, healTarget);
+        if (d > u.range * CELL * 0.8) {
+          const dx = healTarget.x - u.x, dy = healTarget.y - u.y;
+          const len = Math.sqrt(dx * dx + dy * dy);
+          u.x += (dx / len) * u.speed * dt * 60;
+          u.y += (dy / len) * u.speed * dt * 60;
+        }
+      }
+      continue;
+    }
+
+    const target = findTarget(u, enemies);
+    if (!target) continue;
+
+    const d = dist(u, target);
+    const atkRange = u.range * CELL * 0.8;
+
+    if (d > atkRange) {
+      // Move toward target
+      const dx = target.x - u.x, dy = target.y - u.y;
+      const len = Math.sqrt(dx * dx + dy * dy);
+      u.x += (dx / len) * u.speed * dt * 60;
+      u.y += (dy / len) * u.speed * dt * 60;
+    } else if (u.atkCd <= 0) {
+      // Attack
+      u.atkCd = u.atkSpd;
+      let dmg = u.dmg;
+      if (u.type === 'assassin' && Math.random() < 0.35) {
+        const hasSynergy = getSynergies(u.side === 'player' ? pAlive : eAlive).assassin;
+        dmg = Math.floor(dmg * (hasSynergy ? 2.0 : 1.5));
+        G.effects.push({ x: target.x, y: target.y - 10, t: 0, type: 'crit' });
+      }
+
+      if (u.range > 1) {
+        // Ranged: fire projectile
+        G.projectiles.push({ x: u.x, y: u.y, tx: target.x, ty: target.y, t: 0, dmg: dmg, target: target, color: u.color, type: 'attack' });
+        if (u.type === 'mage') {
+          const hasSplash = getSynergies(u.side === 'player' ? pAlive : eAlive).mage;
+          if (hasSplash) {
+            // Splash to nearby enemies
+            for (const e of enemies) {
+              if (e !== target && e.hp > 0 && dist(e, target) < CELL * 1.5) {
+                e.hp -= Math.floor(dmg * 0.4);
+                G.effects.push({ x: e.x, y: e.y, t: 0, type: 'splash' });
+              }
+            }
+          }
+        }
+      } else {
+        // Melee: instant damage
+        target.hp -= dmg;
+        G.effects.push({ x: target.x, y: target.y, t: 0, type: 'hit' });
+      }
+    }
+  }
+
+  // Update projectiles
+  for (let i = G.projectiles.length - 1; i >= 0; i--) {
+    const p = G.projectiles[i];
+    p.t += dt * 4;
+    if (p.t >= 1) {
+      if (p.type === 'attack' && p.target && p.target.hp > 0) {
+        p.target.hp -= p.dmg;
+        G.effects.push({ x: p.tx, y: p.ty, t: 0, type: 'hit' });
+      }
+      G.projectiles.splice(i, 1);
+    }
+  }
+
+  // Update effects
+  for (let i = G.effects.length - 1; i >= 0; i--) {
+    G.effects[i].t += dt * 3;
+    if (G.effects[i].t >= 1) G.effects.splice(i, 1);
+  }
+}
+
+function endBattle(pCount, eCount) {
+  G.phase = 'result';
+  G.resultTimer = 2.5;
+  if (pCount > 0 && eCount === 0) {
+    G.resultText = 'VICTORY!';
+    G.winStreak++; G.loseStreak = 0;
+  } else if (eCount > 0) {
+    G.resultText = 'DEFEAT';
+    G.playerHP -= eCount * 3 + G.round;
+    G.winStreak = 0; G.loseStreak++;
+    if (G.playerHP <= 0) { G.playerHP = 0; G.phase = 'gameover'; return; }
+  } else {
+    G.resultText = 'DRAW';
+    G.winStreak = 0; G.loseStreak = 0;
+  }
+  // Award gold
+  let income = 5 + Math.min(Math.floor(G.gold / 10), 5); // base + interest
+  income += Math.min(Math.max(G.winStreak, G.loseStreak), 3); // streak bonus
+  if (pCount > 0 && eCount === 0) income += 1; // win bonus
+  G.gold += income;
+  G.round++;
+  G.maxBoardUnits = Math.min(4 + Math.floor(G.round / 3), 7);
+}
+
+// --- DRAWING ---
+function drawUnit(u, ox, oy, sz) {
+  const x = ox || u.x, y = oy || u.y;
+  const s = sz || 22;
+  X.save();
+  X.globalAlpha = u.hp <= 0 ? 0.2 : 1;
+
+  // Draw shape
+  X.fillStyle = u.color;
+  X.strokeStyle = '#fff';
+  X.lineWidth = u.stars === 2 ? 3 : 1;
+
+  switch (u.shape) {
+    case 'square':
+      X.fillRect(x - s / 2, y - s / 2, s, s);
+      X.strokeRect(x - s / 2, y - s / 2, s, s);
+      break;
+    case 'triangle':
+      X.beginPath();
+      X.moveTo(x, y - s / 2);
+      X.lineTo(x + s / 2, y + s / 2);
+      X.lineTo(x - s / 2, y + s / 2);
+      X.closePath(); X.fill(); X.stroke();
+      break;
+    case 'diamond':
+      X.beginPath();
+      X.moveTo(x, y - s / 2);
+      X.lineTo(x + s / 2, y);
+      X.lineTo(x, y + s / 2);
+      X.lineTo(x - s / 2, y);
+      X.closePath(); X.fill(); X.stroke();
+      break;
+    case 'hexagon':
+      X.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const a = Math.PI / 3 * i - Math.PI / 2;
+        X[i === 0 ? 'moveTo' : 'lineTo'](x + Math.cos(a) * s / 2, y + Math.sin(a) * s / 2);
+      }
+      X.closePath(); X.fill(); X.stroke();
+      break;
+    case 'cross':
+      const w = s / 3;
+      X.fillRect(x - w / 2, y - s / 2, w, s);
+      X.fillRect(x - s / 2, y - w / 2, s, w);
+      X.strokeRect(x - w / 2, y - s / 2, w, s);
+      X.strokeRect(x - s / 2, y - w / 2, s, w);
+      break;
+    case 'star':
+      X.beginPath();
+      for (let i = 0; i < 10; i++) {
+        const a = Math.PI / 5 * i - Math.PI / 2;
+        const r = i % 2 === 0 ? s / 2 : s / 4;
+        X[i === 0 ? 'moveTo' : 'lineTo'](x + Math.cos(a) * r, y + Math.sin(a) * r);
+      }
+      X.closePath(); X.fill(); X.stroke();
+      break;
+  }
+
+  // Star indicator
+  if (u.stars === 2) {
+    X.fillStyle = '#ff0';
+    X.font = '10px monospace';
+    X.textAlign = 'center';
+    X.fillText('★★', x, y - s / 2 - 4);
+  }
+
+  // HP bar
+  if (u.hp > 0 && u.hp < u.maxHp) {
+    const bw = s + 4, bh = 4;
+    X.fillStyle = '#300';
+    X.fillRect(x - bw / 2, y + s / 2 + 3, bw, bh);
+    X.fillStyle = '#0f0';
+    X.fillRect(x - bw / 2, y + s / 2 + 3, bw * (u.hp / u.maxHp), bh);
+  }
+
+  X.restore();
+}
+
+function drawBoard() {
+  // Enemy grid (top)
+  X.globalAlpha = 0.15;
+  X.strokeStyle = '#f44';
+  for (let r = 0; r < 2; r++)
+    for (let c = 0; c < COLS; c++) {
+      X.strokeRect(BOARD_X + c * CELL, ENEMY_BOARD_Y + r * CELL, CELL, CELL);
+    }
+
+  // Player grid
+  X.strokeStyle = '#4af';
+  X.globalAlpha = 0.25;
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++) {
+      X.strokeRect(BOARD_X + c * CELL, BOARD_Y + r * CELL, CELL, CELL);
+      // Checkerboard fill
+      if ((r + c) % 2 === 0) {
+        X.fillStyle = '#1a2a3a';
+        X.fillRect(BOARD_X + c * CELL + 1, BOARD_Y + r * CELL + 1, CELL - 2, CELL - 2);
+      }
+    }
+  X.globalAlpha = 1;
+
+  // Board units
+  if (G.phase === 'planning') {
+    for (let r = 0; r < ROWS; r++)
+      for (let c = 0; c < COLS; c++)
+        if (G.board[r][c]) {
+          drawUnit(G.board[r][c], BOARD_X + c * CELL + CELL / 2, BOARD_Y + r * CELL + CELL / 2);
+        }
+  }
+}
+
+function drawBench() {
+  X.fillStyle = '#181828';
+  X.fillRect(BENCH_X - 4, BENCH_Y - 4, BENCH_SLOTS * CELL + 8, CELL + 8);
+  X.strokeStyle = '#446';
+  for (let i = 0; i < BENCH_SLOTS; i++) {
+    X.strokeRect(BENCH_X + i * CELL, BENCH_Y, CELL, CELL);
+    if (G.bench[i]) {
+      drawUnit(G.bench[i], BENCH_X + i * CELL + CELL / 2, BENCH_Y + CELL / 2);
+    }
+  }
+  X.fillStyle = '#668';
+  X.font = '11px monospace';
+  X.textAlign = 'left';
+  X.fillText('BENCH', BENCH_X, BENCH_Y - 8);
+}
+
+function drawShop() {
+  X.fillStyle = '#1a1a2e';
+  X.fillRect(SHOP_X - 10, SHOP_Y - 5, 530, 75);
+  X.strokeStyle = '#335';
+  X.strokeRect(SHOP_X - 10, SHOP_Y - 5, 530, 75);
+
+  X.fillStyle = '#aab';
+  X.font = '12px monospace';
+  X.textAlign = 'left';
+  X.fillText('SHOP', SHOP_X - 5, SHOP_Y - 10);
+
+  // Reroll button
+  X.fillStyle = '#234';
+  X.fillRect(540, SHOP_Y - 5, 80, 30);
+  X.strokeStyle = '#4af';
+  X.strokeRect(540, SHOP_Y - 5, 80, 30);
+  X.fillStyle = '#4af';
+  X.font = '11px monospace';
+  X.textAlign = 'center';
+  X.fillText('REROLL 2g', 580, SHOP_Y + 14);
+
+  // Lock button
+  X.fillStyle = G.shopLocked ? '#432' : '#234';
+  X.fillRect(630, SHOP_Y - 5, 60, 30);
+  X.strokeStyle = G.shopLocked ? '#fa0' : '#4af';
+  X.strokeRect(630, SHOP_Y - 5, 60, 30);
+  X.fillStyle = G.shopLocked ? '#fa0' : '#4af';
+  X.fillText(G.shopLocked ? 'UNLOCK' : 'LOCK', 660, SHOP_Y + 14);
+
+  for (let i = 0; i < 5; i++) {
+    const s = G.shop[i];
+    if (!s) continue;
+    const sx = SHOP_X + i * 100;
+    const sy = SHOP_Y + 8;
+
+    X.fillStyle = '#222';
+    X.fillRect(sx, sy, 90, 52);
+    X.strokeStyle = TYPES[s.typeKey].color;
+    X.strokeRect(sx, sy, 90, 52);
+
+    // Mini unit preview
+    const preview = makeUnit(s.typeKey, 1);
+    drawUnit(preview, sx + 20, sy + 26, 16);
+
+    // Name and cost
+    X.fillStyle = '#ddd';
+    X.font = '10px monospace';
+    X.textAlign = 'left';
+    X.fillText(TYPES[s.typeKey].name, sx + 38, sy + 22);
+    X.fillStyle = '#fd0';
+    X.fillText(s.cost + 'g', sx + 38, sy + 36);
+  }
+}
+
+function drawHUD() {
+  // Top bar
+  X.fillStyle = '#111';
+  X.fillRect(0, 0, 800, 30);
+
+  X.font = '14px monospace';
+  X.textAlign = 'left';
+  X.fillStyle = '#4af';
+  X.fillText('HYB-003 · AUTO-BATTLER', 10, 20);
+
+  X.textAlign = 'center';
+  X.fillStyle = '#fd0';
+  X.fillText('Gold: ' + G.gold, 350, 20);
+
+  X.fillStyle = '#f44';
+  X.fillText('HP: ' + G.playerHP, 480, 20);
+
+  X.fillStyle = '#aab';
+  X.fillText('Round ' + G.round, 600, 20);
+
+  X.fillStyle = '#8a8';
+  X.fillText('Units: ' + boardCount() + '/' + G.maxBoardUnits, 720, 20);
+
+  // Synergies display
+  const syn = getSynergies(boardUnits());
+  let sx = 400;
+  X.font = '11px monospace';
+  X.textAlign = 'left';
+  for (const [type, count] of Object.entries(syn)) {
+    X.fillStyle = TYPES[type].color;
+    X.fillText(TYPES[type].name + ' x' + count, sx, 50);
+    sx += 100;
+  }
+
+  // Streak display
+  if (G.winStreak > 1) {
+    X.fillStyle = '#4f4';
+    X.fillText('Win Streak: ' + G.winStreak, 10, 50);
+  } else if (G.loseStreak > 1) {
+    X.fillStyle = '#f44';
+    X.fillText('Lose Streak: ' + G.loseStreak, 10, 50);
+  }
+
+  // Phase indicator
+  if (G.phase === 'planning') {
+    X.fillStyle = '#4af';
+    X.font = '13px monospace';
+    X.textAlign = 'center';
+    X.fillText('[ PLANNING PHASE — Press SPACE to battle ]', 400, 70);
+  }
+}
+
+function drawBattle() {
+  // Draw grids faintly
+  drawBoard();
+
+  // Draw all battle units
+  const all = [...G.battleUnits, ...G.enemyUnits];
+  for (const u of all) {
+    if (u.hp > 0) drawUnit(u);
+  }
+
+  // Draw projectiles
+  for (const p of G.projectiles) {
+    const px = p.x + (p.tx - p.x) * p.t;
+    const py = p.y + (p.ty - p.y) * p.t;
+    X.fillStyle = p.color;
+    X.beginPath();
+    X.arc(px, py, 4, 0, Math.PI * 2);
+    X.fill();
+  }
+
+  // Draw effects
+  for (const e of G.effects) {
+    X.globalAlpha = 1 - e.t;
+    if (e.type === 'hit') {
+      X.fillStyle = '#f00';
+      X.font = '14px monospace';
+      X.textAlign = 'center';
+      X.fillText('✦', e.x, e.y - 10 - e.t * 15);
+    } else if (e.type === 'crit') {
+      X.fillStyle = '#ff0';
+      X.font = '16px monospace';
+      X.textAlign = 'center';
+      X.fillText('CRIT!', e.x, e.y - 10 - e.t * 20);
+    } else if (e.type === 'heal') {
+      X.fillStyle = '#4f8';
+      X.font = '14px monospace';
+      X.textAlign = 'center';
+      X.fillText('+', e.x, e.y - 10 - e.t * 15);
+    } else if (e.type === 'splash') {
+      X.strokeStyle = '#88f';
+      X.lineWidth = 2;
+      X.beginPath();
+      X.arc(e.x, e.y, e.t * 20, 0, Math.PI * 2);
+      X.stroke();
+    }
+    X.globalAlpha = 1;
+  }
+
+  // Battle HUD
+  X.fillStyle = '#111';
+  X.fillRect(0, 0, 800, 30);
+  X.font = '14px monospace';
+  X.textAlign = 'left';
+  X.fillStyle = '#4af';
+  X.fillText('BATTLE — Round ' + G.round, 10, 20);
+
+  const pAlive = G.battleUnits.filter(u => u.hp > 0).length;
+  const eAlive = G.enemyUnits.filter(u => u.hp > 0).length;
+  X.fillStyle = '#4f4';
+  X.textAlign = 'center';
+  X.fillText('You: ' + pAlive, 350, 20);
+  X.fillStyle = '#f44';
+  X.fillText('Enemy: ' + eAlive, 480, 20);
+}
+
+function drawResult() {
+  drawBattle();
+  X.fillStyle = 'rgba(0,0,0,0.6)';
+  X.fillRect(0, 0, 800, 600);
+  X.font = '36px monospace';
+  X.textAlign = 'center';
+  X.fillStyle = G.resultText === 'VICTORY!' ? '#4f4' : G.resultText === 'DEFEAT' ? '#f44' : '#fa0';
+  X.fillText(G.resultText, 400, 280);
+
+  X.font = '16px monospace';
+  X.fillStyle = '#aab';
+  const income = 5 + Math.min(Math.floor((G.gold) / 10), 5) + Math.min(Math.max(G.winStreak, G.loseStreak), 3);
+  X.fillText('Round ' + (G.round - 1) + ' complete', 400, 320);
+}
+
+function drawGameOver() {
+  X.fillStyle = '#0a0a12';
+  X.fillRect(0, 0, 800, 600);
+  X.font = '36px monospace';
+  X.textAlign = 'center';
+  X.fillStyle = '#f44';
+  X.fillText('GAME OVER', 400, 250);
+  X.font = '18px monospace';
+  X.fillStyle = '#aab';
+  X.fillText('You survived ' + (G.round - 1) + ' rounds', 400, 300);
+  X.font = '14px monospace';
+  X.fillStyle = '#4af';
+  X.fillText('Press R to restart', 400, 350);
+}
+
+// --- INPUT ---
+let mouseX = 0, mouseY = 0, mouseDown = false;
+
+C.addEventListener('mousemove', (e) => {
+  const rect = C.getBoundingClientRect();
+  const scaleX = C.width / rect.width;
+  const scaleY = C.height / rect.height;
+  mouseX = (e.clientX - rect.left) * scaleX;
+  mouseY = (e.clientY - rect.top) * scaleY;
+
+  if (G.dragging && G.phase === 'planning') {
+    G.dragging._dragX = mouseX;
+    G.dragging._dragY = mouseY;
+  }
+});
+
+C.addEventListener('mousedown', (e) => {
+  if (infoOpen || G.phase !== 'planning') return;
+  mouseDown = true;
+
+  // Check board for drag
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++) {
+      if (G.board[r][c]) {
+        const ux = BOARD_X + c * CELL + CELL / 2;
+        const uy = BOARD_Y + r * CELL + CELL / 2;
+        if (Math.abs(mouseX - ux) < CELL / 2 && Math.abs(mouseY - uy) < CELL / 2) {
+          G.dragging = G.board[r][c];
+          G.dragging._dragX = mouseX;
+          G.dragging._dragY = mouseY;
+          G.dragFrom = { area: 'board', r, c };
+          return;
+        }
+      }
+    }
+
+  // Check bench for drag
+  for (let i = 0; i < BENCH_SLOTS; i++) {
+    if (G.bench[i]) {
+      const bx = BENCH_X + i * CELL + CELL / 2;
+      const by = BENCH_Y + CELL / 2;
+      if (Math.abs(mouseX - bx) < CELL / 2 && Math.abs(mouseY - by) < CELL / 2) {
+        G.dragging = G.bench[i];
+        G.dragging._dragX = mouseX;
+        G.dragging._dragY = mouseY;
+        G.dragFrom = { area: 'bench', i };
+        return;
+      }
+    }
+  }
+});
+
+C.addEventListener('mouseup', (e) => {
+  if (G.phase !== 'planning') { mouseDown = false; G.dragging = null; return; }
+
+  if (G.dragging) {
+    // Try to drop on board
+    const col = Math.floor((mouseX - BOARD_X) / CELL);
+    const row = Math.floor((mouseY - BOARD_Y) / CELL);
+    if (col >= 0 && col < COLS && row >= 0 && row < ROWS) {
+      // Check if dropping from bench and board is full
+      if (G.dragFrom.area === 'bench' && !G.board[row][col] && boardCount() >= G.maxBoardUnits) {
+        // Can't place, board full
+      } else {
+        // Place or swap
+        const existing = G.board[row][col];
+        G.board[row][col] = G.dragging;
+        if (G.dragFrom.area === 'board') {
+          G.board[G.dragFrom.r][G.dragFrom.c] = existing; // swap
+        } else {
+          G.bench[G.dragFrom.i] = existing;
+        }
+      }
+    } else {
+      // Try to drop on bench
+      const bi = Math.floor((mouseX - BENCH_X) / CELL);
+      if (bi >= 0 && bi < BENCH_SLOTS && mouseY >= BENCH_Y && mouseY <= BENCH_Y + CELL) {
+        const existing = G.bench[bi];
+        G.bench[bi] = G.dragging;
+        if (G.dragFrom.area === 'board') {
+          G.board[G.dragFrom.r][G.dragFrom.c] = existing;
+        } else {
+          G.bench[G.dragFrom.i] = existing;
+        }
+      }
+      // else dropped nowhere, return to original
+    }
+    delete G.dragging._dragX;
+    delete G.dragging._dragY;
+    G.dragging = null;
+    G.dragFrom = null;
+    while (tryMerge()) {} // Check merges after placement
+    mouseDown = false;
+    return;
+  }
+
+  // Check shop clicks
+  for (let i = 0; i < 5; i++) {
+    const s = G.shop[i];
+    if (!s) continue;
+    const sx = SHOP_X + i * 100;
+    const sy = SHOP_Y + 8;
+    if (mouseX >= sx && mouseX <= sx + 90 && mouseY >= sy && mouseY <= sy + 52) {
+      if (G.gold >= s.cost) {
+        // Find bench slot
+        let slot = G.bench.indexOf(null);
+        if (slot === -1) break; // bench full
+        G.gold -= s.cost;
+        G.bench[slot] = makeUnit(s.typeKey, 1);
+        G.shop[i] = null;
+        while (tryMerge()) {}
+      }
+      break;
+    }
+  }
+
+  // Reroll button
+  if (mouseX >= 540 && mouseX <= 620 && mouseY >= SHOP_Y - 5 && mouseY <= SHOP_Y + 25) {
+    if (G.gold >= 2) {
+      G.gold -= 2;
+      G.shopLocked = false;
+      rollShop();
+    }
+  }
+
+  // Lock button
+  if (mouseX >= 630 && mouseX <= 690 && mouseY >= SHOP_Y - 5 && mouseY <= SHOP_Y + 25) {
+    G.shopLocked = !G.shopLocked;
+  }
+
+  mouseDown = false;
+});
+
+C.addEventListener('contextmenu', (e) => {
+  e.preventDefault();
+  if (G.phase !== 'planning') return;
+
+  // Right-click to sell from board
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++) {
+      if (G.board[r][c]) {
+        const ux = BOARD_X + c * CELL + CELL / 2;
+        const uy = BOARD_Y + r * CELL + CELL / 2;
+        if (Math.abs(mouseX - ux) < CELL / 2 && Math.abs(mouseY - uy) < CELL / 2) {
+          G.gold += G.board[r][c].cost;
+          G.board[r][c] = null;
+          return;
+        }
+      }
+    }
+
+  // Right-click to sell from bench
+  for (let i = 0; i < BENCH_SLOTS; i++) {
+    if (G.bench[i]) {
+      const bx = BENCH_X + i * CELL + CELL / 2;
+      const by = BENCH_Y + CELL / 2;
+      if (Math.abs(mouseX - bx) < CELL / 2 && Math.abs(mouseY - by) < CELL / 2) {
+        G.gold += G.bench[i].cost;
+        G.bench[i] = null;
+        return;
+      }
+    }
+  }
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
+    e.preventDefault();
+    toggleInfo();
+    return;
+  }
+  if (e.key === 'Escape' && infoOpen) {
+    toggleInfo();
+    return;
+  }
+  if (infoOpen) return;
+
+  if (e.key === 'r' || e.key === 'R') {
+    initGame();
+    return;
+  }
+  if (e.key === ' ' || e.code === 'Space') {
+    e.preventDefault();
+    if (G.phase === 'planning') startBattle();
+  }
+});
+
+// --- MAIN LOOP ---
+let lastTime = 0;
+
+function update(dt) {
+  if (infoOpen) return;
+
+  if (G.phase === 'battle') {
+    updateBattle(dt);
+  } else if (G.phase === 'result') {
+    G.resultTimer -= dt;
+    if (G.resultTimer <= 0) {
+      G.phase = 'planning';
+      rollShop();
+    }
+  }
+}
+
+function draw() {
+  X.fillStyle = '#0a0a12';
+  X.fillRect(0, 0, 800, 600);
+
+  if (G.phase === 'gameover') {
+    drawGameOver();
+    return;
+  }
+
+  if (G.phase === 'battle') {
+    drawBattle();
+    return;
+  }
+
+  if (G.phase === 'result') {
+    drawResult();
+    return;
+  }
+
+  // Planning phase
+  drawHUD();
+  drawBoard();
+  drawBench();
+  drawShop();
+
+  // Draw dragging unit
+  if (G.dragging && G.dragging._dragX !== undefined) {
+    drawUnit(G.dragging, G.dragging._dragX, G.dragging._dragY, 26);
+  }
+
+  // Tooltip
+  X.font = '10px monospace';
+  X.textAlign = 'left';
+  X.fillStyle = '#556';
+  X.fillText('[?] Info   [Space] Battle   [R] Restart   [Right-click] Sell', 10, 592);
+}
+
+function gameLoop(timestamp) {
+  const dt = Math.min((timestamp - lastTime) / 1000, 0.05);
+  lastTime = timestamp;
+  update(dt);
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+initGame();
+requestAnimationFrame(gameLoop);
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

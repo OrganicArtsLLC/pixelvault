@@ -1,0 +1,920 @@
+<!--
+PROTOTYPE: denshadego
+SERIES: sim
+NUMBER: 018
+DATE: 2026-03-24
+MECHANIC: train driving precision — operate a Japanese commuter train; manage speed and braking to stop precisely at station platforms; the pride of Japanese rail precision
+ANCESTRY: Densha de Go! (1996, Taito), Train Simulator (2001, Dovetail), BVE Trainsim (1996–2011, mackoy)
+CONTROLS: Up — throttle | Down — brake | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 4 (Statistical Learning — precision control loops, timing schedules, spatial stopping algorithms)
+AI-INSIGHT: Train driving simulators are constrained optimization problems: arrive on time, stop precisely, obey speed limits. The tension between schedule pressure and braking physics creates a satisfying control loop where mastery means internalizing the dynamics model — the same challenge faced by real-time control systems.
+NOTES: Densha de Go! distilled to its essence: throttle, brake, precision stop.
+       Five stations along a commuter line with speed limit zones and scenery.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SIM-018 · DENSHADEGO</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SIM-018 · DENSHADEGO</h1>
+    <p><span class="tag series">SIM — Simulation</span> <span class="tag">Prototype #018</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Drive a Japanese commuter train along five stations. Control your speed and brake precisely to stop at each platform marker.</p>
+    <ul>
+      <li><kbd>&uarr;</kbd> — Increase throttle (5 notches)</li>
+      <li><kbd>&darr;</kbd> — Increase brake (8 notches, plus emergency)</li>
+      <li><kbd>Space</kbd> — Release throttle/brake to neutral</li>
+      <li><kbd>R</kbd> — Restart route</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Scoring</h3>
+    <ul>
+      <li><strong>Perfect stop</strong> (within 0.5m) — 100 points</li>
+      <li><strong>Good stop</strong> (within 1m) — 50 points</li>
+      <li><strong>Acceptable</strong> (within 3m) — 10 points</li>
+      <li><strong>Overrun / underrun</strong> (beyond 3m) — penalty</li>
+      <li><strong>On-time arrival</strong> — 50 bonus points</li>
+      <li><strong>Speed limit violation</strong> — 5 point penalty per second</li>
+    </ul>
+
+    <h2>History</h2>
+    <p>Densha de Go! was released by Taito in 1996 as an arcade game with a dedicated train controller peripheral — a combined throttle and brake handle that mimicked real Japanese train controls. The game became a cultural phenomenon in Japan, spawning over 20 sequels across arcade, PlayStation, Nintendo DS, and mobile platforms.</p>
+    <p>The series captures something deeply Japanese: the pride of precision. Japanese rail operators are world-famous for punctuality — the average Shinkansen delay is measured in seconds. Densha de Go! turned this professional pride into gameplay, where the satisfaction comes not from speed or combat but from exact timing, smooth braking, and the quiet dignity of a perfect platform stop.</p>
+    <p>Real Japanese train drivers train for years to master the art of stopping within centimeters of the platform marker. The game distills this into an accessible experience where anyone can feel what it's like to shoulder that responsibility.</p>
+
+    <h2>AI Archaeology</h2>
+    <p>From an AI perspective, train driving is a continuous control problem with hard constraints. The driver must solve a trajectory optimization: given current speed, distance to stop, track gradient, and weather conditions, compute the optimal braking curve. Professional drivers internalize this as intuition; control systems formalize it as PID loops and model predictive control. The game sits at the intersection of human skill and algorithmic precision — the same space where autonomous driving research lives today.</p>
+
+    <h2>Classification</h2>
+    <p>
+      <span class="tag">simulation</span>
+      <span class="tag">vehicle</span>
+      <span class="tag">precision</span>
+      <span class="tag">Japanese</span>
+      <span class="tag">train</span>
+      <span class="tag">arcade</span>
+    </p>
+
+    <h2>Prototype Notes</h2>
+    <p>Simplified to five stations with speed limit zones. Physics model uses basic acceleration/deceleration with brake notch curves. Scenery is procedurally generated parallax layers. The feeling of precision stopping is the core loop — everything else serves that moment of arrival.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This is a non-commercial educational prototype created to study game design history. It is not affiliated with or endorsed by Taito Corporation. Densha de Go! is a registered trademark of Taito. This prototype exists solely for analysis of game mechanics and design patterns in an academic context.</p>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+
+function resize() {
+  const s = Math.min(innerWidth / W, innerHeight / H);
+  canvas.style.width = (W * s) + 'px';
+  canvas.style.height = (H * s) + 'px';
+}
+resize(); addEventListener('resize', resize);
+
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+function hudText(txt, x, y, size, color, align) {
+  ctx.save();
+  ctx.font = size + 'px monospace';
+  ctx.fillStyle = color || '#fff';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(txt, x, y);
+  ctx.restore();
+}
+
+// --- STATIONS ---
+const stations = [
+  { name: 'Shibuya',    dist: 0,    depart: 0,   arrive: 0,   speedLimit: 60 },
+  { name: 'Harajuku',   dist: 1200, depart: 10,  arrive: 50,  speedLimit: 60 },
+  { name: 'Yoyogi',     dist: 2100, depart: 60,  arrive: 95,  speedLimit: 60 },
+  { name: 'Shinjuku',   dist: 3500, depart: 105, arrive: 150, speedLimit: 60 },
+  { name: 'Okubo',      dist: 4600, depart: 160, arrive: 200, speedLimit: 60 },
+  { name: 'Takadanobaba', dist: 5800, depart: 210, arrive: 255, speedLimit: 60 }
+];
+
+// Speed limit zones (distance ranges with limits in km/h)
+const speedZones = [
+  { start: 800,  end: 1000, limit: 35, label: 'Curve' },
+  { start: 1900, end: 2000, limit: 25, label: 'Curve' },
+  { start: 2800, end: 3100, limit: 40, label: 'Curve' },
+  { start: 3900, end: 4100, limit: 30, label: 'Crossing' },
+  { start: 5100, end: 5400, limit: 35, label: 'Curve' }
+];
+
+// Scenery objects
+const scenery = [];
+function genScenery() {
+  scenery.length = 0;
+  for (let d = 50; d < 6200; d += 15 + Math.random() * 40) {
+    const r = Math.random();
+    if (r < 0.3) {
+      scenery.push({ dist: d, type: 'tree', h: 30 + Math.random() * 40, side: Math.random() < 0.5 ? -1 : 1 });
+    } else if (r < 0.5) {
+      scenery.push({ dist: d, type: 'building', w: 20 + Math.random() * 50, h: 40 + Math.random() * 80, side: Math.random() < 0.5 ? -1 : 1, color: ['#556','#665','#545','#655','#466'][Math.floor(Math.random()*5)] });
+    } else if (r < 0.55) {
+      scenery.push({ dist: d, type: 'signal', side: 1 });
+    } else if (r < 0.58) {
+      scenery.push({ dist: d, type: 'pole', side: Math.random() < 0.5 ? -1 : 1 });
+    }
+  }
+}
+
+// --- GAME STATE ---
+let state, speed, throttle, brake, trainDist, gameTime, score, penalties;
+let currentStation, nextStation, stationPhase, stationTimer, stopError;
+let stopResults, routeComplete, messageText, messageTimer;
+let speedViolationTimer, lastTime;
+
+function init() {
+  state = 'waiting'; // waiting, running, stopped, arriving, complete
+  speed = 0;         // m/s
+  throttle = 0;      // 0-5
+  brake = 0;         // 0-8 (9 = emergency)
+  trainDist = 0;     // meters from start
+  gameTime = 0;      // seconds
+  score = 0;
+  penalties = 0;
+  currentStation = 0;
+  nextStation = 1;
+  stationPhase = 'depart'; // depart, transit, approach, stopped
+  stationTimer = 0;
+  stopError = 0;
+  stopResults = [];
+  routeComplete = false;
+  messageText = '';
+  messageTimer = 0;
+  speedViolationTimer = 0;
+  lastTime = 0;
+  genScenery();
+  showMessage('Press UP to depart ' + stations[0].name, 3);
+}
+
+function showMessage(txt, dur) {
+  messageText = txt;
+  messageTimer = dur;
+}
+
+function getSpeedLimit() {
+  for (const z of speedZones) {
+    if (trainDist >= z.start && trainDist <= z.end) return z.limit;
+  }
+  // Near station approach
+  if (nextStation < stations.length) {
+    const d = stations[nextStation].dist - trainDist;
+    if (d < 200 && d > 0) return 25;
+  }
+  return stations[currentStation].speedLimit;
+}
+
+function getSpeedLimitLabel() {
+  for (const z of speedZones) {
+    if (trainDist >= z.start && trainDist <= z.end) return z.label;
+  }
+  if (nextStation < stations.length) {
+    const d = stations[nextStation].dist - trainDist;
+    if (d < 200 && d > 0) return 'Station';
+  }
+  return '';
+}
+
+// --- PHYSICS ---
+const THROTTLE_ACCEL = [0, 0.3, 0.6, 0.9, 1.2, 1.5]; // m/s^2 per notch
+const BRAKE_DECEL = [0, 0.4, 0.7, 1.0, 1.4, 1.8, 2.3, 2.8, 3.5, 5.0]; // notch 9 = emergency
+const FRICTION = 0.02; // natural deceleration m/s^2
+
+function updatePhysics(dt) {
+  if (state !== 'running') return;
+
+  let accel = 0;
+  if (throttle > 0 && brake === 0) {
+    accel = THROTTLE_ACCEL[throttle];
+  } else if (brake > 0) {
+    accel = -BRAKE_DECEL[brake];
+  }
+  // Friction always decelerates
+  if (speed > 0.01) accel -= FRICTION;
+
+  speed += accel * dt;
+  if (speed < 0) speed = 0;
+
+  // Max speed 120 km/h = 33.33 m/s
+  if (speed > 33.33) speed = 33.33;
+
+  trainDist += speed * dt;
+  gameTime += dt;
+
+  // Speed limit check
+  const limit = getSpeedLimit();
+  const speedKmh = speed * 3.6;
+  if (speedKmh > limit + 2) {
+    speedViolationTimer += dt;
+    if (speedViolationTimer > 1) {
+      penalties += 5;
+      speedViolationTimer -= 1;
+    }
+  } else {
+    speedViolationTimer = Math.max(0, speedViolationTimer - dt);
+  }
+
+  // Check station approach
+  if (nextStation < stations.length) {
+    const stDist = stations[nextStation].dist;
+    const distToStation = stDist - trainDist;
+
+    // Passed through station without stopping
+    if (distToStation < -30 && speed > 0.5) {
+      stopResults.push({ station: stations[nextStation].name, error: 999, time: gameTime, rating: 'OVERRUN' });
+      penalties += 50;
+      showMessage('OVERRUN! Passed ' + stations[nextStation].name, 3);
+      currentStation = nextStation;
+      nextStation++;
+      if (nextStation >= stations.length) {
+        finishRoute();
+      }
+    }
+    // Stopped near station
+    else if (speed < 0.05 && Math.abs(distToStation) < 50) {
+      speed = 0;
+      state = 'stopped';
+      stopError = distToStation; // positive = short, negative = overshot
+      const absErr = Math.abs(stopError);
+      let rating, pts;
+      if (absErr <= 0.5) { rating = 'PERFECT'; pts = 100; }
+      else if (absErr <= 1) { rating = 'GOOD'; pts = 50; }
+      else if (absErr <= 3) { rating = 'OK'; pts = 10; }
+      else { rating = absErr > 30 ? 'MISS' : 'POOR'; pts = -20; }
+
+      // Time bonus
+      const schedTime = stations[nextStation].arrive;
+      const timeDiff = Math.abs(gameTime - schedTime);
+      let timeBonus = 0;
+      if (timeDiff < 5) { timeBonus = 50; }
+      else if (timeDiff < 10) { timeBonus = 20; }
+
+      score += pts + timeBonus;
+      stopResults.push({
+        station: stations[nextStation].name,
+        error: stopError,
+        time: gameTime,
+        rating: rating,
+        pts: pts,
+        timeBonus: timeBonus
+      });
+      showMessage(rating + '! ' + (stopError >= 0 ? '+' : '') + stopError.toFixed(1) + 'm' + (timeBonus > 0 ? ' ON TIME +' + timeBonus : ''), 3);
+      stationTimer = 0;
+      currentStation = nextStation;
+      nextStation++;
+      if (nextStation >= stations.length) {
+        stationTimer = -3; // wait then finish
+      }
+    }
+  }
+}
+
+function finishRoute() {
+  routeComplete = true;
+  state = 'complete';
+  score = Math.max(0, score - penalties);
+}
+
+// --- INPUT ---
+const keys = {};
+addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (infoOpen) return;
+  if (e.key === 'r' || e.key === 'R') { init(); return; }
+  keys[e.key] = true;
+
+  if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (state === 'waiting' || state === 'stopped') {
+      state = 'running';
+      brake = 0;
+    }
+    if (brake > 0) { brake = 0; }
+    else if (throttle < 5) { throttle++; }
+  }
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    if (throttle > 0) { throttle = 0; }
+    else if (brake < 9) { brake++; }
+  }
+  if (e.key === ' ') {
+    e.preventDefault();
+    throttle = 0;
+    brake = 0;
+  }
+});
+addEventListener('keyup', e => { keys[e.key] = false; });
+
+// --- DRAWING ---
+const SKY_TOP = '#1a1a3a';
+const SKY_BOT = '#3a3a6a';
+const GROUND = '#2a4a2a';
+const TRACK_Y = 420;
+const HORIZON_Y = 280;
+
+function drawSky() {
+  const grad = ctx.createLinearGradient(0, 0, 0, HORIZON_Y);
+  grad.addColorStop(0, SKY_TOP);
+  grad.addColorStop(1, SKY_BOT);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, HORIZON_Y);
+
+  // Clouds
+  ctx.fillStyle = 'rgba(180,180,220,0.15)';
+  const cx = (-trainDist * 0.3) % 1200;
+  for (let i = 0; i < 5; i++) {
+    const x = cx + i * 250;
+    ctx.beginPath();
+    ctx.ellipse(x, 100 + i * 20, 80, 20, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawMountains() {
+  ctx.fillStyle = '#2a2a4a';
+  const ox = (-trainDist * 0.05) % 400;
+  ctx.beginPath();
+  ctx.moveTo(0, HORIZON_Y);
+  for (let x = -50; x < W + 100; x += 50) {
+    const h = 30 + Math.sin((x + ox) * 0.01) * 25 + Math.cos((x + ox) * 0.023) * 15;
+    ctx.lineTo(x, HORIZON_Y - h);
+  }
+  ctx.lineTo(W + 50, HORIZON_Y);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawGround() {
+  const grad = ctx.createLinearGradient(0, HORIZON_Y, 0, H);
+  grad.addColorStop(0, '#3a6a3a');
+  grad.addColorStop(0.3, GROUND);
+  grad.addColorStop(1, '#1a3a1a');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, HORIZON_Y, W, H - HORIZON_Y);
+}
+
+function drawTracks() {
+  // Rails
+  ctx.strokeStyle = '#888';
+  ctx.lineWidth = 2;
+  // Left rail
+  ctx.beginPath();
+  ctx.moveTo(0, TRACK_Y - 8);
+  ctx.lineTo(W, TRACK_Y - 8);
+  ctx.stroke();
+  // Right rail
+  ctx.beginPath();
+  ctx.moveTo(0, TRACK_Y + 8);
+  ctx.lineTo(W, TRACK_Y + 8);
+  ctx.stroke();
+
+  // Sleepers
+  ctx.strokeStyle = '#654';
+  ctx.lineWidth = 3;
+  const sleeperOff = (trainDist * 10) % 20;
+  for (let x = -sleeperOff; x < W; x += 20) {
+    ctx.beginPath();
+    ctx.moveTo(x, TRACK_Y - 12);
+    ctx.lineTo(x, TRACK_Y + 12);
+    ctx.stroke();
+  }
+
+  // Gravel
+  ctx.fillStyle = '#554433';
+  ctx.fillRect(0, TRACK_Y - 14, W, 28);
+  // Re-draw rails on top
+  ctx.strokeStyle = '#999';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(0, TRACK_Y - 7); ctx.lineTo(W, TRACK_Y - 7); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, TRACK_Y + 7); ctx.lineTo(W, TRACK_Y + 7); ctx.stroke();
+  // Sleepers on top
+  ctx.strokeStyle = '#765';
+  ctx.lineWidth = 2;
+  for (let x = -sleeperOff; x < W; x += 20) {
+    ctx.beginPath();
+    ctx.moveTo(x, TRACK_Y - 10);
+    ctx.lineTo(x, TRACK_Y + 10);
+    ctx.stroke();
+  }
+}
+
+function drawSceneryObjects() {
+  for (const obj of scenery) {
+    const rel = obj.dist - trainDist;
+    if (rel < -10 || rel > 300) continue;
+    const t = Math.max(0, rel / 300);
+    const screenX = 400 + obj.side * (60 + t * 300);
+    const screenY = TRACK_Y - t * (TRACK_Y - HORIZON_Y) * 0.8;
+    const scale = 1 - t * 0.7;
+
+    if (obj.type === 'tree') {
+      // Trunk
+      ctx.fillStyle = '#543';
+      ctx.fillRect(screenX - 3 * scale, screenY - obj.h * scale, 6 * scale, obj.h * scale);
+      // Foliage
+      ctx.fillStyle = '#3a7a3a';
+      ctx.beginPath();
+      ctx.arc(screenX, screenY - obj.h * scale, 15 * scale, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (obj.type === 'building') {
+      ctx.fillStyle = obj.color;
+      const bw = obj.w * scale, bh = obj.h * scale;
+      ctx.fillRect(screenX - bw/2, screenY - bh, bw, bh);
+      // Windows
+      ctx.fillStyle = '#ffa';
+      const ws = 6 * scale;
+      for (let wy = screenY - bh + 5 * scale; wy < screenY - 5 * scale; wy += 12 * scale) {
+        for (let wx = screenX - bw/2 + 5 * scale; wx < screenX + bw/2 - 5 * scale; wx += 10 * scale) {
+          if (Math.random() > 0.05) ctx.fillRect(wx, wy, ws, ws);
+        }
+      }
+    } else if (obj.type === 'signal') {
+      ctx.fillStyle = '#444';
+      ctx.fillRect(screenX - 2 * scale, screenY - 40 * scale, 4 * scale, 40 * scale);
+      ctx.fillStyle = '#0f0';
+      ctx.beginPath();
+      ctx.arc(screenX, screenY - 35 * scale, 4 * scale, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (obj.type === 'pole') {
+      ctx.fillStyle = '#666';
+      ctx.fillRect(screenX - 1.5 * scale, screenY - 50 * scale, 3 * scale, 50 * scale);
+      // Wire
+      ctx.strokeStyle = '#555';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(screenX - 30 * scale, screenY - 48 * scale);
+      ctx.lineTo(screenX + 30 * scale, screenY - 48 * scale);
+      ctx.stroke();
+    }
+  }
+}
+
+function drawStationPlatform() {
+  if (nextStation >= stations.length && state !== 'stopped') return;
+  const targetIdx = Math.min(nextStation, stations.length - 1);
+  const stDist = stations[targetIdx].dist;
+  const rel = stDist - trainDist;
+
+  if (rel < -20 || rel > 300) return;
+  const t = Math.max(0, rel / 300);
+  const screenX = 400 + (60 + t * 300);
+  const screenY = TRACK_Y - t * (TRACK_Y - HORIZON_Y) * 0.8;
+  const scale = 1 - t * 0.7;
+
+  // Platform
+  ctx.fillStyle = '#887766';
+  const pw = 120 * scale, ph = 15 * scale;
+  ctx.fillRect(screenX - pw/2, screenY - ph, pw, ph);
+
+  // Platform edge line
+  ctx.fillStyle = '#ff0';
+  ctx.fillRect(screenX - pw/2, screenY - ph, pw, 2 * scale);
+
+  // Stop marker
+  ctx.fillStyle = '#f00';
+  ctx.fillRect(screenX - 2 * scale, screenY - ph - 25 * scale, 4 * scale, 25 * scale);
+  // Triangle marker
+  ctx.fillStyle = '#ff0';
+  ctx.beginPath();
+  ctx.moveTo(screenX, screenY - ph - 28 * scale);
+  ctx.lineTo(screenX - 8 * scale, screenY - ph - 18 * scale);
+  ctx.lineTo(screenX + 8 * scale, screenY - ph - 18 * scale);
+  ctx.closePath();
+  ctx.fill();
+
+  // Station name
+  if (scale > 0.4) {
+    ctx.save();
+    ctx.font = Math.max(8, 14 * scale) + 'px monospace';
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    ctx.fillText(stations[targetIdx].name, screenX, screenY - ph - 32 * scale);
+    ctx.restore();
+  }
+
+  // Roof
+  ctx.fillStyle = '#556';
+  ctx.fillRect(screenX - pw/2 - 5 * scale, screenY - ph - 40 * scale, pw + 10 * scale, 8 * scale);
+  // Pillars
+  ctx.fillStyle = '#667';
+  ctx.fillRect(screenX - pw/2, screenY - ph - 40 * scale, 4 * scale, 40 * scale);
+  ctx.fillRect(screenX + pw/2 - 4 * scale, screenY - ph - 40 * scale, 4 * scale, 40 * scale);
+}
+
+function drawTrain() {
+  // Simple side view of front car at bottom
+  const tx = 100, ty = TRACK_Y;
+  // Body
+  ctx.fillStyle = '#2266aa';
+  ctx.fillRect(tx, ty - 55, 180, 45);
+  // Roof
+  ctx.fillStyle = '#1a5590';
+  ctx.fillRect(tx, ty - 58, 180, 6);
+  // Windows
+  ctx.fillStyle = '#aaddff';
+  for (let i = 0; i < 5; i++) {
+    ctx.fillRect(tx + 10 + i * 34, ty - 50, 24, 18);
+  }
+  // Stripe
+  ctx.fillStyle = '#ff8800';
+  ctx.fillRect(tx, ty - 14, 180, 4);
+  // Wheels
+  ctx.fillStyle = '#333';
+  ctx.beginPath(); ctx.arc(tx + 30, ty + 2, 8, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(tx + 80, ty + 2, 8, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(tx + 150, ty + 2, 8, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(tx + 200, ty + 2, 8, 0, Math.PI * 2); ctx.fill();
+  // Front
+  ctx.fillStyle = '#1a5590';
+  ctx.beginPath();
+  ctx.moveTo(tx + 180, ty - 58);
+  ctx.lineTo(tx + 210, ty - 48);
+  ctx.lineTo(tx + 210, ty - 10);
+  ctx.lineTo(tx + 180, ty - 10);
+  ctx.closePath();
+  ctx.fill();
+  // Headlight
+  ctx.fillStyle = speed > 0 ? '#ffffaa' : '#887755';
+  ctx.beginPath(); ctx.arc(tx + 208, ty - 30, 4, 0, Math.PI * 2); ctx.fill();
+  // Door
+  ctx.strokeStyle = '#1a5590';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(tx + 88, ty - 50, 14, 36);
+}
+
+function drawHUD() {
+  // Background panel
+  ctx.fillStyle = 'rgba(0,0,0,0.8)';
+  ctx.fillRect(0, 0, W, 70);
+  ctx.fillRect(0, H - 130, W, 130);
+
+  const speedKmh = speed * 3.6;
+  const limit = getSpeedLimit();
+  const overSpeed = speedKmh > limit + 2;
+
+  // Speed display
+  ctx.fillStyle = overSpeed ? '#f44' : '#0f0';
+  ctx.font = 'bold 36px monospace';
+  ctx.textAlign = 'right';
+  ctx.fillText(Math.round(speedKmh).toString().padStart(3, ' '), 120, 50);
+  hudText('km/h', 130, 38, 14, '#888');
+
+  // Speed limit
+  ctx.fillStyle = overSpeed ? '#f44' : '#ff0';
+  ctx.font = '14px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('LIMIT', 180, 18);
+  ctx.font = 'bold 24px monospace';
+  ctx.fillText(limit + '', 180, 46);
+  const zLabel = getSpeedLimitLabel();
+  if (zLabel) {
+    ctx.font = '11px monospace';
+    ctx.fillStyle = '#f80';
+    ctx.fillText(zLabel, 230, 50);
+  }
+
+  // Next station info
+  if (nextStation < stations.length) {
+    const distToNext = Math.max(0, stations[nextStation].dist - trainDist);
+    hudText('NEXT: ' + stations[nextStation].name, 320, 10, 14, '#7bf');
+    hudText(distToNext.toFixed(0) + 'm', 320, 30, 20, '#fff');
+
+    // Schedule
+    const schedArr = stations[nextStation].arrive;
+    const timeLeft = schedArr - gameTime;
+    const timeColor = timeLeft < 0 ? '#f44' : timeLeft < 10 ? '#ff0' : '#0f0';
+    hudText('SCHED: ' + formatTime(schedArr), 520, 10, 12, '#aaa');
+    hudText('TIME: ' + formatTime(gameTime), 520, 28, 12, timeColor);
+  } else if (!routeComplete) {
+    hudText('ARRIVING FINAL STATION', 320, 20, 16, '#ff0');
+  } else {
+    hudText('ROUTE COMPLETE', 320, 20, 16, '#0f0');
+  }
+
+  // Score
+  hudText('SCORE: ' + score, 700, 10, 14, '#ff0', 'right');
+  if (penalties > 0) hudText('PEN: -' + penalties, 700, 30, 12, '#f44', 'right');
+
+  // Station progress
+  hudText('STATION: ' + (currentStation + 1) + '/' + stations.length, 700, 50, 12, '#aaa', 'right');
+
+  // --- Bottom panel: Controls ---
+  const by = H - 120;
+
+  // Throttle gauge
+  hudText('THROTTLE', 40, by, 11, '#aaa');
+  for (let i = 1; i <= 5; i++) {
+    ctx.fillStyle = i <= throttle ? '#0c0' : '#333';
+    ctx.fillRect(40 + (i-1) * 22, by + 16, 18, 18);
+    hudText(i + '', 40 + (i-1) * 22 + 5, by + 18, 12, i <= throttle ? '#fff' : '#666');
+  }
+
+  // Brake gauge
+  hudText('BRAKE', 200, by, 11, '#aaa');
+  for (let i = 1; i <= 8; i++) {
+    ctx.fillStyle = i <= brake ? '#c00' : '#333';
+    ctx.fillRect(200 + (i-1) * 22, by + 16, 18, 18);
+    hudText(i + '', 200 + (i-1) * 22 + 5, by + 18, 12, i <= brake ? '#fff' : '#666');
+  }
+  // Emergency
+  ctx.fillStyle = brake >= 9 ? '#f00' : '#333';
+  ctx.fillRect(200 + 8 * 22, by + 16, 28, 18);
+  hudText('EB', 200 + 8 * 22 + 4, by + 18, 12, brake >= 9 ? '#fff' : '#666');
+
+  // Neutral indicator
+  if (throttle === 0 && brake === 0) {
+    hudText('NEUTRAL', 40, by + 42, 12, '#888');
+  }
+
+  // Speed bar
+  const barY = by + 65;
+  ctx.fillStyle = '#222';
+  ctx.fillRect(40, barY, 500, 16);
+  const speedPct = Math.min(1, speedKmh / 120);
+  ctx.fillStyle = overSpeed ? '#f44' : speedKmh > 80 ? '#ff0' : '#0c0';
+  ctx.fillRect(40, barY, 500 * speedPct, 16);
+  // Limit marker
+  const limPct = limit / 120;
+  ctx.fillStyle = '#f00';
+  ctx.fillRect(40 + 500 * limPct - 1, barY - 2, 3, 20);
+
+  hudText('0', 40, barY + 18, 10, '#666');
+  hudText('60', 40 + 250, barY + 18, 10, '#666', 'center');
+  hudText('120', 540, barY + 18, 10, '#666', 'right');
+
+  // Controls hint
+  hudText('[UP] Throttle  [DOWN] Brake  [SPACE] Release  [?] Info', 40, by + 100, 10, '#555');
+
+  // Distance marker on track area
+  if (nextStation < stations.length) {
+    const distToNext = stations[nextStation].dist - trainDist;
+    if (distToNext > 0 && distToNext < 200) {
+      // Approach indicator
+      const approachPct = 1 - distToNext / 200;
+      ctx.fillStyle = `rgba(255,${Math.floor(255 * (1-approachPct))},0,0.3)`;
+      ctx.fillRect(0, TRACK_Y + 15, W * approachPct, 4);
+    }
+  }
+}
+
+function drawStopResult() {
+  if (state === 'stopped' && messageTimer > 0) {
+    const lastResult = stopResults[stopResults.length - 1];
+    if (!lastResult) return;
+
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(200, 150, 400, 160);
+    ctx.strokeStyle = lastResult.rating === 'PERFECT' ? '#0f0' : lastResult.rating === 'GOOD' ? '#ff0' : '#f80';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(200, 150, 400, 160);
+
+    hudText(lastResult.station, 400, 160, 18, '#7bf', 'center');
+    hudText(lastResult.rating, 400, 190, 28, lastResult.rating === 'PERFECT' ? '#0f0' : lastResult.rating === 'GOOD' ? '#ff0' : '#f80', 'center');
+
+    const errStr = (lastResult.error >= 0 ? '+' : '') + lastResult.error.toFixed(1) + 'm';
+    hudText('Stop error: ' + errStr, 400, 228, 14, '#ddd', 'center');
+    hudText('+' + lastResult.pts + ' pts', 400, 252, 14, '#0f0', 'center');
+    if (lastResult.timeBonus > 0) {
+      hudText('On time bonus: +' + lastResult.timeBonus, 400, 272, 12, '#ff0', 'center');
+    }
+    hudText('Press UP to depart', 400, 295, 11, '#888', 'center');
+  }
+}
+
+function drawRouteComplete() {
+  if (!routeComplete) return;
+
+  ctx.fillStyle = 'rgba(0,0,0,0.85)';
+  ctx.fillRect(150, 80, 500, 400);
+  ctx.strokeStyle = '#7bf';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(150, 80, 500, 400);
+
+  hudText('ROUTE COMPLETE', 400, 95, 24, '#0f0', 'center');
+  hudText(stations[0].name + ' → ' + stations[stations.length-1].name, 400, 128, 14, '#7bf', 'center');
+
+  let y = 160;
+  for (const r of stopResults) {
+    const col = r.rating === 'PERFECT' ? '#0f0' : r.rating === 'GOOD' ? '#ff0' : r.rating === 'OK' ? '#f80' : '#f44';
+    hudText(r.station, 200, y, 13, '#ddd');
+    hudText(r.rating, 420, y, 13, col);
+    const errStr = r.error !== 999 ? ((r.error >= 0 ? '+' : '') + r.error.toFixed(1) + 'm') : 'OVERRUN';
+    hudText(errStr, 530, y, 12, '#aaa');
+    y += 22;
+  }
+
+  y += 15;
+  hudText('Total Score: ' + score, 400, y, 20, '#ff0', 'center');
+  y += 30;
+  if (penalties > 0) {
+    hudText('Penalties: -' + penalties, 400, y, 14, '#f44', 'center');
+    y += 22;
+  }
+  hudText('Total Time: ' + formatTime(gameTime), 400, y, 14, '#aaa', 'center');
+  y += 30;
+
+  let grade = 'D';
+  if (score >= 400) grade = 'S';
+  else if (score >= 300) grade = 'A';
+  else if (score >= 200) grade = 'B';
+  else if (score >= 100) grade = 'C';
+  hudText('GRADE: ' + grade, 400, y, 28, grade === 'S' ? '#f0f' : grade === 'A' ? '#0f0' : grade === 'B' ? '#ff0' : '#f80', 'center');
+  y += 35;
+  hudText('Press R to restart', 400, y, 12, '#888', 'center');
+}
+
+function drawMessage() {
+  if (messageTimer <= 0 && state !== 'stopped') return;
+  if (state === 'stopped') return; // handled by drawStopResult
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(200, 200, 400, 40);
+  hudText(messageText, 400, 210, 16, '#ff0', 'center');
+}
+
+function drawSpeedWarning() {
+  const speedKmh = speed * 3.6;
+  const limit = getSpeedLimit();
+  if (speedKmh > limit + 2) {
+    const flash = Math.sin(Date.now() * 0.01) > 0;
+    if (flash) {
+      ctx.fillStyle = 'rgba(255,0,0,0.15)';
+      ctx.fillRect(0, 70, W, TRACK_Y - 70);
+      hudText('SPEED LIMIT!', 400, 100, 20, '#f44', 'center');
+    }
+  }
+}
+
+function formatTime(t) {
+  const m = Math.floor(t / 60);
+  const s = Math.floor(t % 60);
+  return m + ':' + s.toString().padStart(2, '0');
+}
+
+// --- MAIN LOOP ---
+function update(timestamp) {
+  if (infoOpen) return;
+  if (!lastTime) lastTime = timestamp;
+  const dt = Math.min((timestamp - lastTime) / 1000, 0.05);
+  lastTime = timestamp;
+
+  if (messageTimer > 0) messageTimer -= dt;
+
+  // Station wait timer
+  if (state === 'stopped') {
+    stationTimer += dt;
+    if (nextStation >= stations.length && stationTimer > 3) {
+      finishRoute();
+    }
+  }
+
+  updatePhysics(dt);
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+  drawSky();
+  drawMountains();
+  drawGround();
+  drawSceneryObjects();
+  drawStationPlatform();
+  drawTracks();
+  drawTrain();
+  drawSpeedWarning();
+  drawHUD();
+  drawStopResult();
+  drawMessage();
+  drawRouteComplete();
+}
+
+function loop(ts) {
+  update(ts);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+init();
+requestAnimationFrame(loop);
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

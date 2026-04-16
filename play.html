@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0,
+      maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Pixel Vault — Playing</title>
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self';
+  script-src 'self' 'unsafe-inline';
+  style-src 'self' 'unsafe-inline';
+  img-src 'self' data:;
+  connect-src 'self';
+  frame-src 'self';
+  media-src 'self';
+">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0f;color:#e0deff;
+  font-family:system-ui,-apple-system,sans-serif;touch-action:none}
+a{color:inherit;text-decoration:none}
+button{background:none;border:none;cursor:pointer;color:inherit;font:inherit}
+
+/* ── Play stage ──────────────────────────────────────────────────────── */
+#stage{
+  position:fixed;inset:0;display:flex;flex-direction:column;
+  background:#000;overflow:hidden
+}
+
+/* HUD */
+#hud{
+  position:absolute;top:0;left:0;right:0;z-index:20;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:8px 14px;
+  background:linear-gradient(to bottom,rgba(0,0,0,.85) 0%,rgba(0,0,0,0) 100%);
+  transition:opacity .3s;pointer-events:auto
+}
+#hud.hidden{opacity:0;pointer-events:none}
+.hud-left,.hud-right{display:flex;align-items:center;gap:10px}
+#hud-back{font-size:12px;padding:6px 10px;border:1px solid rgba(255,255,255,.2);
+  border-radius:6px;background:rgba(0,0,0,.4);color:rgba(255,255,255,.8);
+  backdrop-filter:blur(4px);transition:background .1s}
+#hud-back:hover{background:rgba(255,255,255,.12)}
+#hud-title{font-size:12px;color:rgba(255,255,255,.5);
+  max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hud-btn{
+  width:32px;height:32px;border-radius:6px;
+  background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.15);
+  color:rgba(255,255,255,.8);font-size:14px;
+  display:flex;align-items:center;justify-content:center;
+  backdrop-filter:blur(4px);transition:background .1s;cursor:pointer
+}
+.hud-btn:hover{background:rgba(255,255,255,.15)}
+#hud-next{font-size:12px;padding:6px 10px;border:1px solid rgba(255,255,255,.2);
+  border-radius:6px;background:rgba(0,0,0,.4);color:rgba(255,255,255,.8);
+  backdrop-filter:blur(4px);transition:background .1s}
+#hud-next:hover{background:rgba(255,255,255,.12)}
+#hud-next.hidden{display:none}
+
+/* Game container */
+#game-wrap{
+  flex:1;min-height:0;
+  position:relative;overflow:hidden
+}
+#game{
+  position:absolute;
+  width:800px;height:600px;border:none;display:block;
+  /* centre the 800×600 iframe inside the wrapper, then scale down */
+  top:50%;left:50%;
+  transform:translateX(-50%) translateY(-50%) scale(1);
+  transform-origin:center center;
+  /* scanline texture for authentic feel */
+  image-rendering:pixelated;image-rendering:-moz-crisp-edges
+}
+
+/* Touch strip (mobile controls below game — flex sibling, auto height) */
+#touch-strip{
+  flex-shrink:0;
+  background:#060609;border-top:1px solid rgba(255,255,255,.06);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 16px 16px;user-select:none;-webkit-user-select:none
+}
+#touch-strip.hidden{display:none}
+
+/* Touch strip buttons */
+.pvb{
+  width:56px;height:56px;border-radius:50%;
+  background:rgba(255,255,255,.1);border:2px solid rgba(255,255,255,.25);
+  color:rgba(255,255,255,.8);font-size:20px;
+  display:flex;align-items:center;justify-content:center;
+  touch-action:none;cursor:pointer;user-select:none;
+  pointer-events:all; /* explicit — cannot be suppressed by parent */
+  transition:background .07s,transform .07s
+}
+.pvb.on{background:rgba(255,255,255,.3);border-color:rgba(255,255,255,.7);
+  transform:scale(.9)}
+.pvb.lg{width:68px;height:68px;font-size:26px}
+.pvb.red{border-color:rgba(255,80,80,.6)}
+.pvb.grn{border-color:rgba(80,255,80,.6)}
+.pvb.yel{border-color:rgba(255,200,60,.6)}
+.pvd{display:grid;grid-template-columns:repeat(3,56px);
+  grid-template-rows:repeat(3,52px);gap:3px}
+.pvh{display:flex;gap:10px;align-items:flex-end}
+.pvac{display:flex;flex-direction:column;align-items:center;gap:8px}
+.pvar{display:flex;gap:8px}
+.pvd-cell{width:56px;height:52px;display:flex;
+  align-items:center;justify-content:center}
+/* Center cell placeholder in d-pad grid */
+.pvd-blank{width:56px;height:52px}
+
+/* Info overlay */
+#info-overlay{
+  position:absolute;inset:0;z-index:30;
+  background:rgba(5,5,15,.92);backdrop-filter:blur(8px);
+  display:flex;flex-direction:column;align-items:center;
+  justify-content:center;padding:24px 20px;
+  transition:opacity .2s
+}
+#info-overlay.hidden{display:none}
+#info-content{
+  max-width:440px;width:100%;
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);
+  border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:12px
+}
+.info-row{display:flex;flex-direction:column;gap:3px}
+.info-label{font-size:10px;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;color:rgba(160,155,220,.5)}
+.info-val{font-size:13px;color:rgba(220,215,255,.8);line-height:1.5}
+#info-close{
+  margin-top:16px;padding:10px 28px;border:1px solid rgba(255,255,255,.2);
+  border-radius:8px;font-size:13px;color:rgba(255,255,255,.7);
+  background:rgba(255,255,255,.06);cursor:pointer;
+  transition:background .1s
+}
+#info-close:hover{background:rgba(255,255,255,.12)}
+
+/* Diagnostics overlay */
+#diag{
+  position:absolute;top:48px;right:10px;z-index:40;
+  background:rgba(0,0,0,.8);border:1px solid rgba(80,255,80,.3);
+  border-radius:8px;padding:10px 14px;font-size:11px;
+  font-family:monospace;color:rgba(80,255,80,.9);min-width:200px;
+  line-height:1.8;pointer-events:none
+}
+#diag.hidden{display:none}
+.d-hi{color:#6f6}
+.d-warn{color:#fb3}
+.d-err{color:#f66}
+
+/* Escape-confirm overlay */
+#esc-confirm{
+  position:absolute;bottom:120px;left:50%;transform:translateX(-50%);
+  z-index:50;background:rgba(0,0,0,.85);border:1px solid rgba(255,255,255,.2);
+  border-radius:10px;padding:12px 20px;font-size:13px;
+  color:rgba(255,255,255,.8);text-align:center;
+  opacity:0;transition:opacity .15s;pointer-events:none
+}
+#esc-confirm.show{opacity:1}
+
+/* Portrait warning bar (mobile only) */
+#portrait-bar{
+  position:absolute;top:0;left:0;right:0;z-index:60;
+  background:rgba(255,160,0,.85);color:#000;
+  font-size:12px;font-weight:600;text-align:center;
+  padding:8px;display:none
+}
+#portrait-bar.show{display:block}
+
+/* ── Responsive ──────────────────────────────────────────────────────── */
+/* Touch device portrait — fires for any orientation on touch screens */
+@media (pointer:coarse){
+  .pvb{width:52px;height:52px;font-size:18px}
+  .pvb.lg{width:62px;height:62px;font-size:22px}
+  .pvd{
+    grid-template-columns:repeat(3,52px);
+    grid-template-rows:repeat(3,48px);
+    gap:4px
+  }
+  .pvd-cell{width:52px;height:48px}
+  .pvd-blank{width:52px;height:48px}
+}
+/* Touch device landscape — shorter buttons to preserve game height */
+@media (pointer:coarse) and (max-height:500px){
+  .pvb{width:40px;height:40px;font-size:14px}
+  .pvb.lg{width:50px;height:50px;font-size:18px}
+  .pvd{
+    grid-template-columns:repeat(3,40px);
+    grid-template-rows:repeat(3,38px);
+    gap:3px
+  }
+  .pvd-cell{width:40px;height:38px}
+  .pvd-blank{width:40px;height:38px}
+  #touch-strip{padding:6px 12px 10px}
+}
+</style>
+</head>
+<body>
+
+<!-- ── Play stage ────────────────────────────────────────────────────── -->
+<div id="stage">
+
+  <!-- Portrait warning bar (mobile) -->
+  <div id="portrait-bar">📱 Rotate to landscape for the best experience</div>
+
+  <!-- HUD -->
+  <div id="hud">
+    <div class="hud-left">
+      <a id="hud-back" href="#">← Gallery</a>
+      <span id="hud-title"></span>
+    </div>
+    <div class="hud-right">
+      <button id="hud-info-btn" class="hud-btn" title="Info (I)">?</button>
+      <button id="hud-fs-btn" class="hud-btn" title="Fullscreen (F)">⛶</button>
+      <a id="hud-next" href="#" class="hidden">Next →</a>
+    </div>
+  </div>
+
+  <!-- Game iframe -->
+  <div id="game-wrap">
+    <iframe id="game"
+            sandbox="allow-scripts allow-same-origin"
+            allow="autoplay; fullscreen"
+            referrerpolicy="no-referrer"
+            title="Pixel Vault Game"></iframe>
+  </div>
+
+  <!-- Touch controls (host-side, mobile only) -->
+  <div id="touch-strip" class="hidden"></div>
+
+  <!-- Info overlay -->
+  <div id="info-overlay" class="hidden">
+    <div id="info-content"></div>
+    <button id="info-close">Close ×</button>
+  </div>
+
+  <!-- Escape confirm prompt -->
+  <div id="esc-confirm">Press Esc again to return to gallery</div>
+
+  <!-- Diagnostics overlay (?diag=1) -->
+  <div id="diag" class="hidden"></div>
+</div>
+
+<script>
+'use strict';
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   PIXEL VAULT PLAY ENGINE  v1.0
+   ADR-012: Full-screen play, platform-tuned controls, performance instrumentation
+───────────────────────────────────────────────────────────────────────────── */
+
+const PV = {
+  game: null,          // current game manifest entry
+  manifest: [],        // full manifest
+  isMobile: false,     // true when hover:none touch device
+  started: false,      // true after user clicks "play"
+  hudTimer: null,      // auto-hide HUD timer
+  escTimer: null,      // double-Esc confirm timer
+  diagMode: false,     // ?diag=1
+  ftc: null,           // FrameTimingCollector instance
+  diagRaf: null,       // diag overlay rAF id
+  galleryUrl: '/',     // where "Back to Gallery" goes
+};
+
+/* ── Frame Timing Collector ─────────────────────────────────────────── */
+class FrameTimingCollector {
+  constructor() {
+    this.samples = new Float64Array(300);
+    this.idx = 0;
+    this.jankCount = 0;
+    this.startTime = 0;
+    this.lastTime = 0;
+    this.touchLatency = [];
+    this.touchStart = 0;
+  }
+  tick(ts) {
+    if (this.startTime === 0) { this.startTime = ts; this.lastTime = ts; return; }
+    const dt = ts - this.lastTime;
+    this.lastTime = ts;
+    this.samples[this.idx % 300] = dt;
+    this.idx++;
+    if (dt > 33) this.jankCount++;
+  }
+  get stats() {
+    const n = Math.min(this.idx, 300);
+    if (n < 2) return null;
+    const slice = Array.from(this.samples.slice(0, n)).sort((a,b) => a-b);
+    const avg = slice.reduce((a,b) => a+b, 0) / n;
+    return {
+      fps: Math.round(1000 / avg),
+      p50: slice[Math.floor(n * .5)].toFixed(1),
+      p95: slice[Math.floor(n * .95)].toFixed(1),
+      p99: slice[Math.floor(n * .99)].toFixed(1),
+      jankFrames: this.jankCount,
+      jankRate: ((this.jankCount / Math.max(this.idx, 1)) * 100).toFixed(1),
+      totalFrames: this.idx,
+      elapsed: ((this.lastTime - this.startTime) / 1000).toFixed(1)
+    };
+  }
+  touchDown() { this.touchStart = performance.now(); }
+  touchAck() {
+    if (this.touchStart) {
+      this.touchLatency.push(performance.now() - this.touchStart);
+      if (this.touchLatency.length > 50) this.touchLatency.shift();
+      this.touchStart = 0;
+    }
+  }
+  get avgTouchLatency() {
+    if (!this.touchLatency.length) return null;
+    return (this.touchLatency.reduce((a,b)=>a+b,0)/this.touchLatency.length).toFixed(1);
+  }
+}
+
+/* ── Touch profile auto-detection (mirrors inject-touch-controls.py logic) ── */
+const MOUSE_KEYWORDS = ['mouse','click','cursor'];
+const KB_KEYWORDS    = ['arrow','wasd','←','→','left','right','space','jump','shoot','fire'];
+
+function detectProfile(controls) {
+  if (!controls) return 'asteroids';
+  const c = controls.toLowerCase();
+  const hasMouse = MOUSE_KEYWORDS.some(k => c.includes(k));
+  const hasKb    = KB_KEYWORDS.some(k => c.includes(k));
+  if (hasMouse && !hasKb) return null;   // mouse-only: no controls
+  // Twin-stick only when WASD and arrow keys are in SEPARATE control segments
+  // (i.e., they perform different functions, not listed as alternatives for the same action).
+  // Prevents "Arrow keys or WASD — move" from triggering twin-stick.
+  const segs    = c.split('|');
+  const wasdSeg = segs.findIndex(s => /\bwasd\b/.test(s));
+  const arrowSeg = segs.findIndex(s => /arrow\s+keys?/.test(s));
+  if (wasdSeg >= 0 && arrowSeg >= 0 && wasdSeg !== arrowSeg) return 'twin-stick';
+  if (c.includes('rotat') && (c.includes('drop') || c.includes('hard') || c.includes('soft'))) return 'tetris';
+  if (c.includes('flap')) return 'joust';
+  if (c.includes('jump') && (c.includes('left') || c.includes('←') || c.includes('right') || c.includes('→'))) return 'runner';
+  if (c.includes('w/s') || (c.includes('w —') && c.includes('s —'))) return 'pong';
+  // "Arrow keys" implies all four directions — treat as lat+up+down
+  const hasArrowKbd = /arrow\s+keys?/.test(c);
+  const lat    = hasArrowKbd || ((c.includes('left') || c.includes('←')) && (c.includes('right') || c.includes('→')));
+  const hasUp  = hasArrowKbd || c.includes('up')   || c.includes('↑');
+  const hasDn  = hasArrowKbd || c.includes('down') || c.includes('↓');
+  if (lat && !hasUp && !hasDn && (c.includes('space') || c.includes('fire') || c.includes('shoot'))) return 'dpad2+fire';
+  if (lat && !(c.includes('space') || c.includes('fire') || c.includes('shoot') || c.includes('attack') || c.includes('jump'))) return 'dpad4';
+  return 'asteroids';
+}
+
+/* ── Host-side touch controls (postMessage to iframe) ─────────────────── */
+function buildTouchStrip(profile) {
+  const strip = document.getElementById('touch-strip');
+  strip.innerHTML = '';
+  if (!profile) return;
+
+  // Key dispatch: direct injection into iframe document (same-origin)
+  function sendKey(code, key, action) {
+    const iframe = document.getElementById('game');
+    if (!iframe.contentDocument) return;
+    iframe.contentDocument.dispatchEvent(
+      new KeyboardEvent(action, { code, key, bubbles: true, cancelable: true })
+    );
+    if (action === 'keydown' && PV.ftc) PV.ftc.touchDown();
+  }
+
+  // Key pairs
+  const K = {
+    L:  ['ArrowLeft',  'ArrowLeft'],  R: ['ArrowRight','ArrowRight'],
+    U:  ['ArrowUp',    'ArrowUp'],    D: ['ArrowDown', 'ArrowDown'],
+    SP: ['Space',      ' '],
+    W:  ['KeyW','w'],  A: ['KeyA','a'],  S: ['KeyS','s'],  D2: ['KeyD','d'],
+    Z:  ['KeyZ','z']
+  };
+
+  function btn(label, k, cls) {
+    const el = document.createElement('div');
+    el.className = 'pvb' + (cls ? ' ' + cls : '');
+    el.innerHTML = label;
+    el.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      el.setPointerCapture(e.pointerId);
+      el.classList.add('on');
+      sendKey(k[0], k[1], 'keydown');
+      if (navigator.vibrate) navigator.vibrate(8);
+    });
+    el.addEventListener('pointerup', e => {
+      e.preventDefault();
+      el.classList.remove('on');
+      sendKey(k[0], k[1], 'keyup');
+    });
+    el.addEventListener('pointercancel', () => {
+      el.classList.remove('on');
+      sendKey(k[0], k[1], 'keyup');
+    });
+    return el;
+  }
+
+  function dp4() {
+    const g = document.createElement('div');
+    g.className = 'pvd';
+    [null, btn('▲',K.U), null,
+     btn('◀',K.L), null, btn('▶',K.R),
+     null, btn('▼',K.D), null].forEach(c => {
+      const cell = document.createElement('div');
+      cell.className = c ? 'pvd-cell' : 'pvd-blank';
+      if (c) cell.appendChild(c);
+      g.appendChild(cell);
+    });
+    return g;
+  }
+  function dp4w() {
+    const g = document.createElement('div');
+    g.className = 'pvd';
+    [null, btn('▲',K.W), null,
+     btn('◀',K.A), null, btn('▶',K.D2),
+     null, btn('▼',K.S), null].forEach(c => {
+      const cell = document.createElement('div');
+      cell.className = c ? 'pvd-cell' : 'pvd-blank';
+      if (c) cell.appendChild(c);
+      g.appendChild(cell);
+    });
+    return g;
+  }
+  function dp2h() {
+    const g = document.createElement('div');
+    g.className = 'pvh';
+    g.appendChild(btn('◀',K.L));
+    g.appendChild(btn('▶',K.R));
+    return g;
+  }
+  function dp2v(uk, dk) {
+    const g = document.createElement('div');
+    g.className = 'pvac';
+    g.appendChild(btn('▲',uk));
+    g.appendChild(btn('▼',dk));
+    return g;
+  }
+  function acv(items) {
+    const g = document.createElement('div');
+    g.className = 'pvac';
+    items.forEach(e => g.appendChild(e));
+    return g;
+  }
+  function acr(items) {
+    const g = document.createElement('div');
+    g.className = 'pvar';
+    items.forEach(e => g.appendChild(e));
+    return g;
+  }
+  function L(el) { strip.appendChild(el); }
+  function R(el) {
+    const w = document.createElement('div');
+    w.style.cssText = 'display:flex;align-items:flex-end;';
+    w.appendChild(el);
+    strip.appendChild(w);
+  }
+
+  const profiles = {
+    'dpad2+fire': () => { L(dp2h()); R(btn('⊙',K.SP,'lg red')); },
+    'dpad4':      () => { L(dp4()); },
+    'dpad4+hold': () => { L(dp4()); R(acv([btn('▶▶',K.SP,'yel')])); },
+    'asteroids':  () => { L(dp4()); R(acv([btn('⊙',K.SP,'lg red')])); },
+    'defender':   () => { L(dp4()); R(acv([btn('⊙',K.SP,'red'), btn('✦',K.Z,'yel')])); },
+    'runner':     () => { L(dp2h()); R(acv([btn('↑',K.SP,'lg grn')])); },
+    'joust':      () => { L(dp2h()); R(acv([btn('▲',K.SP,'lg')])); },
+    'pong':       () => {
+      L(dp2v(K.W,K.S));
+      const ctr = document.createElement('div');
+      ctr.style.cssText='display:flex;align-items:flex-end;';
+      ctr.appendChild(btn('⬤',K.SP,'grn'));
+      strip.appendChild(ctr);
+      R(dp2v(K.U,K.D));
+    },
+    'tetris': () => {
+      L(dp4());
+      R(acv([
+        acr([btn('↻',K.U,'grn'), btn('↺',K.Z,'grn')]),
+        btn('⬇',K.SP,'lg red')
+      ]));
+    },
+    'twin-stick': () => { L(dp4w()); R(dp4()); },
+  };
+
+  const build = profiles[profile];
+  if (build) build();
+  else {
+    // Fallback: minimal hint text
+    strip.innerHTML = '<span style="font-size:11px;color:rgba(255,255,255,.3);padding:0 16px">Use physical keyboard or gamepad</span>';
+  }
+}
+
+/* ── Game scaling ──────────────────────────────────────────────────────── */
+function calcScale() {
+  const iframe = document.getElementById('game');
+  const wrap   = document.getElementById('game-wrap');
+
+  const ww = wrap.clientWidth  || window.innerWidth;
+  const wh = wrap.clientHeight || window.innerHeight;
+
+  const scaleX = ww  / 800;
+  const scaleY = wh  / 600;
+  let scale    = Math.min(scaleX, scaleY);
+
+  // Desktop: snap to integer multiples for pixel-perfect rendering
+  if (!PV.isMobile) {
+    if (scale >= 2)      scale = Math.floor(scale);
+    else if (scale < 1)  scale = scale;   // sub-1x: use exact
+    // between 1 and 2: keep 1x (clean)
+    else                 scale = 1;
+  }
+
+  // Use translate-centre + scale so layout flow doesn't affect clipping
+  iframe.style.transform = 'translateX(-50%) translateY(-50%) scale(' + scale.toFixed(4) + ')';
+  return scale;
+}
+
+/* ── HUD auto-hide ─────────────────────────────────────────────────── */
+function showHud() {
+  document.getElementById('hud').classList.remove('hidden');
+  clearTimeout(PV.hudTimer);
+  PV.hudTimer = setTimeout(hideHud, 3000);
+}
+function hideHud() {
+  document.getElementById('hud').classList.add('hidden');
+}
+function bindHudReveal() {
+  ['mousemove','touchstart','pointerdown'].forEach(evt => {
+    document.addEventListener(evt, showHud, { passive: true });
+  });
+}
+
+/* ── Info overlay ──────────────────────────────────────────────────── */
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+                  .replace(/"/g,'&quot;');
+}
+function buildInfoOverlay(g) {
+  const c = document.getElementById('info-content');
+  const rows = [
+    ['Game',      g.name],
+    ['Series',    g.seriesName || g.series],
+    ['Mechanic',  g.mechanic],
+    ['Ancestry',  g.ancestry],
+    ['Controls',  g.controls],
+    ['AI Era',    g.aiEra],
+    ['AI Insight',g.aiInsight],
+  ].filter(([,v]) => v);
+  c.innerHTML = rows.map(([l,v]) =>
+    '<div class="info-row">' +
+      '<div class="info-label">' + esc(l) + '</div>' +
+      '<div class="info-val">'   + esc(v) + '</div>' +
+    '</div>'
+  ).join('');
+}
+function toggleInfoOverlay() {
+  const o = document.getElementById('info-overlay');
+  o.classList.toggle('hidden');
+  showHud();
+}
+
+/* ── Fullscreen ────────────────────────────────────────────────────── */
+function requestFullscreen() {
+  const el = document.documentElement;
+  const fn = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen;
+  if (fn) fn.call(el).catch(() => {});
+}
+function exitFullscreen() {
+  const fn = document.exitFullscreen || document.webkitExitFullscreen;
+  if (fn) fn.call(document).catch(() => {});
+}
+function toggleFullscreen() {
+  if (document.fullscreenElement || document.webkitFullscreenElement) {
+    exitFullscreen();
+  } else {
+    requestFullscreen();
+  }
+}
+function requestLandscape() {
+  if (screen.orientation && screen.orientation.lock) {
+    screen.orientation.lock('landscape').catch(() => {});
+  }
+}
+
+/* ── Portrait detection (mobile) ──────────────────────────────────── */
+function checkOrientation() {
+  if (!PV.isMobile) return;
+  const isPortrait = window.innerHeight > window.innerWidth;
+  document.getElementById('portrait-bar').classList.toggle('show', isPortrait);
+}
+
+/* ── Escape confirm (double-press) ───────────────────────────────── */
+function handleEscape() {
+  const confirm = document.getElementById('esc-confirm');
+  // If info overlay is open, close it first
+  if (!document.getElementById('info-overlay').classList.contains('hidden')) {
+    document.getElementById('info-overlay').classList.add('hidden');
+    showHud();
+    return;
+  }
+  showHud();
+  if (PV.escTimer) {
+    // Second Esc within 2s → go back to gallery
+    clearTimeout(PV.escTimer);
+    PV.escTimer = null;
+    confirm.classList.remove('show');
+    goBack();
+  } else {
+    confirm.classList.add('show');
+    PV.escTimer = setTimeout(() => {
+      confirm.classList.remove('show');
+      PV.escTimer = null;
+    }, 2000);
+  }
+}
+
+/* ── Navigation ────────────────────────────────────────────────────── */
+function goBack() {
+  // Try to restore gallery scroll position
+  const saved = sessionStorage.getItem('pv-gallery-state');
+  if (saved) {
+    try {
+      const state = JSON.parse(saved);
+      const url   = state.url || PV.galleryUrl;
+      window.location.href = url;
+      return;
+    } catch(e) {}
+  }
+  window.location.href = PV.galleryUrl;
+}
+function bindBackButtons() {
+  document.getElementById('hud-back').addEventListener('click', e => {
+    e.preventDefault();
+    goBack();
+  });
+}
+
+/* ── Diagnostics overlay ─────────────────────────────────────────── */
+function updateDiag() {
+  if (!PV.diagMode) return;
+  const d    = document.getElementById('diag');
+  const stats = PV.ftc ? PV.ftc.stats : null;
+  const touch = PV.ftc ? PV.ftc.avgTouchLatency : null;
+  const scale = calcScale();
+  const profile = PV.game ? (detectProfile(PV.game.controls) || 'none') : '–';
+  const mobile  = PV.isMobile ? 'yes' : 'no';
+
+  let html = '';
+  if (stats) {
+    const fpsClass = stats.fps >= 55 ? 'd-hi' : stats.fps >= 30 ? '' : 'd-err';
+    const jankClass = parseFloat(stats.jankRate) < 5 ? 'd-hi' : 'd-warn';
+    html +=
+      '<div>FPS: <span class="' + fpsClass   + '">' + stats.fps       + '</span>  ' +
+           'p95: ' + stats.p95 + 'ms</div>' +
+      '<div>Jank: <span class="' + jankClass + '">' + stats.jankRate  + '%</span>  ' +
+           'Frames: ' + stats.totalFrames + '</div>' +
+      '<div>Elapsed: ' + stats.elapsed + 's</div>';
+  } else {
+    html += '<div>FPS: measuring…</div>';
+  }
+  if (touch) html += '<div>Touch latency: ' + touch + 'ms avg</div>';
+  html +=
+    '<div>Scale: ' + scale.toFixed(2) + 'x</div>' +
+    '<div>Mobile: ' + mobile + '  Profile: ' + profile    + '</div>' +
+    '<div>Viewport: ' + window.innerWidth + '×' + window.innerHeight + '</div>';
+
+  d.innerHTML = html;
+  PV.diagRaf = requestAnimationFrame(updateDiag);
+}
+
+/* ── postMessage: listen for messages from the iframe ─────────────── */
+function listenForGameMessages() {
+  window.addEventListener('message', e => {
+    const iframe = document.getElementById('game');
+    // Only accept from our own iframe
+    if (e.source !== iframe.contentWindow) return;
+    const msg = e.data;
+    if (!msg || typeof msg.type !== 'string') return;
+
+    const allowed = ['PIXELVAULT_SCORE', 'PV_AUDIO_READY', 'PV_KEY_ACK'];
+    if (!allowed.includes(msg.type)) return;
+
+    if (msg.type === 'PV_KEY_ACK' && PV.ftc) PV.ftc.touchAck();
+    if (msg.type === 'PV_AUDIO_READY') { /* reserved for future audio coordination */ }
+    if (msg.type === 'PIXELVAULT_SCORE') {
+      const score = Number(msg.score);
+      if (Number.isFinite(score) && score >= 0 && score <= 999999999) {
+        // Score submission hook (ADR-006 leaderboard integration)
+      }
+    }
+  });
+}
+
+/* ── Suppress in-game touch controls once host controls are active ── */
+function notifyHostControls() {
+  const iframe = document.getElementById('game');
+  if (!iframe.contentWindow) return;
+  iframe.contentWindow.postMessage({ type: 'PV_HOST_CONTROLS', active: true }, '*');
+}
+
+/* ── Keyboard shortcuts ─────────────────────────────────────────── */
+function bindKeyboard() {
+  document.addEventListener('keydown', e => {
+    if (!PV.started) return;
+    const tag = document.activeElement && document.activeElement.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+    if (e.key === 'Escape') { e.preventDefault(); handleEscape(); return; }
+    if ((e.key === 'f' || e.key === 'F') && !e.metaKey && !e.ctrlKey) {
+      toggleFullscreen(); showHud(); return;
+    }
+    if (e.key === 'i' || e.key === 'I') { toggleInfoOverlay(); return; }
+
+    // All other keys → focus the iframe (let the game catch them)
+    const iframe = document.getElementById('game');
+    if (document.activeElement !== iframe) iframe.focus();
+  });
+}
+
+/* ── Game loading ──────────────────────────────────────────────── */
+function startGame() {
+  if (PV.started) return;
+  PV.started = true;
+
+  // Mobile: show touch controls
+  if (PV.isMobile) {
+    setTimeout(() => {
+      const strip = document.getElementById('touch-strip');
+      strip.classList.remove('hidden');
+      const profile = detectProfile(PV.game && PV.game.controls);
+      buildTouchStrip(profile);
+      setTimeout(notifyHostControls, 500);
+    }, 100);
+  }
+
+  // Set iframe src
+  const iframe = document.getElementById('game');
+  iframe.src = PV.game.file;
+
+  // Set HUD title and document title
+  document.getElementById('hud-title').textContent = PV.game.name;
+  document.title = 'Pixel Vault — ' + PV.game.name;
+  document.getElementById('hud').classList.remove('hidden');
+
+  // Auto-focus iframe after load (keyboard input)
+  iframe.addEventListener('load', () => {
+    iframe.focus();
+    showHud();
+    calcScale();
+    checkOrientation();
+    if (PV.isMobile) {
+      // Hide the in-game #pvt touch overlay — host controls take over
+      setTimeout(() => {
+        try {
+          const pvt = iframe.contentDocument && iframe.contentDocument.getElementById('pvt');
+          if (pvt) pvt.style.display = 'none';
+        } catch(e) {}
+        notifyHostControls();
+      }, 200);
+    }
+  }, { once: true });
+
+  // Start performance monitoring
+  if (PV.ftc) {
+    const raf = (ts) => { PV.ftc.tick(ts); requestAnimationFrame(raf); };
+    requestAnimationFrame(raf);
+  }
+  if (PV.diagMode) {
+    PV.diagRaf = requestAnimationFrame(updateDiag);
+    document.getElementById('diag').classList.remove('hidden');
+  }
+
+  bindHudReveal();
+  showHud();
+}
+
+function populateInfoOverlay(g) {
+  buildInfoOverlay(g);
+}
+
+/* ── Next game in manifest ─────────────────────────────────────── */
+function findNextGame(currentId) {
+  const idx = PV.manifest.findIndex(g => g.id === currentId);
+  if (idx < 0) return null;
+  // Find next in same series, or wrap
+  const same = PV.manifest.filter(g => g.series === PV.game.series);
+  const ci   = same.findIndex(g => g.id === currentId);
+  if (ci >= 0 && ci < same.length - 1) return same[ci + 1];
+  return null;
+}
+
+/* ── Manifest loading + bootstrap ─────────────────────────────────── */
+async function init() {
+  // Parse URL params
+  const params  = new URLSearchParams(location.search);
+  const gameId  = params.get('game');
+  PV.diagMode   = params.has('diag');
+
+  // Mobile detection (same heuristic as gallery)
+  PV.isMobile   = window.matchMedia('(hover: none)').matches || window.innerWidth <= 768;
+
+  // Session: remember where gallery was
+  const savedState = sessionStorage.getItem('pv-gallery-state');
+  if (savedState) {
+    try { PV.galleryUrl = JSON.parse(savedState).url || '/'; } catch(_) {}
+  }
+
+  // Always collect frame timing (overlay only shown in ?diag=1)
+  PV.ftc = new FrameTimingCollector();
+
+  // Load manifest
+  let manifest = [];
+  try {
+    const r    = await fetch('manifest.json');
+    if (!r.ok) throw new Error('manifest fetch failed');
+    const data = await r.json();
+    manifest   = (data.prototypes || []).filter(p => p.track !== 'ai-evolution');
+    PV.manifest = manifest;
+  } catch(e) {
+    showError('Could not load game library. <a href="/">Back to gallery</a>');
+    return;
+  }
+
+  // Find requested game
+  if (!gameId) {
+    showError('No game specified. <a href="/">Browse the gallery</a>');
+    return;
+  }
+  const game = manifest.find(g => g.id === gameId);
+  if (!game) {
+    showError('Game "' + esc(gameId) + '" not found. <a href="/">Browse the gallery</a>');
+    return;
+  }
+  PV.game = game;
+
+  // Set next game link (same series)
+  const next = findNextGame(gameId);
+  if (next) {
+    const nextLink = document.getElementById('hud-next');
+    nextLink.href  = 'play.html?game=' + encodeURIComponent(next.id);
+    nextLink.classList.remove('hidden');
+    nextLink.title = 'Next: ' + next.name;
+  }
+
+  // Back-link URLs
+  const backUrl = savedState ? (JSON.parse(savedState).url || '/') : '/';
+  document.getElementById('hud-back').href = backUrl;
+
+  // Populate info overlay
+  populateInfoOverlay(game);
+
+  // Bind UI
+  bindBackButtons();
+  bindKeyboard();
+  listenForGameMessages();
+
+  // Auto-start — no pre-play screen
+  startGame();
+
+  document.getElementById('hud-info-btn').addEventListener('click', toggleInfoOverlay);
+  document.getElementById('info-close').addEventListener('click', toggleInfoOverlay);
+  document.getElementById('hud-fs-btn').addEventListener('click', () => { toggleFullscreen(); showHud(); });
+
+  // Resize handler
+  window.addEventListener('resize', () => {
+    calcScale();
+    checkOrientation();
+    if (PV.isMobile) {
+      const isPortrait = window.innerHeight > window.innerWidth;
+      document.getElementById('portrait-bar').classList.toggle('show', isPortrait);
+    }
+  });
+
+  // Orientation change
+  window.addEventListener('orientationchange', () => {
+    setTimeout(() => { calcScale(); checkOrientation(); }, 200);
+  });
+
+  // Fullscreen change: recalculate scale
+  ['fullscreenchange', 'webkitfullscreenchange'].forEach(ev => {
+    document.addEventListener(ev, () => setTimeout(calcScale, 100));
+  });
+}
+
+function showError(html) {
+  document.getElementById('stage').innerHTML =
+    '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;' +
+      'height:100%;gap:16px;color:rgba(200,195,255,.7)">' +
+      '<div style="font-size:22px">⚠</div>' +
+      '<div style="font-size:14px">' + html + '</div>' +
+      '<a href="index.html" style="font-size:12px;color:rgba(160,155,220,.5)">\u2190 Back to Gallery</a>' +
+    '</div>';
+}
+
+init().catch(e => {
+  showError('An error occurred: ' + esc(String(e)));
+  console.error('[Pixel Vault Play Engine]', e);
+});
+</script>
+</body>
+</html>

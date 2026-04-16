@@ -1,0 +1,781 @@
+<!--
+PROTOTYPE: swap-match
+SERIES: puz
+NUMBER: 035
+DATE: 2026-03-24
+MECHANIC: swap-match speed — swap adjacent blocks horizontally to create matches of 3+ same color; blocks rise from below; chain combos for huge scores; the purest competitive puzzle game
+ANCESTRY: Panel de Pon (1995, Intelligent Systems / Nintendo), Tetris Attack (1995, Western localization), Pokemon Puzzle League (2000), Planet Puzzle League (2007)
+CONTROLS: Arrow keys — move cursor | Space — swap blocks | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 4 (Heuristic Goldmine — pattern recognition, chain prediction, speed optimization)
+AI-INSIGHT: Panel de Pon's chain system creates an emergent complexity curve — setting up multi-chain combos requires spatial prediction and timing that rewards both human intuition and AI lookahead. The rising floor adds constant pressure that transforms a matching puzzle into a real-time strategy game.
+NOTES: Swap-match speed puzzle distilled to its purest form.
+       Chain combos reward prediction and spatial planning under time pressure.
+       Created by Intelligent Systems (1995 SNES, known as Tetris Attack in the West).
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PUZ-035 · SWAP MATCH</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>PUZ-035 · SWAP MATCH</h1>
+    <p><span class="tag series">PUZ — Puzzle</span> <span class="tag">Prototype #035</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Swap adjacent blocks horizontally to form matches of 3 or more same-colored blocks in a row or column. Cleared blocks cause blocks above to fall, potentially creating chain combos for massive scores.</p>
+    <ul>
+      <li><kbd>&larr;</kbd> <kbd>&rarr;</kbd> <kbd>&uarr;</kbd> <kbd>&darr;</kbd> — Move cursor</li>
+      <li><kbd>Space</kbd> — Swap the two highlighted blocks</li>
+      <li><kbd>R</kbd> — Restart game</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Scoring</h3>
+    <ul>
+      <li>Match 3 = 30 pts, Match 4 = 60 pts, Match 5 = 150 pts, Match 6 = 360 pts</li>
+      <li>Chain x2 = double, x3 = triple, etc.</li>
+      <li>Speed increases as your score rises</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li>Set up blocks so that clearing one match causes blocks to fall into another match — that is a chain</li>
+      <li>The cursor can move during block falls — use this to extend chains</li>
+      <li>Watch the rising floor — don't let blocks reach the top row</li>
+      <li>Longer matches and higher chains earn dramatically more points</li>
+    </ul>
+
+    <h2>History</h2>
+    <p>Panel de Pon was developed by Intelligent Systems and published by Nintendo in 1995 for the Super Famicom. In the West, it was rebranded as Tetris Attack with Yoshi characters, despite having no connection to Tetris. The core swap-match mechanic was revolutionary — instead of controlling falling pieces, players manipulated blocks already on the playfield.</p>
+    <p>The game became a competitive staple due to its chain combo system, which rewarded both pattern recognition and speed. Skilled players could set up elaborate multi-chain reactions that cleared huge portions of the board. Sequels appeared on N64 (Pokemon Puzzle League), GBA (Panel de Pon), and DS (Planet Puzzle League).</p>
+
+    <h2>AI Archaeology</h2>
+    <h3>Classification</h3>
+    <p><strong>Primary:</strong> Swap-Match Speed Puzzle<br>
+    <strong>AI Era:</strong> 4 — Heuristic Goldmine<br>
+    <strong>Key Innovation:</strong> Real-time chain combo system that transforms matching into a competitive speed game</p>
+    <h3>AI Insight</h3>
+    <p>Panel de Pon's chain system creates emergent complexity — setting up multi-chain combos requires spatial prediction and timing that rewards both human intuition and AI lookahead. The rising floor adds constant pressure that transforms a matching puzzle into a real-time strategy game. Modern AI can find optimal chain setups, but human players compete through speed and pattern recognition intuition.</p>
+
+    <h2>Prototype Notes</h2>
+    <p>This prototype captures the core swap-match-chain loop on a 6-wide by 12-tall grid. Six distinct block colors with icon patterns. Continuous rising floor with increasing speed. Chain detection and combo scoring. The cursor moves freely during falls, enabling skilled chain extension.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction created for study and preservation purposes. Panel de Pon / Tetris Attack is the work of Intelligent Systems and Nintendo. This project has no affiliation with the original creators or rights holders.</p>
+  </div>
+</div>
+
+<script>
+// --- Info Panel ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// --- Canvas Setup ---
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+
+function resize() {
+  const s = Math.min(innerWidth / W, innerHeight / H);
+  canvas.style.width = (W * s) + 'px';
+  canvas.style.height = (H * s) + 'px';
+}
+resize();
+window.addEventListener('resize', resize);
+
+// --- HUD Text ---
+function hudText(text, x, y, size, color, align) {
+  ctx.save();
+  ctx.font = size + 'px monospace';
+  ctx.fillStyle = color || '#fff';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+// --- Constants ---
+const COLS = 6;
+const ROWS = 12;
+const CELL = 40;
+const GRID_X = (W - COLS * CELL) / 2;
+const GRID_Y = 40;
+const NUM_COLORS = 6;
+
+const COLORS = [
+  { fill: '#e04040', icon: 'heart' },    // red - heart
+  { fill: '#40b040', icon: 'diamond' },   // green - diamond
+  { fill: '#4080e0', icon: 'circle' },    // blue - circle
+  { fill: '#e0d040', icon: 'star' },      // yellow - star
+  { fill: '#c050d0', icon: 'triangle' },  // purple - triangle
+  { fill: '#40d0d0', icon: 'cross' }      // cyan - cross
+];
+
+// Match scoring
+const MATCH_SCORES = { 3: 30, 4: 60, 5: 150, 6: 360 };
+
+// --- State ---
+let grid, cursorX, cursorY, score, level, gameOver;
+let riseOffset, riseSpeed, riseTimer;
+let nextRow;
+let chainCount, chainActive;
+let clearingBlocks, fallingBlocks;
+let clearTimer, fallTimer;
+let comboDisplay, comboTimer;
+
+// Block states
+const EMPTY = 0;
+const NORMAL = 1;
+const CLEARING = 2;
+const FALLING = 3;
+
+function makeBlock(color) {
+  return { color: color, state: NORMAL, clearTime: 0, fallOffset: 0 };
+}
+
+function genColor() {
+  return Math.floor(Math.random() * NUM_COLORS) + 1;
+}
+
+function genRow() {
+  const row = [];
+  for (let c = 0; c < COLS; c++) {
+    let col;
+    // Avoid immediate horizontal matches in generated rows
+    do {
+      col = genColor();
+    } while (c >= 2 && row[c-1] === col && row[c-2] === col);
+    row.push(col);
+  }
+  return row;
+}
+
+function init() {
+  grid = [];
+  for (let r = 0; r < ROWS; r++) {
+    grid[r] = [];
+    for (let c = 0; c < COLS; c++) {
+      grid[r][c] = null;
+    }
+  }
+  // Fill bottom 6 rows with blocks, avoid vertical matches
+  for (let r = ROWS - 6; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      let col;
+      let attempts = 0;
+      do {
+        col = genColor();
+        attempts++;
+      } while (attempts < 20 && wouldMatch(r, c, col));
+      grid[r][c] = makeBlock(col);
+    }
+  }
+  nextRow = genRow();
+  cursorX = 2;
+  cursorY = ROWS - 4;
+  score = 0;
+  level = 1;
+  gameOver = false;
+  riseOffset = 0;
+  riseSpeed = 0.3; // pixels per frame
+  riseTimer = 0;
+  chainCount = 0;
+  chainActive = false;
+  clearingBlocks = [];
+  fallingBlocks = false;
+  clearTimer = 0;
+  fallTimer = 0;
+  comboDisplay = '';
+  comboTimer = 0;
+}
+
+function wouldMatch(r, c, col) {
+  // Check horizontal
+  if (c >= 2 && grid[r][c-1] && grid[r][c-1].color === col &&
+      grid[r][c-2] && grid[r][c-2].color === col) return true;
+  // Check vertical
+  if (r >= 2 && grid[r-1] && grid[r-1][c] && grid[r-1][c].color === col &&
+      grid[r-2] && grid[r-2][c] && grid[r-2][c].color === col) return true;
+  return false;
+}
+
+init();
+
+// --- Input ---
+const keys = {};
+document.addEventListener('keydown', function(e) {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+  if (infoOpen) return;
+
+  if (e.key === 'r' || e.key === 'R') { init(); e.preventDefault(); return; }
+
+  if (gameOver) return;
+
+  if (!keys[e.key]) {
+    keys[e.key] = true;
+    if (e.key === 'ArrowLeft') { cursorX = Math.max(0, cursorX - 1); }
+    if (e.key === 'ArrowRight') { cursorX = Math.min(COLS - 2, cursorX + 1); }
+    if (e.key === 'ArrowUp') { cursorY = Math.max(0, cursorY - 1); }
+    if (e.key === 'ArrowDown') { cursorY = Math.min(ROWS - 1, cursorY + 1); }
+    if (e.key === ' ') { swapBlocks(); }
+  }
+  if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' '].indexOf(e.key) >= 0) e.preventDefault();
+});
+document.addEventListener('keyup', function(e) { keys[e.key] = false; });
+
+// --- Game Logic ---
+function swapBlocks() {
+  if (clearingBlocks.length > 0) {
+    // Allow cursor movement and swaps during clears, but not on clearing blocks
+    const lc = cursorX, rc = cursorX + 1, r = cursorY;
+    const left = grid[r][lc];
+    const right = grid[r][rc];
+    if (left && left.state === CLEARING) return;
+    if (right && right.state === CLEARING) return;
+  }
+  const r = cursorY, lc = cursorX, rc = cursorX + 1;
+  const left = grid[r][lc];
+  const right = grid[r][rc];
+  // Allow swapping with empty spaces
+  grid[r][lc] = right;
+  grid[r][rc] = left;
+}
+
+function applyGravity() {
+  let fell = false;
+  for (let c = 0; c < COLS; c++) {
+    for (let r = ROWS - 2; r >= 0; r--) {
+      if (grid[r][c] && grid[r][c].state === NORMAL && r + 1 < ROWS && !grid[r + 1][c]) {
+        // Check below is empty - drop
+        grid[r + 1][c] = grid[r][c];
+        grid[r + 1][c].state = FALLING;
+        grid[r + 1][c].fallOffset = -CELL;
+        grid[r][c] = null;
+        fell = true;
+      }
+    }
+  }
+  return fell;
+}
+
+function updateFalling() {
+  let stillFalling = false;
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const b = grid[r][c];
+      if (b && b.state === FALLING) {
+        b.fallOffset += 8;
+        if (b.fallOffset >= 0) {
+          b.fallOffset = 0;
+          b.state = NORMAL;
+        } else {
+          stillFalling = true;
+        }
+      }
+    }
+  }
+  return stillFalling;
+}
+
+function findMatches() {
+  const matched = [];
+  // Horizontal matches
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c <= COLS - 3; c++) {
+      const b = grid[r][c];
+      if (!b || b.state !== NORMAL) continue;
+      let len = 1;
+      while (c + len < COLS && grid[r][c + len] && grid[r][c + len].state === NORMAL &&
+             grid[r][c + len].color === b.color) len++;
+      if (len >= 3) {
+        for (let i = 0; i < len; i++) matched.push({ r: r, c: c + i, len: len });
+        c += len - 1;
+      }
+    }
+  }
+  // Vertical matches
+  for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r <= ROWS - 3; r++) {
+      const b = grid[r][c];
+      if (!b || b.state !== NORMAL) continue;
+      let len = 1;
+      while (r + len < ROWS && grid[r + len][c] && grid[r + len][c].state === NORMAL &&
+             grid[r + len][c].color === b.color) len++;
+      if (len >= 3) {
+        for (let i = 0; i < len; i++) matched.push({ r: r + i, c: c, len: len });
+        r += len - 1;
+      }
+    }
+  }
+  return matched;
+}
+
+function clearMatches(matches) {
+  if (matches.length === 0) return false;
+
+  // Deduplicate and find unique match lengths
+  const seen = {};
+  let maxLen = 3;
+  for (const m of matches) {
+    const key = m.r + ',' + m.c;
+    if (!seen[key]) {
+      seen[key] = true;
+      if (m.len > maxLen) maxLen = m.len;
+    }
+  }
+
+  // If there was already a chain active, increment
+  if (chainActive) chainCount++;
+  else { chainCount = 1; chainActive = true; }
+
+  // Score: base from match length * chain multiplier
+  const baseScore = MATCH_SCORES[Math.min(maxLen, 6)] || MATCH_SCORES[6];
+  const chainMult = chainCount;
+  const earned = baseScore * chainMult;
+  score += earned;
+
+  if (chainCount > 1) {
+    comboDisplay = 'CHAIN x' + chainCount + '! +' + earned;
+    comboTimer = 90;
+  } else if (maxLen > 3) {
+    comboDisplay = 'MATCH ' + maxLen + '! +' + earned;
+    comboTimer = 60;
+  }
+
+  // Mark blocks for clearing
+  clearingBlocks = [];
+  for (const m of matches) {
+    const b = grid[m.r][m.c];
+    if (b && b.state !== CLEARING) {
+      b.state = CLEARING;
+      b.clearTime = 20;
+      clearingBlocks.push({ r: m.r, c: m.c });
+    }
+  }
+
+  // Level up
+  level = Math.floor(score / 500) + 1;
+  riseSpeed = 0.3 + (level - 1) * 0.08;
+
+  return true;
+}
+
+function updateClearing() {
+  if (clearingBlocks.length === 0) return false;
+  let done = true;
+  for (const pos of clearingBlocks) {
+    const b = grid[pos.r][pos.c];
+    if (b && b.state === CLEARING) {
+      b.clearTime--;
+      if (b.clearTime <= 0) {
+        grid[pos.r][pos.c] = null;
+      } else {
+        done = false;
+      }
+    }
+  }
+  if (done) clearingBlocks = [];
+  return !done;
+}
+
+function riseBlocks() {
+  riseOffset += riseSpeed;
+  if (riseOffset >= CELL) {
+    riseOffset -= CELL;
+    // Check if top row has blocks — game over
+    for (let c = 0; c < COLS; c++) {
+      if (grid[0][c]) { gameOver = true; return; }
+    }
+    // Shift everything up
+    for (let r = 0; r < ROWS - 1; r++) {
+      for (let c = 0; c < COLS; c++) {
+        grid[r][c] = grid[r + 1][c];
+      }
+    }
+    // Insert next row at bottom
+    for (let c = 0; c < COLS; c++) {
+      grid[ROWS - 1][c] = makeBlock(nextRow[c]);
+    }
+    nextRow = genRow();
+    // Adjust cursor to stay with blocks
+    if (cursorY > 0) cursorY--;
+  }
+}
+
+function checkTopRow() {
+  for (let c = 0; c < COLS; c++) {
+    if (grid[0][c] && grid[0][c].state === NORMAL) {
+      // Only game over if rising would push off screen
+      // Already handled in riseBlocks
+    }
+  }
+}
+
+// --- Update ---
+function update() {
+  if (infoOpen) return;
+  if (gameOver) return;
+
+  if (comboTimer > 0) comboTimer--;
+
+  // Phase 1: Update clearing blocks
+  if (updateClearing()) return; // still clearing
+
+  // Phase 2: Apply gravity and animate falling
+  if (clearingBlocks.length === 0) {
+    const fell = applyGravity();
+    if (fell || updateFalling()) {
+      // While things are falling, don't check matches yet
+      return;
+    }
+  }
+
+  // Phase 3: Check for matches after things settle
+  const matches = findMatches();
+  if (clearMatches(matches)) return;
+
+  // No matches found, chain ends
+  chainActive = false;
+
+  // Phase 4: Rise
+  if (clearingBlocks.length === 0) {
+    riseBlocks();
+  }
+}
+
+// --- Draw ---
+function drawBlock(x, y, block, size) {
+  if (!block) return;
+  const ci = block.color - 1;
+  const col = COLORS[ci];
+  const alpha = block.state === CLEARING ? (block.clearTime % 4 < 2 ? 0.3 : 1.0) : 1.0;
+  const fy = block.state === FALLING ? block.fallOffset : 0;
+
+  ctx.save();
+  ctx.globalAlpha = alpha;
+
+  // Block body
+  const bx = x + 2, by = y + fy + 2, bs = size - 4;
+  ctx.fillStyle = col.fill;
+  ctx.fillRect(bx, by, bs, bs);
+
+  // Highlight
+  ctx.fillStyle = 'rgba(255,255,255,0.25)';
+  ctx.fillRect(bx, by, bs, 4);
+  ctx.fillRect(bx, by, 4, bs);
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.fillRect(bx + bs - 4, by + 4, 4, bs - 4);
+  ctx.fillRect(bx + 4, by + bs - 4, bs - 4, 4);
+
+  // Icon
+  const cx = bx + bs / 2, cy = by + bs / 2;
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+  ctx.lineWidth = 2;
+  switch (col.icon) {
+    case 'heart':
+      ctx.beginPath();
+      ctx.moveTo(cx, cy + 6);
+      ctx.bezierCurveTo(cx - 10, cy - 4, cx - 10, cy - 10, cx, cy - 4);
+      ctx.bezierCurveTo(cx + 10, cy - 10, cx + 10, cy - 4, cx, cy + 6);
+      ctx.fill();
+      break;
+    case 'diamond':
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - 8); ctx.lineTo(cx + 7, cy);
+      ctx.lineTo(cx, cy + 8); ctx.lineTo(cx - 7, cy);
+      ctx.closePath(); ctx.fill();
+      break;
+    case 'circle':
+      ctx.beginPath();
+      ctx.arc(cx, cy, 7, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    case 'star':
+      ctx.beginPath();
+      for (let i = 0; i < 5; i++) {
+        const a = -Math.PI / 2 + i * Math.PI * 2 / 5;
+        const a2 = a + Math.PI / 5;
+        ctx.lineTo(cx + Math.cos(a) * 8, cy + Math.sin(a) * 8);
+        ctx.lineTo(cx + Math.cos(a2) * 4, cy + Math.sin(a2) * 4);
+      }
+      ctx.closePath(); ctx.fill();
+      break;
+    case 'triangle':
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - 8);
+      ctx.lineTo(cx + 8, cy + 6);
+      ctx.lineTo(cx - 8, cy + 6);
+      ctx.closePath(); ctx.fill();
+      break;
+    case 'cross':
+      ctx.fillRect(cx - 2, cy - 7, 4, 14);
+      ctx.fillRect(cx - 7, cy - 2, 14, 4);
+      break;
+  }
+
+  ctx.restore();
+}
+
+function draw() {
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0, 0, W, H);
+
+  // Grid background
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fillRect(GRID_X - 2, GRID_Y - 2, COLS * CELL + 4, ROWS * CELL + 4);
+
+  // Grid lines
+  ctx.strokeStyle = '#252540';
+  ctx.lineWidth = 1;
+  for (let r = 0; r <= ROWS; r++) {
+    ctx.beginPath();
+    ctx.moveTo(GRID_X, GRID_Y + r * CELL);
+    ctx.lineTo(GRID_X + COLS * CELL, GRID_Y + r * CELL);
+    ctx.stroke();
+  }
+  for (let c = 0; c <= COLS; c++) {
+    ctx.beginPath();
+    ctx.moveTo(GRID_X + c * CELL, GRID_Y);
+    ctx.lineTo(GRID_X + c * CELL, GRID_Y + ROWS * CELL);
+    ctx.stroke();
+  }
+
+  // Rise indicator — show next row peeking up from bottom
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(GRID_X, GRID_Y, COLS * CELL, ROWS * CELL);
+  ctx.clip();
+
+  // Draw blocks with rise offset
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (grid[r][c]) {
+        const x = GRID_X + c * CELL;
+        const y = GRID_Y + r * CELL - riseOffset;
+        drawBlock(x, y, grid[r][c], CELL);
+      }
+    }
+  }
+
+  // Draw next row peeking from bottom
+  for (let c = 0; c < COLS; c++) {
+    const x = GRID_X + c * CELL;
+    const y = GRID_Y + ROWS * CELL - riseOffset;
+    const nb = { color: nextRow[c], state: NORMAL, fallOffset: 0 };
+    ctx.globalAlpha = 0.5;
+    drawBlock(x, y, nb, CELL);
+    ctx.globalAlpha = 1.0;
+  }
+
+  ctx.restore();
+
+  // Cursor
+  const cx = GRID_X + cursorX * CELL - 3;
+  const cy = GRID_Y + cursorY * CELL - riseOffset - 3;
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(cx, cy, CELL * 2 + 6, CELL + 6);
+  // Cursor pulsing inner highlight
+  const pulse = Math.sin(Date.now() / 150) * 0.3 + 0.5;
+  ctx.strokeStyle = 'rgba(255,255,100,' + pulse + ')';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(cx + 2, cy + 2, CELL * 2 + 2, CELL + 2);
+  // Divider in cursor center
+  ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(GRID_X + (cursorX + 1) * CELL, GRID_Y + cursorY * CELL - riseOffset);
+  ctx.lineTo(GRID_X + (cursorX + 1) * CELL, GRID_Y + (cursorY + 1) * CELL - riseOffset);
+  ctx.stroke();
+
+  // Danger line (top)
+  ctx.strokeStyle = 'rgba(255,50,50,0.5)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([6, 4]);
+  ctx.beginPath();
+  ctx.moveTo(GRID_X, GRID_Y + CELL);
+  ctx.lineTo(GRID_X + COLS * CELL, GRID_Y + CELL);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Grid border
+  ctx.strokeStyle = '#445';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(GRID_X - 2, GRID_Y - 2, COLS * CELL + 4, ROWS * CELL + 4);
+
+  // HUD - Left side
+  const hx = GRID_X - 170;
+  hudText('SWAP MATCH', hx, 50, 16, '#7bf', 'left');
+  hudText('SCORE', hx, 100, 12, '#888', 'left');
+  hudText(String(score), hx, 118, 22, '#ff0', 'left');
+  hudText('LEVEL', hx, 170, 12, '#888', 'left');
+  hudText(String(level), hx, 188, 22, '#4f4', 'left');
+  hudText('SPEED', hx, 240, 12, '#888', 'left');
+  const speedBar = Math.min(riseSpeed / 2.0, 1.0);
+  ctx.fillStyle = '#333';
+  ctx.fillRect(hx, 260, 100, 10);
+  ctx.fillStyle = speedBar > 0.7 ? '#f44' : speedBar > 0.4 ? '#ff0' : '#4f4';
+  ctx.fillRect(hx, 260, 100 * speedBar, 10);
+
+  // HUD - Right side
+  const rx = GRID_X + COLS * CELL + 30;
+  hudText('CHAIN', rx, 100, 12, '#888', 'left');
+  if (chainCount > 1) {
+    hudText('x' + chainCount, rx, 118, 28, '#f80', 'left');
+  } else {
+    hudText('-', rx, 118, 22, '#555', 'left');
+  }
+
+  hudText('CONTROLS', rx, 200, 12, '#888', 'left');
+  hudText('[ARROWS] Move', rx, 220, 11, '#666', 'left');
+  hudText('[SPACE] Swap', rx, 236, 11, '#666', 'left');
+  hudText('[R] Restart', rx, 252, 11, '#666', 'left');
+  hudText('[?] Info', rx, 268, 11, '#666', 'left');
+
+  // Combo display
+  if (comboTimer > 0) {
+    const comboAlpha = Math.min(comboTimer / 30, 1.0);
+    ctx.save();
+    ctx.globalAlpha = comboAlpha;
+    hudText(comboDisplay, W / 2, GRID_Y + ROWS * CELL / 2 - 20, 24, '#ff0', 'center');
+    ctx.restore();
+  }
+
+  // Game Over
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, 0, W, H);
+    hudText('GAME OVER', W / 2, H / 2 - 40, 36, '#f44', 'center');
+    hudText('Score: ' + score, W / 2, H / 2 + 10, 20, '#fff', 'center');
+    hudText('Press R to restart', W / 2, H / 2 + 50, 14, '#888', 'center');
+  }
+}
+
+// --- Main Loop ---
+let lastTime = 0;
+function gameLoop(timestamp) {
+  if (!lastTime) lastTime = timestamp;
+  const dt = timestamp - lastTime;
+  lastTime = timestamp;
+
+  update();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+requestAnimationFrame(gameLoop);
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

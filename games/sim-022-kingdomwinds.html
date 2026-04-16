@@ -1,0 +1,767 @@
+<!--
+PROTOTYPE: kingdomwinds
+SERIES: sim
+NUMBER: 022
+DATE: 2026-03-24
+MECHANIC: Korean MMO origin — top-down RPG with real-time combat; Korea's first graphical online game; based on Korean manhwa Kingdom of the Winds by Kim Jin
+ANCESTRY: The Kingdom of the Winds (1996, Nexon/Jake Song), Ultima Online (1997, Origin), Lineage (1998, NCsoft/Jake Song)
+CONTROLS: Arrow keys — move | Space — attack | E — interact/talk | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 4 (Statistical Learning — NPC pathfinding, spawn logic, quest state machines)
+AI-INSIGHT: The Kingdom of the Winds pioneered the Korean MMO model that would dominate Asian gaming for decades. Jake Song's design married single-player RPG depth with persistent multiplayer worlds. The quest-kill-loot-return loop became the foundational grammar of online RPGs worldwide. This prototype distills that loop into its purest form.
+NOTES: Korea's first graphical online game (1996), created by Jake Song at Nexon.
+       Based on Kim Jin's manhwa set in the ancient Goguryeo kingdom.
+       Jake Song later created Lineage — the ancestor of ALL Korean online games.
+       Simplified single-player version capturing the village-forest-dungeon loop.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SIM-022 · KINGDOM OF THE WINDS</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: default; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+#info-panel .notice { background: #1a1a2e; border-left: 3px solid #e94560; padding: 10px 14px; margin: 14px 0; font-size: 12px; color: #aaa; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SIM-022 · KINGDOM OF THE WINDS</h1>
+    <p><span class="tag series">SIM — Simulation</span> <span class="tag">Prototype #022</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>You are a warrior of the ancient Goguryeo kingdom. Explore the village, accept quests from NPCs, venture into the wilderness, slay monsters, and grow stronger.</p>
+    <ul>
+      <li><kbd>Arrow Keys</kbd> — Move your warrior</li>
+      <li><kbd>Space</kbd> — Attack nearby monsters</li>
+      <li><kbd>E</kbd> — Talk to NPCs / interact</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Quest Loop</h3>
+    <ul>
+      <li>Talk to NPCs in the village to receive quests</li>
+      <li>Venture into the forest and dungeon to fight monsters</li>
+      <li>Defeat monsters to gain EXP and collect loot</li>
+      <li>Return to the quest NPC to claim your reward</li>
+      <li>Level up to increase your stats and take on harder areas</li>
+    </ul>
+
+    <h2>History</h2>
+    <p><strong>The Kingdom of the Winds</strong> (바람의나라, <em>Baram-ui Nara</em>, 1996) is Korea's first graphical online game, created by Jake Song at Nexon. Based on Kim Jin's manhwa of the same name, set in the ancient Goguryeo kingdom of Korean mythology.</p>
+    <p>The game established the template for Korean MMOs: top-down tile graphics, real-time combat, quest-driven progression, and persistent online worlds. Jake Song went on to create <strong>Lineage</strong> (1998) at NCsoft, which became the most commercially successful online game in Asia and the direct ancestor of virtually every Korean online RPG that followed.</p>
+    <p>Kingdom of the Winds proved that graphical multiplayer RPGs could work at scale in Asia, predating Ultima Online by a year. It remains operational today — one of the longest-running online games in history.</p>
+
+    <h2>AI Archaeology</h2>
+    <p>This prototype captures the fundamental MMO loop that Jake Song pioneered: <strong>village → quest → hunt → loot → return → level up</strong>. The quest-kill-loot-return cycle became the foundational grammar of online RPGs worldwide. The NPC dialogue trees, spawn systems, and stat progression shown here are the building blocks of a genre that would generate billions in revenue.</p>
+
+    <h2>Classification</h2>
+    <p><strong>AI-ERA 4</strong> — Statistical Learning. NPC behavior, monster spawning logic, and quest state machines represent early applications of finite state automata in game AI. The real-time combat system uses proximity detection and cooldown timers that would later evolve into sophisticated aggro and threat systems in modern MMOs.</p>
+
+    <h2>Prototype Notes</h2>
+    <p>Simplified single-player distillation. Three zones (village, forest, dungeon) connected by tile-based map transitions. Real-time combat with attack cooldowns. NPC quest system with kill-count tracking. Level-up stat increases. The Goguryeo aesthetic is represented through tile colors and character styling evocative of the manhwa's historical Korean setting.</p>
+
+    <div class="notice">
+      <strong>Educational Notice:</strong> This is an educational prototype inspired by the historical design of <em>The Kingdom of the Winds</em> (1996). It is not affiliated with Nexon or the original creators. All game mechanics are independently reimplemented for study purposes. The original manhwa <em>Kingdom of the Winds</em> is by Kim Jin.
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Info Panel ──
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// ── Canvas Setup ──
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+
+function resize() {
+  const s = Math.min(innerWidth / W, innerHeight / H);
+  canvas.style.width = (W * s) + 'px';
+  canvas.style.height = (H * s) + 'px';
+}
+resize(); addEventListener('resize', resize);
+
+function hudText(t, x, y, sz, col, align) {
+  ctx.save(); ctx.font = sz + 'px monospace'; ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top'; ctx.fillStyle = '#000';
+  ctx.fillText(t, x+1, y+1); ctx.fillStyle = col || '#fff'; ctx.fillText(t, x, y);
+  ctx.restore();
+}
+
+// ── Constants ──
+const TS = 32; // tile size
+const MW = 25, MH = 19; // map width/height in tiles (25*32=800, 19*32=608 ~ 600)
+const AREAS = ['village', 'forest', 'dungeon'];
+
+// ── Tile Types ──
+const T = { GRASS: 0, PATH: 1, WALL: 2, WATER: 3, TREE: 4, FLOOR: 5, DOOR: 6, ROCK: 7,
+            ROOF: 8, HOUSE: 9, BRIDGE: 10, DSTONE: 11, DLAVA: 12 };
+
+// ── Colors ──
+const TCOL = {
+  [T.GRASS]: '#3a6e2a', [T.PATH]: '#8b7d5a', [T.WALL]: '#5a4e3c', [T.WATER]: '#2a4a8a',
+  [T.TREE]: '#2d5a1e', [T.FLOOR]: '#6a5a4a', [T.DOOR]: '#8a6a3a', [T.ROCK]: '#5a5a5a',
+  [T.ROOF]: '#8a3030', [T.HOUSE]: '#9a8a6a', [T.BRIDGE]: '#7a6a4a', [T.DSTONE]: '#3a3a4a',
+  [T.DLAVA]: '#8a2a1a'
+};
+
+// ── Map Generation ──
+function makeMap(area) {
+  const m = [];
+  for (let y = 0; y < MH; y++) { m[y] = []; for (let x = 0; x < MW; x++) m[y][x] = T.GRASS; }
+  if (area === 'village') {
+    // Paths
+    for (let x = 0; x < MW; x++) { m[9][x] = T.PATH; m[10][x] = T.PATH; }
+    for (let y = 0; y < MH; y++) { m[y][12] = T.PATH; m[y][13] = T.PATH; }
+    // Houses
+    const houses = [[3,3,4,3],[18,3,4,3],[3,13,4,3],[18,13,4,3],[10,2,5,3]];
+    for (const [hx,hy,hw,hh] of houses) {
+      for (let dy = 0; dy < hh; dy++) for (let dx = 0; dx < hw; dx++) {
+        if (dy === 0) m[hy+dy][hx+dx] = T.ROOF;
+        else m[hy+dy][hx+dx] = T.HOUSE;
+      }
+      m[hy+hh-1][hx+Math.floor(hw/2)] = T.DOOR;
+    }
+    // Water pond
+    for (let dy = 0; dy < 3; dy++) for (let dx = 0; dx < 4; dx++) m[14+dy][6+dx] = T.WATER;
+    // Trees border
+    for (let x = 0; x < MW; x++) { m[0][x] = T.TREE; m[MH-1][x] = T.TREE; }
+    for (let y = 0; y < MH; y++) { m[y][0] = T.TREE; m[y][MW-1] = T.TREE; }
+    // Exits
+    m[0][12] = T.PATH; m[0][13] = T.PATH; // north to forest
+    m[MH-1][12] = T.PATH; m[MH-1][13] = T.PATH; // south exit
+  } else if (area === 'forest') {
+    // Scatter trees
+    for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) {
+      if (Math.random() < 0.2) m[y][x] = T.TREE;
+      else if (Math.random() < 0.05) m[y][x] = T.ROCK;
+    }
+    // Clear paths
+    for (let x = 0; x < MW; x++) { m[9][x] = T.GRASS; m[10][x] = T.GRASS; }
+    for (let y = 0; y < MH; y++) { m[y][12] = T.GRASS; m[y][13] = T.GRASS; }
+    // Border
+    for (let x = 0; x < MW; x++) { m[0][x] = T.TREE; m[MH-1][x] = T.TREE; }
+    for (let y = 0; y < MH; y++) { m[y][0] = T.TREE; m[y][MW-1] = T.TREE; }
+    // South exit to village
+    m[MH-1][12] = T.GRASS; m[MH-1][13] = T.GRASS;
+    // North exit to dungeon
+    m[0][12] = T.DSTONE; m[0][13] = T.DSTONE;
+  } else { // dungeon
+    for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) m[y][x] = T.WALL;
+    // Rooms and corridors
+    const rooms = [[2,2,6,5],[10,1,5,5],[17,2,6,5],[2,10,6,6],[10,9,5,5],[17,10,6,6]];
+    for (const [rx,ry,rw,rh] of rooms)
+      for (let dy = 0; dy < rh; dy++) for (let dx = 0; dx < rw; dx++) m[ry+dy][rx+dx] = T.DSTONE;
+    // Corridors
+    for (let x = 8; x < 10; x++) for (let y = 3; y < 5; y++) m[y][x] = T.DSTONE;
+    for (let x = 15; x < 17; x++) for (let y = 3; y < 5; y++) m[y][x] = T.DSTONE;
+    for (let y = 7; y < 10; y++) { m[y][4] = T.DSTONE; m[y][5] = T.DSTONE; }
+    for (let y = 6; y < 10; y++) { m[y][12] = T.DSTONE; m[y][13] = T.DSTONE; }
+    for (let y = 7; y < 10; y++) { m[y][19] = T.DSTONE; m[y][20] = T.DSTONE; }
+    for (let x = 6; x < 17; x++) { m[14][x] = T.DSTONE; }
+    // Lava
+    m[12][4] = T.DLAVA; m[13][19] = T.DLAVA; m[3][13] = T.DLAVA;
+    // South exit
+    m[MH-1][12] = T.DSTONE; m[MH-1][13] = T.DSTONE;
+    m[MH-2][12] = T.DSTONE; m[MH-2][13] = T.DSTONE;
+  }
+  return m;
+}
+
+// ── Walkable ──
+function walkable(m, tx, ty) {
+  if (tx < 0 || ty < 0 || tx >= MW || ty >= MH) return false;
+  const t = m[ty][tx];
+  return t !== T.WALL && t !== T.WATER && t !== T.TREE && t !== T.ROCK && t !== T.ROOF && t !== T.HOUSE && t !== T.DLAVA;
+}
+
+// ── NPCs ──
+function makeNPCs(area) {
+  if (area === 'village') return [
+    { x: 12, y: 6, name: 'Elder Haemosu', lines: [
+      'Welcome, young warrior of Goguryeo.',
+      'Slimes plague our forest. Slay 5 of them!',
+      'Return to me when the deed is done.'
+    ], quest: 'slimes', color: '#ffcc44' },
+    { x: 5, y: 10, name: 'Blacksmith Cheol', lines: [
+      'I forge the finest blades in the kingdom.',
+      'Bring me 3 iron ore from the dungeon.',
+      'I will strengthen your weapon!'
+    ], quest: 'ore', color: '#aaaadd' },
+    { x: 20, y: 10, name: 'Herbalist Yuri', lines: [
+      'The forest herbs heal all wounds.',
+      'Be careful in the dungeon, warrior.',
+      'Come back if you need healing.'
+    ], quest: null, healer: true, color: '#88dd88' }
+  ];
+  return [];
+}
+
+// ── Monster Templates ──
+const MTYPES = {
+  slime:   { hp: 8,  maxHp: 8,  atk: 2, exp: 10, color: '#4ae64a', name: 'Slime', drop: null, speed: 1200 },
+  wolf:    { hp: 15, maxHp: 15, atk: 4, exp: 20, color: '#888888', name: 'Wolf', drop: null, speed: 900 },
+  goblin:  { hp: 20, maxHp: 20, atk: 5, exp: 25, color: '#44aa44', name: 'Goblin', drop: 'ore', speed: 1000 },
+  skeleton:{ hp: 25, maxHp: 25, atk: 7, exp: 35, color: '#ccccaa', name: 'Skeleton', drop: 'ore', speed: 800 },
+  demon:   { hp: 40, maxHp: 40, atk: 10, exp: 60, color: '#cc3333', name: 'Demon', drop: 'ore', speed: 700 }
+};
+
+function spawnMonsters(area) {
+  const ms = [];
+  if (area === 'forest') {
+    const types = ['slime','slime','slime','wolf','wolf','goblin'];
+    for (let i = 0; i < 8; i++) {
+      const mt = MTYPES[types[i % types.length]];
+      let x, y;
+      do { x = 2 + Math.floor(Math.random() * (MW-4)); y = 2 + Math.floor(Math.random() * (MH-4)); }
+      while (!walkable(maps.forest, x, y));
+      ms.push({ ...mt, hp: mt.maxHp, x, y, lastMove: 0, id: Math.random() });
+    }
+  } else if (area === 'dungeon') {
+    const types = ['goblin','skeleton','skeleton','demon','skeleton','goblin'];
+    for (let i = 0; i < 7; i++) {
+      const mt = MTYPES[types[i % types.length]];
+      let x, y, tries = 0;
+      do { x = 2 + Math.floor(Math.random() * (MW-4)); y = 2 + Math.floor(Math.random() * (MH-4)); tries++; }
+      while (!walkable(maps.dungeon, x, y) && tries < 200);
+      if (tries < 200) ms.push({ ...mt, hp: mt.maxHp, x, y, lastMove: 0, id: Math.random() });
+    }
+  }
+  return ms;
+}
+
+// ── Game State ──
+const maps = { village: makeMap('village'), forest: makeMap('forest'), dungeon: makeMap('dungeon') };
+let monsters = { village: [], forest: [], dungeon: [] };
+
+const player = {
+  x: 12, y: 11, area: 'village', dir: 0, // 0=down,1=left,2=right,3=up
+  hp: 30, maxHp: 30, atk: 5, def: 2, level: 1, exp: 0, expNext: 40,
+  gold: 0, lastAtk: 0, atkCd: 400, moveTimer: 0, moveCd: 140,
+  inventory: { ore: 0 }
+};
+
+const quests = {
+  slimes: { active: false, done: false, kills: 0, need: 5, reward: { exp: 50, gold: 30 } },
+  ore:    { active: false, done: false, kills: 0, need: 3, reward: { exp: 80, gold: 50 } }
+};
+
+let dialogue = null; // { npc, lineIdx, timer }
+let floatingTexts = [];
+let gameMsg = '';
+let gameMsgTimer = 0;
+
+function initMonsters() {
+  monsters.village = [];
+  monsters.forest = spawnMonsters('forest');
+  monsters.dungeon = spawnMonsters('dungeon');
+}
+initMonsters();
+
+// ── Input ──
+const keys = {};
+addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+  keys[e.key] = true;
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' ','e','E'].includes(e.key)) e.preventDefault();
+});
+addEventListener('keyup', e => { keys[e.key] = false; });
+
+// ── Area Transitions ──
+function changeArea(newArea, px, py) {
+  player.area = newArea;
+  player.x = px; player.y = py;
+}
+
+// ── Combat ──
+function playerAttack(now) {
+  if (now - player.lastAtk < player.atkCd) return;
+  player.lastAtk = now;
+  const dirs = [[0,1],[-1,0],[1,0],[0,-1]];
+  const [dx,dy] = dirs[player.dir];
+  const tx = player.x + dx, ty = player.y + dy;
+  const ms = monsters[player.area];
+  for (let i = ms.length - 1; i >= 0; i--) {
+    const m = ms[i];
+    if (m.x === tx && m.y === ty) {
+      const dmg = Math.max(1, player.atk - Math.floor(Math.random() * 2));
+      m.hp -= dmg;
+      floatingTexts.push({ x: m.x * TS + 16, y: m.y * TS, text: '-' + dmg, color: '#ff4', life: 40 });
+      if (m.hp <= 0) {
+        // Kill
+        player.exp += m.exp;
+        floatingTexts.push({ x: m.x * TS + 16, y: m.y * TS - 14, text: '+' + m.exp + ' EXP', color: '#4f4', life: 50 });
+        if (m.drop === 'ore') { player.inventory.ore++; floatingTexts.push({ x: m.x * TS + 16, y: m.y * TS - 28, text: '+1 Iron Ore', color: '#aaf', life: 50 }); }
+        // Quest tracking
+        if (m.name === 'Slime' && quests.slimes.active && !quests.slimes.done) {
+          quests.slimes.kills++;
+          if (quests.slimes.kills >= quests.slimes.need) { quests.slimes.done = true; showMsg('Quest complete! Return to Elder Haemosu.'); }
+        }
+        ms.splice(i, 1);
+        // Respawn after delay
+        setTimeout(() => {
+          if (player.area !== 'village') {
+            const area = m.name === 'Slime' || m.name === 'Wolf' ? 'forest' : 'dungeon';
+            const mt = MTYPES[m.name.toLowerCase()] || MTYPES.slime;
+            let nx, ny, tries = 0;
+            do { nx = 2+Math.floor(Math.random()*(MW-4)); ny = 2+Math.floor(Math.random()*(MH-4)); tries++; }
+            while (!walkable(maps[area], nx, ny) && tries < 100);
+            if (tries < 100) monsters[area].push({ ...mt, hp: mt.maxHp, x: nx, y: ny, lastMove: 0, id: Math.random() });
+          }
+        }, 8000);
+        checkLevelUp();
+      }
+      return;
+    }
+  }
+  // Swing animation even if miss
+  floatingTexts.push({ x: (tx * TS + 16), y: ty * TS, text: '/', color: '#fff', life: 15 });
+}
+
+function checkLevelUp() {
+  while (player.exp >= player.expNext) {
+    player.exp -= player.expNext;
+    player.level++;
+    player.maxHp += 5;
+    player.hp = player.maxHp;
+    player.atk += 2;
+    player.def += 1;
+    player.expNext = Math.floor(player.expNext * 1.5);
+    showMsg('Level Up! You are now level ' + player.level + '!');
+    floatingTexts.push({ x: player.x * TS + 16, y: player.y * TS - 20, text: 'LEVEL UP!', color: '#ff0', life: 80 });
+  }
+}
+
+function showMsg(t) { gameMsg = t; gameMsgTimer = 180; }
+
+// ── NPC Interaction ──
+function interact() {
+  if (dialogue) { advanceDialogue(); return; }
+  const npcs = makeNPCs(player.area);
+  for (const npc of npcs) {
+    if (Math.abs(npc.x - player.x) <= 1 && Math.abs(npc.y - player.y) <= 1) {
+      if (npc.healer) {
+        player.hp = player.maxHp;
+        showMsg('Yuri heals your wounds. HP restored!');
+        return;
+      }
+      if (npc.quest) {
+        const q = quests[npc.quest];
+        if (q.done && q.active) {
+          // Turn in
+          player.exp += q.reward.exp; player.gold += q.reward.gold;
+          q.active = false;
+          showMsg('Quest reward: +' + q.reward.exp + ' EXP, +' + q.reward.gold + ' Gold!');
+          if (npc.quest === 'ore') player.inventory.ore -= quests.ore.need;
+          checkLevelUp();
+          return;
+        }
+        if (q.active && !q.done) {
+          if (npc.quest === 'ore') {
+            if (player.inventory.ore >= 3) { q.done = true; q.kills = 3; }
+            else { showMsg(npc.name + ': Bring me 3 iron ore. You have ' + player.inventory.ore + '.'); return; }
+          } else {
+            showMsg(npc.name + ': ' + q.kills + '/' + q.need + ' defeated. Keep going!');
+            return;
+          }
+        }
+        if (!q.active && !q.done) {
+          // Start dialogue
+          dialogue = { npc, lineIdx: 0 };
+          return;
+        }
+        if (!q.active && q.done) { showMsg(npc.name + ': Thank you, brave warrior!'); return; }
+      }
+      return;
+    }
+  }
+}
+
+function advanceDialogue() {
+  if (!dialogue) return;
+  dialogue.lineIdx++;
+  if (dialogue.lineIdx >= dialogue.npc.lines.length) {
+    // Accept quest
+    const q = quests[dialogue.npc.quest];
+    if (q && !q.active) { q.active = true; q.kills = 0; q.done = false; showMsg('Quest accepted!'); }
+    dialogue = null;
+  }
+}
+
+// ── Monster AI ──
+function updateMonsters(now) {
+  const ms = monsters[player.area];
+  for (const m of ms) {
+    if (now - m.lastMove < m.speed) continue;
+    m.lastMove = now;
+    const dx = player.x - m.x, dy = player.y - m.y;
+    const dist = Math.abs(dx) + Math.abs(dy);
+    // Attack player if adjacent
+    if (dist === 1) {
+      const dmg = Math.max(1, m.atk - player.def);
+      player.hp -= dmg;
+      floatingTexts.push({ x: player.x * TS + 16, y: player.y * TS, text: '-' + dmg, color: '#f44', life: 40 });
+      if (player.hp <= 0) playerDeath();
+      continue;
+    }
+    // Chase if close
+    if (dist < 8) {
+      let nx = m.x, ny = m.y;
+      if (Math.abs(dx) >= Math.abs(dy)) nx += Math.sign(dx);
+      else ny += Math.sign(dy);
+      if (walkable(maps[player.area], nx, ny) && !monsterAt(ms, nx, ny) && !(nx === player.x && ny === player.y)) {
+        m.x = nx; m.y = ny;
+      }
+    } else {
+      // Wander
+      const d = [[0,1],[0,-1],[1,0],[-1,0]][Math.floor(Math.random()*4)];
+      const nx = m.x + d[0], ny = m.y + d[1];
+      if (walkable(maps[player.area], nx, ny) && !monsterAt(ms, nx, ny)) { m.x = nx; m.y = ny; }
+    }
+  }
+}
+
+function monsterAt(ms, x, y) { return ms.some(m => m.x === x && m.y === y); }
+
+function playerDeath() {
+  player.hp = player.maxHp;
+  player.gold = Math.max(0, player.gold - 10);
+  player.area = 'village'; player.x = 12; player.y = 11;
+  showMsg('You were defeated! Revived in village. Lost 10 gold.');
+}
+
+// ── Update ──
+function update(now) {
+  if (infoOpen) return;
+  if (dialogue) return; // freeze during dialogue
+
+  // Player movement
+  if (now - player.moveTimer > player.moveCd) {
+    let dx = 0, dy = 0;
+    if (keys['ArrowLeft'])  { dx = -1; player.dir = 1; }
+    if (keys['ArrowRight']) { dx = 1;  player.dir = 2; }
+    if (keys['ArrowUp'])    { dy = -1; player.dir = 3; }
+    if (keys['ArrowDown'])  { dy = 1;  player.dir = 0; }
+    if (dx !== 0 || dy !== 0) {
+      const nx = player.x + dx, ny = player.y + dy;
+      const curMap = maps[player.area];
+      if (walkable(curMap, nx, ny) && !monsterAt(monsters[player.area], nx, ny)) {
+        player.x = nx; player.y = ny;
+        player.moveTimer = now;
+        // Area transitions
+        if (player.area === 'village' && ny === 0 && (nx === 12 || nx === 13)) changeArea('forest', nx, MH - 2);
+        else if (player.area === 'forest' && ny >= MH - 1 && (nx === 12 || nx === 13)) changeArea('village', nx, 1);
+        else if (player.area === 'forest' && ny === 0 && (nx === 12 || nx === 13)) changeArea('dungeon', nx, MH - 2);
+        else if (player.area === 'dungeon' && ny >= MH - 1 && (nx === 12 || nx === 13)) changeArea('forest', nx, 1);
+      }
+    }
+  }
+
+  // Attack
+  if (keys[' ']) playerAttack(now);
+
+  // Interact
+  if (keys['e'] || keys['E']) { interact(); keys['e'] = false; keys['E'] = false; }
+
+  // Monster AI
+  updateMonsters(now);
+
+  // Floating texts
+  for (let i = floatingTexts.length - 1; i >= 0; i--) {
+    floatingTexts[i].y -= 0.5;
+    floatingTexts[i].life--;
+    if (floatingTexts[i].life <= 0) floatingTexts.splice(i, 1);
+  }
+
+  if (gameMsgTimer > 0) gameMsgTimer--;
+}
+
+// ── Draw ──
+function drawTile(x, y, type) {
+  const px = x * TS, py = y * TS;
+  ctx.fillStyle = TCOL[type] || '#222';
+  ctx.fillRect(px, py, TS, TS);
+  // Detail
+  if (type === T.TREE) {
+    ctx.fillStyle = '#1a4010'; ctx.fillRect(px+4,py+4,24,24);
+    ctx.fillStyle = '#3a7a2a'; ctx.fillRect(px+8,py+2,16,20);
+    ctx.fillStyle = '#5a3a1a'; ctx.fillRect(px+13,py+20,6,12);
+  } else if (type === T.DOOR) {
+    ctx.fillStyle = '#6a4a1a'; ctx.fillRect(px+10,py+4,12,28);
+  } else if (type === T.WATER) {
+    ctx.fillStyle = '#3a5aaa'; ctx.fillRect(px+2,py+8,28,4);
+    ctx.fillStyle = '#4a6aba'; ctx.fillRect(px+6,py+20,20,4);
+  } else if (type === T.DLAVA) {
+    ctx.fillStyle = '#aa3a0a'; ctx.fillRect(px+2,py+2,28,28);
+    ctx.fillStyle = '#cc5a1a'; ctx.fillRect(px+8,py+8,16,16);
+  } else if (type === T.ROOF) {
+    ctx.fillStyle = '#6a2020';
+    ctx.beginPath(); ctx.moveTo(px,py+TS); ctx.lineTo(px+TS/2,py); ctx.lineTo(px+TS,py+TS); ctx.fill();
+  }
+  // Grid line
+  ctx.strokeStyle = 'rgba(0,0,0,0.15)'; ctx.strokeRect(px, py, TS, TS);
+}
+
+function drawPlayer() {
+  const px = player.x * TS, py = player.y * TS;
+  // Body - Goguryeo warrior style
+  ctx.fillStyle = '#e8d8b8'; // skin
+  ctx.fillRect(px+11, py+2, 10, 10);
+  // Hair topknot
+  ctx.fillStyle = '#222';
+  ctx.fillRect(px+13, py, 6, 5);
+  ctx.fillRect(px+15, py-3, 2, 4);
+  // Hanbok-style armor (blue/white)
+  ctx.fillStyle = '#3355aa';
+  ctx.fillRect(px+8, py+12, 16, 14);
+  // White trim
+  ctx.fillStyle = '#ddd';
+  ctx.fillRect(px+14, py+12, 4, 14);
+  // Legs
+  ctx.fillStyle = '#444';
+  ctx.fillRect(px+10, py+26, 5, 6);
+  ctx.fillRect(px+17, py+26, 5, 6);
+  // Sword direction indicator
+  ctx.fillStyle = '#ccc';
+  const dirs = [[0,1],[-1,0],[1,0],[0,-1]];
+  const [sdx, sdy] = dirs[player.dir];
+  if (Date.now() - player.lastAtk < 150) {
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(px+14+sdx*14, py+14+sdy*14, 4, 4);
+    ctx.fillRect(px+14+sdx*18, py+14+sdy*18, 3, 3);
+  }
+}
+
+function drawMonster(m) {
+  const px = m.x * TS, py = m.y * TS;
+  ctx.fillStyle = m.color;
+  if (m.name === 'Slime') {
+    ctx.beginPath(); ctx.arc(px+16, py+20, 12, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.fillRect(px+10, py+16, 4, 4); ctx.fillRect(px+18, py+16, 4, 4);
+    ctx.fillStyle = '#000'; ctx.fillRect(px+11, py+17, 2, 2); ctx.fillRect(px+19, py+17, 2, 2);
+  } else if (m.name === 'Wolf') {
+    ctx.fillRect(px+4, py+10, 24, 14);
+    ctx.fillRect(px+2, py+8, 8, 6); // head
+    ctx.fillStyle = '#ff0'; ctx.fillRect(px+3, py+10, 2, 2); // eye
+    ctx.fillStyle = '#666'; ctx.fillRect(px+8, py+24, 4, 6); ctx.fillRect(px+20, py+24, 4, 6);
+  } else if (m.name === 'Goblin') {
+    ctx.fillRect(px+8, py+4, 16, 12);
+    ctx.fillStyle = '#2a7a2a'; ctx.fillRect(px+10, py+16, 12, 12);
+    ctx.fillStyle = '#ff0'; ctx.fillRect(px+11, py+7, 3, 3); ctx.fillRect(px+18, py+7, 3, 3);
+    ctx.fillStyle = '#333'; ctx.fillRect(px+12, py+28, 4, 4); ctx.fillRect(px+18, py+28, 4, 4);
+  } else if (m.name === 'Skeleton') {
+    ctx.fillRect(px+10, py+2, 12, 10); // skull
+    ctx.fillStyle = '#111'; ctx.fillRect(px+12, py+5, 3, 3); ctx.fillRect(px+17, py+5, 3, 3); // eyes
+    ctx.fillStyle = '#bbb'; ctx.fillRect(px+12, py+12, 8, 14);
+    ctx.fillStyle = '#999'; ctx.fillRect(px+13, py+26, 3, 6); ctx.fillRect(px+18, py+26, 3, 6);
+  } else if (m.name === 'Demon') {
+    ctx.fillRect(px+6, py+4, 20, 16);
+    ctx.fillStyle = '#ff0'; ctx.fillRect(px+10, py+8, 4, 4); ctx.fillRect(px+18, py+8, 4, 4);
+    ctx.fillStyle = '#aa1111'; ctx.fillRect(px+8, py+20, 16, 10);
+    // Horns
+    ctx.fillStyle = '#880000'; ctx.fillRect(px+6, py, 4, 6); ctx.fillRect(px+22, py, 4, 6);
+  }
+  // HP bar
+  const hpPct = m.hp / m.maxHp;
+  ctx.fillStyle = '#300'; ctx.fillRect(px+2, py-4, 28, 3);
+  ctx.fillStyle = hpPct > 0.5 ? '#0a0' : hpPct > 0.25 ? '#aa0' : '#a00';
+  ctx.fillRect(px+2, py-4, Math.floor(28*hpPct), 3);
+}
+
+function drawNPCs() {
+  const npcs = makeNPCs(player.area);
+  for (const npc of npcs) {
+    const px = npc.x * TS, py = npc.y * TS;
+    // Body
+    ctx.fillStyle = '#e8d8b8'; ctx.fillRect(px+11, py+4, 10, 8);
+    ctx.fillStyle = npc.color;
+    ctx.fillRect(px+8, py+12, 16, 14);
+    ctx.fillStyle = '#ddd'; ctx.fillRect(px+14, py+12, 4, 14);
+    ctx.fillStyle = '#555'; ctx.fillRect(px+10, py+26, 5, 6); ctx.fillRect(px+17, py+26, 5, 6);
+    // Hat/hair
+    ctx.fillStyle = '#333'; ctx.fillRect(px+9, py+1, 14, 5);
+    // Name
+    ctx.font = '9px monospace'; ctx.textAlign = 'center'; ctx.fillStyle = npc.color;
+    ctx.fillText(npc.name, px+16, py-4);
+    // Quest indicator
+    if (npc.quest) {
+      const q = quests[npc.quest];
+      if (!q.active && !q.done) { ctx.fillStyle = '#ff0'; ctx.font = '14px monospace'; ctx.fillText('!', px+16, py-12); }
+      else if (q.active && q.done) { ctx.fillStyle = '#0f0'; ctx.font = '14px monospace'; ctx.fillText('?', px+16, py-12); }
+    }
+    if (npc.healer) { ctx.fillStyle = '#f44'; ctx.font = '12px monospace'; ctx.fillText('+', px+16, py-10); }
+  }
+}
+
+function draw() {
+  ctx.fillStyle = '#111'; ctx.fillRect(0, 0, W, H);
+  const curMap = maps[player.area];
+  // Tiles
+  for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) drawTile(x, y, curMap[y][x]);
+  // NPCs
+  drawNPCs();
+  // Monsters
+  for (const m of monsters[player.area]) drawMonster(m);
+  // Player
+  drawPlayer();
+  // Floating texts
+  for (const ft of floatingTexts) {
+    ctx.globalAlpha = ft.life / 50;
+    hudText(ft.text, ft.x, ft.y, 11, ft.color, 'center');
+    ctx.globalAlpha = 1;
+  }
+  // HUD
+  ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, H-40, W, 40);
+  const area = player.area.charAt(0).toUpperCase() + player.area.slice(1);
+  hudText('Lv.' + player.level + '  HP:' + player.hp + '/' + player.maxHp +
+    '  ATK:' + player.atk + '  DEF:' + player.def +
+    '  EXP:' + player.exp + '/' + player.expNext +
+    '  Gold:' + player.gold + '  Ore:' + player.inventory.ore, 8, H-34, 12, '#ddd');
+  hudText(area + ' | Arrow:Move Space:Attack E:Talk ?:Info', 8, H-18, 11, '#888');
+  // Quest log
+  let qy = 6;
+  for (const [k,q] of Object.entries(quests)) {
+    if (q.active) {
+      const col = q.done ? '#4f4' : '#ff8';
+      const status = q.done ? 'COMPLETE' : (k === 'slimes' ? q.kills + '/' + q.need + ' slimes' : player.inventory.ore + '/' + q.need + ' ore');
+      hudText('[Quest] ' + (k === 'slimes' ? 'Slay Slimes' : 'Collect Ore') + ': ' + status, W-280, qy, 11, col);
+      qy += 16;
+    }
+  }
+  // Dialogue box
+  if (dialogue) {
+    ctx.fillStyle = 'rgba(0,0,0,0.85)'; ctx.fillRect(50, H-140, W-100, 80);
+    ctx.strokeStyle = '#8a6a3a'; ctx.lineWidth = 2; ctx.strokeRect(50, H-140, W-100, 80);
+    hudText(dialogue.npc.name, 70, H-132, 13, dialogue.npc.color);
+    hudText(dialogue.npc.lines[dialogue.lineIdx], 70, H-112, 12, '#ddd');
+    hudText('Press E to continue', W-220, H-72, 10, '#888');
+  }
+  // Game message
+  if (gameMsgTimer > 0) {
+    ctx.fillStyle = 'rgba(0,0,0,0.8)'; ctx.fillRect(100, 10, W-200, 28);
+    ctx.strokeStyle = '#aa8833'; ctx.lineWidth = 1; ctx.strokeRect(100, 10, W-200, 28);
+    hudText(gameMsg, W/2, 16, 12, '#ff8', 'center');
+  }
+  // Area label
+  const areaNames = { village: '고구려 마을 — Goguryeo Village', forest: '바람의 숲 — Forest of Winds', dungeon: '어둠의 동굴 — Dark Cavern' };
+  hudText(areaNames[player.area], W/2, H-56, 10, '#aa8855', 'center');
+}
+
+// ── Loop ──
+function loop(t) {
+  update(t);
+  draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

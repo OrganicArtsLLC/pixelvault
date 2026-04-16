@@ -1,0 +1,921 @@
+<!--
+PROTOTYPE: ssireum
+SERIES: spt
+NUMBER: 020
+DATE: 2026-03-24
+MECHANIC: Korean wrestling — two wrestlers grip each other's satba waist band; push, pull, and trip; first to make opponent's body above the knee touch the sandy ground wins
+ANCESTRY: Ssireum (Korean traditional wrestling, UNESCO Intangible Cultural Heritage, depicted in 4th-century Goguryeo tomb murals at Anak and Jiangchuan), Sumo (Japanese wrestling), Bökh (Mongolian wrestling)
+CONTROLS: Left/Right — push/pull (shift balance) | Up — lift attempt | Down — trip attempt | Space — power burst | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — FSM opponent with telegraphed techniques, balance-based win condition)
+AI-INSIGHT: Ssireum reduces to a balance prediction problem. Each wrestler is a dynamic system with a center of gravity — techniques shift this balance, and the opponent must counter-predict. The AI opponent uses a simple FSM with weighted random technique selection biased by its own balance state, mirroring early game AI heuristics.
+NOTES: Ssireum (씨름) is Korea's oldest sport, depicted in Goguryeo tomb murals from the 4th century CE.
+       Inscribed as UNESCO Intangible Cultural Heritage in 2018 (joint North-South Korean nomination).
+       The satba (샅바) is the cloth band gripped around the waist and thigh. Matches are explosive — often under 15 seconds.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPT-020 · SSIREUM</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+.edu-notice { margin-top: 20px; padding: 12px; background: #1a1a2e; border: 1px solid #333; border-radius: 4px; font-size: 11px; color: #888; }
+.edu-notice strong { color: #aaa; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SPT-020 · SSIREUM (씨름)</h1>
+    <p><span class="tag series">SPT — Sports</span> <span class="tag">Prototype #020</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Korean traditional wrestling. Two wrestlers grip each other's <em>satba</em> (샅바) waist band. Force your opponent off-balance and make any part of their body above the knee touch the sand to win. Best of 3 rounds.</p>
+    <ul>
+      <li><kbd>&#8592;</kbd> / <kbd>&#8594;</kbd> — Push / Pull (shifts opponent's balance)</li>
+      <li><kbd>&#8593;</kbd> — Lift attempt (effective when opponent is off-balance)</li>
+      <li><kbd>&#8595;</kbd> — Trip attempt (effective when opponent is off-balance)</li>
+      <li><kbd>Space</kbd> — Power burst (drains stamina, big balance shift)</li>
+      <li><kbd>R</kbd> — Restart match</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <p>Strategy: use push/pull to drain your opponent's balance, then execute a trip or lift when they're vulnerable. Manage your stamina — power bursts are devastating but leave you exposed.</p>
+
+    <h2>History &amp; Lineage</h2>
+    <p><em>Ssireum</em> (씨름) is Korea's oldest traditional sport, with origins stretching back at least to the 4th century CE. The earliest known depictions appear in the tomb murals of the Goguryeo kingdom (37 BCE – 668 CE) at Anak and Jiangchuan, showing two wrestlers locked in the characteristic grip.</p>
+    <p>The sport is defined by the <em>satba</em> (샅바), a cloth band worn around the waist and right thigh. Both wrestlers must grip the opponent's satba before the match begins. Victory comes when any part of the opponent's body above the knee touches the ground — matches are explosive, often lasting under 15 seconds.</p>
+    <p>Historically performed at Dano (단오) harvest festivals, ssireum was a community celebration with the champion winning a bull as prize. Professional ssireum leagues flourished in South Korea from the 1980s-2000s. In 2018, ssireum was inscribed as UNESCO Intangible Cultural Heritage through a historic joint nomination by North and South Korea — the first such joint inscription.</p>
+
+    <h2>AI Archaeology</h2>
+    <h3>Era 3 — Knowledge Explosion</h3>
+    <p>Ssireum reduces to a balance prediction problem. Each wrestler is a dynamic system with a shifting center of gravity. The AI opponent uses a finite state machine with states for neutral grip, attacking, defending, and recovering. Technique selection is weighted by the AI's own balance state — when stable, it pushes aggressively; when off-balance, it attempts defensive counters.</p>
+    <p>The balance meter represents a simplified physics model where each technique applies a force vector. The opponent must predict incoming techniques and counter appropriately — a real-time classification problem solvable by FSM heuristics.</p>
+
+    <h3>Classification</h3>
+    <p><span class="tag">balance mechanics</span> <span class="tag">wrestling</span> <span class="tag">Korean traditional</span> <span class="tag">UNESCO heritage</span> <span class="tag">FSM opponent</span> <span class="tag">stamina management</span></p>
+
+    <h2>Prototype Notes</h2>
+    <p>This prototype captures the core push-pull-trip-lift loop of ssireum. The satba grip is abstracted into the permanent connection between wrestlers. The sandy ring (모래판, <em>moraepan</em>) is rendered as a circular arena. Sound effects use Web Audio API synthesis for grunts, sand shuffling, and crowd reactions.</p>
+
+    <div class="edu-notice">
+      <strong>Educational Notice:</strong> This prototype is a simplified simulation for educational purposes. Ssireum is a rich martial art with hundreds of named techniques across multiple categories (<em>son-gisul</em> hand techniques, <em>bal-gisul</em> leg techniques, <em>heori-gisul</em> waist techniques). This prototype abstracts these into four core actions. For authentic ssireum, see the Korea Ssireum Association and UNESCO's intangible heritage documentation.
+    </div>
+  </div>
+</div>
+
+<script>
+// === Info Panel ===
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// === Canvas Setup ===
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+
+function resize() {
+  const s = Math.min(innerWidth / W, innerHeight / H);
+  canvas.style.width = (W * s) + 'px';
+  canvas.style.height = (H * s) + 'px';
+}
+resize();
+window.addEventListener('resize', resize);
+
+// === Web Audio ===
+let audioCtx = null;
+function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+
+function playSound(type) {
+  if (!audioCtx) return;
+  const now = audioCtx.currentTime;
+  if (type === 'grunt') {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(90 + Math.random() * 40, now);
+    osc.frequency.exponentialRampToValueAtTime(60, now + 0.15);
+    gain.gain.setValueAtTime(0.3, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(now); osc.stop(now + 0.15);
+  } else if (type === 'sand') {
+    const bufSize = audioCtx.sampleRate * 0.2;
+    const buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / bufSize) * 0.15;
+    const src = audioCtx.createBufferSource();
+    src.buffer = buf;
+    src.connect(audioCtx.destination);
+    src.start(now);
+  } else if (type === 'fall') {
+    const bufSize = audioCtx.sampleRate * 0.4;
+    const buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / bufSize) * 0.35;
+    const src = audioCtx.createBufferSource();
+    src.buffer = buf;
+    src.connect(audioCtx.destination);
+    src.start(now);
+  } else if (type === 'cheer') {
+    for (let j = 0; j < 4; j++) {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(300 + Math.random() * 400, now + j * 0.08);
+      gain.gain.setValueAtTime(0.08, now + j * 0.08);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + j * 0.08 + 0.3);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(now + j * 0.08); osc.stop(now + j * 0.08 + 0.3);
+    }
+  }
+}
+
+// === HUD Text Helper ===
+function hudText(text, x, y, size, color, align) {
+  ctx.save();
+  ctx.font = size + 'px monospace';
+  ctx.fillStyle = color || '#fff';
+  ctx.textAlign = align || 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+// === Keys ===
+const keys = {};
+const justPressed = {};
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || e.key === '/') { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+  if (!keys[e.key]) justPressed[e.key] = true;
+  keys[e.key] = true;
+  initAudio();
+});
+window.addEventListener('keyup', e => { keys[e.key] = false; });
+
+// === Game Constants ===
+const RING_CX = 400, RING_CY = 420, RING_RX = 240, RING_RY = 80;
+const MAX_BALANCE = 100;
+const MAX_STAMINA = 100;
+const STAMINA_REGEN = 0.3;
+const PUSH_COST = 0;
+const POWER_COST = 30;
+const TECHNIQUE_COST = 15;
+const PUSH_FORCE = 3;
+const POWER_FORCE = 12;
+const TRIP_FORCE = 20;
+const LIFT_FORCE = 18;
+const BALANCE_REGEN = 0.4;
+const ROUND_TIME = 15; // seconds
+
+// === Wrestler ===
+function makeWrestler(x, facing) {
+  return {
+    x: x, baseX: x, facing: facing,
+    balance: MAX_BALANCE, stamina: MAX_STAMINA,
+    state: 'idle', stateTimer: 0,
+    animFrame: 0, animTimer: 0,
+    wins: 0, fallen: false, fallDir: 0,
+    bobOffset: 0, technique: ''
+  };
+}
+
+// === Game State ===
+let player, ai;
+let roundNum, roundTimer, matchState, matchTimer;
+let particles = [];
+let screenShake = 0;
+let lastTime = 0;
+
+function resetRound(preserveWins) {
+  const pw = preserveWins ? player.wins : 0;
+  const aw = preserveWins ? ai.wins : 0;
+  player = makeWrestler(340, 1);
+  ai = makeWrestler(460, -1);
+  player.wins = pw; ai.wins = aw;
+  roundTimer = ROUND_TIME;
+  matchState = 'ready';
+  matchTimer = 1.5;
+  particles = [];
+  screenShake = 0;
+}
+
+function resetMatch() {
+  roundNum = 1;
+  player = makeWrestler(340, 1);
+  ai = makeWrestler(460, -1);
+  player.wins = 0; ai.wins = 0;
+  roundTimer = ROUND_TIME;
+  matchState = 'ready';
+  matchTimer = 1.5;
+  particles = [];
+}
+
+resetMatch();
+
+// === Particle System ===
+function addSandParticles(x, y, count) {
+  for (let i = 0; i < count; i++) {
+    particles.push({
+      x: x + (Math.random() - 0.5) * 40,
+      y: y + Math.random() * 10,
+      vx: (Math.random() - 0.5) * 3,
+      vy: -Math.random() * 3 - 1,
+      life: 0.5 + Math.random() * 0.5,
+      size: 2 + Math.random() * 3
+    });
+  }
+}
+
+// === AI Logic ===
+function aiUpdate(dt) {
+  if (ai.state !== 'idle') return;
+
+  const balRatio = ai.balance / MAX_BALANCE;
+  const pBalRatio = player.balance / MAX_BALANCE;
+  const stam = ai.stamina / MAX_STAMINA;
+
+  // AI difficulty scales slightly with round
+  const aggression = 0.4 + roundNum * 0.1;
+
+  // Decision making
+  let r = Math.random();
+
+  if (pBalRatio < 0.3 && stam > 0.3) {
+    // Player vulnerable — go for technique
+    if (r < 0.5) {
+      aiDoTechnique('trip');
+    } else {
+      aiDoTechnique('lift');
+    }
+  } else if (balRatio < 0.4) {
+    // AI is off-balance — try to recover by pulling
+    if (r < 0.6) {
+      aiDoPush(-1); // pull to regain
+    }
+  } else if (r < aggression * dt * 2) {
+    // Regular aggression
+    let choice = Math.random();
+    if (choice < 0.4) {
+      aiDoPush(1);
+    } else if (choice < 0.55 && stam > 0.4) {
+      aiDoTechnique('trip');
+    } else if (choice < 0.7 && stam > 0.4) {
+      aiDoTechnique('lift');
+    } else if (choice < 0.8 && stam > 0.5) {
+      aiDoPower();
+    } else {
+      aiDoPush(1);
+    }
+  }
+}
+
+function aiDoPush(dir) {
+  ai.state = 'push';
+  ai.stateTimer = 0.2;
+  player.balance = Math.max(0, player.balance - PUSH_FORCE * dir);
+  if (dir > 0) ai.balance = Math.min(MAX_BALANCE, ai.balance + 1);
+  addSandParticles(400, 460, 3);
+  playSound('sand');
+}
+
+function aiDoTechnique(tech) {
+  if (ai.stamina < TECHNIQUE_COST) return;
+  ai.stamina -= TECHNIQUE_COST;
+  ai.state = tech;
+  ai.stateTimer = 0.4;
+  ai.technique = tech;
+  const force = tech === 'trip' ? TRIP_FORCE : LIFT_FORCE;
+  const effectiveness = 1 - (player.balance / MAX_BALANCE) * 0.5;
+  player.balance = Math.max(0, player.balance - force * effectiveness);
+  playSound('grunt');
+  addSandParticles(400, 460, 6);
+}
+
+function aiDoPower() {
+  if (ai.stamina < POWER_COST) return;
+  ai.stamina -= POWER_COST;
+  ai.state = 'power';
+  ai.stateTimer = 0.3;
+  player.balance = Math.max(0, player.balance - POWER_FORCE);
+  screenShake = 0.2;
+  playSound('grunt');
+  addSandParticles(400, 460, 8);
+}
+
+// === Update ===
+function update(dt) {
+  if (infoOpen) return;
+
+  // Restart
+  if (justPressed['r'] || justPressed['R']) { resetMatch(); }
+
+  // Particles
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx; p.y += p.vy;
+    p.vy += 6 * dt;
+    p.life -= dt;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+
+  // Screen shake decay
+  if (screenShake > 0) screenShake -= dt;
+
+  if (matchState === 'ready') {
+    matchTimer -= dt;
+    if (matchTimer <= 0) matchState = 'fight';
+    return;
+  }
+
+  if (matchState === 'roundOver') {
+    matchTimer -= dt;
+    if (matchTimer <= 0) {
+      if (player.wins >= 2 || ai.wins >= 2) {
+        matchState = 'matchOver';
+        matchTimer = 3;
+      } else {
+        roundNum++;
+        resetRound(true);
+      }
+    }
+    return;
+  }
+
+  if (matchState === 'matchOver') {
+    matchTimer -= dt;
+    if (matchTimer <= 0) matchState = 'done';
+    return;
+  }
+
+  if (matchState === 'done') return;
+  if (matchState === 'falling') {
+    matchTimer -= dt;
+    if (matchTimer <= 0) {
+      matchState = 'roundOver';
+      matchTimer = 1.5;
+    }
+    return;
+  }
+
+  if (matchState !== 'fight') return;
+
+  // Round timer
+  roundTimer -= dt;
+
+  // State timers
+  if (player.state !== 'idle') {
+    player.stateTimer -= dt;
+    if (player.stateTimer <= 0) player.state = 'idle';
+  }
+  if (ai.state !== 'idle') {
+    ai.stateTimer -= dt;
+    if (ai.stateTimer <= 0) ai.state = 'idle';
+  }
+
+  // Stamina regen
+  player.stamina = Math.min(MAX_STAMINA, player.stamina + STAMINA_REGEN * dt * 60);
+  ai.stamina = Math.min(MAX_STAMINA, ai.stamina + STAMINA_REGEN * dt * 60);
+
+  // Balance regen (slow)
+  player.balance = Math.min(MAX_BALANCE, player.balance + BALANCE_REGEN * dt * 30);
+  ai.balance = Math.min(MAX_BALANCE, ai.balance + BALANCE_REGEN * dt * 30);
+
+  // Animation bob
+  player.bobOffset = Math.sin(Date.now() * 0.005) * 2;
+  ai.bobOffset = Math.sin(Date.now() * 0.005 + 1) * 2;
+
+  // Player input
+  if (player.state === 'idle') {
+    if (keys['ArrowRight']) {
+      player.state = 'push'; player.stateTimer = 0.15;
+      ai.balance = Math.max(0, ai.balance - PUSH_FORCE);
+      player.balance = Math.min(MAX_BALANCE, player.balance + 1);
+      addSandParticles(400, 460, 3);
+      playSound('sand');
+    } else if (keys['ArrowLeft']) {
+      player.state = 'pull'; player.stateTimer = 0.15;
+      ai.balance = Math.max(0, ai.balance - PUSH_FORCE * 0.7);
+      player.balance = Math.max(0, player.balance - 1);
+      addSandParticles(400, 460, 2);
+      playSound('sand');
+    } else if (justPressed['ArrowUp']) {
+      if (player.stamina >= TECHNIQUE_COST) {
+        player.stamina -= TECHNIQUE_COST;
+        player.state = 'lift'; player.stateTimer = 0.4;
+        player.technique = 'lift';
+        const effectiveness = 1 - (ai.balance / MAX_BALANCE) * 0.5;
+        ai.balance = Math.max(0, ai.balance - LIFT_FORCE * effectiveness);
+        playSound('grunt');
+        addSandParticles(400, 460, 6);
+        screenShake = 0.1;
+      }
+    } else if (justPressed['ArrowDown']) {
+      if (player.stamina >= TECHNIQUE_COST) {
+        player.stamina -= TECHNIQUE_COST;
+        player.state = 'trip'; player.stateTimer = 0.4;
+        player.technique = 'trip';
+        const effectiveness = 1 - (ai.balance / MAX_BALANCE) * 0.5;
+        ai.balance = Math.max(0, ai.balance - TRIP_FORCE * effectiveness);
+        playSound('grunt');
+        addSandParticles(400, 460, 6);
+        screenShake = 0.1;
+      }
+    } else if (justPressed[' ']) {
+      if (player.stamina >= POWER_COST) {
+        player.stamina -= POWER_COST;
+        player.state = 'power'; player.stateTimer = 0.3;
+        ai.balance = Math.max(0, ai.balance - POWER_FORCE);
+        screenShake = 0.25;
+        playSound('grunt');
+        addSandParticles(400, 460, 8);
+      }
+    }
+  }
+
+  // AI
+  aiUpdate(dt);
+
+  // Check win condition
+  if (player.balance <= 0 || ai.balance <= 0 || roundTimer <= 0) {
+    let winner;
+    if (player.balance <= 0 && ai.balance <= 0) {
+      // Simultaneous — whoever had less balance loses
+      winner = player.balance < ai.balance ? 'ai' : 'player';
+    } else if (player.balance <= 0) {
+      winner = 'ai';
+    } else if (ai.balance <= 0) {
+      winner = 'player';
+    } else {
+      // Time's up — more balance wins
+      winner = player.balance >= ai.balance ? 'player' : 'ai';
+    }
+
+    if (winner === 'player') {
+      player.wins++;
+      ai.fallen = true;
+      ai.fallDir = 1;
+    } else {
+      ai.wins++;
+      player.fallen = true;
+      player.fallDir = -1;
+    }
+
+    matchState = 'falling';
+    matchTimer = 1.2;
+    playSound('fall');
+    playSound('cheer');
+    addSandParticles(400, 460, 20);
+    screenShake = 0.4;
+  }
+
+  // Clear justPressed
+  Object.keys(justPressed).forEach(k => delete justPressed[k]);
+}
+
+// === Drawing ===
+function drawRing() {
+  // Sand ground
+  ctx.fillStyle = '#d4a855';
+  ctx.beginPath();
+  ctx.ellipse(RING_CX, RING_CY + 30, RING_RX + 30, RING_RY + 20, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Ring border
+  ctx.strokeStyle = '#8b6914';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.ellipse(RING_CX, RING_CY + 30, RING_RX + 30, RING_RY + 20, 0, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Inner sand (lighter)
+  ctx.fillStyle = '#e8c36a';
+  ctx.beginPath();
+  ctx.ellipse(RING_CX, RING_CY + 30, RING_RX, RING_RY, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Sand texture
+  ctx.fillStyle = '#c9a04f';
+  for (let i = 0; i < 30; i++) {
+    const angle = (i / 30) * Math.PI * 2;
+    const rx = Math.random() * RING_RX * 0.8;
+    const ry = Math.random() * RING_RY * 0.8;
+    ctx.fillRect(RING_CX + Math.cos(angle) * rx, RING_CY + 30 + Math.sin(angle) * ry, 2, 1);
+  }
+}
+
+function drawCrowd() {
+  // Background stands
+  ctx.fillStyle = '#2a1810';
+  ctx.fillRect(0, 0, W, 260);
+
+  // Crowd rows
+  const colors = ['#c44', '#44c', '#4a4', '#ca4', '#c4a', '#4ca', '#a44', '#aa4'];
+  for (let row = 0; row < 4; row++) {
+    const y = 60 + row * 50;
+    for (let i = 0; i < 30; i++) {
+      const x = 10 + i * 27 + (row % 2) * 13;
+      const bobY = Math.sin(Date.now() * 0.003 + i * 0.5 + row) * 2;
+      // Head
+      ctx.fillStyle = '#e8c99b';
+      ctx.beginPath();
+      ctx.arc(x, y + bobY, 6, 0, Math.PI * 2);
+      ctx.fill();
+      // Body
+      ctx.fillStyle = colors[(i + row * 3) % colors.length];
+      ctx.fillRect(x - 5, y + 6 + bobY, 10, 12);
+    }
+  }
+
+  // Barrier / edge of ring area
+  ctx.fillStyle = '#5a3a1a';
+  ctx.fillRect(0, 255, W, 20);
+}
+
+function drawWrestler(w, color, isPlayer) {
+  const cx = w.x;
+  const groundY = 400;
+  let bodyTilt = 0;
+  let yOff = w.bobOffset;
+
+  if (w.fallen) {
+    const fallProgress = Math.min(1, (1.2 - (matchState === 'falling' ? matchTimer : 0)) / 0.6);
+    bodyTilt = w.fallDir * fallProgress * Math.PI / 3;
+    yOff += fallProgress * 40;
+  }
+
+  ctx.save();
+  ctx.translate(cx, groundY + yOff);
+  ctx.rotate(bodyTilt);
+
+  const f = w.facing;
+
+  // Legs
+  ctx.fillStyle = '#d4a855';
+  const legSpread = w.state === 'trip' ? 20 : 12;
+  ctx.fillRect(-legSpread, 20, 10, 35);
+  ctx.fillRect(legSpread - 10, 20, 10, 35);
+
+  // Satba (waist band) — red/blue sash
+  const satbaColor = isPlayer ? '#cc2233' : '#2244bb';
+  ctx.fillStyle = satbaColor;
+  ctx.fillRect(-22, 5, 44, 8);
+  // Thigh strap
+  ctx.fillRect(f * 5, 15, 8, 20);
+
+  // Body (torso) — skin color
+  ctx.fillStyle = '#dba674';
+  ctx.beginPath();
+  ctx.moveTo(-20, -30);
+  ctx.lineTo(20, -30);
+  ctx.lineTo(24, 15);
+  ctx.lineTo(-24, 15);
+  ctx.closePath();
+  ctx.fill();
+
+  // Shorts
+  ctx.fillStyle = isPlayer ? '#993322' : '#223399';
+  ctx.fillRect(-22, 5, 44, 20);
+
+  // Arms (gripping opponent)
+  ctx.strokeStyle = '#dba674';
+  ctx.lineWidth = 8;
+  ctx.lineCap = 'round';
+
+  let armAngle = 0;
+  if (w.state === 'push') armAngle = f * 0.3;
+  else if (w.state === 'pull') armAngle = -f * 0.3;
+  else if (w.state === 'lift') armAngle = -0.5;
+  else if (w.state === 'power') armAngle = f * 0.5;
+
+  // Front arm (gripping)
+  ctx.beginPath();
+  ctx.moveTo(f * 18, -15);
+  ctx.lineTo(f * 40 + armAngle * 20, -10 + (w.state === 'lift' ? -20 : 0));
+  ctx.stroke();
+
+  // Back arm (gripping satba)
+  ctx.beginPath();
+  ctx.moveTo(-f * 10, -10);
+  ctx.lineTo(f * 35 + armAngle * 15, 5 + (w.state === 'trip' ? 15 : 0));
+  ctx.stroke();
+
+  // Head
+  ctx.fillStyle = '#dba674';
+  ctx.beginPath();
+  ctx.arc(0, -42, 14, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Hair (topknot style)
+  ctx.fillStyle = '#1a1a1a';
+  ctx.beginPath();
+  ctx.arc(0, -48, 10, Math.PI, Math.PI * 2);
+  ctx.fill();
+  ctx.fillRect(-3, -58, 6, 8);
+
+  // Eyes
+  ctx.fillStyle = '#111';
+  ctx.fillRect(f * 4 - 2, -44, 3, 3);
+  ctx.fillRect(f * 4 + 5, -44, 3, 3);
+
+  // Effort expression during techniques
+  if (w.state === 'power' || w.state === 'lift' || w.state === 'trip') {
+    ctx.fillStyle = '#111';
+    ctx.beginPath();
+    ctx.arc(f * 4 + 2, -38, 3, 0, Math.PI);
+    ctx.fill();
+  }
+
+  ctx.restore();
+
+  // Technique label
+  if (w.state !== 'idle' && !w.fallen) {
+    const labels = { push: 'PUSH', pull: 'PULL', lift: 'LIFT!', trip: 'TRIP!', power: 'POWER!' };
+    const label = labels[w.state];
+    if (label) {
+      ctx.save();
+      ctx.font = 'bold 14px monospace';
+      ctx.fillStyle = w.state === 'power' ? '#ff0' : '#fff';
+      ctx.textAlign = 'center';
+      ctx.fillText(label, cx, groundY - 65 + yOff);
+      ctx.restore();
+    }
+  }
+}
+
+function drawGripLines() {
+  if (player.fallen || ai.fallen) return;
+  // Lines connecting the wrestlers (satba grip)
+  ctx.strokeStyle = 'rgba(200,180,140,0.5)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(player.x + 30, 390 + player.bobOffset);
+  ctx.lineTo(ai.x - 30, 390 + ai.bobOffset);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(player.x + 25, 405 + player.bobOffset);
+  ctx.lineTo(ai.x - 25, 405 + ai.bobOffset);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function drawBalanceMeter(w, x, y, label, color) {
+  const mw = 140, mh = 14;
+  // Background
+  ctx.fillStyle = '#222';
+  ctx.fillRect(x, y, mw, mh);
+  // Fill
+  const ratio = w.balance / MAX_BALANCE;
+  const fillColor = ratio > 0.5 ? color : ratio > 0.25 ? '#cc8800' : '#cc2200';
+  ctx.fillStyle = fillColor;
+  ctx.fillRect(x + 1, y + 1, (mw - 2) * ratio, mh - 2);
+  // Border
+  ctx.strokeStyle = '#555';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x, y, mw, mh);
+  // Label
+  hudText(label, x + mw / 2, y - 8, 11, '#aaa', 'center');
+
+  // Stamina bar (smaller, below)
+  const sh = 6;
+  ctx.fillStyle = '#222';
+  ctx.fillRect(x, y + mh + 3, mw, sh);
+  const sr = w.stamina / MAX_STAMINA;
+  ctx.fillStyle = sr > 0.3 ? '#4a4' : '#a44';
+  ctx.fillRect(x + 1, y + mh + 4, (mw - 2) * sr, sh - 2);
+  ctx.strokeStyle = '#444';
+  ctx.strokeRect(x, y + mh + 3, mw, sh);
+  hudText('STAMINA', x + mw / 2, y + mh + sh + 8, 9, '#666', 'center');
+}
+
+function drawHUD() {
+  // Balance meters
+  drawBalanceMeter(player, 50, 280, 'PLAYER BALANCE', '#3388cc');
+  drawBalanceMeter(ai, W - 190, 280, 'OPPONENT BALANCE', '#cc3333');
+
+  // Round info
+  hudText('ROUND ' + roundNum + ' / 3', W / 2, 280, 16, '#ddd', 'center');
+
+  // Timer
+  const timeStr = Math.max(0, Math.ceil(roundTimer)).toString();
+  const timerColor = roundTimer <= 3 ? '#f44' : '#ff0';
+  hudText(timeStr, W / 2, 300, 24, timerColor, 'center');
+
+  // Score
+  for (let i = 0; i < 3; i++) {
+    ctx.fillStyle = i < player.wins ? '#3388cc' : '#333';
+    ctx.beginPath();
+    ctx.arc(360 - i * 20, 322, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = i < ai.wins ? '#cc3333' : '#333';
+    ctx.beginPath();
+    ctx.arc(440 + i * 20, 322, 6, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Controls hint
+  hudText('[</>] Push/Pull  [^] Lift  [v] Trip  [SPACE] Power  [?] Info', W / 2, H - 15, 11, '#555', 'center');
+}
+
+function drawParticles() {
+  ctx.fillStyle = '#d4a855';
+  for (const p of particles) {
+    ctx.globalAlpha = p.life;
+    ctx.fillRect(p.x, p.y, p.size, p.size);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawMessages() {
+  if (matchState === 'ready') {
+    hudText('ROUND ' + roundNum, W / 2, 200, 36, '#ff0', 'center');
+    if (matchTimer < 1) hudText('FIGHT!', W / 2, 240, 28, '#f80', 'center');
+  }
+
+  if (matchState === 'falling' || matchState === 'roundOver') {
+    const winner = player.fallen ? 'OPPONENT' : 'PLAYER';
+    const color = player.fallen ? '#cc3333' : '#3388cc';
+    hudText(winner + ' WINS THE ROUND!', W / 2, 200, 22, color, 'center');
+
+    // Show technique name in Korean
+    if (!player.fallen) {
+      hudText('이겼다! (Victory!)', W / 2, 230, 16, '#ff0', 'center');
+    }
+  }
+
+  if (matchState === 'matchOver' || matchState === 'done') {
+    const winner = player.wins >= 2 ? 'PLAYER' : 'OPPONENT';
+    const color = player.wins >= 2 ? '#3388cc' : '#cc3333';
+    hudText('MATCH OVER', W / 2, 180, 32, '#ff0', 'center');
+    hudText(winner + ' WINS!', W / 2, 220, 28, color, 'center');
+    hudText(player.wins + ' - ' + ai.wins, W / 2, 255, 22, '#ddd', 'center');
+    if (player.wins >= 2) {
+      hudText('천하장사! (Grand Champion!)', W / 2, 285, 16, '#ff0', 'center');
+    }
+    hudText('Press R to play again', W / 2, 320, 14, '#888', 'center');
+  }
+}
+
+function draw() {
+  ctx.save();
+
+  // Screen shake
+  if (screenShake > 0) {
+    ctx.translate(
+      (Math.random() - 0.5) * screenShake * 20,
+      (Math.random() - 0.5) * screenShake * 20
+    );
+  }
+
+  // Sky gradient
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, 260);
+  skyGrad.addColorStop(0, '#1a3a5c');
+  skyGrad.addColorStop(1, '#2a5a3c');
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, W, 260);
+
+  drawCrowd();
+  drawRing();
+  drawParticles();
+  drawGripLines();
+
+  // Draw wrestlers
+  drawWrestler(player, '#3388cc', true);
+  drawWrestler(ai, '#cc3333', false);
+
+  drawHUD();
+  drawMessages();
+
+  // Title
+  hudText('씨름 SSIREUM', W / 2, 30, 20, '#e8c36a', 'center');
+  hudText('Korean Traditional Wrestling', W / 2, 50, 11, '#8a7a4a', 'center');
+
+  ctx.restore();
+}
+
+// === Game Loop ===
+function gameLoop(timestamp) {
+  const dt = Math.min((timestamp - lastTime) / 1000, 0.05);
+  lastTime = timestamp;
+
+  update(dt);
+  draw();
+
+  // Clear justPressed at end of frame (if not cleared in update due to early return)
+  Object.keys(justPressed).forEach(k => delete justPressed[k]);
+
+  requestAnimationFrame(gameLoop);
+}
+
+requestAnimationFrame(gameLoop);
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

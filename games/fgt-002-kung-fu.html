@@ -1,0 +1,1425 @@
+<!--
+PROTOTYPE: kung-fu
+SERIES: fgt
+NUMBER: 002
+DATE: 2026-03-22
+MECHANIC: side-scrolling beat-em-up — punch and kick through enemy waves
+ANCESTRY: Kung-Fu Master (1984, Takashi Nishiyama, Irem), Karate Champ (1984, Data East)
+CONTROLS: Arrow keys — move | Z — punch | X — kick | Space — jump | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — wave-based enemy spawning patterns)
+AI-INSIGHT: Kung-Fu Master's wave spawning system uses simple frequency and direction rules to create escalating difficulty — an early form of procedural difficulty adjustment that anticipated modern dynamic difficulty systems.
+NOTES: Walk-and-fight loop is the ancestor of all beat-em-ups.
+       Floor-clearing structure gives natural level progression.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FGT-002 · IRON FIST</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>FGT-002 · IRON FIST</h1>
+    <p><span class="tag series">FGT — Fighter</span> <span class="tag">Prototype #002</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Fight your way through five floors of a building, punching and kicking waves of enemies. Clear all enemies and defeat the boss on each floor to advance.</p>
+    <ul>
+      <li><kbd>&#8592;</kbd> <kbd>&#8594;</kbd> — Move left/right</li>
+      <li><kbd>Z</kbd> — Punch (fast, short range, 100 pts)</li>
+      <li><kbd>X</kbd> — Kick (slower, longer range, 200 pts)</li>
+      <li><kbd>Space</kbd> — Jump (combine with Z/X for jump attacks)</li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Grippers:</strong> They grab and hold you, draining health. Mash left/right to shake them off.</li>
+      <li><strong>Knife Throwers:</strong> They throw projectiles from range. Duck or jump over knives, then close in.</li>
+      <li><strong>Tom Toms:</strong> Small and fast. They rush in low — use kicks for extra range.</li>
+      <li><strong>Bosses:</strong> Each floor ends with a boss that takes multiple hits. Watch their patterns.</li>
+      <li><strong>Timer:</strong> Each floor has a countdown. Run out and you lose a life.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Kung-Fu Master (1984, Irem/Takashi Nishiyama) &rarr; Double Dragon (1987) &rarr; Final Fight (1989) &rarr; Streets of Rage (1991)</p>
+    <p>Kung-Fu Master (1984), designed by Takashi Nishiyama for Irem, is widely considered the first beat-em-up. Based on the Bruce Lee film "Game of Death," the player ascends a five-story building fighting waves of enemies on each floor. The formula — walk right, fight enemies, beat the boss — became the template for every beat-em-up that followed.</p>
+    <p>Nishiyama would later join Capcom and create Street Fighter (1987), making him arguably the single most influential figure in fighting game history. The walk-and-fight loop he established in Kung-Fu Master is the direct ancestor of both the beat-em-up and fighting game genres.</p>
+    <p>Karate Champ (1984, Data East) approached martial arts from the competitive angle, establishing one-on-one fighting. Together, these two 1984 games laid the foundation for all fighting games.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 3 — Knowledge Explosion (1978–1983, influence through 1984)</p>
+    <p><strong>Contemporary AI:</strong> Expert systems were dominant. Rule-based production systems at their peak.</p>
+    <p><strong>Hidden Intelligence:</strong> Kung-Fu Master's wave spawning system is a simple but effective form of procedural difficulty. Enemies spawn from both screen edges with increasing frequency and variety as floors progress. The spawn timing follows simple rules — frequency increases, pauses between waves decrease, enemy mix shifts toward harder types. This is an early form of dynamic difficulty adjustment, predating the concept by decades.</p>
+    <p><strong>The Convergence:</strong> The floor-by-floor structure creates a natural curriculum — each floor introduces new enemy types and combinations, effectively training the player. Modern AI training uses curriculum learning (easy tasks first, then harder ones) to achieve better results. Nishiyama intuited this in 1984.</p>
+    <p><strong>If AI Had Designed This:</strong> Adaptive spawn rates calibrated to player skill. If the player is taking damage, spawn fewer enemies. If the player is dominating, increase spawn rate and mix in harder types. Modern dynamic difficulty systems do exactly this.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: FGT — Fighter / Combat</h3>
+    <p>The FGT series covers games where combat is the primary mechanic. Kung-Fu Master establishes the walk-and-fight beat-em-up template that would define the genre for decades.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Side-scrolling beat-em-up with wave-based enemy spawning.</strong> Punch and kick through corridors of enemies. Floor-clearing structure with boss fights. Health bar combat (not instant death). Timer pressure.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Walk-and-fight loop — does the core punch/kick gameplay feel satisfying?</li>
+      <li>Wave spawning — do escalating enemy waves create tension?</li>
+      <li>Floor progression — does advancing floors feel like meaningful progress?</li>
+      <li>Boss encounters — do multi-hit bosses provide a satisfying climax to each floor?</li>
+      <li>Enemy variety — do Grippers, Knife Throwers, and Tom Toms require different strategies?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Five floors with escalating difficulty. Three enemy types plus floor bosses. Health bar system with three lives. Scrolling corridor background. Timer per floor. The proto-beat-em-up that started it all.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+const keys = {};
+window.addEventListener('keydown', e => {
+  if (!infoOpen) keys[e.code] = true;
+  if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+// --- CONSTANTS ---
+const GROUND_Y = 480;
+const GRAVITY = 0.6;
+const PLAYER_SPEED = 3;
+const JUMP_POWER = -11;
+const FLOOR_WIDTH = 3200;
+const SCROLL_LEFT = 200;
+const SCROLL_RIGHT = 500;
+const PUNCH_RANGE = 40;
+const KICK_RANGE = 60;
+const PUNCH_DURATION = 12;
+const KICK_DURATION = 18;
+const PUNCH_DAMAGE = 1;
+const KICK_DAMAGE = 1;
+const MAX_HEALTH = 100;
+const FLOOR_TIME = 90; // seconds per floor
+const TOTAL_FLOORS = 5;
+
+// --- COLORS ---
+const FLOOR_COLORS = [
+  { wall: '#553322', trim: '#886644', floor: '#443322', bg: '#221100' },
+  { wall: '#334455', trim: '#556688', floor: '#223344', bg: '#001122' },
+  { wall: '#443355', trim: '#665588', floor: '#332244', bg: '#110022' },
+  { wall: '#554433', trim: '#887744', floor: '#443311', bg: '#221100' },
+  { wall: '#552222', trim: '#884444', floor: '#441111', bg: '#220000' },
+];
+
+// --- GAME STATE ---
+let player, enemies, projectiles, particles, camera;
+let score, lives, floor, floorTimer, state, frame;
+let bossActive, bossDefeated, enemiesKilled, enemiesNeeded;
+let spawnTimer, spawnInterval, totalSpawned;
+let shakeTimer, shakeX, shakeY;
+
+function initPlayer() {
+  return {
+    x: 100, y: GROUND_Y, vx: 0, vy: 0,
+    w: 24, h: 48, facing: 1,
+    health: MAX_HEALTH,
+    attacking: 0, attackType: '', // 'punch','kick','jumppunch','jumpkick'
+    jumping: false, onGround: true,
+    gripped: false, gripTimer: 0, gripEnemy: null,
+    invincible: 0,
+    walkFrame: 0,
+  };
+}
+
+function initGame() {
+  score = 0;
+  lives = 3;
+  floor = 1;
+  state = 'title';
+  frame = 0;
+  startFloor();
+}
+
+function startFloor() {
+  player = initPlayer();
+  enemies = [];
+  projectiles = [];
+  particles = [];
+  camera = { x: 0 };
+  floorTimer = FLOOR_TIME * 60; // in frames
+  bossActive = false;
+  bossDefeated = false;
+  enemiesKilled = 0;
+  totalSpawned = 0;
+  spawnTimer = 60;
+  spawnInterval = Math.max(40, 120 - floor * 15);
+  enemiesNeeded = 8 + floor * 4;
+  shakeTimer = 0; shakeX = 0; shakeY = 0;
+  if (state !== 'title') state = 'play';
+}
+
+// --- ENEMY FACTORY ---
+function createGripper(x, dir) {
+  return {
+    type: 'gripper', x: x, y: GROUND_Y, vx: dir * (1.2 + floor * 0.15),
+    w: 20, h: 44, health: 1, maxHealth: 1,
+    facing: -dir, alive: true, hitTimer: 0,
+    grabbing: false, grabTimer: 0,
+    color: '#b44', colorLight: '#d66',
+    points: 100, walkFrame: 0,
+  };
+}
+
+function createKnifeThrower(x, dir) {
+  return {
+    type: 'knife', x: x, y: GROUND_Y, vx: dir * (0.8 + floor * 0.1),
+    w: 20, h: 44, health: 1, maxHealth: 1,
+    facing: -dir, alive: true, hitTimer: 0,
+    throwTimer: 60 + Math.floor(Math.random() * 60),
+    color: '#48b', colorLight: '#6ad',
+    points: 150, walkFrame: 0,
+  };
+}
+
+function createTomTom(x, dir) {
+  return {
+    type: 'tomtom', x: x, y: GROUND_Y + 12,
+    vx: dir * (2.5 + floor * 0.2),
+    w: 16, h: 32, health: 1, maxHealth: 1,
+    facing: -dir, alive: true, hitTimer: 0,
+    jumpTimer: 40 + Math.floor(Math.random() * 40),
+    vy: 0, onGround: true,
+    color: '#b84', colorLight: '#da6',
+    points: 200, walkFrame: 0,
+  };
+}
+
+function createBoss(x) {
+  const bossHP = 5 + floor * 3;
+  return {
+    type: 'boss', x: x, y: GROUND_Y, vx: 0,
+    w: 32, h: 52, health: bossHP, maxHealth: bossHP,
+    facing: -1, alive: true, hitTimer: 0,
+    attackTimer: 60, attackState: 'idle', // idle, approach, attack, retreat
+    stateTimer: 0,
+    color: '#d22', colorLight: '#f44',
+    points: 1000 + floor * 500, walkFrame: 0,
+  };
+}
+
+// --- SPAWNING ---
+function spawnEnemy() {
+  if (bossActive || totalSpawned >= enemiesNeeded) return;
+
+  const fromLeft = Math.random() < 0.5;
+  const x = fromLeft ? camera.x - 30 : camera.x + W + 30;
+  const dir = fromLeft ? 1 : -1;
+
+  const roll = Math.random();
+  let enemy;
+  if (floor <= 2) {
+    // Floors 1-2: mostly grippers, some knife throwers
+    if (roll < 0.6) enemy = createGripper(x, dir);
+    else if (roll < 0.85) enemy = createKnifeThrower(x, dir);
+    else enemy = createTomTom(x, dir);
+  } else {
+    // Floors 3+: more variety
+    if (roll < 0.35) enemy = createGripper(x, dir);
+    else if (roll < 0.65) enemy = createKnifeThrower(x, dir);
+    else enemy = createTomTom(x, dir);
+  }
+
+  enemies.push(enemy);
+  totalSpawned++;
+}
+
+function spawnBoss() {
+  if (bossActive) return;
+  bossActive = true;
+  const bx = FLOOR_WIDTH - 200;
+  enemies.push(createBoss(bx));
+}
+
+// --- PARTICLES ---
+function emitParticles(x, y, color, count, spread) {
+  for (let i = 0; i < count; i++) {
+    particles.push({
+      x: x, y: y,
+      vx: (Math.random() - 0.5) * (spread || 4),
+      vy: -Math.random() * 3 - 1,
+      life: 15 + Math.random() * 15,
+      maxLife: 30,
+      color: color,
+      size: 2 + Math.random() * 3,
+    });
+  }
+}
+
+function emitHitSpark(x, y) {
+  emitParticles(x, y, '#ff0', 6, 6);
+  emitParticles(x, y, '#fff', 3, 4);
+}
+
+function screenShake(duration) {
+  shakeTimer = duration;
+}
+
+// --- ATTACK HITBOX ---
+function getAttackBox() {
+  if (player.attacking <= 0) return null;
+  const range = player.attackType.includes('kick') ? KICK_RANGE : PUNCH_RANGE;
+  const height = player.jumping ? 30 : 20;
+  const yOff = player.jumping ? -10 : 10;
+  return {
+    x: player.x + (player.facing > 0 ? 12 : -12 - range),
+    y: player.y - player.h / 2 + yOff,
+    w: range,
+    h: height,
+  };
+}
+
+// --- COLLISION ---
+function boxOverlap(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x &&
+         a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+function entityBox(e) {
+  return { x: e.x - e.w / 2, y: e.y - e.h, w: e.w, h: e.h };
+}
+
+// --- UPDATE ---
+function update() {
+  if (infoOpen) return;
+  frame++;
+
+  if (state === 'title') {
+    if (keys['Space'] || keys['KeyZ'] || keys['KeyX']) {
+      state = 'play';
+    }
+    return;
+  }
+
+  if (state === 'gameover') {
+    if (keys['KeyR']) initGame();
+    return;
+  }
+
+  if (state === 'floorClear') {
+    if (frame % 2 === 0) emitParticles(player.x + (Math.random()-0.5)*100, player.y - 60, '#ff0', 1, 8);
+    if (keys['Space'] || keys['KeyZ']) {
+      floor++;
+      if (floor > TOTAL_FLOORS) {
+        state = 'victory';
+      } else {
+        startFloor();
+        state = 'play';
+      }
+    }
+    return;
+  }
+
+  if (state === 'victory') {
+    if (keys['KeyR']) initGame();
+    return;
+  }
+
+  if (state !== 'play') return;
+
+  // --- TIMER ---
+  floorTimer--;
+  if (floorTimer <= 0) {
+    lives--;
+    if (lives <= 0) { state = 'gameover'; return; }
+    startFloor();
+    state = 'play';
+    return;
+  }
+
+  // --- SCREEN SHAKE ---
+  if (shakeTimer > 0) {
+    shakeTimer--;
+    shakeX = (Math.random() - 0.5) * 6;
+    shakeY = (Math.random() - 0.5) * 4;
+  } else { shakeX = 0; shakeY = 0; }
+
+  // --- PLAYER GRIP ---
+  if (player.gripped) {
+    player.gripTimer--;
+    // Mash to escape
+    if (keys['ArrowLeft'] || keys['ArrowRight']) {
+      player.gripTimer -= 2;
+    }
+    // Drain health
+    if (frame % 10 === 0) player.health -= 2;
+    if (player.gripTimer <= 0) {
+      player.gripped = false;
+      if (player.gripEnemy && player.gripEnemy.alive) {
+        player.gripEnemy.grabbing = false;
+      }
+      player.gripEnemy = null;
+      player.invincible = 30;
+    }
+    // Still update camera and draw but skip other input
+    updateCamera();
+    updateParticles();
+    checkPlayerDeath();
+    return;
+  }
+
+  // --- PLAYER INPUT ---
+  player.invincible = Math.max(0, player.invincible - 1);
+
+  // Movement
+  let moveX = 0;
+  if (keys['ArrowLeft']) { moveX = -PLAYER_SPEED; player.facing = -1; }
+  if (keys['ArrowRight']) { moveX = PLAYER_SPEED; player.facing = 1; }
+
+  // Can move while attacking (slower)
+  if (player.attacking > 0) moveX *= 0.4;
+
+  player.x += moveX;
+  if (moveX !== 0 && player.onGround && player.attacking <= 0) {
+    player.walkFrame += 0.15;
+  }
+
+  // Clamp to floor bounds
+  player.x = Math.max(20, Math.min(FLOOR_WIDTH - 20, player.x));
+
+  // Jump
+  if (keys['Space'] && player.onGround && player.attacking <= 0) {
+    player.vy = JUMP_POWER;
+    player.onGround = false;
+    player.jumping = true;
+  }
+
+  // Attack
+  if (player.attacking <= 0) {
+    if (keys['KeyZ']) {
+      player.attacking = PUNCH_DURATION;
+      player.attackType = player.jumping ? 'jumppunch' : 'punch';
+    } else if (keys['KeyX']) {
+      player.attacking = KICK_DURATION;
+      player.attackType = player.jumping ? 'jumpkick' : 'kick';
+    }
+  }
+
+  // Gravity
+  if (!player.onGround) {
+    player.vy += GRAVITY;
+    player.y += player.vy;
+    if (player.y >= GROUND_Y) {
+      player.y = GROUND_Y;
+      player.vy = 0;
+      player.onGround = true;
+      player.jumping = false;
+    }
+  }
+
+  // Attack timer
+  if (player.attacking > 0) {
+    player.attacking--;
+    // Check hit on first active frame
+    if ((player.attackType === 'punch' && player.attacking === PUNCH_DURATION - 3) ||
+        (player.attackType === 'kick' && player.attacking === KICK_DURATION - 4) ||
+        (player.attackType === 'jumppunch' && player.attacking === PUNCH_DURATION - 3) ||
+        (player.attackType === 'jumpkick' && player.attacking === KICK_DURATION - 4)) {
+      const atkBox = getAttackBox();
+      if (atkBox) {
+        for (const e of enemies) {
+          if (!e.alive || e.hitTimer > 0) continue;
+          const eBox = entityBox(e);
+          if (boxOverlap(atkBox, eBox)) {
+            const dmg = player.attackType.includes('kick') ? KICK_DAMAGE : PUNCH_DAMAGE;
+            e.health -= dmg;
+            e.hitTimer = 15;
+            e.vx = player.facing * 4;
+            if (e.grabbing) { e.grabbing = false; player.gripped = false; player.gripEnemy = null; }
+            const hitX = player.x + player.facing * 30;
+            const hitY = e.y - e.h / 2;
+            emitHitSpark(hitX, hitY);
+            screenShake(5);
+            if (e.health <= 0) {
+              e.alive = false;
+              score += e.points;
+              enemiesKilled++;
+              emitParticles(e.x, e.y - e.h / 2, e.color, 10, 6);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // --- ENEMY UPDATE ---
+  for (const e of enemies) {
+    if (!e.alive) continue;
+    e.hitTimer = Math.max(0, e.hitTimer - 1);
+    if (e.hitTimer > 0) {
+      // Knockback
+      e.x += e.vx * 0.5;
+      e.vx *= 0.85;
+      continue;
+    }
+
+    const dx = player.x - e.x;
+    e.facing = dx > 0 ? 1 : -1;
+
+    if (e.type === 'gripper') {
+      // Walk toward player
+      e.x += e.facing * Math.abs(e.vx);
+      e.walkFrame += 0.12;
+      // Grab player on contact
+      if (!player.gripped && player.invincible <= 0 && !player.jumping) {
+        const dist = Math.abs(dx);
+        if (dist < 22 && Math.abs(player.y - e.y) < 20) {
+          player.gripped = true;
+          player.gripTimer = 60;
+          player.gripEnemy = e;
+          e.grabbing = true;
+        }
+      }
+      // Damage on contact if not grabbing
+      if (!e.grabbing && !player.gripped && player.invincible <= 0) {
+        const dist = Math.abs(dx);
+        if (dist < 18 && Math.abs(player.y - e.y) < 30) {
+          damagePlayer(5);
+        }
+      }
+    } else if (e.type === 'knife') {
+      // Walk toward player but stop at throwing distance
+      const dist = Math.abs(dx);
+      if (dist > 180) {
+        e.x += e.facing * Math.abs(e.vx);
+        e.walkFrame += 0.1;
+      } else if (dist < 100) {
+        // Back away
+        e.x -= e.facing * Math.abs(e.vx) * 0.5;
+        e.walkFrame += 0.08;
+      }
+      // Throw knife
+      e.throwTimer--;
+      if (e.throwTimer <= 0) {
+        e.throwTimer = 80 + Math.floor(Math.random() * 50) - floor * 5;
+        projectiles.push({
+          x: e.x + e.facing * 12, y: e.y - 22,
+          vx: e.facing * (4 + floor * 0.3), vy: 0,
+          w: 10, h: 4, fromEnemy: true,
+        });
+      }
+      // Contact damage
+      if (player.invincible <= 0 && !player.jumping) {
+        if (Math.abs(dx) < 18 && Math.abs(player.y - e.y) < 30) {
+          damagePlayer(5);
+        }
+      }
+    } else if (e.type === 'tomtom') {
+      // Run toward player, jump sometimes
+      e.x += e.facing * Math.abs(e.vx);
+      e.walkFrame += 0.18;
+      if (e.onGround) {
+        e.jumpTimer--;
+        if (e.jumpTimer <= 0 && Math.abs(dx) < 150) {
+          e.vy = -8;
+          e.onGround = false;
+          e.jumpTimer = 50 + Math.floor(Math.random() * 30);
+        }
+      }
+      if (!e.onGround) {
+        e.vy += GRAVITY;
+        e.y += e.vy;
+        if (e.y >= GROUND_Y + 12) {
+          e.y = GROUND_Y + 12;
+          e.vy = 0;
+          e.onGround = true;
+        }
+      }
+      // Contact damage
+      if (player.invincible <= 0) {
+        if (Math.abs(dx) < 16 && Math.abs(player.y - e.y) < 28) {
+          damagePlayer(8);
+        }
+      }
+    } else if (e.type === 'boss') {
+      // Boss AI: approach, attack, retreat cycle
+      e.stateTimer--;
+      const dist = Math.abs(dx);
+
+      if (e.attackState === 'idle') {
+        if (e.stateTimer <= 0) {
+          e.attackState = 'approach';
+          e.stateTimer = 120;
+        }
+      } else if (e.attackState === 'approach') {
+        e.x += e.facing * 2;
+        e.walkFrame += 0.1;
+        if (dist < 50 || e.stateTimer <= 0) {
+          e.attackState = 'attack';
+          e.stateTimer = 30;
+        }
+      } else if (e.attackState === 'attack') {
+        // Lunge forward
+        if (e.stateTimer > 20) {
+          e.x += e.facing * 4;
+        }
+        // Damage player if close
+        if (player.invincible <= 0 && dist < 40 && Math.abs(player.y - e.y) < 40) {
+          damagePlayer(12);
+          screenShake(8);
+        }
+        if (e.stateTimer <= 0) {
+          e.attackState = 'retreat';
+          e.stateTimer = 60;
+        }
+      } else if (e.attackState === 'retreat') {
+        e.x -= e.facing * 1.5;
+        e.walkFrame += 0.08;
+        if (e.stateTimer <= 0) {
+          e.attackState = 'idle';
+          e.stateTimer = 30 - floor * 3;
+        }
+      }
+    }
+
+    // Remove enemies that go way off screen
+    if (e.type !== 'boss' && (e.x < camera.x - 200 || e.x > camera.x + W + 200)) {
+      e.alive = false;
+    }
+  }
+
+  // Clean dead enemies
+  enemies = enemies.filter(e => e.alive || e.hitTimer > 0);
+
+  // --- PROJECTILES ---
+  for (let i = projectiles.length - 1; i >= 0; i--) {
+    const p = projectiles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+
+    // Off screen
+    if (p.x < camera.x - 50 || p.x > camera.x + W + 50) {
+      projectiles.splice(i, 1);
+      continue;
+    }
+
+    // Hit player
+    if (p.fromEnemy && player.invincible <= 0) {
+      const pBox = { x: p.x - p.w/2, y: p.y - p.h/2, w: p.w, h: p.h };
+      const plBox = entityBox(player);
+      if (boxOverlap(pBox, plBox)) {
+        damagePlayer(10);
+        emitHitSpark(p.x, p.y);
+        projectiles.splice(i, 1);
+        continue;
+      }
+    }
+
+    // Player attack destroys projectile
+    if (p.fromEnemy && player.attacking > 0) {
+      const atkBox = getAttackBox();
+      if (atkBox) {
+        const pBox = { x: p.x - p.w/2, y: p.y - p.h/2, w: p.w, h: p.h };
+        if (boxOverlap(atkBox, pBox)) {
+          score += 50;
+          emitHitSpark(p.x, p.y);
+          projectiles.splice(i, 1);
+        }
+      }
+    }
+  }
+
+  // --- SPAWNING ---
+  spawnTimer--;
+  if (spawnTimer <= 0 && totalSpawned < enemiesNeeded && !bossActive) {
+    spawnEnemy();
+    spawnTimer = spawnInterval + Math.floor(Math.random() * 30);
+    // Decrease interval as floor progresses
+    spawnInterval = Math.max(30, spawnInterval - 1);
+  }
+
+  // Boss trigger: player near end of floor and enough enemies killed
+  if (!bossActive && !bossDefeated && player.x > FLOOR_WIDTH - 400 && enemiesKilled >= Math.min(totalSpawned, 6)) {
+    spawnBoss();
+  }
+
+  // Floor clear check
+  if (bossActive && !bossDefeated) {
+    const bossAlive = enemies.some(e => e.type === 'boss' && e.alive);
+    if (!bossAlive) {
+      bossDefeated = true;
+      score += 2000;
+      state = 'floorClear';
+      emitParticles(player.x, player.y - 30, '#ff0', 20, 8);
+      emitParticles(player.x, player.y - 30, '#f80', 15, 6);
+    }
+  }
+
+  // --- CAMERA ---
+  updateCamera();
+
+  // --- PARTICLES ---
+  updateParticles();
+
+  // --- PLAYER DEATH CHECK ---
+  checkPlayerDeath();
+}
+
+function damagePlayer(amount) {
+  if (player.invincible > 0) return;
+  player.health -= amount;
+  player.invincible = 20;
+  emitParticles(player.x, player.y - 24, '#f44', 4, 3);
+  screenShake(3);
+}
+
+function checkPlayerDeath() {
+  if (player.health <= 0) {
+    lives--;
+    emitParticles(player.x, player.y - 24, '#f00', 15, 8);
+    if (lives <= 0) {
+      state = 'gameover';
+    } else {
+      // Reset player on same floor
+      player.health = MAX_HEALTH;
+      player.x = Math.max(100, camera.x + 100);
+      player.y = GROUND_Y;
+      player.vy = 0;
+      player.onGround = true;
+      player.jumping = false;
+      player.gripped = false;
+      player.gripEnemy = null;
+      player.attacking = 0;
+      player.invincible = 90;
+    }
+  }
+}
+
+function updateCamera() {
+  // Smooth camera follow
+  const targetX = player.x - W * 0.35;
+  camera.x += (targetX - camera.x) * 0.08;
+  camera.x = Math.max(0, Math.min(FLOOR_WIDTH - W, camera.x));
+}
+
+function updateParticles() {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.15;
+    p.life--;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+}
+
+// --- DRAW ---
+function drawBackground() {
+  const c = FLOOR_COLORS[(floor - 1) % FLOOR_COLORS.length];
+  const cx = camera.x;
+
+  // Sky/background
+  ctx.fillStyle = c.bg;
+  ctx.fillRect(0, 0, W, H);
+
+  // Far wall panels (parallax)
+  ctx.fillStyle = c.wall;
+  const panelW = 160;
+  const parallax = cx * 0.3;
+  const startPanel = Math.floor(parallax / panelW);
+  for (let i = startPanel - 1; i < startPanel + 8; i++) {
+    const px = i * panelW - parallax;
+    ctx.fillRect(px, 60, panelW - 4, 400);
+    // Trim
+    ctx.fillStyle = c.trim;
+    ctx.fillRect(px, 60, panelW - 4, 6);
+    ctx.fillRect(px, 240, panelW - 4, 4);
+    ctx.fillRect(px, 454, panelW - 4, 6);
+    ctx.fillStyle = c.wall;
+  }
+
+  // Decorative windows (parallax)
+  ctx.fillStyle = '#111';
+  const winParallax = cx * 0.4;
+  const winSpacing = 200;
+  const startWin = Math.floor(winParallax / winSpacing);
+  for (let i = startWin - 1; i < startWin + 7; i++) {
+    const wx = i * winSpacing + 40 - winParallax;
+    ctx.fillRect(wx, 100, 40, 60);
+    ctx.fillRect(wx, 280, 40, 60);
+    // Window frame
+    ctx.strokeStyle = c.trim;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(wx, 100, 40, 60);
+    ctx.strokeRect(wx, 280, 40, 60);
+    // Cross bars
+    ctx.beginPath();
+    ctx.moveTo(wx + 20, 100); ctx.lineTo(wx + 20, 160);
+    ctx.moveTo(wx, 130); ctx.lineTo(wx + 40, 130);
+    ctx.stroke();
+  }
+
+  // Floor surface
+  ctx.fillStyle = c.floor;
+  ctx.fillRect(0, GROUND_Y - Math.round(cx % 1), W, H - GROUND_Y + 10);
+  // Floor line
+  ctx.fillStyle = c.trim;
+  ctx.fillRect(0, GROUND_Y - 2, W, 3);
+
+  // Floor tiles
+  ctx.fillStyle = 'rgba(255,255,255,0.04)';
+  const tileW = 48;
+  const tileOff = cx % tileW;
+  for (let i = -1; i < W / tileW + 2; i++) {
+    if (i % 2 === 0) {
+      ctx.fillRect(i * tileW - tileOff, GROUND_Y + 1, tileW, H - GROUND_Y);
+    }
+  }
+
+  // Ceiling
+  ctx.fillStyle = c.trim;
+  ctx.fillRect(0, 56, W, 4);
+
+  // Floor number indicator on walls
+  ctx.fillStyle = c.trim;
+  ctx.font = 'bold 16px monospace';
+  ctx.textAlign = 'center';
+  const floorLabelParallax = cx * 0.3;
+  const labelSpacing = 400;
+  const startLabel = Math.floor(floorLabelParallax / labelSpacing);
+  for (let i = startLabel; i < startLabel + 5; i++) {
+    const lx = i * labelSpacing + 80 - floorLabelParallax;
+    if (lx > -50 && lx < W + 50) {
+      ctx.fillText('FLOOR ' + floor, lx, 52);
+    }
+  }
+}
+
+function drawPlayer() {
+  const px = player.x - camera.x;
+  const py = player.y;
+  const f = player.facing;
+  const flash = player.invincible > 0 && Math.floor(player.invincible / 3) % 2;
+
+  if (flash) {
+    ctx.globalAlpha = 0.4;
+  }
+
+  // Grip visual
+  if (player.gripped) {
+    ctx.fillStyle = '#f44';
+    ctx.font = '12px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('MASH L/R!', px, py - 58);
+  }
+
+  // Body
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(px - 8, py - 40, 16, 24);
+
+  // Head
+  ctx.fillStyle = '#fda';
+  ctx.fillRect(px - 6, py - 48, 12, 10);
+
+  // Hair/headband
+  ctx.fillStyle = '#e22';
+  ctx.fillRect(px - 7, py - 48, 14, 4);
+
+  // Legs
+  const legOff = player.onGround ? Math.sin(player.walkFrame * 3) * 4 : 3;
+  ctx.fillStyle = '#44f';
+  ctx.fillRect(px - 6, py - 16, 5, 16);
+  ctx.fillRect(px + 1, py - 16, 5, 16);
+
+  // Feet
+  ctx.fillStyle = '#333';
+  ctx.fillRect(px - 7 + (player.onGround ? legOff : 0), py - 2, 6, 3);
+  ctx.fillRect(px + 1 + (player.onGround ? -legOff : 0), py - 2, 6, 3);
+
+  // Arms and attack visuals
+  if (player.attacking > 0) {
+    if (player.attackType.includes('punch')) {
+      // Extended punch arm
+      ctx.fillStyle = '#fda';
+      const armLen = PUNCH_RANGE - 5;
+      ctx.fillRect(px + f * 8, py - 34, f * armLen, 6);
+      // Fist
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(px + f * (8 + armLen - 2), py - 36, 8, 10);
+    } else if (player.attackType.includes('kick')) {
+      // Extended kick leg
+      ctx.fillStyle = '#44f';
+      const legLen = KICK_RANGE - 5;
+      const kickY = player.jumping ? py - 24 : py - 12;
+      ctx.fillRect(px + f * 6, kickY, f * legLen, 7);
+      // Foot
+      ctx.fillStyle = '#333';
+      ctx.fillRect(px + f * (6 + legLen - 2), kickY - 1, 8, 9);
+    }
+  } else {
+    // Normal arms
+    ctx.fillStyle = '#fda';
+    ctx.fillRect(px + f * 8, py - 36, f * 8, 5);
+    ctx.fillRect(px - f * 8 - (f > 0 ? 0 : 8), py - 34, f > 0 ? -8 * f : 8, 5);
+  }
+
+  // Eyes
+  ctx.fillStyle = '#000';
+  ctx.fillRect(px + f * 2, py - 44, 2, 2);
+  ctx.fillRect(px + f * 5, py - 44, 2, 2);
+
+  ctx.globalAlpha = 1;
+}
+
+function drawEnemy(e) {
+  const ex = e.x - camera.x;
+  const ey = e.y;
+
+  if (e.hitTimer > 0) {
+    ctx.globalAlpha = 0.6 + Math.sin(e.hitTimer * 2) * 0.4;
+  }
+
+  if (e.type === 'gripper') {
+    // Body
+    ctx.fillStyle = e.color;
+    ctx.fillRect(ex - 8, ey - 38, 16, 22);
+    // Head
+    ctx.fillStyle = e.colorLight;
+    ctx.fillRect(ex - 6, ey - 44, 12, 8);
+    // Arms (reaching forward if grabbing)
+    const armExt = e.grabbing ? 14 : 6;
+    ctx.fillStyle = e.color;
+    ctx.fillRect(ex + e.facing * 8, ey - 34, e.facing * armExt, 5);
+    ctx.fillRect(ex + e.facing * 8, ey - 28, e.facing * armExt, 5);
+    // Legs
+    ctx.fillStyle = '#633';
+    ctx.fillRect(ex - 5, ey - 16, 4, 16);
+    ctx.fillRect(ex + 1, ey - 16, 4, 16);
+    // Eyes
+    ctx.fillStyle = '#ff0';
+    ctx.fillRect(ex + e.facing * 1, ey - 42, 2, 2);
+    ctx.fillRect(ex + e.facing * 4, ey - 42, 2, 2);
+  } else if (e.type === 'knife') {
+    // Body
+    ctx.fillStyle = e.color;
+    ctx.fillRect(ex - 8, ey - 38, 16, 22);
+    // Head with hood
+    ctx.fillStyle = e.colorLight;
+    ctx.fillRect(ex - 7, ey - 46, 14, 10);
+    ctx.fillStyle = e.color;
+    ctx.fillRect(ex - 7, ey - 46, 14, 4);
+    // Arms
+    ctx.fillStyle = e.colorLight;
+    ctx.fillRect(ex + e.facing * 8, ey - 34, e.facing * 8, 5);
+    // Legs
+    ctx.fillStyle = '#336';
+    ctx.fillRect(ex - 5, ey - 16, 4, 16);
+    ctx.fillRect(ex + 1, ey - 16, 4, 16);
+    // Eyes
+    ctx.fillStyle = '#f88';
+    ctx.fillRect(ex + e.facing * 1, ey - 40, 2, 2);
+    ctx.fillRect(ex + e.facing * 4, ey - 40, 2, 2);
+  } else if (e.type === 'tomtom') {
+    // Shorter body
+    ctx.fillStyle = e.color;
+    ctx.fillRect(ex - 6, ey - 28, 12, 16);
+    // Head
+    ctx.fillStyle = e.colorLight;
+    ctx.fillRect(ex - 5, ey - 32, 10, 6);
+    // Arms
+    ctx.fillStyle = e.color;
+    ctx.fillRect(ex + e.facing * 6, ey - 24, e.facing * 6, 4);
+    // Legs
+    ctx.fillStyle = '#654';
+    const tLeg = Math.sin(e.walkFrame * 4) * 3;
+    ctx.fillRect(ex - 4 + tLeg, ey - 12, 3, 12);
+    ctx.fillRect(ex + 1 - tLeg, ey - 12, 3, 12);
+    // Eyes
+    ctx.fillStyle = '#ff0';
+    ctx.fillRect(ex + e.facing * 0, ey - 31, 2, 2);
+    ctx.fillRect(ex + e.facing * 3, ey - 31, 2, 2);
+  } else if (e.type === 'boss') {
+    // Larger body
+    ctx.fillStyle = e.color;
+    ctx.fillRect(ex - 14, ey - 44, 28, 28);
+    // Head
+    ctx.fillStyle = e.colorLight;
+    ctx.fillRect(ex - 10, ey - 52, 20, 10);
+    // Shoulder pads
+    ctx.fillStyle = '#ff0';
+    ctx.fillRect(ex - 18, ey - 42, 6, 8);
+    ctx.fillRect(ex + 12, ey - 42, 6, 8);
+    // Arms
+    ctx.fillStyle = e.colorLight;
+    if (e.attackState === 'attack') {
+      ctx.fillRect(ex + e.facing * 14, ey - 40, e.facing * 20, 8);
+    } else {
+      ctx.fillRect(ex + e.facing * 14, ey - 38, e.facing * 8, 6);
+    }
+    // Legs
+    ctx.fillStyle = '#822';
+    ctx.fillRect(ex - 8, ey - 16, 6, 16);
+    ctx.fillRect(ex + 2, ey - 16, 6, 16);
+    // Eyes
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(ex + e.facing * 1, ey - 49, 3, 3);
+    ctx.fillRect(ex + e.facing * 6, ey - 49, 3, 3);
+    // Boss health bar
+    const bhW = 50;
+    const bhX = ex - bhW / 2;
+    const bhY = ey - 60;
+    ctx.fillStyle = '#400';
+    ctx.fillRect(bhX, bhY, bhW, 5);
+    ctx.fillStyle = '#f22';
+    ctx.fillRect(bhX, bhY, bhW * (e.health / e.maxHealth), 5);
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(bhX, bhY, bhW, 5);
+  }
+
+  ctx.globalAlpha = 1;
+}
+
+function drawProjectiles() {
+  for (const p of projectiles) {
+    const px = p.x - camera.x;
+    // Knife projectile
+    ctx.fillStyle = '#ccc';
+    ctx.save();
+    ctx.translate(px, p.y);
+    ctx.rotate(p.vx > 0 ? 0.3 : -0.3);
+    ctx.fillRect(-5, -2, 10, 4);
+    // Blade tip
+    ctx.fillStyle = '#fff';
+    const tip = p.vx > 0 ? 5 : -7;
+    ctx.beginPath();
+    ctx.moveTo(tip, -3);
+    ctx.lineTo(tip + (p.vx > 0 ? 4 : -4), 0);
+    ctx.lineTo(tip, 3);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+function drawParticles() {
+  for (const p of particles) {
+    const alpha = p.life / p.maxLife;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = p.color;
+    const px = p.x - camera.x;
+    ctx.fillRect(px - p.size / 2, p.y - p.size / 2, p.size, p.size);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawHUD() {
+  // Title badge background
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(8, 8, 310, 28);
+  ctx.fillStyle = '#555';
+  ctx.font = '13px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('FGT-002 \u00b7 IRON FIST  [?]', 16, 26);
+
+  // Score
+  ctx.fillStyle = '#ff0';
+  ctx.font = 'bold 16px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('SCORE: ' + score, 15, 58);
+
+  // Floor
+  ctx.fillStyle = '#4f4';
+  ctx.textAlign = 'center';
+  ctx.fillText('FLOOR ' + floor + ' / ' + TOTAL_FLOORS, W / 2, 58);
+
+  // Timer
+  const secs = Math.ceil(floorTimer / 60);
+  ctx.fillStyle = secs <= 15 ? '#f44' : '#fff';
+  ctx.textAlign = 'right';
+  ctx.fillText('TIME: ' + secs, W - 15, 58);
+
+  // Lives
+  ctx.fillStyle = '#f88';
+  ctx.textAlign = 'right';
+  ctx.font = '14px monospace';
+  ctx.fillText('LIVES: ' + '\u2665'.repeat(lives), W - 15, 78);
+
+  // Health bar
+  const hbX = 15;
+  const hbY = 70;
+  const hbW = 150;
+  const hbH = 12;
+  ctx.fillStyle = '#400';
+  ctx.fillRect(hbX, hbY, hbW, hbH);
+  const healthPct = player.health / MAX_HEALTH;
+  ctx.fillStyle = healthPct > 0.5 ? '#4f4' : healthPct > 0.25 ? '#ff0' : '#f44';
+  ctx.fillRect(hbX, hbY, hbW * healthPct, hbH);
+  ctx.strokeStyle = '#888';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(hbX, hbY, hbW, hbH);
+  ctx.fillStyle = '#fff';
+  ctx.font = '10px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('HP', hbX + 2, hbY + 10);
+
+  // Progress indicator (how far through the floor)
+  const progX = 200;
+  const progY = 74;
+  const progW = 200;
+  ctx.fillStyle = '#222';
+  ctx.fillRect(progX, progY, progW, 6);
+  const prog = player.x / FLOOR_WIDTH;
+  ctx.fillStyle = '#88f';
+  ctx.fillRect(progX, progY, progW * prog, 6);
+  ctx.strokeStyle = '#444';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(progX, progY, progW, 6);
+  // Boss marker
+  ctx.fillStyle = '#f44';
+  ctx.fillRect(progX + progW - 8, progY - 2, 8, 10);
+  ctx.fillStyle = '#000';
+  ctx.font = '7px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('B', progX + progW - 4, progY + 6);
+
+  // Boss warning
+  if (bossActive && !bossDefeated) {
+    const blink = Math.floor(frame / 20) % 2;
+    if (blink) {
+      ctx.fillStyle = '#f44';
+      ctx.font = 'bold 14px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('!! BOSS FIGHT !!', W / 2, 94);
+    }
+  }
+}
+
+function draw() {
+  ctx.save();
+  ctx.translate(shakeX, shakeY);
+
+  if (state === 'title') {
+    drawTitleScreen();
+    ctx.restore();
+    return;
+  }
+
+  // Background
+  drawBackground();
+
+  // Enemies
+  for (const e of enemies) {
+    if (!e.alive && e.hitTimer <= 0) continue;
+    const ex = e.x - camera.x;
+    if (ex > -50 && ex < W + 50) {
+      drawEnemy(e);
+    }
+  }
+
+  // Player
+  drawPlayer();
+
+  // Projectiles
+  drawProjectiles();
+
+  // Particles
+  drawParticles();
+
+  // HUD
+  drawHUD();
+
+  // State overlays
+  if (state === 'gameover') {
+    ctx.fillStyle = 'rgba(0,0,0,0.75)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#f44';
+    ctx.font = 'bold 48px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('GAME OVER', W / 2, 250);
+    ctx.fillStyle = '#fff';
+    ctx.font = '20px monospace';
+    ctx.fillText('Final Score: ' + score, W / 2, 300);
+    ctx.fillText('Reached Floor ' + floor + ' of ' + TOTAL_FLOORS, W / 2, 330);
+    ctx.fillStyle = '#aaa';
+    ctx.font = '16px monospace';
+    ctx.fillText('Press R to restart', W / 2, 390);
+  }
+
+  if (state === 'floorClear') {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#ff0';
+    ctx.font = 'bold 42px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('FLOOR ' + floor + ' CLEARED!', W / 2, 240);
+    ctx.fillStyle = '#fff';
+    ctx.font = '20px monospace';
+    ctx.fillText('Score: ' + score, W / 2, 290);
+    if (floor < TOTAL_FLOORS) {
+      ctx.fillStyle = '#4f4';
+      ctx.font = '16px monospace';
+      ctx.fillText('Press SPACE or Z for Floor ' + (floor + 1), W / 2, 350);
+    } else {
+      ctx.fillStyle = '#ff0';
+      ctx.font = '16px monospace';
+      ctx.fillText('Press SPACE or Z to claim victory!', W / 2, 350);
+    }
+  }
+
+  if (state === 'victory') {
+    ctx.fillStyle = 'rgba(0,0,0,0.8)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#ff0';
+    ctx.font = 'bold 36px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('VICTORY!', W / 2, 200);
+    ctx.fillStyle = '#fff';
+    ctx.font = '20px monospace';
+    ctx.fillText('You cleared all ' + TOTAL_FLOORS + ' floors!', W / 2, 250);
+    ctx.fillText('Final Score: ' + score, W / 2, 290);
+    ctx.fillStyle = '#4f4';
+    ctx.font = '18px monospace';
+    ctx.fillText('The master of kung fu!', W / 2, 340);
+    ctx.fillStyle = '#aaa';
+    ctx.font = '16px monospace';
+    ctx.fillText('Press R to play again', W / 2, 400);
+  }
+
+  ctx.restore();
+}
+
+function drawTitleScreen() {
+  // Background
+  ctx.fillStyle = '#110800';
+  ctx.fillRect(0, 0, W, H);
+
+  // Decorative building
+  ctx.fillStyle = '#221100';
+  ctx.fillRect(200, 100, 400, 400);
+  ctx.strokeStyle = '#553322';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(200, 100, 400, 400);
+
+  // Floor lines
+  for (let i = 0; i < 5; i++) {
+    const fy = 180 + i * 70;
+    ctx.fillStyle = '#332200';
+    ctx.fillRect(210, fy, 380, 60);
+    ctx.strokeStyle = '#443311';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(210, fy, 380, 60);
+    // Floor number
+    ctx.fillStyle = '#665522';
+    ctx.font = '11px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('FLOOR ' + (5 - i), 400, fy + 36);
+  }
+
+  // Title
+  ctx.fillStyle = '#f44';
+  ctx.font = 'bold 52px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('IRON', W / 2, 80);
+  ctx.fillStyle = '#ff0';
+  ctx.font = 'bold 36px monospace';
+  ctx.fillText('FIST', W / 2, 115);
+
+  // Instructions
+  ctx.fillStyle = '#ccc';
+  ctx.font = '16px monospace';
+  ctx.fillText('Arrow Keys: Move  |  Z: Punch  |  X: Kick', W / 2, 530);
+  ctx.fillText('Space: Jump  |  R: Restart  |  ?: Info', W / 2, 555);
+
+  ctx.fillStyle = '#ff0';
+  ctx.font = '18px monospace';
+  ctx.fillText('Press SPACE, Z, or X to start', W / 2, 585);
+
+  // Badge
+  ctx.fillStyle = '#666';
+  ctx.font = '13px monospace';
+  ctx.fillText('FGT-002 \u00b7 Fighter / Combat Series', W / 2, 30);
+
+  // Animated fighters
+  const t = frame * 0.05;
+  // Player figure
+  const px = 310 + Math.sin(t) * 20;
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(px - 6, 454, 12, 20);
+  ctx.fillStyle = '#fda';
+  ctx.fillRect(px - 5, 448, 10, 8);
+  ctx.fillStyle = '#e22';
+  ctx.fillRect(px - 5, 448, 10, 3);
+  // Punch arm
+  ctx.fillStyle = '#fda';
+  ctx.fillRect(px + 6, 458, 18, 4);
+  // Enemy figure
+  const ex = 490 - Math.sin(t) * 20;
+  ctx.fillStyle = '#b44';
+  ctx.fillRect(ex - 6, 454, 12, 20);
+  ctx.fillStyle = '#d66';
+  ctx.fillRect(ex - 5, 448, 10, 8);
+}
+
+// --- RESTART ---
+window.addEventListener('keydown', e => {
+  if ((e.key === 'r' || e.key === 'R') && !infoOpen) {
+    initGame();
+    state = 'title';
+  }
+});
+
+// --- GAME LOOP ---
+initGame();
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

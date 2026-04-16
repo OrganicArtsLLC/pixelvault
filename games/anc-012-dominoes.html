@@ -1,0 +1,736 @@
+<!--
+PROTOTYPE: dominoes
+SERIES: anc
+NUMBER: 012
+DATE: 2026-03-24
+MECHANIC: number chain matching — play tiles by matching their pip values to the open ends of the chain; first to empty your hand wins
+ANCESTRY: Chinese Dominoes (~1200 CE), European Dominoes (~1700s Italy), Block Game, Draw Game
+CONTROLS: Click tile in hand — select | Click end of chain — play | D — draw from boneyard | R — new game | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 2 (Expert Systems — rule-based play, probabilistic tracking of unseen tiles)
+AI-INSIGHT: Dominoes with hidden tiles is a game of imperfect information. Expert play requires tracking which tiles remain unseen and inferring opponent's hand from their draws and passes. This is the same hidden-state inference that Bayesian filters perform.
+NOTES: Standard double-six set (28 tiles, values 0-6). Draw game variant: if you can't play, draw from the boneyard until you can. When no one can play and boneyard is empty, lowest pip total wins.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ANC-012 · DOMINOES</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #0a1a0a; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: pointer; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>ANC-012 · DOMINOES</h1>
+    <p><span class="tag series">ANC — Ancient Games</span> <span class="tag">Prototype #012</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Play dominoes against an AI opponent. Match pip values to extend the chain. First to empty your hand wins.</p>
+    <ul>
+      <li><strong>Select:</strong> Click a tile in your hand to select it (highlighted in yellow).</li>
+      <li><strong>Play:</strong> Click the left or right end of the chain to place your selected tile.</li>
+      <li><strong>Draw:</strong> Press <kbd>D</kbd> or click the boneyard to draw a tile when you cannot play.</li>
+      <li><strong>Doubles:</strong> The highest double starts the game. Doubles are placed crosswise.</li>
+      <li><kbd>R</kbd> — New game</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Chinese Dominoes (~1200 CE) &rarr; European Dominoes (~1700s, Italy) &rarr; Block Game &rarr; Draw Game &rarr; Modern Variants</p>
+    <p>Dominoes originated in China around the 12th century, possibly derived from Chinese dice. The game arrived in Europe through Italy in the 18th century, where the familiar 28-tile double-six set became standard. The name likely comes from the French word for a black-and-white hooded cloak worn by Christian priests.</p>
+    <p><strong>The Draw Game:</strong> The variant implemented here adds strategic depth to the basic Block Game by allowing players to draw from the boneyard (undealt tiles) when they cannot play. This creates hidden information — you never know exactly what your opponent holds.</p>
+    <p><strong>Cultural Impact:</strong> Dominoes became one of the most popular games worldwide, especially in Latin America, the Caribbean, and Southeast Asia. In many cultures, dominoes is as much a social ritual as a game — played in parks, cafes, and family gatherings with passionate intensity.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 2 — Expert Systems (rule-based play with probabilistic inference)</p>
+    <p><strong>Hidden Information:</strong> Unlike chess or checkers, dominoes involves imperfect information. You can see your own tiles and the played chain, but your opponent's hand and the boneyard contents are hidden. Expert play requires Bayesian reasoning — tracking which tiles have been played, inferring what your opponent might hold based on their draws and passes.</p>
+    <p><strong>Counting Tiles:</strong> Strong domino players mentally track all 28 tiles. When an opponent draws or passes, it reveals information. If they pass when a 5 is open, they have no 5s. This constraint propagation is the same technique used in expert systems and constraint satisfaction problems.</p>
+    <p><strong>Endgame Planning:</strong> Late-game dominoes becomes a pure logic puzzle — with enough tiles revealed, you can sometimes prove whether a winning line exists. This transition from probabilistic to deterministic reasoning mirrors how AI systems shift strategies as information accumulates.</p>
+
+    <h2>Classification</h2>
+    <p><strong>Series:</strong> ANC (Ancient Games) — games with pre-digital origins spanning millennia</p>
+    <p><strong>Core Mechanic:</strong> Number chain matching — play tiles by matching pip values to open ends</p>
+    <p><strong>Input:</strong> Mouse click (tile selection, placement)</p>
+
+    <h2>Prototype Notes</h2>
+    <ul>
+      <li>Standard double-six set: 28 tiles with all combinations of 0-6 pips</li>
+      <li>Draw game variant with boneyard</li>
+      <li>AI uses basic strategy: prefer tiles that match multiple ends, avoid leaving opponent easy plays</li>
+      <li>Chain rendered horizontally with scroll when it extends beyond the canvas</li>
+    </ul>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+  </div>
+</div>
+
+<script>
+// Info panel
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// Canvas setup
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+
+function resize() {
+  const s = Math.min(innerWidth / W, innerHeight / H);
+  canvas.style.width = (W * s) + 'px';
+  canvas.style.height = (H * s) + 'px';
+}
+resize();
+window.addEventListener('resize', resize);
+
+// HUD text helper
+function hudText(text, x, y, size, color, align) {
+  ctx.save();
+  ctx.font = size + 'px monospace';
+  ctx.fillStyle = color || '#fff';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+// ── Tile Constants ──
+const TILE_W = 52, TILE_H = 26, PIP_R = 3, GAP = 4;
+const HAND_Y = 540, AI_Y = 30;
+const CHAIN_Y = 280;
+
+// ── Game State ──
+let playerHand, aiHand, boneyard, chain, chainEnds;
+let selectedTile, gameOver, gameMsg, turn; // turn: 'player' or 'ai'
+let chainOffsetX, aiThinking, aiTimer;
+let canPlayLeft, canPlayRight;
+let mustDraw; // true when player has no valid plays
+
+function createTiles() {
+  const tiles = [];
+  for (let a = 0; a <= 6; a++)
+    for (let b = a; b <= 6; b++)
+      tiles.push({ a, b });
+  return tiles;
+}
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function pipCount(tile) { return tile.a + tile.b; }
+function isDouble(tile) { return tile.a === tile.b; }
+
+function init() {
+  const all = shuffle(createTiles());
+  playerHand = all.slice(0, 7);
+  aiHand = all.slice(7, 14);
+  boneyard = all.slice(14);
+  chain = [];
+  chainEnds = { left: -1, right: -1 };
+  selectedTile = -1;
+  gameOver = false;
+  gameMsg = '';
+  aiThinking = false;
+  aiTimer = 0;
+  chainOffsetX = 0;
+  mustDraw = false;
+  canPlayLeft = false;
+  canPlayRight = false;
+
+  // Find highest double to start
+  let starter = -1, starterHand = null, highVal = -1;
+  for (let i = 0; i < playerHand.length; i++) {
+    if (isDouble(playerHand[i]) && playerHand[i].a > highVal) {
+      highVal = playerHand[i].a;
+      starter = i;
+      starterHand = 'player';
+    }
+  }
+  for (let i = 0; i < aiHand.length; i++) {
+    if (isDouble(aiHand[i]) && aiHand[i].a > highVal) {
+      highVal = aiHand[i].a;
+      starter = i;
+      starterHand = 'ai';
+    }
+  }
+
+  if (starterHand === 'player') {
+    playTile(playerHand, starter, 'right');
+    turn = 'ai';
+    aiThinking = true;
+    aiTimer = Date.now() + 800;
+  } else if (starterHand === 'ai') {
+    playTile(aiHand, starter, 'right');
+    turn = 'player';
+  } else {
+    // No doubles — player goes first
+    turn = 'player';
+  }
+  updatePlayability();
+}
+
+function playTile(hand, idx, side) {
+  const tile = hand.splice(idx, 1)[0];
+  if (chain.length === 0) {
+    chain.push({ a: tile.a, b: tile.b });
+    chainEnds.left = tile.a;
+    chainEnds.right = tile.b;
+  } else if (side === 'left') {
+    const end = chainEnds.left;
+    if (tile.b === end) {
+      chain.unshift({ a: tile.a, b: tile.b });
+      chainEnds.left = tile.a;
+    } else {
+      chain.unshift({ a: tile.b, b: tile.a });
+      chainEnds.left = tile.b;
+    }
+  } else {
+    const end = chainEnds.right;
+    if (tile.a === end) {
+      chain.push({ a: tile.a, b: tile.b });
+      chainEnds.right = tile.b;
+    } else {
+      chain.push({ a: tile.b, b: tile.a });
+      chainEnds.right = tile.a;
+    }
+  }
+  selectedTile = -1;
+}
+
+function canMatch(tile, endVal) {
+  return tile.a === endVal || tile.b === endVal;
+}
+
+function hasValidPlay(hand) {
+  if (chain.length === 0) return true;
+  for (const t of hand) {
+    if (canMatch(t, chainEnds.left) || canMatch(t, chainEnds.right)) return true;
+  }
+  return false;
+}
+
+function tileMatchesSide(tile, side) {
+  if (chain.length === 0) return true;
+  const endVal = side === 'left' ? chainEnds.left : chainEnds.right;
+  return canMatch(tile, endVal);
+}
+
+function updatePlayability() {
+  if (selectedTile >= 0 && selectedTile < playerHand.length) {
+    const t = playerHand[selectedTile];
+    canPlayLeft = chain.length > 0 && tileMatchesSide(t, 'left');
+    canPlayRight = chain.length === 0 || tileMatchesSide(t, 'right');
+    // If both ends have same value, auto-check both
+  } else {
+    canPlayLeft = false;
+    canPlayRight = false;
+  }
+  mustDraw = !hasValidPlay(playerHand) && boneyard.length > 0 && chain.length > 0;
+}
+
+function checkWin() {
+  if (playerHand.length === 0) {
+    gameOver = true;
+    gameMsg = 'YOU WIN!';
+    return true;
+  }
+  if (aiHand.length === 0) {
+    gameOver = true;
+    gameMsg = 'AI WINS!';
+    return true;
+  }
+  // Check for blocked game
+  if (!hasValidPlay(playerHand) && !hasValidPlay(aiHand) && boneyard.length === 0) {
+    gameOver = true;
+    const pSum = playerHand.reduce((s, t) => s + pipCount(t), 0);
+    const aSum = aiHand.reduce((s, t) => s + pipCount(t), 0);
+    if (pSum < aSum) gameMsg = 'BLOCKED! You win (' + pSum + ' vs ' + aSum + ')';
+    else if (aSum < pSum) gameMsg = 'BLOCKED! AI wins (' + aSum + ' vs ' + pSum + ')';
+    else gameMsg = 'BLOCKED! Draw (' + pSum + ' each)';
+    return true;
+  }
+  return false;
+}
+
+function drawFromBoneyard(hand) {
+  if (boneyard.length === 0) return false;
+  hand.push(boneyard.pop());
+  return true;
+}
+
+// ── AI Logic ──
+function aiPlay() {
+  if (gameOver) return;
+  if (!hasValidPlay(aiHand)) {
+    if (boneyard.length > 0) {
+      drawFromBoneyard(aiHand);
+      // AI keeps drawing until it can play or boneyard empty
+      if (!hasValidPlay(aiHand) && boneyard.length > 0) {
+        aiTimer = Date.now() + 400;
+        return; // will retry
+      }
+    }
+    if (!hasValidPlay(aiHand)) {
+      // Pass
+      turn = 'player';
+      aiThinking = false;
+      updatePlayability();
+      checkWin();
+      return;
+    }
+  }
+
+  // Find best tile to play
+  let bestIdx = -1, bestSide = 'right', bestScore = -1;
+  for (let i = 0; i < aiHand.length; i++) {
+    const t = aiHand[i];
+    for (const side of ['left', 'right']) {
+      if (!tileMatchesSide(t, side)) continue;
+      // Score: prefer doubles, higher pip counts, tiles matching both ends
+      let score = pipCount(t);
+      if (isDouble(t)) score += 10;
+      // Prefer playing tiles whose values appear less in remaining hand
+      const endVal = side === 'left' ? chainEnds.left : chainEnds.right;
+      const otherVal = t.a === endVal ? t.b : t.a;
+      let freq = 0;
+      for (const ot of aiHand) {
+        if (ot === t) continue;
+        if (ot.a === otherVal || ot.b === otherVal) freq++;
+      }
+      score += freq * 2;
+      if (score > bestScore) {
+        bestScore = score;
+        bestIdx = i;
+        bestSide = side;
+      }
+    }
+  }
+
+  if (bestIdx >= 0) {
+    playTile(aiHand, bestIdx, bestSide);
+  }
+
+  turn = 'player';
+  aiThinking = false;
+  updatePlayability();
+  checkWin();
+}
+
+// ── Drawing ──
+const pipPositions = {
+  0: [],
+  1: [[0.5, 0.5]],
+  2: [[0.25, 0.25], [0.75, 0.75]],
+  3: [[0.25, 0.25], [0.5, 0.5], [0.75, 0.75]],
+  4: [[0.25, 0.25], [0.75, 0.25], [0.25, 0.75], [0.75, 0.75]],
+  5: [[0.25, 0.25], [0.75, 0.25], [0.5, 0.5], [0.25, 0.75], [0.75, 0.75]],
+  6: [[0.25, 0.25], [0.75, 0.25], [0.25, 0.5], [0.75, 0.5], [0.25, 0.75], [0.75, 0.75]]
+};
+
+function drawPips(x, y, w, h, val, color) {
+  const positions = pipPositions[val];
+  ctx.fillStyle = color || '#222';
+  for (const [px, py] of positions) {
+    ctx.beginPath();
+    ctx.arc(x + w * px, y + h * py, PIP_R, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawTileHorizontal(x, y, tile, highlight, faceDown) {
+  // Horizontal tile: two halves side by side
+  const hw = TILE_W / 2;
+  ctx.fillStyle = faceDown ? '#556' : (highlight ? '#ffd' : '#f5f0e0');
+  ctx.strokeStyle = highlight ? '#ff0' : '#888';
+  ctx.lineWidth = highlight ? 2 : 1;
+  ctx.beginPath();
+  ctx.rect(x, y, TILE_W, TILE_H);
+  ctx.fill();
+  ctx.stroke();
+
+  if (!faceDown) {
+    // Dividing line
+    ctx.strokeStyle = '#999';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x + hw, y + 2);
+    ctx.lineTo(x + hw, y + TILE_H - 2);
+    ctx.stroke();
+    // Pips
+    drawPips(x + 2, y + 2, hw - 4, TILE_H - 4, tile.a);
+    drawPips(x + hw + 2, y + 2, hw - 4, TILE_H - 4, tile.b);
+  } else {
+    // Face down pattern
+    ctx.fillStyle = '#445';
+    ctx.fillRect(x + 3, y + 3, TILE_W - 6, TILE_H - 6);
+  }
+}
+
+function drawTileVertical(x, y, tile, highlight, faceDown) {
+  // Vertical tile (for doubles in chain): two halves stacked
+  const hh = TILE_H;
+  const vw = TILE_H, vh = TILE_W; // swap dimensions
+  ctx.fillStyle = faceDown ? '#556' : (highlight ? '#ffd' : '#f5f0e0');
+  ctx.strokeStyle = highlight ? '#ff0' : '#888';
+  ctx.lineWidth = highlight ? 2 : 1;
+  ctx.beginPath();
+  ctx.rect(x, y, vw, vh);
+  ctx.fill();
+  ctx.stroke();
+
+  if (!faceDown) {
+    ctx.strokeStyle = '#999';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x + 2, y + vh / 2);
+    ctx.lineTo(x + vw - 2, y + vh / 2);
+    ctx.stroke();
+    drawPips(x + 2, y + 2, vw - 4, vh / 2 - 4, tile.a);
+    drawPips(x + 2, y + vh / 2 + 2, vw - 4, vh / 2 - 4, tile.b);
+  }
+}
+
+function getChainTileWidth(tile) {
+  return isDouble(tile) ? TILE_H : TILE_W;
+}
+
+function getChainTotalWidth() {
+  let total = 0;
+  for (const t of chain) {
+    total += getChainTileWidth(t) + GAP;
+  }
+  return total - GAP;
+}
+
+function drawChain() {
+  if (chain.length === 0) {
+    hudText('No tiles played yet', W / 2, CHAIN_Y, 14, '#666', 'center');
+    return;
+  }
+
+  const totalW = getChainTotalWidth();
+  // Center the chain, with scroll offset
+  let startX = W / 2 - totalW / 2 + chainOffsetX;
+
+  // Clamp so chain stays visible
+  if (totalW > W - 100) {
+    const maxOff = (totalW - W + 100) / 2;
+    if (startX > W / 2 - totalW / 2 + maxOff) startX = W / 2 - totalW / 2 + maxOff;
+    if (startX < W / 2 - totalW / 2 - maxOff) startX = W / 2 - totalW / 2 - maxOff;
+  }
+
+  let cx = startX;
+  for (let i = 0; i < chain.length; i++) {
+    const t = chain[i];
+    if (isDouble(t)) {
+      const vw = TILE_H, vh = TILE_W;
+      drawTileVertical(cx, CHAIN_Y - vh / 2 + TILE_H / 2, t, false, false);
+      cx += vw + GAP;
+    } else {
+      drawTileHorizontal(cx, CHAIN_Y, t, false, false);
+      cx += TILE_W + GAP;
+    }
+  }
+
+  // Draw end indicators if tile is selected
+  if (selectedTile >= 0 && !gameOver) {
+    if (canPlayLeft) {
+      const lx = startX - 30;
+      ctx.fillStyle = '#4f4';
+      ctx.beginPath();
+      ctx.moveTo(lx + 20, CHAIN_Y + TILE_H / 2 - 10);
+      ctx.lineTo(lx, CHAIN_Y + TILE_H / 2);
+      ctx.lineTo(lx + 20, CHAIN_Y + TILE_H / 2 + 10);
+      ctx.fill();
+      hudText('L', lx + 8, CHAIN_Y + TILE_H / 2, 11, '#4f4', 'center');
+    }
+    if (canPlayRight) {
+      const rx = cx + 10;
+      ctx.fillStyle = '#4f4';
+      ctx.beginPath();
+      ctx.moveTo(rx, CHAIN_Y + TILE_H / 2 - 10);
+      ctx.lineTo(rx + 20, CHAIN_Y + TILE_H / 2);
+      ctx.lineTo(rx, CHAIN_Y + TILE_H / 2 + 10);
+      ctx.fill();
+      hudText('R', rx + 12, CHAIN_Y + TILE_H / 2, 11, '#4f4', 'center');
+    }
+  }
+}
+
+function drawPlayerHand() {
+  const totalW = playerHand.length * (TILE_W + GAP) - GAP;
+  const startX = W / 2 - totalW / 2;
+  for (let i = 0; i < playerHand.length; i++) {
+    const x = startX + i * (TILE_W + GAP);
+    const sel = (i === selectedTile);
+    const yOff = sel ? -8 : 0;
+    drawTileHorizontal(x, HAND_Y + yOff, playerHand[i], sel, false);
+  }
+}
+
+function drawAIHand() {
+  const count = aiHand.length;
+  const totalW = count * (TILE_W + GAP) - GAP;
+  const startX = W / 2 - totalW / 2;
+  for (let i = 0; i < count; i++) {
+    const x = startX + i * (TILE_W + GAP);
+    drawTileHorizontal(x, AI_Y, null, false, true);
+  }
+}
+
+function drawBoneyard() {
+  const bx = 20, by = 400;
+  ctx.fillStyle = '#1a2a1a';
+  ctx.strokeStyle = '#3a5a3a';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.rect(bx, by, 70, 36);
+  ctx.fill();
+  ctx.stroke();
+  hudText('BONE', bx + 35, by + 12, 10, '#6a8a6a', 'center');
+  hudText('YARD', bx + 35, by + 24, 10, '#6a8a6a', 'center');
+  hudText(boneyard.length + '', bx + 35, by + 48, 14, '#8ab', 'center');
+  if (mustDraw && turn === 'player' && !gameOver) {
+    hudText('Press D', bx + 35, by + 64, 11, '#ff0', 'center');
+  }
+}
+
+function draw() {
+  ctx.fillStyle = '#0a2a0a';
+  ctx.fillRect(0, 0, W, H);
+
+  // Table felt texture
+  ctx.fillStyle = '#0d3010';
+  ctx.fillRect(10, 10, W - 20, H - 20);
+  ctx.strokeStyle = '#1a4a1a';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(10, 10, W - 20, H - 20);
+
+  // Title
+  hudText('DOMINOES', W / 2, 16, 13, '#4a7a4a', 'center');
+
+  // Ends display
+  if (chain.length > 0) {
+    hudText('Left: ' + chainEnds.left + '  Right: ' + chainEnds.right, W / 2, 100, 12, '#6a9a6a', 'center');
+  }
+
+  // AI label
+  hudText('AI (' + aiHand.length + ' tiles)', W / 2, AI_Y - 10, 12, '#c88', 'center');
+
+  drawAIHand();
+  drawChain();
+  drawPlayerHand();
+  drawBoneyard();
+
+  // Player label
+  hudText('YOUR HAND (' + playerHand.length + ' tiles)', W / 2, HAND_Y - 16, 12, '#8bc', 'center');
+
+  // Turn indicator
+  if (!gameOver) {
+    if (turn === 'player') {
+      if (mustDraw) {
+        hudText('No valid plays — draw from boneyard (D)', W / 2, H - 30, 13, '#ff0', 'center');
+      } else if (selectedTile >= 0) {
+        hudText('Click an arrow to place tile', W / 2, H - 30, 13, '#8f8', 'center');
+      } else {
+        hudText('Click a tile to select it', W / 2, H - 30, 13, '#8bc', 'center');
+      }
+    } else {
+      hudText('AI is thinking...', W / 2, H - 30, 13, '#c88', 'center');
+    }
+  } else {
+    hudText(gameMsg, W / 2, H / 2 - 60, 22, '#ff0', 'center');
+    hudText('Press R for new game', W / 2, H / 2 - 30, 14, '#aaa', 'center');
+  }
+
+  // Controls hint
+  hudText('R: New  D: Draw  ?: Info', W - 10, 16, 10, '#4a6a4a', 'right');
+}
+
+// ── Input ──
+function getCanvasPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  const sx = W / rect.width, sy = H / rect.height;
+  return {
+    x: (e.clientX - rect.left) * sx,
+    y: (e.clientY - rect.top) * sy
+  };
+}
+
+canvas.addEventListener('click', function(e) {
+  if (infoOpen || gameOver) return;
+  if (turn !== 'player') return;
+  const pos = getCanvasPos(e);
+
+  // Check boneyard click
+  if (pos.x >= 20 && pos.x <= 90 && pos.y >= 400 && pos.y <= 436 && mustDraw) {
+    drawFromBoneyard(playerHand);
+    updatePlayability();
+    if (!hasValidPlay(playerHand) && boneyard.length > 0) return; // keep drawing
+    if (!hasValidPlay(playerHand) && boneyard.length === 0) {
+      // Pass
+      turn = 'ai';
+      aiThinking = true;
+      aiTimer = Date.now() + 800;
+      checkWin();
+    }
+    return;
+  }
+
+  // Check click on player hand
+  const totalW = playerHand.length * (TILE_W + GAP) - GAP;
+  const startX = W / 2 - totalW / 2;
+  for (let i = 0; i < playerHand.length; i++) {
+    const tx = startX + i * (TILE_W + GAP);
+    const ty = HAND_Y - (i === selectedTile ? 8 : 0);
+    if (pos.x >= tx && pos.x <= tx + TILE_W && pos.y >= ty && pos.y <= ty + TILE_H) {
+      if (selectedTile === i) selectedTile = -1;
+      else selectedTile = i;
+      updatePlayability();
+      return;
+    }
+  }
+
+  // Check click on chain ends (arrows)
+  if (selectedTile >= 0 && chain.length > 0) {
+    const chainTotalW = getChainTotalWidth();
+    let chainStartX = W / 2 - chainTotalW / 2 + chainOffsetX;
+    if (chainTotalW > W - 100) {
+      const maxOff = (chainTotalW - W + 100) / 2;
+      chainStartX = Math.max(W / 2 - chainTotalW / 2 - maxOff, Math.min(W / 2 - chainTotalW / 2 + maxOff, chainStartX));
+    }
+
+    // Left end click zone
+    if (canPlayLeft && pos.x < chainStartX + 30 && pos.y > CHAIN_Y - 20 && pos.y < CHAIN_Y + TILE_H + 20) {
+      playTile(playerHand, selectedTile, 'left');
+      if (!checkWin()) { turn = 'ai'; aiThinking = true; aiTimer = Date.now() + 800; }
+      updatePlayability();
+      return;
+    }
+
+    // Right end click zone
+    const chainEndX = chainStartX + chainTotalW;
+    if (canPlayRight && pos.x > chainEndX - 30 && pos.y > CHAIN_Y - 20 && pos.y < CHAIN_Y + TILE_H + 20) {
+      playTile(playerHand, selectedTile, 'right');
+      if (!checkWin()) { turn = 'ai'; aiThinking = true; aiTimer = Date.now() + 800; }
+      updatePlayability();
+      return;
+    }
+
+    // If only one side is valid, clicking anywhere on chain plays it
+    if (canPlayLeft && !canPlayRight) {
+      if (pos.y > CHAIN_Y - 30 && pos.y < CHAIN_Y + TILE_H + 30) {
+        playTile(playerHand, selectedTile, 'left');
+        if (!checkWin()) { turn = 'ai'; aiThinking = true; aiTimer = Date.now() + 800; }
+        updatePlayability();
+        return;
+      }
+    } else if (canPlayRight && !canPlayLeft) {
+      if (pos.y > CHAIN_Y - 30 && pos.y < CHAIN_Y + TILE_H + 30) {
+        playTile(playerHand, selectedTile, 'right');
+        if (!checkWin()) { turn = 'ai'; aiThinking = true; aiTimer = Date.now() + 800; }
+        updatePlayability();
+        return;
+      }
+    }
+  }
+
+  // First tile — click chain area to play
+  if (selectedTile >= 0 && chain.length === 0) {
+    if (pos.y > 200 && pos.y < 380) {
+      playTile(playerHand, selectedTile, 'right');
+      if (!checkWin()) { turn = 'ai'; aiThinking = true; aiTimer = Date.now() + 800; }
+      updatePlayability();
+      return;
+    }
+  }
+});
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); return; }
+  if (infoOpen) return;
+
+  if (e.key === 'r' || e.key === 'R') { init(); return; }
+
+  if (e.key === 'd' || e.key === 'D') {
+    if (turn === 'player' && !gameOver && boneyard.length > 0) {
+      drawFromBoneyard(playerHand);
+      updatePlayability();
+      if (hasValidPlay(playerHand)) return; // now can play
+      if (boneyard.length === 0 && !hasValidPlay(playerHand)) {
+        // Must pass
+        turn = 'ai';
+        aiThinking = true;
+        aiTimer = Date.now() + 800;
+        checkWin();
+      }
+    }
+    return;
+  }
+});
+
+// ── Scroll chain with arrow keys ──
+document.addEventListener('keydown', function(e) {
+  if (infoOpen) return;
+  if (e.key === 'ArrowLeft') chainOffsetX += 40;
+  if (e.key === 'ArrowRight') chainOffsetX -= 40;
+});
+
+// ── Game Loop ──
+function update() {
+  if (infoOpen) return;
+  if (gameOver) return;
+
+  if (turn === 'ai' && aiThinking && Date.now() >= aiTimer) {
+    aiPlay();
+  }
+}
+
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+init();
+loop();
+</script>
+</body>
+</html>

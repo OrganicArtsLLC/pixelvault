@@ -1,0 +1,1068 @@
+<!--
+PROTOTYPE: skateboard
+SERIES: spt
+NUMBER: 003
+DATE: 2026-03-22
+MECHANIC: pump halfpipe, launch off lip, perform tricks for combo score
+ANCESTRY: Skate or Die (1987, Electronic Arts), 720° (1986, Atari Games)
+CONTROLS: ← → — pump/move | Space — launch off lip | Z X C — tricks | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — physics engines, animation state machines)
+AI-INSIGHT: The halfpipe creates a natural oscillator — the player's skill is in timing inputs to amplify the oscillation (pumping) and then exploiting peak amplitude (air time) to perform actions. This resonance-exploitation pattern appears in control theory as energy pumping in nonlinear oscillators.
+NOTES: Pumping the halfpipe is the hidden skill — timing builds amplitude.
+       Trick commitment while airborne creates risk/reward decisions.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPT-003 · SKATEBOARD</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SPT-003 · SKATEBOARD</h1>
+    <p><span class="tag series">SPT — Sports</span> <span class="tag">Prototype #003</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Ride a halfpipe, build speed by pumping, launch off the lip, and perform tricks in the air. Chain successful tricks for combo multipliers. Get the highest score in 60 seconds.</p>
+    <ul>
+      <li><kbd>&#8592;</kbd> <kbd>&#8594;</kbd> &mdash; Pump / lean (press at bottom of curve to gain speed)</li>
+      <li><kbd>Space</kbd> &mdash; Launch off the lip when near the top edge</li>
+      <li><kbd>Z</kbd> &mdash; Kickflip (fast trick, 100 pts)</li>
+      <li><kbd>X</kbd> &mdash; Grab (medium trick, 200 pts)</li>
+      <li><kbd>C</kbd> &mdash; 360 Spin (slow trick, 300 pts)</li>
+      <li><kbd>R</kbd> &mdash; Restart</li>
+      <li><kbd>?</kbd> &mdash; Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Pump timing:</strong> Press left/right at the bottom of the halfpipe to gain speed, like a real skater.</li>
+      <li><strong>Height matters:</strong> More speed = higher air = more time for tricks = height bonus.</li>
+      <li><strong>Commit to tricks:</strong> Tricks must finish before you land, or you crash and lose your combo.</li>
+      <li><strong>Combos:</strong> Each consecutive trick increases the multiplier (x2, x3, x4...). A crash resets it.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> 720&deg; (1986, Atari Games) &rarr; Skate or Die (1987, EA) &rarr; Tony Hawk's Pro Skater (1999)</p>
+    <p>720&deg; (1986) was the first skateboarding arcade game, featuring an isometric view and a park full of events including halfpipe. Skate or Die (1987) by Electronic Arts brought skateboarding to home computers with multiple events including a halfpipe competition. Both games struggled with the fundamental challenge of translating the fluid, physics-driven nature of skateboarding into digital form.</p>
+    <p>The halfpipe event is the purest expression of skateboard game design: a constrained physics system (the U-shaped curve) where player skill manifests as understanding of momentum, timing, and risk management. Tony Hawk's Pro Skater (1999) would later revolutionize the genre by making trick chains the central scoring mechanic.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 3 &mdash; Knowledge Explosion (1978&ndash;1993)</p>
+    <p><strong>Contemporary AI:</strong> Physics engines were beginning to emerge in academia. Animation state machines were standard in robotics research. Energy-based control methods were well understood in control theory.</p>
+    <p><strong>Hidden Intelligence:</strong> The halfpipe creates a natural oscillator &mdash; the player&rsquo;s skill is in timing inputs to amplify the oscillation (pumping) and then exploiting peak amplitude (air time) to perform actions. This resonance-exploitation pattern appears in control theory as energy pumping in nonlinear oscillators. The skateboard halfpipe is a physical pendulum with parametric excitation &mdash; the same mathematics that describes children pumping on swings.</p>
+    <p><strong>The Convergence:</strong> Modern robotics uses the same energy-pumping principles for locomotion. Boston Dynamics' robots exploit resonant oscillations for efficient movement. The skater pumping a halfpipe and a robot optimizing its gait share the same underlying mathematics.</p>
+    <p><strong>If AI Had Designed This:</strong> Optimal trick selection based on remaining air time, using trajectory prediction to determine which tricks can be completed before landing &mdash; essentially a real-time scheduling problem with kinematic constraints.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: SPT &mdash; Sports</h3>
+    <p>Sports games that simulate athletic activities with physics-based mechanics. The halfpipe is a constrained physics playground where mastery comes from understanding the oscillator dynamics.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Pump halfpipe, launch off lip, perform tricks for combo score.</strong> Parametric oscillation builds amplitude. Air time enables trick execution. Trick commitment creates risk. Combos reward consistency.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Pumping feel &mdash; does timing inputs to gain speed feel intuitive and rewarding?</li>
+      <li>Air control &mdash; does the launch-trick-land loop feel smooth?</li>
+      <li>Risk/reward &mdash; do longer tricks feel appropriately dangerous?</li>
+      <li>Combo pressure &mdash; does the multiplier create meaningful decisions about which trick to attempt?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Side-view halfpipe with physics-based rolling. Three trick types with different durations and point values. Combo multiplier system. 60-second time limit.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+const keys = {};
+const justPressed = {};
+window.addEventListener('keydown', e => {
+  if (infoOpen) return;
+  if (!keys[e.code]) justPressed[e.code] = true;
+  keys[e.code] = true;
+  e.preventDefault();
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+// --- HALFPIPE GEOMETRY ---
+// The halfpipe is a circular arc (U-shape)
+// Center of the arc, radius, and angular extent define it
+const PIPE_CX = W / 2;        // center x of the arc
+const PIPE_CY = 200;          // center y (above the bottom of the arc)
+const PIPE_R = 220;           // radius of the arc
+const PIPE_BOTTOM_Y = PIPE_CY + PIPE_R; // y position of the bottom of the pipe (420)
+const PIPE_ANGLE_MAX = 1.25;  // max angle from bottom (radians) — how wide the lip extends
+// Lip Y: PIPE_CY + PIPE_R * cos(PIPE_ANGLE_MAX) ≈ 200 + 220*cos(1.25) ≈ 200 + 220*0.315 = 269
+
+// Get pipe surface position at a given angle (-PIPE_ANGLE_MAX to +PIPE_ANGLE_MAX)
+// angle = 0 is the bottom center
+// negative = left side, positive = right side
+function pipePos(angle) {
+  return {
+    x: PIPE_CX + PIPE_R * Math.sin(angle),
+    y: PIPE_CY + PIPE_R * Math.cos(angle)
+  };
+}
+
+// Lip height (top of the pipe walls)
+const lipLeft = pipePos(-PIPE_ANGLE_MAX);
+const lipRight = pipePos(PIPE_ANGLE_MAX);
+const LIP_Y = lipLeft.y;
+
+// --- CONSTANTS ---
+const GRAVITY = 0.35;
+const PUMP_FORCE = 0.012;
+const FRICTION = 0.997;
+const LAUNCH_MIN_SPEED = 0.03;
+const GAME_TIME = 60;
+
+// Trick definitions: name, points, duration (frames)
+const TRICKS = {
+  KeyZ: { name: 'KICKFLIP', pts: 100, dur: 18, color: '#0f0' },
+  KeyX: { name: 'GRAB', pts: 200, dur: 30, color: '#ff0' },
+  KeyC: { name: '360 SPIN', pts: 300, dur: 42, color: '#f0f' }
+};
+
+// --- STATE ---
+let skater, gameTimer, score, combo, comboMult, gameOver, frame;
+let popups, particles, clouds, pumpFlash;
+
+function initGame() {
+  skater = {
+    // On-pipe state (when riding)
+    angle: -0.6,       // start partway up left wall
+    angVel: 0.02,      // initial velocity so player sees movement immediately
+
+    // Air state (when airborne)
+    airborne: false,
+    x: PIPE_CX,
+    y: PIPE_BOTTOM_Y,
+    vx: 0,
+    vy: 0,
+
+    // Trick state
+    trick: null,       // current trick being performed
+    trickTimer: 0,     // frames remaining for trick
+    trickRotation: 0,  // rotation amount for visual
+    stunTimer: 0,      // stun after crash
+
+    // Visual facing: 1 = right, -1 = left
+    facing: 1
+  };
+
+  gameTimer = GAME_TIME * 60; // 60fps * 60 seconds
+  score = 0;
+  combo = 0;
+  comboMult = 1;
+  gameOver = false;
+  frame = 0;
+  popups = [];
+  particles = [];
+  pumpFlash = 0; // visual feedback timer for good pump timing
+
+  // Generate clouds
+  clouds = [];
+  for (let i = 0; i < 6; i++) {
+    clouds.push({
+      x: Math.random() * W,
+      y: 30 + Math.random() * 80,
+      w: 40 + Math.random() * 60,
+      speed: 0.1 + Math.random() * 0.2
+    });
+  }
+}
+initGame();
+
+function update() {
+  if (infoOpen) return;
+  if (gameOver) { if (keys['KeyR']) initGame(); return; }
+  frame++;
+
+  // Timer
+  gameTimer--;
+  if (gameTimer <= 0) {
+    gameOver = true;
+    return;
+  }
+
+  // Move clouds
+  for (const cl of clouds) {
+    cl.x += cl.speed;
+    if (cl.x > W + cl.w) cl.x = -cl.w;
+  }
+
+  // Update popups
+  for (const p of popups) {
+    p.y -= 1.2;
+    p.life--;
+  }
+  popups = popups.filter(p => p.life > 0);
+
+  // Update particles
+  for (const pt of particles) {
+    pt.x += pt.vx;
+    pt.y += pt.vy;
+    pt.vy += 0.15;
+    pt.life--;
+  }
+  particles = particles.filter(pt => pt.life > 0);
+
+  // Stun
+  if (skater.stunTimer > 0) {
+    skater.stunTimer--;
+    // Clear justPressed so player can't act during stun
+    for (const k in justPressed) justPressed[k] = false;
+    return;
+  }
+
+  if (!skater.airborne) {
+    // ---- ON PIPE ----
+
+    // Gravity component along the arc surface
+    // When angle > 0 (right side), gravity pulls toward angle=0 (negative angular accel)
+    // When angle < 0 (left side), gravity pulls toward angle=0 (positive angular accel)
+    const gravAccel = (GRAVITY / PIPE_R) * Math.sin(skater.angle);
+    skater.angVel -= gravAccel;
+
+    // Pumping: press in the direction of travel at the bottom half of the pipe
+    // This amplifies the oscillation (like pumping a swing)
+    const atBottom = Math.abs(skater.angle) < 0.5;
+    if (keys['ArrowLeft'] || keys['KeyA']) {
+      if (atBottom && skater.angVel < 0) {
+        // Moving left through bottom — pump adds energy
+        skater.angVel -= PUMP_FORCE;
+        pumpFlash = 12; // good pump feedback
+      } else {
+        // Lean/steer (weaker)
+        skater.angVel -= PUMP_FORCE * 0.3;
+      }
+    }
+    if (keys['ArrowRight'] || keys['KeyD']) {
+      if (atBottom && skater.angVel > 0) {
+        // Moving right through bottom — pump adds energy
+        skater.angVel += PUMP_FORCE;
+        pumpFlash = 12; // good pump feedback
+      } else {
+        skater.angVel += PUMP_FORCE * 0.3;
+      }
+    }
+
+    // Decay pump flash
+    if (pumpFlash > 0) pumpFlash--;
+
+    // Friction
+    skater.angVel *= FRICTION;
+
+    // Update angle
+    skater.angle += skater.angVel;
+
+    // Track facing direction
+    if (skater.angVel > 0.005) skater.facing = 1;
+    else if (skater.angVel < -0.005) skater.facing = -1;
+
+    // Update position on pipe
+    const pos = pipePos(skater.angle);
+    skater.x = pos.x;
+    skater.y = pos.y;
+
+    // Launch off lip
+    const nearLip = Math.abs(skater.angle) > PIPE_ANGLE_MAX * 0.85;
+    const movingUp = (skater.angle > 0 && skater.angVel > 0) ||
+                     (skater.angle < 0 && skater.angVel < 0);
+    const fastEnough = Math.abs(skater.angVel) > LAUNCH_MIN_SPEED;
+
+    if (justPressed['Space'] && nearLip && movingUp && fastEnough) {
+      // Launch into air
+      skater.airborne = true;
+
+      // Convert angular velocity to linear velocity
+      // Tangent direction at the current angle
+      const speed = Math.abs(skater.angVel) * PIPE_R;
+      // Horizontal: gentle drift in the direction skater was moving
+      skater.vx = Math.sign(skater.angVel) * speed * 0.15;
+      // Vertical: strong upward launch proportional to speed
+      skater.vy = -speed * 0.55 - 3.5; // base upward impulse + speed bonus
+
+      skater.trick = null;
+      skater.trickTimer = 0;
+      skater.trickRotation = 0;
+    }
+
+    // Clamp to pipe bounds — smooth deceleration near the lip instead of hard bounce
+    if (skater.angle > PIPE_ANGLE_MAX) {
+      skater.angle = PIPE_ANGLE_MAX;
+      skater.angVel *= -0.3; // softer bounce so skater doesn't get stuck
+    }
+    if (skater.angle < -PIPE_ANGLE_MAX) {
+      skater.angle = -PIPE_ANGLE_MAX;
+      skater.angVel *= -0.3;
+    }
+    // Apply drag near the lips to prevent sticking/jittering at the edge
+    if (Math.abs(skater.angle) > PIPE_ANGLE_MAX * 0.9) {
+      const lipProximity = (Math.abs(skater.angle) - PIPE_ANGLE_MAX * 0.9) / (PIPE_ANGLE_MAX * 0.1);
+      // If moving slowly near the lip, nudge back toward center
+      if (Math.abs(skater.angVel) < 0.01) {
+        skater.angVel -= Math.sign(skater.angle) * 0.002;
+      }
+    }
+
+  } else {
+    // ---- AIRBORNE ----
+
+    // Gravity — must be strong enough for a proper arc
+    skater.vy += GRAVITY * 0.45;
+
+    // Slight air control
+    if (keys['ArrowLeft'] || keys['KeyA']) skater.vx -= 0.05;
+    if (keys['ArrowRight'] || keys['KeyD']) skater.vx += 0.05;
+
+    // Move
+    skater.x += skater.vx;
+    skater.y += skater.vy;
+
+    // Bounds clamping — never let the skater leave the visible canvas
+    if (skater.x < 20) { skater.x = 20; skater.vx = Math.abs(skater.vx) * 0.5; }
+    if (skater.x > W - 20) { skater.x = W - 20; skater.vx = -Math.abs(skater.vx) * 0.5; }
+    if (skater.y < 10) { skater.y = 10; skater.vy = Math.abs(skater.vy) * 0.3; }
+
+    // Start trick (only one at a time)
+    if (skater.trick === null) {
+      for (const code of ['KeyZ', 'KeyX', 'KeyC']) {
+        if (justPressed[code]) {
+          skater.trick = TRICKS[code];
+          skater.trickTimer = TRICKS[code].dur;
+          skater.trickRotation = 0;
+          break;
+        }
+      }
+    }
+
+    // Advance trick timer
+    if (skater.trick) {
+      skater.trickTimer--;
+      skater.trickRotation += (Math.PI * 2) / skater.trick.dur;
+
+      if (skater.trickTimer <= 0) {
+        // Trick completed in air — score it
+        const heightBonus = Math.max(0, Math.floor((LIP_Y - skater.y) / 5));
+        const trickPts = (skater.trick.pts + heightBonus) * comboMult;
+        score += trickPts;
+        combo++;
+        comboMult = combo + 1;
+
+        // Popup
+        popups.push({
+          x: skater.x,
+          y: skater.y - 20,
+          text: skater.trick.name + ' +' + trickPts + (comboMult > 1 ? ' x' + comboMult : ''),
+          color: skater.trick.color,
+          life: 60
+        });
+
+        skater.trick = null;
+        skater.trickTimer = 0;
+        skater.trickRotation = 0;
+      }
+    }
+
+    // Check landing — has the skater come back to pipe level?
+    // Find what angle on the pipe corresponds to the skater's x
+    const dx = skater.x - PIPE_CX;
+    const relX = Math.max(-1, Math.min(1, dx / PIPE_R));
+    const pipeAngle = Math.asin(relX);
+
+    if (Math.abs(pipeAngle) <= PIPE_ANGLE_MAX) {
+      const pipeP = pipePos(pipeAngle);
+
+      if (skater.y >= pipeP.y - 10 && skater.vy > 0) {
+        // Landing!
+        skater.airborne = false;
+        skater.angle = pipeAngle;
+
+        if (skater.trick !== null && skater.trickTimer > 0) {
+          // Trick NOT completed — crash!
+          crash();
+        } else {
+          // Clean landing
+          // Convert vertical velocity back to angular velocity
+          skater.angVel = skater.vx / PIPE_R * 2;
+
+          // Clamp angular velocity
+          skater.angVel = Math.max(-0.08, Math.min(0.08, skater.angVel));
+
+          // Landing particles
+          for (let i = 0; i < 6; i++) {
+            particles.push({
+              x: skater.x, y: pipeP.y,
+              vx: (Math.random() - 0.5) * 3,
+              vy: -Math.random() * 2,
+              life: 15 + Math.random() * 10,
+              color: '#aa8'
+            });
+          }
+        }
+
+        const pos = pipePos(skater.angle);
+        skater.x = pos.x;
+        skater.y = pos.y;
+      }
+    }
+
+    // Safety net: if skater somehow gets below the pipe bottom, force landing
+    if (skater.y > PIPE_BOTTOM_Y && skater.vy > 0) {
+      crash();
+      skater.airborne = false;
+      skater.angle = 0;
+      skater.angVel = 0;
+      const pos = pipePos(0);
+      skater.x = pos.x;
+      skater.y = pos.y;
+    }
+  }
+
+  // Clear justPressed
+  for (const k in justPressed) justPressed[k] = false;
+}
+
+function crash() {
+  combo = 0;
+  comboMult = 1;
+  score = Math.max(0, score - 50);
+  skater.stunTimer = 45;
+  skater.trick = null;
+  skater.trickTimer = 0;
+  skater.trickRotation = 0;
+  skater.angVel = 0;
+
+  // Crash particles
+  for (let i = 0; i < 12; i++) {
+    particles.push({
+      x: skater.x, y: skater.y,
+      vx: (Math.random() - 0.5) * 5,
+      vy: -Math.random() * 4,
+      life: 20 + Math.random() * 15,
+      color: i % 2 === 0 ? '#f44' : '#ff0'
+    });
+  }
+
+  popups.push({
+    x: skater.x,
+    y: skater.y - 30,
+    text: 'CRASH! -50',
+    color: '#f44',
+    life: 60
+  });
+}
+
+function drawHalfpipe() {
+  const steps = 60;
+
+  // --- Fill the interior of the halfpipe with a gradient ---
+  // Build a closed shape: pipe surface arc + straight line across the top
+  ctx.save();
+  ctx.beginPath();
+  for (let i = 0; i <= steps; i++) {
+    const a = -PIPE_ANGLE_MAX + (2 * PIPE_ANGLE_MAX * i / steps);
+    const p = pipePos(a);
+    if (i === 0) ctx.moveTo(p.x, p.y);
+    else ctx.lineTo(p.x, p.y);
+  }
+  // Close across the top
+  ctx.lineTo(lipLeft.x, lipLeft.y);
+  ctx.closePath();
+
+  // Gradient fill — dark at bottom, lighter at walls
+  const pipeGrad = ctx.createLinearGradient(0, PIPE_BOTTOM_Y, 0, LIP_Y);
+  pipeGrad.addColorStop(0, '#3a3a3a');
+  pipeGrad.addColorStop(0.5, '#555');
+  pipeGrad.addColorStop(1, '#777');
+  ctx.fillStyle = pipeGrad;
+  ctx.fill();
+  ctx.restore();
+
+  // --- Thick concrete outline (the U-shape border) ---
+  ctx.strokeStyle = '#999';
+  ctx.lineWidth = 24;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  for (let i = 0; i <= steps; i++) {
+    const a = -PIPE_ANGLE_MAX + (2 * PIPE_ANGLE_MAX * i / steps);
+    const p = pipePos(a);
+    if (i === 0) ctx.moveTo(p.x, p.y);
+    else ctx.lineTo(p.x, p.y);
+  }
+  ctx.stroke();
+
+  // --- Inner riding surface highlight ---
+  ctx.strokeStyle = '#bbb';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  for (let i = 0; i <= steps; i++) {
+    const a = -PIPE_ANGLE_MAX + (2 * PIPE_ANGLE_MAX * i / steps);
+    const p = pipePos(a);
+    if (i === 0) ctx.moveTo(p.x, p.y);
+    else ctx.lineTo(p.x, p.y);
+  }
+  ctx.stroke();
+
+  // Lip caps (flat tops of the pipe walls) — wider and more visible
+  ctx.fillStyle = '#aaa';
+  ctx.fillRect(lipLeft.x - 30, lipLeft.y - 6, 34, 12);
+  ctx.fillRect(lipRight.x - 4, lipRight.y - 6, 34, 12);
+
+  // Coping (metal edge at the lip) — bright so it's obvious
+  ctx.fillStyle = '#eee';
+  ctx.fillRect(lipLeft.x - 30, lipLeft.y - 3, 34, 6);
+  ctx.fillRect(lipRight.x - 4, lipRight.y - 3, 34, 6);
+
+  // "LIP" labels on the coping
+  ctx.fillStyle = '#666';
+  ctx.font = 'bold 9px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('LIP', lipLeft.x - 13, lipLeft.y + 3);
+  ctx.fillText('LIP', lipRight.x + 13, lipRight.y + 3);
+
+  // Platform extensions (flat ground extending from lips)
+  ctx.fillStyle = '#666';
+  ctx.fillRect(0, lipLeft.y - 1, lipLeft.x - 28, 18);
+  ctx.fillRect(lipRight.x + 28, lipRight.y - 1, W - lipRight.x - 28, 18);
+
+  // Ground below pipe
+  ctx.fillStyle = '#444';
+  ctx.fillRect(0, lipLeft.y + 17, W, H - lipLeft.y - 17);
+
+  // Vertical support lines
+  ctx.strokeStyle = '#555';
+  ctx.lineWidth = 2;
+  for (let sx = 50; sx < W; sx += 80) {
+    if (sx > lipLeft.x - 30 && sx < lipRight.x + 30) continue;
+    ctx.beginPath();
+    ctx.moveTo(sx, lipLeft.y + 17);
+    ctx.lineTo(sx, H);
+    ctx.stroke();
+  }
+}
+
+function drawSkater(x, y, angle, facing, trickState) {
+  ctx.save();
+  ctx.translate(x, y);
+
+  // Apply trick rotation
+  if (trickState && trickState.trick) {
+    const t = trickState.trick;
+    if (t.name === 'KICKFLIP') {
+      // Flip around horizontal axis
+      ctx.rotate(trickState.rotation);
+    } else if (t.name === 'GRAB') {
+      // Tuck pose — slight rotation
+      ctx.rotate(Math.sin(trickState.rotation) * 0.3);
+    } else if (t.name === '360 SPIN') {
+      // Full spin
+      ctx.rotate(trickState.rotation);
+    }
+  }
+
+  // Scale up 1.4x for visibility
+  ctx.scale(facing * 1.4, 1.4);
+
+  // --- Black outline pass (drawn slightly larger behind everything) ---
+  ctx.save();
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 6;
+  ctx.lineCap = 'round';
+  // Board outline
+  ctx.strokeRect(-16, 7, 32, 6);
+  // Body outline
+  ctx.beginPath();
+  ctx.moveTo(0, 2); ctx.lineTo(0, -14);
+  ctx.stroke();
+  // Legs outline
+  ctx.beginPath();
+  ctx.moveTo(-5, 10); ctx.lineTo(-4, 2);
+  ctx.moveTo(5, 10); ctx.lineTo(4, 2);
+  ctx.stroke();
+  // Head outline
+  ctx.beginPath();
+  ctx.arc(0, -18, 7, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+
+  // Board (bright red)
+  ctx.fillStyle = '#e33';
+  ctx.fillRect(-16, 7, 32, 6);
+  // Board highlight
+  ctx.fillStyle = '#f66';
+  ctx.fillRect(-14, 8, 28, 2);
+  // Wheels
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(-12, 16, 4, 0, Math.PI * 2);
+  ctx.arc(12, 16, 4, 0, Math.PI * 2);
+  ctx.fill();
+  // Wheel axles
+  ctx.fillStyle = '#888';
+  ctx.beginPath();
+  ctx.arc(-12, 16, 1.5, 0, Math.PI * 2);
+  ctx.arc(12, 16, 1.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Legs (bright blue)
+  ctx.strokeStyle = '#4af';
+  ctx.lineWidth = 4;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(-5, 10); ctx.lineTo(-4, 2);
+  ctx.moveTo(5, 10); ctx.lineTo(4, 2);
+  ctx.stroke();
+
+  // Body (bright orange)
+  ctx.strokeStyle = '#f92';
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.moveTo(0, 2); ctx.lineTo(0, -14);
+  ctx.stroke();
+
+  // Arms
+  ctx.strokeStyle = '#f92';
+  ctx.lineWidth = 3;
+  ctx.lineCap = 'round';
+  if (trickState && trickState.trick && trickState.trick.name === 'GRAB') {
+    // Grab pose — arms down to board
+    ctx.beginPath();
+    ctx.moveTo(0, -10); ctx.lineTo(-10, 6);
+    ctx.moveTo(0, -10); ctx.lineTo(10, 6);
+    ctx.stroke();
+  } else {
+    // Normal arms out
+    ctx.beginPath();
+    ctx.moveTo(0, -10); ctx.lineTo(-12, -4);
+    ctx.moveTo(0, -10); ctx.lineTo(12, -4);
+    ctx.stroke();
+  }
+
+  // Head (skin tone)
+  ctx.fillStyle = '#fda';
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(0, -18, 6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Helmet (bright)
+  ctx.fillStyle = '#39f';
+  ctx.beginPath();
+  ctx.arc(0, -20, 6, Math.PI, 0);
+  ctx.fill();
+
+  ctx.restore();
+}
+
+function draw() {
+  // Sky gradient
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, H);
+  skyGrad.addColorStop(0, '#4488cc');
+  skyGrad.addColorStop(0.5, '#88bbee');
+  skyGrad.addColorStop(1, '#aaddff');
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Clouds
+  for (const cl of clouds) {
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.beginPath();
+    ctx.ellipse(cl.x, cl.y, cl.w * 0.5, 12, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(cl.x - cl.w * 0.2, cl.y - 5, cl.w * 0.3, 10, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(cl.x + cl.w * 0.2, cl.y - 3, cl.w * 0.25, 8, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Background elements — distant fence
+  ctx.strokeStyle = '#7799aa';
+  ctx.lineWidth = 1;
+  for (let fx = 0; fx < W; fx += 20) {
+    ctx.beginPath();
+    ctx.moveTo(fx, LIP_Y - 40);
+    ctx.lineTo(fx, LIP_Y - 10);
+    ctx.stroke();
+  }
+  ctx.beginPath();
+  ctx.moveTo(0, LIP_Y - 30);
+  ctx.lineTo(W, LIP_Y - 30);
+  ctx.moveTo(0, LIP_Y - 15);
+  ctx.lineTo(W, LIP_Y - 15);
+  ctx.stroke();
+
+  // Halfpipe
+  drawHalfpipe();
+
+  // --- Pump timing feedback ---
+  if (pumpFlash > 0 && !skater.airborne) {
+    const alpha = pumpFlash / 12;
+    ctx.save();
+    ctx.fillStyle = `rgba(0,255,100,${alpha * 0.4})`;
+    ctx.beginPath();
+    ctx.arc(skater.x, skater.y - 14, 30 + (12 - pumpFlash) * 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = `rgba(0,255,100,${alpha})`;
+    ctx.font = 'bold 14px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('PUMP!', skater.x, skater.y - 50);
+    ctx.restore();
+  }
+
+  // Launch indicator — prominent "JUMP!" with arrow when near lip with speed
+  if (!skater.airborne && skater.stunTimer === 0) {
+    const nearLip = Math.abs(skater.angle) > PIPE_ANGLE_MAX * 0.85;
+    const movingUp = (skater.angle > 0 && skater.angVel > 0) ||
+                     (skater.angle < 0 && skater.angVel < 0);
+    const fastEnough = Math.abs(skater.angVel) > LAUNCH_MIN_SPEED;
+
+    if (nearLip && movingUp && fastEnough) {
+      const lip = skater.angle > 0 ? lipRight : lipLeft;
+      const pulse = 0.5 + 0.5 * Math.sin(frame * 0.4);
+
+      // Large glowing circle
+      ctx.fillStyle = `rgba(255,255,0,${0.3 + 0.3 * pulse})`;
+      ctx.beginPath();
+      ctx.arc(lip.x, lip.y - 10, 22 + pulse * 5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Arrow pointing up
+      ctx.save();
+      ctx.translate(lip.x, lip.y - 18 - pulse * 4);
+      ctx.fillStyle = '#ff0';
+      ctx.beginPath();
+      ctx.moveTo(0, -12);
+      ctx.lineTo(-8, 0);
+      ctx.lineTo(-3, 0);
+      ctx.lineTo(-3, 8);
+      ctx.lineTo(3, 8);
+      ctx.lineTo(3, 0);
+      ctx.lineTo(8, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+
+      // "JUMP! [SPACE]" text
+      ctx.fillStyle = '#ff0';
+      ctx.font = 'bold 14px monospace';
+      ctx.textAlign = 'center';
+      ctx.shadowColor = '#000';
+      ctx.shadowBlur = 4;
+      ctx.fillText('JUMP! [SPACE]', lip.x, lip.y - 40);
+      ctx.shadowBlur = 0;
+    }
+  }
+
+  // Particles
+  for (const pt of particles) {
+    ctx.fillStyle = pt.color;
+    ctx.globalAlpha = pt.life / 30;
+    ctx.fillRect(pt.x - 2, pt.y - 2, 4, 4);
+  }
+  ctx.globalAlpha = 1;
+
+  // Skater
+  if (skater.stunTimer > 0 && (Math.floor(skater.stunTimer / 4) % 2 === 0)) {
+    // Flash during stun — skip draw on even frames
+  } else {
+    const trickState = skater.trick ? {
+      trick: skater.trick,
+      rotation: skater.trickRotation
+    } : null;
+
+    drawSkater(skater.x, skater.y - 14, 0, skater.facing, trickState);
+  }
+
+  // Air height indicator (when airborne)
+  if (skater.airborne) {
+    const height = Math.max(0, LIP_Y - skater.y);
+    if (height > 0) {
+      ctx.fillStyle = '#fff';
+      ctx.font = '12px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(Math.floor(height / 10) + 'ft', skater.x, skater.y - 35);
+    }
+
+    // Show trick name being performed
+    if (skater.trick) {
+      const pct = 1 - (skater.trickTimer / skater.trick.dur);
+      ctx.fillStyle = skater.trick.color;
+      ctx.font = 'bold 14px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(skater.trick.name, skater.x, skater.y - 50);
+
+      // Progress bar
+      ctx.fillStyle = '#333';
+      ctx.fillRect(skater.x - 20, skater.y - 44, 40, 4);
+      ctx.fillStyle = pct > 0.8 ? '#0f0' : skater.trick.color;
+      ctx.fillRect(skater.x - 20, skater.y - 44, 40 * pct, 4);
+    }
+  }
+
+  // Score popups
+  for (const p of popups) {
+    ctx.globalAlpha = Math.min(1, p.life / 20);
+    ctx.fillStyle = p.color;
+    ctx.font = 'bold 16px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(p.text, p.x, p.y);
+  }
+  ctx.globalAlpha = 1;
+
+  // --- HUD ---
+  // Score
+  ctx.fillStyle = '#000';
+  ctx.globalAlpha = 0.5;
+  ctx.fillRect(W - 210, 8, 200, 56);
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 22px monospace';
+  ctx.textAlign = 'right';
+  ctx.fillText('SCORE: ' + score, W - 16, 32);
+
+  // Combo
+  if (comboMult > 1) {
+    ctx.fillStyle = '#ff0';
+    ctx.font = 'bold 18px monospace';
+    ctx.fillText('COMBO x' + comboMult, W - 16, 56);
+  } else {
+    ctx.fillStyle = '#888';
+    ctx.font = '14px monospace';
+    ctx.fillText('COMBO x1', W - 16, 54);
+  }
+
+  // Timer
+  const timeLeft = Math.max(0, Math.ceil(gameTimer / 60));
+  ctx.fillStyle = '#000';
+  ctx.globalAlpha = 0.5;
+  ctx.fillRect(W / 2 - 50, 8, 100, 30);
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = timeLeft <= 10 ? '#f44' : '#fff';
+  ctx.font = 'bold 20px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(timeLeft + 's', W / 2, 32);
+
+  // Speed meter
+  const speedPct = Math.min(1, Math.abs(skater.angVel) / 0.08);
+  ctx.fillStyle = '#000';
+  ctx.globalAlpha = 0.5;
+  ctx.fillRect(14, H - 40, 104, 18);
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = '#333';
+  ctx.fillRect(16, H - 38, 100, 14);
+  const speedColor = speedPct > 0.7 ? '#0f0' : speedPct > 0.4 ? '#ff0' : '#f44';
+  ctx.fillStyle = speedColor;
+  ctx.fillRect(16, H - 38, 100 * speedPct, 14);
+  ctx.fillStyle = '#fff';
+  ctx.font = '10px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('SPEED', 66, H - 28);
+
+  // Trick legend
+  ctx.fillStyle = '#000';
+  ctx.globalAlpha = 0.4;
+  ctx.fillRect(14, H - 78, 160, 34);
+  ctx.globalAlpha = 1;
+  ctx.font = '11px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#0f0'; ctx.fillText('Z:FLIP', 20, H - 64);
+  ctx.fillStyle = '#ff0'; ctx.fillText('X:GRAB', 76, H - 64);
+  ctx.fillStyle = '#f0f'; ctx.fillText('C:360', 132, H - 64);
+  ctx.fillStyle = '#aaa'; ctx.fillText('100   200   300', 28, H - 50);
+
+  // --- Permanent control hints at top center ---
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.fillRect(W / 2 - 210, 44, 420, 22);
+  ctx.font = '12px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ccc';
+  ctx.fillText('\u2190 \u2192 Pump at bottom  |  SPACE Jump at lip  |  Z X C Tricks in air', W / 2, 59);
+  ctx.restore();
+
+  // Game over
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.font = 'bold 48px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#ff0';
+    ctx.fillText('TIME!', W / 2, H / 2 - 50);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 32px monospace';
+    ctx.fillText('FINAL SCORE: ' + score, W / 2, H / 2);
+    ctx.fillStyle = '#aaa';
+    ctx.font = '16px monospace';
+    ctx.fillText('Best combo: x' + comboMult, W / 2, H / 2 + 35);
+    ctx.fillText('R to restart', W / 2, H / 2 + 65);
+  }
+
+  // Title badge
+  ctx.fillStyle = '#1a1a1a';
+  ctx.globalAlpha = 0.8;
+  ctx.fillRect(8, 8, 265, 28);
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = '#555';
+  ctx.font = '13px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('SPT-003 \u00B7 SKATEBOARD  [?]', 16, 26);
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: dpad2+fire ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("dpad2+fire");
+</script>
+</body>
+</html>

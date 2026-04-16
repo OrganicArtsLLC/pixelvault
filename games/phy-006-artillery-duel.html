@@ -1,0 +1,939 @@
+<!--
+PROTOTYPE: artillery-duel
+SERIES: phy
+NUMBER: 006
+DATE: 2026-03-23
+MECHANIC: turn-based artillery with destructible terrain and wind physics
+ANCESTRY: Worms (1995, Team17), Scorched Earth (1991, Wendell Hicken), Gorillas (1991, Microsoft QBasic)
+CONTROLS: Left/Right — move worm | Up/Down — aim angle | Space (hold) — charge power | Enter — fire | 1/2/3 — select weapon | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 4 (Statistical Learning — trajectory prediction, destructible environment state)
+AI-INSIGHT: Worms' destructible terrain turned the environment from static backdrop into dynamic game state. Every shot permanently altered the possibility space — a concept that parallels how reinforcement learning agents must adapt to non-stationary environments.
+NOTES: Turn-based artillery with terrain destruction. Wind and power create
+       satisfying skill shots. Simple concept, deep emergent strategy.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PHY-006 · ARTILLERY DUEL</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>PHY-006 &middot; ARTILLERY DUEL</h1>
+    <p><span class="tag series">PHY &mdash; Physics</span> <span class="tag">Prototype #006</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Take turns firing artillery at the enemy team. Destroy terrain and eliminate all enemy worms to win!</p>
+    <ul>
+      <li><kbd>&larr;</kbd> / <kbd>&rarr;</kbd> &mdash; Move worm</li>
+      <li><kbd>&uarr;</kbd> / <kbd>&darr;</kbd> &mdash; Aim angle</li>
+      <li><kbd>Space</kbd> (hold) &mdash; Charge power meter</li>
+      <li><kbd>Enter</kbd> &mdash; Fire weapon</li>
+      <li><kbd>1</kbd> &mdash; Bazooka (arced projectile)</li>
+      <li><kbd>2</kbd> &mdash; Grenade (bounces, timed fuse)</li>
+      <li><kbd>3</kbd> &mdash; Shotgun (short range spread)</li>
+      <li><kbd>R</kbd> &mdash; Restart game</li>
+      <li><kbd>?</kbd> &mdash; Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Wind:</strong> Check the wind indicator at the top &mdash; it affects projectile flight.</li>
+      <li><strong>Terrain:</strong> Explosions carve craters. Use this to drop enemies or create cover.</li>
+      <li><strong>Grenades:</strong> They bounce and explode after 3 seconds &mdash; great for tricky angles.</li>
+      <li><strong>Shotgun:</strong> Devastating at close range, useless at distance.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Gorillas (1991, Microsoft QBasic) &rarr; Scorched Earth (1991) &rarr; Worms (1995, Team17)</p>
+    <p>The artillery game is one of the oldest computer game genres, dating to early mainframe games. Scorched Earth (1991) refined the concept with destructible terrain, multiple weapons, and wind effects. Worms (1995) by Team17 added character, humor, and team-based play, becoming a beloved multiplayer franchise.</p>
+    <p>The core loop is ancient but deep: angle, power, fire. Wind adds a variable that prevents memorization. Destructible terrain means the game state is never the same twice, creating emergent tactical situations.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 4 &mdash; Statistical Learning (1993&ndash;2006)</p>
+    <p><strong>Contemporary AI:</strong> Statistical machine learning, SVMs, early reinforcement learning. TD-Gammon demonstrated RL in complex games.</p>
+    <p><strong>Hidden Intelligence:</strong> Worms&rsquo; AI must solve an inverse kinematics problem: given a target position, wind, and terrain, compute the angle and power to hit it. This is a simplified ballistic trajectory optimization &mdash; the same class of problem that guidance systems solve. The AI must also reason about terrain destruction as a secondary objective.</p>
+    <p><strong>The Convergence:</strong> Non-stationary environments are a fundamental challenge in reinforcement learning. In Worms, every explosion permanently changes the state space. Modern RL research on sim-to-real transfer faces the same issue: the training environment never perfectly matches deployment. Worms was an early, intuitive demonstration of this principle.</p>
+
+    <h2>Classification</h2>
+    <p><strong>Genre:</strong> Artillery / Turn-Based Strategy</p>
+    <p><strong>Input Complexity:</strong> Medium &mdash; angle, power, weapon selection, movement</p>
+    <p><strong>State Complexity:</strong> High &mdash; destructible terrain creates unique game states</p>
+
+    <h2>Prototype Notes</h2>
+    <p>Pixel-based terrain destruction using ImageData. Projectile physics with gravity and wind. Simple AI uses trajectory calculation with randomized error. Worms fall with gravity after terrain changes. Three weapon types with distinct tactical roles.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+var C = document.getElementById('c'), X = C.getContext('2d');
+C.width = 800; C.height = 600;
+var infoOpen = false;
+
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// --- Constants ---
+var W = 800, H = 600, G = 0.15, MOVE_SPEED = 2, MAX_MOVE = 80;
+var BAZOOKA = 0, GRENADE = 1, SHOTGUN = 2;
+var WEAPON_NAMES = ['Bazooka', 'Grenade', 'Shotgun'];
+var WEAPON_COLORS = ['#f44', '#4f4', '#ff0'];
+var TEAM_COLORS = ['#4af', '#f44'];
+var TEAM_NAMES = ['BLUE', 'RED'];
+
+// --- Game state ---
+var terrain, terrainColor;
+var teams, currentTeam, currentWorm, wind;
+var phase; // 'move', 'aim', 'charge', 'fire', 'flight', 'explode', 'fall', 'wait', 'gameover'
+var projectile, explosions, particles;
+var aimAngle, power, charging, moved, moveLeft;
+var weapon, turnTimer, fallTimer, waitTimer;
+var gameOverMsg;
+var keys = {};
+
+function generateTerrain() {
+  terrain = new Uint8Array(W * H);
+  terrainColor = new Uint8Array(W * H * 3);
+  // Generate heightmap using midpoint displacement
+  var heights = new Float64Array(W);
+  heights[0] = 280 + Math.random() * 80;
+  heights[W - 1] = 280 + Math.random() * 80;
+  midpoint(heights, 0, W - 1, 60);
+  for (var x = 0; x < W; x++) {
+    var h = Math.floor(heights[x]);
+    if (h < 100) h = 100;
+    if (h > 450) h = 450;
+    for (var y = H - 1; y >= H - h; y--) {
+      var idx = y * W + x;
+      terrain[idx] = 1;
+      var depth = (H - y) / h;
+      var ci = idx * 3;
+      // Green surface, brown below
+      if (depth < 0.08) {
+        terrainColor[ci] = 50 + Math.random() * 30 | 0;
+        terrainColor[ci + 1] = 160 + Math.random() * 40 | 0;
+        terrainColor[ci + 2] = 30 + Math.random() * 20 | 0;
+      } else {
+        terrainColor[ci] = 100 + Math.random() * 30 + depth * 40 | 0;
+        terrainColor[ci + 1] = 60 + Math.random() * 20 + depth * 20 | 0;
+        terrainColor[ci + 2] = 30 + Math.random() * 15 | 0;
+      }
+    }
+  }
+}
+
+function midpoint(arr, l, r, disp) {
+  if (r - l < 2) return;
+  var m = (l + r) >> 1;
+  arr[m] = (arr[l] + arr[r]) / 2 + (Math.random() - 0.5) * disp;
+  midpoint(arr, l, m, disp * 0.6);
+  midpoint(arr, m, r, disp * 0.6);
+}
+
+function getTerrainHeight(x) {
+  x = Math.floor(x);
+  if (x < 0 || x >= W) return H;
+  for (var y = 0; y < H; y++) {
+    if (terrain[y * W + x]) return y;
+  }
+  return H;
+}
+
+function destroyTerrain(cx, cy, radius) {
+  var r2 = radius * radius;
+  var minX = Math.max(0, Math.floor(cx - radius));
+  var maxX = Math.min(W - 1, Math.ceil(cx + radius));
+  var minY = Math.max(0, Math.floor(cy - radius));
+  var maxY = Math.min(H - 1, Math.ceil(cy + radius));
+  for (var y = minY; y <= maxY; y++) {
+    for (var x = minX; x <= maxX; x++) {
+      var dx = x - cx, dy = y - cy;
+      if (dx * dx + dy * dy < r2) {
+        terrain[y * W + x] = 0;
+      }
+    }
+  }
+}
+
+function isSolid(x, y) {
+  x = Math.floor(x); y = Math.floor(y);
+  if (x < 0 || x >= W || y < 0 || y >= H) return false;
+  return terrain[y * W + x] === 1;
+}
+
+// --- Worm ---
+function createWorm(team, x) {
+  var y = getTerrainHeight(x) - 1;
+  return { team: team, x: x, y: y, hp: 100, alive: true, vy: 0, falling: false };
+}
+
+function initTeams() {
+  teams = [[], []];
+  // Place worms spread across the map
+  var positions = [
+    [100 + Math.random() * 80, 200 + Math.random() * 80, 300 + Math.random() * 80],
+    [500 + Math.random() * 80, 600 + Math.random() * 80, 700 + Math.random() * 80]
+  ];
+  for (var t = 0; t < 2; t++) {
+    for (var i = 0; i < 3; i++) {
+      teams[t].push(createWorm(t, Math.floor(positions[t][i])));
+    }
+  }
+}
+
+function aliveWorms(t) {
+  return teams[t].filter(function(w) { return w.alive; });
+}
+
+// --- Init ---
+function init() {
+  generateTerrain();
+  initTeams();
+  currentTeam = 0;
+  currentWorm = 0;
+  wind = (Math.random() - 0.5) * 0.12;
+  phase = 'move';
+  projectile = null;
+  explosions = [];
+  particles = [];
+  aimAngle = currentTeam === 0 ? -Math.PI / 4 : -3 * Math.PI / 4;
+  power = 0;
+  charging = false;
+  moved = 0;
+  moveLeft = MAX_MOVE;
+  weapon = BAZOOKA;
+  turnTimer = 0;
+  fallTimer = 0;
+  waitTimer = 0;
+  gameOverMsg = '';
+}
+
+init();
+
+// --- Input ---
+document.addEventListener('keydown', function(e) {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+  if (infoOpen) return;
+  keys[e.key] = true;
+  if (e.key === 'r' || e.key === 'R') { init(); return; }
+  if (phase === 'aim' || phase === 'move') {
+    if (e.key === '1') weapon = BAZOOKA;
+    if (e.key === '2') weapon = GRENADE;
+    if (e.key === '3') weapon = SHOTGUN;
+    if (e.key === ' ') { phase = 'charge'; power = 0; charging = true; e.preventDefault(); }
+    if (e.key === 'Enter') { fireWeapon(); e.preventDefault(); }
+  }
+  if (e.key === ' ') e.preventDefault();
+});
+
+document.addEventListener('keyup', function(e) {
+  keys[e.key] = false;
+  if (e.key === ' ' && phase === 'charge') {
+    fireWeapon();
+  }
+});
+
+function getCurrentWorm() {
+  var alive = aliveWorms(currentTeam);
+  if (alive.length === 0) return null;
+  return alive[currentWorm % alive.length];
+}
+
+function fireWeapon() {
+  var w = getCurrentWorm();
+  if (!w) return;
+  charging = false;
+  var p = Math.max(power, 2);
+  if (weapon === SHOTGUN) {
+    // Shotgun: multiple pellets, short range
+    phase = 'flight';
+    projectile = [];
+    for (var i = 0; i < 5; i++) {
+      var a = aimAngle + (Math.random() - 0.5) * 0.3;
+      var sp = p * 0.7 + Math.random() * p * 0.3;
+      projectile.push({
+        x: w.x, y: w.y - 6, vx: Math.cos(a) * sp * 0.15,
+        vy: Math.sin(a) * sp * 0.15, life: 25, type: 'pellet'
+      });
+    }
+  } else {
+    phase = 'flight';
+    var vx = Math.cos(aimAngle) * p * 0.12;
+    var vy = Math.sin(aimAngle) * p * 0.12;
+    projectile = {
+      x: w.x, y: w.y - 6, vx: vx, vy: vy,
+      type: weapon === BAZOOKA ? 'rocket' : 'grenade',
+      timer: weapon === GRENADE ? 180 : 9999, bounces: 0
+    };
+  }
+}
+
+function applyExplosion(cx, cy, radius, damage) {
+  destroyTerrain(cx, cy, radius);
+  // Add visual explosion
+  explosions.push({ x: cx, y: cy, r: 0, maxR: radius * 1.5, speed: 2 });
+  // Spawn particles
+  for (var i = 0; i < 20; i++) {
+    var a = Math.random() * Math.PI * 2;
+    var sp = 1 + Math.random() * 3;
+    particles.push({
+      x: cx, y: cy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 2,
+      life: 20 + Math.random() * 20 | 0, color: Math.random() > 0.5 ? '#f80' : '#ff0'
+    });
+  }
+  // Damage worms
+  for (var t = 0; t < 2; t++) {
+    for (var j = 0; j < teams[t].length; j++) {
+      var w = teams[t][j];
+      if (!w.alive) continue;
+      var dx = w.x - cx, dy = w.y - cy;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < radius * 1.5) {
+        var dmg = Math.floor(damage * (1 - dist / (radius * 1.5)));
+        if (dmg > 0) {
+          w.hp -= dmg;
+          if (w.hp <= 0) { w.hp = 0; w.alive = false; }
+          // Knockback
+          if (dist > 0) {
+            w.x += (dx / dist) * dmg * 0.3;
+            w.vy = -3 - Math.random() * 2;
+            w.falling = true;
+          }
+        }
+      }
+    }
+  }
+}
+
+function nextTurn() {
+  // Check win condition
+  var a0 = aliveWorms(0).length, a1 = aliveWorms(1).length;
+  if (a0 === 0 && a1 === 0) { phase = 'gameover'; gameOverMsg = 'DRAW!'; return; }
+  if (a0 === 0) { phase = 'gameover'; gameOverMsg = 'RED WINS!'; return; }
+  if (a1 === 0) { phase = 'gameover'; gameOverMsg = 'BLUE WINS!'; return; }
+
+  currentTeam = 1 - currentTeam;
+  var alive = aliveWorms(currentTeam);
+  currentWorm = (currentWorm + 1) % alive.length;
+  wind += (Math.random() - 0.5) * 0.06;
+  if (wind > 0.15) wind = 0.15;
+  if (wind < -0.15) wind = -0.15;
+  phase = 'move';
+  power = 0;
+  charging = false;
+  moved = 0;
+  moveLeft = MAX_MOVE;
+  // Set default aim direction
+  var cw = getCurrentWorm();
+  if (cw) {
+    // Aim towards center of map
+    aimAngle = cw.x < W / 2 ? -Math.PI / 4 : -3 * Math.PI / 4;
+  }
+
+  if (currentTeam === 1) {
+    // AI turn
+    phase = 'wait';
+    waitTimer = 60;
+  }
+}
+
+function settleWorms() {
+  var anyFalling = false;
+  for (var t = 0; t < 2; t++) {
+    for (var i = 0; i < teams[t].length; i++) {
+      var w = teams[t][i];
+      if (!w.alive) continue;
+      // Check if ground beneath
+      var groundY = getTerrainHeight(Math.floor(w.x));
+      if (w.y < groundY - 1) {
+        w.vy += G;
+        w.y += w.vy;
+        anyFalling = true;
+        if (w.y >= groundY - 1) {
+          w.y = groundY - 1;
+          // Fall damage
+          if (w.vy > 4) {
+            var fd = Math.floor((w.vy - 4) * 8);
+            w.hp -= fd;
+            if (w.hp <= 0) { w.hp = 0; w.alive = false; }
+          }
+          w.vy = 0;
+        }
+      } else {
+        w.y = groundY - 1;
+        w.vy = 0;
+      }
+      // Out of bounds
+      if (w.y >= H - 2 || w.x < 0 || w.x >= W) {
+        w.alive = false;
+      }
+    }
+  }
+  return anyFalling;
+}
+
+// --- AI ---
+function aiTurn() {
+  var cw = getCurrentWorm();
+  if (!cw) { nextTurn(); return; }
+  // Find nearest enemy
+  var enemies = aliveWorms(1 - currentTeam);
+  if (enemies.length === 0) { nextTurn(); return; }
+  var target = null, bestDist = Infinity;
+  for (var i = 0; i < enemies.length; i++) {
+    var dx = enemies[i].x - cw.x, dy = enemies[i].y - cw.y;
+    var d = Math.sqrt(dx * dx + dy * dy);
+    if (d < bestDist) { bestDist = d; target = enemies[i]; }
+  }
+  // Calculate firing solution
+  var dx = target.x - cw.x;
+  var dy = target.y - cw.y;
+  var dist = Math.sqrt(dx * dx + dy * dy);
+
+  // Pick weapon
+  if (dist < 80) {
+    weapon = SHOTGUN;
+  } else if (Math.random() < 0.3) {
+    weapon = GRENADE;
+  } else {
+    weapon = BAZOOKA;
+  }
+
+  // Solve for angle and power (approximate)
+  // For a projectile: x = vx*t + 0.5*wind*t^2, y = vy*t + 0.5*G*t^2
+  // Use iterative approach with some randomness
+  var bestAngle = 0, bestPower = 50, bestErr = Infinity;
+  for (var tries = 0; tries < 200; tries++) {
+    var testAngle = -Math.PI * Math.random();
+    var testPower = 20 + Math.random() * 80;
+    var vx = Math.cos(testAngle) * testPower * 0.12;
+    var vy = Math.sin(testAngle) * testPower * 0.12;
+    // Simulate
+    var sx = cw.x, sy = cw.y - 6;
+    var hit = false;
+    for (var step = 0; step < 300; step++) {
+      sx += vx; sy += vy;
+      vy += G;
+      vx += wind;
+      if (sy > H || sx < 0 || sx > W) break;
+      if (isSolid(Math.floor(sx), Math.floor(sy))) {
+        hit = true;
+        break;
+      }
+    }
+    var err = Math.sqrt((sx - target.x) * (sx - target.x) + (sy - target.y) * (sy - target.y));
+    if (err < bestErr) {
+      bestErr = err;
+      bestAngle = testAngle;
+      bestPower = testPower;
+    }
+  }
+  // Add randomness to make AI beatable
+  aimAngle = bestAngle + (Math.random() - 0.5) * 0.15;
+  power = bestPower + (Math.random() - 0.5) * 10;
+  if (power < 10) power = 10;
+  if (power > 100) power = 100;
+
+  fireWeapon();
+}
+
+// --- Update ---
+function update() {
+  if (infoOpen) return;
+
+  // Update particles
+  for (var i = particles.length - 1; i >= 0; i--) {
+    var p = particles[i];
+    p.x += p.vx; p.y += p.vy; p.vy += 0.1; p.life--;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+
+  // Update explosions
+  for (var i = explosions.length - 1; i >= 0; i--) {
+    explosions[i].r += explosions[i].speed;
+    if (explosions[i].r >= explosions[i].maxR) explosions.splice(i, 1);
+  }
+
+  if (phase === 'gameover') return;
+
+  // Settle worms (gravity)
+  var falling = settleWorms();
+
+  if (phase === 'wait') {
+    waitTimer--;
+    if (waitTimer <= 0) {
+      aiTurn();
+    }
+    return;
+  }
+
+  if (phase === 'move' || phase === 'aim') {
+    if (currentTeam === 0) {
+      var w = getCurrentWorm();
+      if (w) {
+        // Movement
+        if (keys['ArrowLeft'] && moveLeft > 0) {
+          var nx = w.x - MOVE_SPEED;
+          if (nx > 5) {
+            var ny = getTerrainHeight(Math.floor(nx));
+            if (ny < w.y + 8) { // Can climb small slopes
+              w.x = nx;
+              w.y = ny - 1;
+              moveLeft -= MOVE_SPEED;
+            }
+          }
+          phase = 'move';
+        }
+        if (keys['ArrowRight'] && moveLeft > 0) {
+          var nx = w.x + MOVE_SPEED;
+          if (nx < W - 5) {
+            var ny = getTerrainHeight(Math.floor(nx));
+            if (ny < w.y + 8) {
+              w.x = nx;
+              w.y = ny - 1;
+              moveLeft -= MOVE_SPEED;
+            }
+          }
+          phase = 'move';
+        }
+        // Aiming
+        if (keys['ArrowUp']) {
+          aimAngle -= 0.03;
+          phase = 'aim';
+        }
+        if (keys['ArrowDown']) {
+          aimAngle += 0.03;
+          phase = 'aim';
+        }
+        // Clamp angle
+        if (aimAngle < -Math.PI) aimAngle = -Math.PI;
+        if (aimAngle > 0) aimAngle = 0;
+      }
+    }
+  }
+
+  if (phase === 'charge') {
+    power += 1.2;
+    if (power > 100) power = 100;
+  }
+
+  if (phase === 'flight') {
+    if (Array.isArray(projectile)) {
+      // Shotgun pellets
+      var allDone = true;
+      for (var i = projectile.length - 1; i >= 0; i--) {
+        var p = projectile[i];
+        p.x += p.vx; p.y += p.vy;
+        p.vy += G * 0.5;
+        p.life--;
+        if (p.life <= 0 || isSolid(Math.floor(p.x), Math.floor(p.y)) || p.x < 0 || p.x >= W || p.y >= H) {
+          applyExplosion(p.x, p.y, 12, 15);
+          projectile.splice(i, 1);
+        } else {
+          allDone = false;
+        }
+      }
+      if (allDone || projectile.length === 0) {
+        projectile = null;
+        phase = 'fall';
+        fallTimer = 30;
+      }
+    } else if (projectile) {
+      projectile.x += projectile.vx;
+      projectile.y += projectile.vy;
+      projectile.vy += G;
+      projectile.vx += wind;
+      projectile.timer--;
+
+      var hitTerrain = isSolid(Math.floor(projectile.x), Math.floor(projectile.y));
+      var outOfBounds = projectile.x < -50 || projectile.x > W + 50 || projectile.y > H + 50;
+
+      if (projectile.type === 'grenade' && hitTerrain) {
+        // Bounce
+        projectile.vy *= -0.5;
+        projectile.vx *= 0.7;
+        projectile.y -= 2;
+        projectile.bounces++;
+        if (projectile.bounces > 5) projectile.timer = 0;
+      }
+
+      if ((projectile.type === 'rocket' && hitTerrain) || projectile.timer <= 0 || outOfBounds) {
+        if (!outOfBounds) {
+          var radius = projectile.type === 'grenade' ? 30 : 35;
+          var damage = projectile.type === 'grenade' ? 40 : 50;
+          applyExplosion(projectile.x, projectile.y, radius, damage);
+        }
+        projectile = null;
+        phase = 'fall';
+        fallTimer = 30;
+      }
+    }
+  }
+
+  if (phase === 'fall') {
+    var f = settleWorms();
+    fallTimer--;
+    if (!f && fallTimer <= 0) {
+      nextTurn();
+    }
+  }
+}
+
+// --- Render ---
+function renderTerrain() {
+  var imgData = X.createImageData(W, H);
+  var d = imgData.data;
+  for (var i = 0; i < W * H; i++) {
+    if (terrain[i]) {
+      var ci = i * 3;
+      var di = i * 4;
+      d[di] = terrainColor[ci];
+      d[di + 1] = terrainColor[ci + 1];
+      d[di + 2] = terrainColor[ci + 2];
+      d[di + 3] = 255;
+    }
+  }
+  X.putImageData(imgData, 0, 0);
+}
+
+function renderSky() {
+  var grad = X.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#112');
+  grad.addColorStop(0.5, '#234');
+  grad.addColorStop(1, '#345');
+  X.fillStyle = grad;
+  X.fillRect(0, 0, W, H);
+}
+
+function renderWorm(w, isActive) {
+  if (!w.alive) return;
+  var c = TEAM_COLORS[w.team];
+  // Body
+  X.fillStyle = c;
+  X.beginPath();
+  X.arc(w.x, w.y - 5, 5, 0, Math.PI * 2);
+  X.fill();
+  // Head
+  X.fillStyle = '#fff';
+  X.beginPath();
+  X.arc(w.x, w.y - 10, 3, 0, Math.PI * 2);
+  X.fill();
+  // Eyes
+  X.fillStyle = '#000';
+  X.fillRect(w.x - 2, w.y - 11, 1.5, 1.5);
+  X.fillRect(w.x + 1, w.y - 11, 1.5, 1.5);
+  // Health bar
+  X.fillStyle = '#333';
+  X.fillRect(w.x - 12, w.y - 20, 24, 3);
+  var hpPct = w.hp / 100;
+  X.fillStyle = hpPct > 0.5 ? '#4f4' : hpPct > 0.25 ? '#ff0' : '#f44';
+  X.fillRect(w.x - 12, w.y - 20, 24 * hpPct, 3);
+
+  // Aim indicator for active worm
+  if (isActive && (phase === 'move' || phase === 'aim' || phase === 'charge')) {
+    var len = 25;
+    var ax = w.x + Math.cos(aimAngle) * len;
+    var ay = w.y - 6 + Math.sin(aimAngle) * len;
+    X.strokeStyle = '#ff0';
+    X.lineWidth = 2;
+    X.beginPath();
+    X.moveTo(w.x, w.y - 6);
+    X.lineTo(ax, ay);
+    X.stroke();
+    // Crosshair
+    X.strokeStyle = '#f80';
+    X.beginPath();
+    X.arc(ax, ay, 4, 0, Math.PI * 2);
+    X.stroke();
+    X.lineWidth = 1;
+  }
+}
+
+function renderProjectile() {
+  if (!projectile) return;
+  if (Array.isArray(projectile)) {
+    X.fillStyle = '#ff0';
+    for (var i = 0; i < projectile.length; i++) {
+      X.fillRect(projectile[i].x - 1, projectile[i].y - 1, 3, 3);
+    }
+  } else {
+    if (projectile.type === 'rocket') {
+      X.fillStyle = '#f44';
+      X.beginPath();
+      X.arc(projectile.x, projectile.y, 3, 0, Math.PI * 2);
+      X.fill();
+      // Trail
+      X.fillStyle = '#f80';
+      X.beginPath();
+      X.arc(projectile.x - projectile.vx, projectile.y - projectile.vy, 2, 0, Math.PI * 2);
+      X.fill();
+    } else {
+      X.fillStyle = '#4f4';
+      X.beginPath();
+      X.arc(projectile.x, projectile.y, 3, 0, Math.PI * 2);
+      X.fill();
+    }
+  }
+}
+
+function renderExplosions() {
+  for (var i = 0; i < explosions.length; i++) {
+    var e = explosions[i];
+    var alpha = 1 - e.r / e.maxR;
+    X.fillStyle = 'rgba(255,200,50,' + alpha + ')';
+    X.beginPath();
+    X.arc(e.x, e.y, e.r, 0, Math.PI * 2);
+    X.fill();
+    X.fillStyle = 'rgba(255,100,20,' + (alpha * 0.5) + ')';
+    X.beginPath();
+    X.arc(e.x, e.y, e.r * 0.7, 0, Math.PI * 2);
+    X.fill();
+  }
+}
+
+function renderParticles() {
+  for (var i = 0; i < particles.length; i++) {
+    var p = particles[i];
+    X.fillStyle = p.color;
+    X.globalAlpha = p.life / 30;
+    X.fillRect(p.x - 1, p.y - 1, 2, 2);
+  }
+  X.globalAlpha = 1;
+}
+
+function renderHUD() {
+  var cw = getCurrentWorm();
+  // Wind indicator
+  X.fillStyle = '#fff';
+  X.font = '12px monospace';
+  X.textAlign = 'center';
+  X.fillText('WIND', W / 2, 15);
+  var windX = W / 2;
+  var windLen = wind * 300;
+  X.strokeStyle = wind > 0 ? '#4af' : '#f44';
+  X.lineWidth = 3;
+  X.beginPath();
+  X.moveTo(windX, 25);
+  X.lineTo(windX + windLen, 25);
+  X.stroke();
+  // Arrow head
+  if (Math.abs(windLen) > 5) {
+    var dir = windLen > 0 ? -1 : 1;
+    X.lineTo(windX + windLen + dir * 6, 21);
+    X.moveTo(windX + windLen, 25);
+    X.lineTo(windX + windLen + dir * 6, 29);
+    X.stroke();
+  }
+  X.lineWidth = 1;
+
+  // Team info
+  X.textAlign = 'left';
+  X.font = '14px monospace';
+  X.fillStyle = TEAM_COLORS[0];
+  var blueHp = aliveWorms(0).reduce(function(s, w) { return s + w.hp; }, 0);
+  X.fillText('BLUE: ' + blueHp + ' HP (' + aliveWorms(0).length + ' worms)', 10, 20);
+
+  X.textAlign = 'right';
+  X.fillStyle = TEAM_COLORS[1];
+  var redHp = aliveWorms(1).reduce(function(s, w) { return s + w.hp; }, 0);
+  X.fillText('RED: ' + redHp + ' HP (' + aliveWorms(1).length + ' worms)', W - 10, 20);
+
+  // Current turn info
+  X.textAlign = 'left';
+  X.fillStyle = '#fff';
+  X.font = '12px monospace';
+  var turnText = TEAM_NAMES[currentTeam] + "'s Turn";
+  if (currentTeam === 1 && (phase === 'wait' || phase === 'flight')) turnText += ' (AI)';
+  X.fillText(turnText, 10, H - 45);
+
+  // Weapon
+  X.fillStyle = WEAPON_COLORS[weapon];
+  X.fillText('Weapon: ' + WEAPON_NAMES[weapon] + ' [1/2/3]', 10, H - 30);
+
+  // Power meter
+  if (phase === 'charge' || phase === 'aim' || phase === 'move') {
+    X.fillStyle = '#333';
+    X.fillRect(10, H - 18, 104, 10);
+    var pColor = power < 50 ? '#4f4' : power < 80 ? '#ff0' : '#f44';
+    X.fillStyle = pColor;
+    X.fillRect(12, H - 16, power, 6);
+    X.fillStyle = '#fff';
+    X.font = '10px monospace';
+    X.fillText('PWR: ' + Math.floor(power), 120, H - 9);
+  }
+
+  // Move remaining
+  if (phase === 'move' && currentTeam === 0) {
+    X.fillStyle = '#aaa';
+    X.fillText('Move: ' + Math.floor(moveLeft) + 'px left', 10, H - 58);
+  }
+
+  // Game over
+  if (phase === 'gameover') {
+    X.fillStyle = 'rgba(0,0,0,0.6)';
+    X.fillRect(0, H / 2 - 40, W, 80);
+    X.fillStyle = '#fff';
+    X.font = 'bold 32px monospace';
+    X.textAlign = 'center';
+    X.fillText(gameOverMsg, W / 2, H / 2 + 5);
+    X.font = '14px monospace';
+    X.fillText('Press R to restart', W / 2, H / 2 + 30);
+  }
+
+  // Active worm indicator
+  if (cw && cw.alive && phase !== 'gameover') {
+    X.strokeStyle = '#ff0';
+    X.lineWidth = 1;
+    X.beginPath();
+    X.moveTo(cw.x, cw.y - 26);
+    X.lineTo(cw.x - 4, cw.y - 32);
+    X.lineTo(cw.x + 4, cw.y - 32);
+    X.closePath();
+    X.stroke();
+  }
+
+  // Instructions on first frame
+  X.textAlign = 'right';
+  X.fillStyle = '#666';
+  X.font = '11px monospace';
+  X.fillText('Press ? for info', W - 10, H - 8);
+}
+
+function render() {
+  renderSky();
+  renderTerrain();
+  for (var t = 0; t < 2; t++) {
+    for (var i = 0; i < teams[t].length; i++) {
+      var isActive = (t === currentTeam && aliveWorms(t).indexOf(teams[t][i]) === currentWorm % aliveWorms(t).length);
+      renderWorm(teams[t][i], isActive);
+    }
+  }
+  renderProjectile();
+  renderExplosions();
+  renderParticles();
+  renderHUD();
+}
+
+function loop() {
+  update();
+  render();
+  requestAnimationFrame(loop);
+}
+
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

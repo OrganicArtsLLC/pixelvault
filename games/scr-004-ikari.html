@@ -1,0 +1,1396 @@
+<!--
+PROTOTYPE: ikari
+SERIES: scr
+NUMBER: 004
+DATE: 2026-03-22
+MECHANIC: scroll upward through enemy territory, shoot in eight directions
+ANCESTRY: Ikari Warriors (1986, SNK), Commando (1985, Capcom)
+CONTROLS: WASD — move | Arrow keys — aim/shoot | Space — grenade | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — independent move/aim axes, increasing game complexity)
+AI-INSIGHT: Ikari Warriors separates movement from aiming — the player manages two independent control vectors simultaneously. This dual-output control problem mirrors multi-headed neural networks where separate output streams must coordinate toward a common objective.
+NOTES: Independent move and aim creates cognitive load that IS the challenge.
+       Forced scrolling adds time pressure to spatial navigation.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SCR-004 · JUNGLE SQUAD</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SCR-004 · JUNGLE SQUAD</h1>
+    <p><span class="tag series">SCR — Scrolling Shooter</span> <span class="tag">Prototype #004</span> <span class="tag">★★★★☆</span></p>
+
+    <h2>How to Play</h2>
+    <p>You are a lone commando pushing upward through enemy territory. Move and aim independently — survive, destroy, advance.</p>
+    <ul>
+      <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> — Move (8 directions)</li>
+      <li><kbd>Arrow keys</kbd> — Aim and shoot in that direction</li>
+      <li><kbd>Space</kbd> — Throw grenade (limited ammo)</li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Don't fall behind:</strong> If you drop below the bottom of the screen, you die.</li>
+      <li><strong>Grenades explode:</strong> They have area damage — use them on bunkers and groups.</li>
+      <li><strong>Grab pickups:</strong> Ammo crates give grenades, stars give spread shot, boots give speed.</li>
+      <li><strong>Bunkers are tough:</strong> They take multiple hits. Grenades are more effective.</li>
+      <li><strong>Boss at the end:</strong> A large tank appears after ~6000px of scrolling. It has an HP bar.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Commando (1985, Capcom) → Ikari Warriors (1986, SNK) → Guerrilla War (1987)</p>
+    <p>Ikari Warriors (1986) by SNK introduced rotational joystick controls to the top-down run-and-gun genre. Unlike Commando, where you aimed in the direction you moved, Ikari Warriors let players rotate their aim independently — a radical control innovation that demanded dual cognitive tracking.</p>
+    <p>The game's forced vertical scroll created constant forward pressure. You couldn't stop to plan; you had to move, aim, and decide simultaneously. This was one of the first arcade games to demand genuinely parallel input processing from the player.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 3 — Knowledge Explosion (1978–1983, extending into mid-80s arcade design)</p>
+    <p><strong>Contemporary AI:</strong> Multi-layer perceptrons existed but backpropagation was just being rediscovered (1986). Expert systems dominated practical AI. Real-time multi-output control was barely theorized.</p>
+    <p><strong>Hidden Intelligence:</strong> The independent move/aim axes create a dual-output control problem. The player's brain must maintain two separate spatial models — one for navigation (avoid obstacles, stay on screen) and one for targeting (track enemies, lead shots). This mirrors multi-headed neural networks where separate output layers share a common representation but produce independent action streams.</p>
+    <p><strong>The Convergence:</strong> Modern game AI agents (like OpenAI Five for Dota 2) face exactly this problem: simultaneous movement and targeting decisions from a shared world model. The cognitive architecture Ikari Warriors demands from human players presaged the multi-head attention mechanisms that would emerge decades later.</p>
+    <p><strong>If AI Had Designed This:</strong> Adaptive difficulty that monitors both movement efficiency and aim accuracy independently, tuning enemy density and placement to challenge whichever skill the player is weaker at — forcing balanced dual-stream improvement.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: SCR — Scrolling Shooter</h3>
+    <p>Games where the environment moves continuously. Ikari Warriors adds independent aiming to the vertical scrolling formula.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Dual-axis control with forced scroll.</strong> Independent movement and aiming. Vertical auto-scroll with increasing enemy density. Grenades for area damage. Power-ups for tactical variation.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Dual-input cognitive load — can players manage move + aim simultaneously?</li>
+      <li>Forced scroll pressure — does upward movement create urgency?</li>
+      <li>Grenade resource management — do limited grenades create meaningful decisions?</li>
+      <li>Enemy variety — do soldiers, bunkers, and jeeps feel distinct?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Procedural terrain with rivers, walls, bunkers, trees. Three enemy types plus a boss encounter. Independent move/aim is the core differentiator from Commando-style games.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+const keys = {};
+let grenadePressed = false;
+window.addEventListener('keydown', e => {
+  if (infoOpen) return;
+  if (!keys[e.code]) {
+    if (e.code === 'Space') grenadePressed = true;
+  }
+  keys[e.code] = true;
+  if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+// --- CONSTANTS ---
+const SCROLL_SPD = 1;
+const TILE = 40;
+const MAP_COLS = 20; // 800/40
+const MAP_ROWS = 200; // total map height in tiles (200*40 = 8000px)
+const BOSS_SCROLL = 6000;
+
+// Tile types
+const T_GRASS = 0, T_RIVER = 1, T_WALL = 2, T_TREE = 3, T_BRIDGE = 4, T_PATH = 5;
+
+// --- MAP GENERATION ---
+function genMap() {
+  const map = [];
+  for (let r = 0; r < MAP_ROWS; r++) {
+    const row = [];
+    for (let c = 0; c < MAP_COLS; c++) row.push(T_GRASS);
+    map.push(row);
+  }
+
+  // Lay down paths (brown, passable)
+  for (let r = 0; r < MAP_ROWS; r++) {
+    const cx = 10 + Math.floor(Math.sin(r * 0.04) * 4);
+    for (let c = cx - 1; c <= cx + 1; c++) {
+      if (c >= 0 && c < MAP_COLS) map[r][c] = T_PATH;
+    }
+  }
+
+  // Rivers (horizontal bands)
+  const riverRows = [];
+  for (let i = 0; i < 8; i++) {
+    const startRow = 20 + i * 22 + Math.floor(Math.random() * 8);
+    const bridgeCol = 3 + Math.floor(Math.random() * 14);
+    riverRows.push({ start: startRow, bridgeCol });
+    for (let dr = 0; dr < 3; dr++) {
+      const r = startRow + dr;
+      if (r >= MAP_ROWS) continue;
+      for (let c = 0; c < MAP_COLS; c++) {
+        if (Math.abs(c - bridgeCol) <= 1) {
+          map[r][c] = T_BRIDGE;
+        } else {
+          map[r][c] = T_RIVER;
+        }
+      }
+    }
+  }
+
+  // Walls and bunkers (scattered)
+  for (let i = 0; i < 60; i++) {
+    const r = 10 + Math.floor(Math.random() * (MAP_ROWS - 20));
+    const c = Math.floor(Math.random() * MAP_COLS);
+    if (map[r][c] === T_GRASS || map[r][c] === T_PATH) {
+      map[r][c] = T_WALL;
+    }
+  }
+
+  // Trees
+  for (let i = 0; i < 120; i++) {
+    const r = 5 + Math.floor(Math.random() * (MAP_ROWS - 10));
+    const c = Math.floor(Math.random() * MAP_COLS);
+    if (map[r][c] === T_GRASS) {
+      map[r][c] = T_TREE;
+    }
+  }
+
+  return { map, riverRows };
+}
+
+// --- ENEMIES ---
+function spawnEnemies(mapData) {
+  const enemies = [];
+  const bunkers = [];
+
+  // Pre-place bunkers near walls
+  for (let r = 15; r < MAP_ROWS - 10; r += 12 + Math.floor(Math.random() * 8)) {
+    const c = 2 + Math.floor(Math.random() * (MAP_COLS - 4));
+    if (mapData.map[r][c] === T_GRASS || mapData.map[r][c] === T_PATH) {
+      bunkers.push({ col: c, row: r, hp: 4, maxHp: 4, fireCd: 0 });
+    }
+  }
+
+  return { enemies, bunkers };
+}
+
+// --- GAME STATE ---
+let player, bullets, eBullets, grenades, explosions, pickups;
+let enemies, bunkers, jeeps;
+let scrollY, mapData, score, lives, grenadeAmmo, frame;
+let gameOver, gameWon, spreadTimer, speedTimer, shootCd;
+let boss, bossActive;
+let difficulty;
+
+function initGame() {
+  mapData = genMap();
+  const eData = spawnEnemies(mapData);
+  bunkers = eData.bunkers;
+
+  player = { x: W / 2, y: H - 80, dir: 0, speed: 3 }; // dir in radians, 0=up
+  bullets = [];
+  eBullets = [];
+  grenades = [];
+  explosions = [];
+  pickups = [];
+  enemies = [];
+  jeeps = [];
+  scrollY = 0;
+  score = 0;
+  lives = 3;
+  grenadeAmmo = 10;
+  frame = 0;
+  gameOver = false;
+  gameWon = false;
+  spreadTimer = 0;
+  speedTimer = 0;
+  shootCd = 0;
+  boss = null;
+  bossActive = false;
+  difficulty = 1;
+}
+initGame();
+
+// Direction vectors for 8-way
+const DIR8 = [
+  { dx: 0, dy: -1 },  // up
+  { dx: 1, dy: -1 },  // up-right
+  { dx: 1, dy: 0 },   // right
+  { dx: 1, dy: 1 },   // down-right
+  { dx: 0, dy: 1 },   // down
+  { dx: -1, dy: 1 },  // down-left
+  { dx: -1, dy: 0 },  // left
+  { dx: -1, dy: -1 }, // up-left
+];
+
+function worldToScreen(wx, wy) {
+  return { x: wx, y: wy - scrollY + H };
+}
+
+function screenToWorld(sx, sy) {
+  return { x: sx, y: sy + scrollY - H };
+}
+
+function tileAt(worldX, worldY) {
+  const col = Math.floor(worldX / TILE);
+  const row = MAP_ROWS - 1 - Math.floor(worldY / TILE);
+  if (col < 0 || col >= MAP_COLS || row < 0 || row >= MAP_ROWS) return T_GRASS;
+  return mapData.map[row][col];
+}
+
+function isBlocking(worldX, worldY) {
+  const t = tileAt(worldX, worldY);
+  return t === T_RIVER || t === T_WALL || t === T_TREE;
+}
+
+function blocksShots(worldX, worldY) {
+  const t = tileAt(worldX, worldY);
+  return t === T_WALL;
+}
+
+function getAimDir() {
+  let dx = 0, dy = 0;
+  if (keys['ArrowUp']) dy = -1;
+  if (keys['ArrowDown']) dy = 1;
+  if (keys['ArrowLeft']) dx = -1;
+  if (keys['ArrowRight']) dx = 1;
+  if (dx === 0 && dy === 0) return null;
+  return Math.atan2(dy, dx);
+}
+
+function getMoveDir() {
+  let dx = 0, dy = 0;
+  if (keys['KeyW']) dy = -1;
+  if (keys['KeyS']) dy = 1;
+  if (keys['KeyA']) dx = -1;
+  if (keys['KeyD']) dx = 1;
+  if (dx === 0 && dy === 0) return null;
+  return { dx, dy, len: Math.sqrt(dx * dx + dy * dy) };
+}
+
+// --- SPAWN LOGIC ---
+function spawnSoldier() {
+  const wx = Math.random() * W;
+  const wy = scrollY + Math.random() * 200; // spawn ahead (above screen in world coords)
+  if (isBlocking(wx, wy)) return;
+  enemies.push({
+    x: wx, y: wy, hp: 1, type: 'soldier',
+    vx: 0, vy: 0, fireCd: 60 + Math.floor(Math.random() * 60),
+    moveTimer: 0
+  });
+}
+
+function spawnJeep() {
+  const side = Math.random() > 0.5 ? 1 : -1;
+  const wx = side > 0 ? -20 : W + 20;
+  const wy = scrollY - 100 + Math.random() * 300;
+  jeeps.push({
+    x: wx, y: wy, hp: 3, type: 'jeep',
+    vx: side > 0 ? 2.5 : -2.5, vy: -0.5 - Math.random(),
+    fireCd: 40 + Math.floor(Math.random() * 40)
+  });
+}
+
+function spawnPickup(wx, wy) {
+  const types = ['ammo', 'ammo', 'speed', 'spread'];
+  const type = types[Math.floor(Math.random() * types.length)];
+  pickups.push({ x: wx, y: wy, type, timer: 600 });
+}
+
+function update() {
+  if (infoOpen) return;
+  if (gameOver || gameWon) { if (keys['KeyR']) initGame(); return; }
+  frame++;
+
+  // Difficulty ramp
+  difficulty = 1 + scrollY / 2000;
+
+  // --- SCROLL ---
+  scrollY += SCROLL_SPD;
+
+  // --- PLAYER MOVEMENT ---
+  const move = getMoveDir();
+  const spd = speedTimer > 0 ? player.speed * 1.6 : player.speed;
+  if (move) {
+    const ndx = move.dx / move.len;
+    const ndy = move.dy / move.len;
+    const newX = player.x + ndx * spd;
+    const newY = player.y + ndy * spd;
+
+    // Convert to world coords for collision
+    const wNew = screenToWorld(newX, newY);
+
+    // Check blocking tiles at new position corners
+    const pad = 8;
+    const bTL = isBlocking(wNew.x - pad, wNew.y - pad);
+    const bTR = isBlocking(wNew.x + pad, wNew.y - pad);
+    const bBL = isBlocking(wNew.x - pad, wNew.y + pad);
+    const bBR = isBlocking(wNew.x + pad, wNew.y + pad);
+
+    if (!bTL && !bTR && !bBL && !bBR) {
+      player.x = newX;
+      player.y = newY;
+    } else {
+      // Try sliding: x only
+      const wSlideX = screenToWorld(newX, player.y);
+      const sxTL = isBlocking(wSlideX.x - pad, wSlideX.y - pad);
+      const sxBR = isBlocking(wSlideX.x + pad, wSlideX.y + pad);
+      if (!sxTL && !sxBR) {
+        player.x = newX;
+      } else {
+        // Try y only
+        const wSlideY = screenToWorld(player.x, newY);
+        const syTL = isBlocking(wSlideY.x - pad, wSlideY.y - pad);
+        const syBR = isBlocking(wSlideY.x + pad, wSlideY.y + pad);
+        if (!syTL && !syBR) {
+          player.y = newY;
+        }
+      }
+    }
+  }
+
+  // Keep player on screen
+  player.x = Math.max(12, Math.min(W - 12, player.x));
+  player.y = Math.max(40, Math.min(H - 12, player.y));
+
+  // Player pushed off bottom by scroll = death
+  // The scroll moves the world up, player stays in screen coords
+  // If player is at very bottom and tile under them is blocking, push them
+  // Actually: if player y > H - 5, they fell behind
+  if (player.y >= H - 2) {
+    die();
+    return;
+  }
+
+  // --- SHOOTING ---
+  const aimDir = getAimDir();
+  if (aimDir !== null) {
+    player.dir = aimDir;
+    if (shootCd <= 0) {
+      const bSpd = 7;
+      const bx = player.x;
+      const by = player.y;
+      const bw = screenToWorld(bx, by);
+      if (spreadTimer > 0) {
+        // 3-way spread
+        for (let a = -0.2; a <= 0.2; a += 0.2) {
+          bullets.push({
+            x: bx, y: by,
+            vx: Math.cos(aimDir + a) * bSpd,
+            vy: Math.sin(aimDir + a) * bSpd,
+            isPlayer: true
+          });
+        }
+        shootCd = 8;
+      } else {
+        bullets.push({
+          x: bx, y: by,
+          vx: Math.cos(aimDir) * bSpd,
+          vy: Math.sin(aimDir) * bSpd,
+          isPlayer: true
+        });
+        shootCd = 10;
+      }
+    }
+  }
+  if (shootCd > 0) shootCd--;
+
+  // --- GRENADES ---
+  if (grenadePressed && grenadeAmmo > 0) {
+    grenadeAmmo--;
+    const gDir = player.dir;
+    grenades.push({
+      x: player.x, y: player.y,
+      vx: Math.cos(gDir) * 4,
+      vy: Math.sin(gDir) * 4 - 2,
+      timer: 45, arc: 0
+    });
+    grenadePressed = false;
+  }
+  grenadePressed = false;
+
+  // --- UPDATE BULLETS ---
+  bullets = bullets.filter(b => {
+    // Bullets move in screen space but we need to compensate for scroll
+    b.x += b.vx;
+    b.y += b.vy;
+    // Scroll compensation for player bullets (world moves down in screen)
+    if (b.isPlayer) b.y += SCROLL_SPD;
+
+    if (b.x < -10 || b.x > W + 10 || b.y < -10 || b.y > H + 10) return false;
+
+    // Check wall collision
+    const bw = screenToWorld(b.x, b.y);
+    if (blocksShots(bw.x, bw.y)) return false;
+
+    if (b.isPlayer) {
+      // Hit enemies
+      for (let i = enemies.length - 1; i >= 0; i--) {
+        const e = enemies[i];
+        const es = worldToScreen(e.x, e.y);
+        if (Math.abs(b.x - es.x) < 12 && Math.abs(b.y - es.y) < 12) {
+          e.hp--;
+          if (e.hp <= 0) {
+            score += 10;
+            explosions.push({ x: es.x, y: es.y, t: 0, r: 15 });
+            if (Math.random() < 0.12) spawnPickup(e.x, e.y);
+            enemies.splice(i, 1);
+          }
+          return false;
+        }
+      }
+      // Hit jeeps
+      for (let i = jeeps.length - 1; i >= 0; i--) {
+        const j = jeeps[i];
+        const js = worldToScreen(j.x, j.y);
+        if (Math.abs(b.x - js.x) < 18 && Math.abs(b.y - js.y) < 14) {
+          j.hp--;
+          if (j.hp <= 0) {
+            score += 100;
+            explosions.push({ x: js.x, y: js.y, t: 0, r: 25 });
+            if (Math.random() < 0.3) spawnPickup(j.x, j.y);
+            jeeps.splice(i, 1);
+          }
+          return false;
+        }
+      }
+      // Hit bunkers
+      for (let i = bunkers.length - 1; i >= 0; i--) {
+        const bk = bunkers[i];
+        const bks = worldToScreen(bk.col * TILE + TILE / 2, (MAP_ROWS - 1 - bk.row) * TILE + TILE / 2);
+        if (Math.abs(b.x - bks.x) < 16 && Math.abs(b.y - bks.y) < 16) {
+          bk.hp--;
+          if (bk.hp <= 0) {
+            score += 50;
+            explosions.push({ x: bks.x, y: bks.y, t: 0, r: 20 });
+            if (Math.random() < 0.25) spawnPickup(bk.col * TILE + TILE / 2, (MAP_ROWS - 1 - bk.row) * TILE + TILE / 2);
+            bunkers.splice(i, 1);
+          }
+          return false;
+        }
+      }
+      // Hit boss
+      if (boss && bossActive) {
+        const bs = worldToScreen(boss.x, boss.y);
+        if (Math.abs(b.x - bs.x) < 35 && Math.abs(b.y - bs.y) < 25) {
+          boss.hp--;
+          if (boss.hp <= 0) {
+            score += 2000;
+            explosions.push({ x: bs.x, y: bs.y, t: 0, r: 50 });
+            explosions.push({ x: bs.x - 20, y: bs.y - 10, t: -5, r: 40 });
+            explosions.push({ x: bs.x + 20, y: bs.y + 10, t: -10, r: 40 });
+            boss = null;
+            bossActive = false;
+            gameWon = true;
+          }
+          return false;
+        }
+      }
+    } else {
+      // Enemy bullet hits player
+      if (Math.abs(b.x - player.x) < 10 && Math.abs(b.y - player.y) < 10) {
+        die();
+        return false;
+      }
+    }
+    return true;
+  });
+
+  // --- UPDATE GRENADES ---
+  grenades = grenades.filter(g => {
+    g.x += g.vx;
+    g.y += g.vy;
+    g.vy += 0.08; // gravity arc
+    g.y += SCROLL_SPD; // scroll compensation
+    g.arc++;
+    g.timer--;
+    if (g.timer <= 0) {
+      // Explode
+      const gw = screenToWorld(g.x, g.y);
+      explosions.push({ x: g.x, y: g.y, t: 0, r: 40 });
+
+      // Damage everything in radius
+      const radius = 50;
+      // Enemies
+      for (let i = enemies.length - 1; i >= 0; i--) {
+        const es = worldToScreen(enemies[i].x, enemies[i].y);
+        const dx = g.x - es.x, dy = g.y - es.y;
+        if (dx * dx + dy * dy < radius * radius) {
+          score += 10;
+          explosions.push({ x: es.x, y: es.y, t: 0, r: 12 });
+          if (Math.random() < 0.1) spawnPickup(enemies[i].x, enemies[i].y);
+          enemies.splice(i, 1);
+        }
+      }
+      // Jeeps
+      for (let i = jeeps.length - 1; i >= 0; i--) {
+        const js = worldToScreen(jeeps[i].x, jeeps[i].y);
+        const dx = g.x - js.x, dy = g.y - js.y;
+        if (dx * dx + dy * dy < radius * radius) {
+          jeeps[i].hp -= 3;
+          if (jeeps[i].hp <= 0) {
+            score += 100;
+            explosions.push({ x: js.x, y: js.y, t: 0, r: 25 });
+            if (Math.random() < 0.3) spawnPickup(jeeps[i].x, jeeps[i].y);
+            jeeps.splice(i, 1);
+          }
+        }
+      }
+      // Bunkers
+      for (let i = bunkers.length - 1; i >= 0; i--) {
+        const bks = worldToScreen(bunkers[i].col * TILE + TILE / 2, (MAP_ROWS - 1 - bunkers[i].row) * TILE + TILE / 2);
+        const dx = g.x - bks.x, dy = g.y - bks.y;
+        if (dx * dx + dy * dy < radius * radius) {
+          bunkers[i].hp -= 3;
+          if (bunkers[i].hp <= 0) {
+            score += 50;
+            explosions.push({ x: bks.x, y: bks.y, t: 0, r: 20 });
+            bunkers.splice(i, 1);
+          }
+        }
+      }
+      // Boss
+      if (boss && bossActive) {
+        const bs = worldToScreen(boss.x, boss.y);
+        const dx = g.x - bs.x, dy = g.y - bs.y;
+        if (dx * dx + dy * dy < (radius + 20) * (radius + 20)) {
+          boss.hp -= 5;
+          if (boss.hp <= 0) {
+            score += 2000;
+            explosions.push({ x: bs.x, y: bs.y, t: 0, r: 50 });
+            explosions.push({ x: bs.x - 20, y: bs.y - 10, t: -5, r: 40 });
+            explosions.push({ x: bs.x + 20, y: bs.y + 10, t: -10, r: 40 });
+            boss = null;
+            bossActive = false;
+            gameWon = true;
+          }
+        }
+      }
+      return false;
+    }
+    if (g.x < -20 || g.x > W + 20 || g.y < -20 || g.y > H + 40) return false;
+    return true;
+  });
+
+  // --- SPAWN ENEMIES ---
+  const spawnRate = Math.max(20, 60 - Math.floor(difficulty * 8));
+  if (frame % spawnRate === 0 && !bossActive) {
+    const count = Math.min(3, Math.floor(difficulty));
+    for (let i = 0; i < count; i++) spawnSoldier();
+  }
+  if (frame % Math.max(120, 300 - Math.floor(difficulty * 30)) === 0 && !bossActive && scrollY > 500) {
+    spawnJeep();
+  }
+
+  // --- UPDATE ENEMIES (soldiers) ---
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    const e = enemies[i];
+    const es = worldToScreen(e.x, e.y);
+
+    // Remove if off screen bottom
+    if (es.y > H + 60) { enemies.splice(i, 1); continue; }
+    // Remove if too far above
+    if (es.y < -200) { enemies.splice(i, 1); continue; }
+
+    // Simple AI: move toward player (in world coords, but we compare screen positions)
+    e.moveTimer--;
+    if (e.moveTimer <= 0) {
+      const dx = player.x - es.x;
+      const dy = player.y - es.y;
+      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+      e.vx = (dx / dist) * 1.2;
+      e.vy = (dy / dist) * 1.2;
+      e.moveTimer = 20 + Math.floor(Math.random() * 20);
+    }
+
+    // Move in world coords
+    const nextX = e.x + e.vx;
+    const nextY = e.y + e.vy;
+    if (!isBlocking(nextX, nextY)) {
+      e.x = nextX;
+      e.y = nextY;
+    } else {
+      e.vx = -e.vx;
+      e.vy = -e.vy;
+      e.moveTimer = 0;
+    }
+
+    // Fire at player
+    e.fireCd--;
+    if (e.fireCd <= 0 && es.x > 0 && es.x < W && es.y > 0 && es.y < H) {
+      const dx = player.x - es.x;
+      const dy = player.y - es.y;
+      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+      eBullets.push({
+        x: es.x, y: es.y,
+        vx: (dx / dist) * 3.5,
+        vy: (dy / dist) * 3.5,
+        isPlayer: false
+      });
+      e.fireCd = Math.max(40, 80 - Math.floor(difficulty * 5));
+    }
+
+    // Collision with player
+    if (Math.abs(es.x - player.x) < 14 && Math.abs(es.y - player.y) < 14) {
+      score += 10;
+      explosions.push({ x: es.x, y: es.y, t: 0, r: 12 });
+      enemies.splice(i, 1);
+      die();
+      return;
+    }
+  }
+
+  // --- UPDATE JEEPS ---
+  for (let i = jeeps.length - 1; i >= 0; i--) {
+    const j = jeeps[i];
+    j.x += j.vx;
+    j.y += j.vy;
+    const js = worldToScreen(j.x, j.y);
+
+    if (js.x < -80 || js.x > W + 80 || js.y > H + 80 || js.y < -200) {
+      jeeps.splice(i, 1); continue;
+    }
+
+    // Fire
+    j.fireCd--;
+    if (j.fireCd <= 0 && js.x > 0 && js.x < W && js.y > 0 && js.y < H) {
+      const dx = player.x - js.x;
+      const dy = player.y - js.y;
+      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+      eBullets.push({
+        x: js.x, y: js.y,
+        vx: (dx / dist) * 4,
+        vy: (dy / dist) * 4,
+        isPlayer: false
+      });
+      j.fireCd = 30;
+    }
+
+    // Collision with player
+    if (Math.abs(js.x - player.x) < 20 && Math.abs(js.y - player.y) < 16) {
+      score += 100;
+      explosions.push({ x: js.x, y: js.y, t: 0, r: 25 });
+      jeeps.splice(i, 1);
+      die();
+      return;
+    }
+  }
+
+  // --- UPDATE BUNKERS ---
+  for (const bk of bunkers) {
+    const bks = worldToScreen(bk.col * TILE + TILE / 2, (MAP_ROWS - 1 - bk.row) * TILE + TILE / 2);
+    if (bks.y < -40 || bks.y > H + 40 || bks.x < -40 || bks.x > W + 40) continue;
+
+    bk.fireCd--;
+    if (bk.fireCd <= 0) {
+      const dx = player.x - bks.x;
+      const dy = player.y - bks.y;
+      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+      eBullets.push({
+        x: bks.x, y: bks.y,
+        vx: (dx / dist) * 3,
+        vy: (dy / dist) * 3,
+        isPlayer: false
+      });
+      bk.fireCd = Math.max(30, 70 - Math.floor(difficulty * 5));
+    }
+  }
+
+  // --- UPDATE ENEMY BULLETS ---
+  eBullets = eBullets.filter(b => {
+    b.x += b.vx;
+    b.y += b.vy;
+    b.y += SCROLL_SPD; // scroll compensation
+
+    if (b.x < -10 || b.x > W + 10 || b.y < -10 || b.y > H + 10) return false;
+
+    // Hit player
+    if (Math.abs(b.x - player.x) < 10 && Math.abs(b.y - player.y) < 10) {
+      die();
+      return false;
+    }
+
+    // Hit walls
+    const bw = screenToWorld(b.x, b.y);
+    if (blocksShots(bw.x, bw.y)) return false;
+
+    return true;
+  });
+
+  // --- PICKUPS ---
+  pickups = pickups.filter(p => {
+    const ps = worldToScreen(p.x, p.y);
+    p.timer--;
+    if (p.timer <= 0 || ps.y > H + 40) return false;
+
+    if (Math.abs(ps.x - player.x) < 16 && Math.abs(ps.y - player.y) < 16) {
+      if (p.type === 'ammo') { grenadeAmmo = Math.min(30, grenadeAmmo + 5); }
+      if (p.type === 'speed') { speedTimer = 300; }
+      if (p.type === 'spread') { spreadTimer = 300; }
+      return false;
+    }
+    return true;
+  });
+
+  // --- BOSS ---
+  if (scrollY >= BOSS_SCROLL && !bossActive && !boss && !gameWon) {
+    bossActive = true;
+    boss = {
+      x: W / 2, y: scrollY + 100,
+      hp: 50, maxHp: 50,
+      fireCd: 0, moveDir: 1, moveTimer: 0
+    };
+  }
+
+  if (boss && bossActive) {
+    // Boss movement: side to side in world coords
+    boss.moveTimer++;
+    if (boss.moveTimer > 80) {
+      boss.moveDir *= -1;
+      boss.moveTimer = 0;
+    }
+    boss.x += boss.moveDir * 1.5;
+    boss.x = Math.max(80, Math.min(W - 80, boss.x));
+
+    // Boss keeps pace with scroll
+    boss.y = scrollY + 120;
+
+    const bs = worldToScreen(boss.x, boss.y);
+
+    // Fire
+    boss.fireCd--;
+    if (boss.fireCd <= 0) {
+      // Fire 3 bullets
+      for (let a = -0.4; a <= 0.4; a += 0.4) {
+        const dx = player.x - bs.x;
+        const dy = player.y - bs.y;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        const angle = Math.atan2(dy, dx) + a;
+        eBullets.push({
+          x: bs.x, y: bs.y,
+          vx: Math.cos(angle) * 3.5,
+          vy: Math.sin(angle) * 3.5,
+          isPlayer: false
+        });
+      }
+      boss.fireCd = 25;
+    }
+
+    // Boss collision with player
+    if (Math.abs(bs.x - player.x) < 40 && Math.abs(bs.y - player.y) < 30) {
+      die();
+      return;
+    }
+
+    // Stop scrolling during boss fight
+    // Actually keep scroll slow so boss stays on screen
+  }
+
+  // --- TIMERS ---
+  if (spreadTimer > 0) spreadTimer--;
+  if (speedTimer > 0) speedTimer--;
+
+  // --- EXPLOSIONS ---
+  explosions = explosions.filter(e => { e.t++; return e.t < 25; });
+}
+
+function die() {
+  lives--;
+  explosions.push({ x: player.x, y: player.y, t: 0, r: 25 });
+  if (lives <= 0) { gameOver = true; return; }
+  player.x = W / 2;
+  player.y = H - 80;
+}
+
+// --- DRAWING ---
+const TILE_COLORS = {
+  [T_GRASS]: '#2a5a1a',
+  [T_RIVER]: '#1a3a6a',
+  [T_WALL]: '#5a4a3a',
+  [T_TREE]: '#1a4a0a',
+  [T_BRIDGE]: '#6a5a3a',
+  [T_PATH]: '#5a4a2a',
+};
+
+function draw() {
+  ctx.fillStyle = '#1a2a1a';
+  ctx.fillRect(0, 0, W, H);
+
+  // Draw map tiles
+  const startRow = Math.floor((scrollY - H) / TILE);
+  const endRow = startRow + Math.ceil(H / TILE) + 2;
+
+  for (let worldRow = startRow; worldRow <= endRow; worldRow++) {
+    const mapRow = MAP_ROWS - 1 - worldRow;
+    if (mapRow < 0 || mapRow >= MAP_ROWS) continue;
+
+    for (let c = 0; c < MAP_COLS; c++) {
+      const tile = mapData.map[mapRow][c];
+      const sx = c * TILE;
+      const sy = worldRow * TILE - scrollY + H;
+
+      ctx.fillStyle = TILE_COLORS[tile] || '#2a5a1a';
+      ctx.fillRect(sx, sy, TILE, TILE);
+
+      // Tile details
+      if (tile === T_RIVER) {
+        // Water ripples
+        ctx.strokeStyle = '#2a5a8a';
+        ctx.lineWidth = 1;
+        const rippleOff = (frame * 0.5 + c * 7) % 20;
+        ctx.beginPath();
+        ctx.moveTo(sx, sy + rippleOff);
+        ctx.quadraticCurveTo(sx + TILE / 2, sy + rippleOff - 4, sx + TILE, sy + rippleOff);
+        ctx.stroke();
+      } else if (tile === T_TREE) {
+        // Tree top
+        ctx.fillStyle = '#1a6a0a';
+        ctx.beginPath();
+        ctx.arc(sx + TILE / 2, sy + TILE / 2, TILE * 0.4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#3a2a1a';
+        ctx.fillRect(sx + TILE / 2 - 2, sy + TILE / 2, 4, TILE / 2);
+      } else if (tile === T_WALL) {
+        // Brick pattern
+        ctx.strokeStyle = '#4a3a2a';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(sx + 1, sy + 1, TILE - 2, TILE - 2);
+        ctx.beginPath();
+        ctx.moveTo(sx, sy + TILE / 2);
+        ctx.lineTo(sx + TILE, sy + TILE / 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(sx + TILE / 2, sy);
+        ctx.lineTo(sx + TILE / 2, sy + TILE / 2);
+        ctx.stroke();
+      } else if (tile === T_BRIDGE) {
+        // Bridge planks
+        ctx.strokeStyle = '#8a7a5a';
+        ctx.lineWidth = 1;
+        for (let p = 0; p < TILE; p += 8) {
+          ctx.beginPath();
+          ctx.moveTo(sx, sy + p);
+          ctx.lineTo(sx + TILE, sy + p);
+          ctx.stroke();
+        }
+      } else if (tile === T_GRASS) {
+        // Sparse grass tufts
+        if ((c * 7 + mapRow * 13) % 11 === 0) {
+          ctx.fillStyle = '#3a6a2a';
+          ctx.fillRect(sx + 8, sy + 10, 2, 6);
+          ctx.fillRect(sx + 22, sy + 25, 2, 5);
+        }
+      } else if (tile === T_PATH) {
+        // Path texture
+        if ((c + mapRow) % 3 === 0) {
+          ctx.fillStyle = '#4a3a1a';
+          ctx.fillRect(sx + 5, sy + 12, 3, 3);
+        }
+      }
+    }
+  }
+
+  // Draw bunkers
+  for (const bk of bunkers) {
+    const bks = worldToScreen(bk.col * TILE + TILE / 2, (MAP_ROWS - 1 - bk.row) * TILE + TILE / 2);
+    if (bks.y < -40 || bks.y > H + 40) continue;
+
+    // Bunker body
+    ctx.fillStyle = '#6a5a4a';
+    ctx.fillRect(bks.x - 16, bks.y - 12, 32, 24);
+    ctx.fillStyle = '#4a3a2a';
+    ctx.fillRect(bks.x - 14, bks.y - 10, 28, 20);
+    // Gun slit
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(bks.x - 6, bks.y - 2, 12, 4);
+    // HP indicator
+    const hpFrac = bk.hp / bk.maxHp;
+    ctx.fillStyle = hpFrac > 0.5 ? '#4a4' : '#f44';
+    ctx.fillRect(bks.x - 14, bks.y - 16, 28 * hpFrac, 3);
+  }
+
+  // Draw pickups
+  for (const p of pickups) {
+    const ps = worldToScreen(p.x, p.y);
+    if (ps.y < -20 || ps.y > H + 20) continue;
+
+    const bob = Math.sin(frame * 0.1) * 3;
+    if (p.type === 'ammo') {
+      ctx.fillStyle = '#4a4';
+      ctx.fillRect(ps.x - 8, ps.y - 8 + bob, 16, 16);
+      ctx.fillStyle = '#ff0';
+      ctx.font = 'bold 10px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('G', ps.x, ps.y + 4 + bob);
+    } else if (p.type === 'speed') {
+      ctx.fillStyle = '#44f';
+      ctx.fillRect(ps.x - 8, ps.y - 8 + bob, 16, 16);
+      ctx.fillStyle = '#ff0';
+      ctx.font = 'bold 10px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('S', ps.x, ps.y + 4 + bob);
+    } else if (p.type === 'spread') {
+      ctx.fillStyle = '#f4f';
+      ctx.fillRect(ps.x - 8, ps.y - 8 + bob, 16, 16);
+      ctx.fillStyle = '#ff0';
+      ctx.font = 'bold 10px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('*', ps.x, ps.y + 4 + bob);
+    }
+
+    // Blink when about to expire
+    if (p.timer < 120 && frame % 10 < 5) {
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(ps.x - 9, ps.y - 9 + bob, 18, 18);
+    }
+  }
+
+  // Draw enemies (soldiers)
+  for (const e of enemies) {
+    const es = worldToScreen(e.x, e.y);
+    if (es.y < -20 || es.y > H + 20) continue;
+
+    // Body
+    ctx.fillStyle = '#8a3a2a';
+    ctx.fillRect(es.x - 5, es.y - 6, 10, 12);
+    // Head
+    ctx.fillStyle = '#aa5a4a';
+    ctx.beginPath();
+    ctx.arc(es.x, es.y - 9, 4, 0, Math.PI * 2);
+    ctx.fill();
+    // Gun direction toward player
+    const dx = player.x - es.x;
+    const dy = player.y - es.y;
+    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+    ctx.strokeStyle = '#666';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(es.x, es.y);
+    ctx.lineTo(es.x + (dx / dist) * 10, es.y + (dy / dist) * 10);
+    ctx.stroke();
+  }
+
+  // Draw jeeps
+  for (const j of jeeps) {
+    const js = worldToScreen(j.x, j.y);
+    if (js.y < -40 || js.y > H + 40) continue;
+
+    // Jeep body
+    ctx.fillStyle = '#5a5a3a';
+    ctx.fillRect(js.x - 16, js.y - 10, 32, 20);
+    // Wheels
+    ctx.fillStyle = '#2a2a2a';
+    ctx.fillRect(js.x - 18, js.y - 12, 6, 6);
+    ctx.fillRect(js.x + 12, js.y - 12, 6, 6);
+    ctx.fillRect(js.x - 18, js.y + 6, 6, 6);
+    ctx.fillRect(js.x + 12, js.y + 6, 6, 6);
+    // Turret
+    ctx.fillStyle = '#4a4a2a';
+    ctx.beginPath();
+    ctx.arc(js.x, js.y, 6, 0, Math.PI * 2);
+    ctx.fill();
+    // Gun
+    const dx = player.x - js.x;
+    const dy = player.y - js.y;
+    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(js.x, js.y);
+    ctx.lineTo(js.x + (dx / dist) * 14, js.y + (dy / dist) * 14);
+    ctx.stroke();
+  }
+
+  // Draw boss
+  if (boss && bossActive) {
+    const bs = worldToScreen(boss.x, boss.y);
+
+    // Tank body
+    ctx.fillStyle = '#4a4a4a';
+    ctx.fillRect(bs.x - 35, bs.y - 22, 70, 44);
+    // Treads
+    ctx.fillStyle = '#2a2a2a';
+    ctx.fillRect(bs.x - 38, bs.y - 25, 10, 50);
+    ctx.fillRect(bs.x + 28, bs.y - 25, 10, 50);
+    // Turret
+    ctx.fillStyle = '#5a5a5a';
+    ctx.beginPath();
+    ctx.arc(bs.x, bs.y, 16, 0, Math.PI * 2);
+    ctx.fill();
+    // Main gun
+    const dx = player.x - bs.x;
+    const dy = player.y - bs.y;
+    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+    ctx.strokeStyle = '#3a3a3a';
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo(bs.x, bs.y);
+    ctx.lineTo(bs.x + (dx / dist) * 28, bs.y + (dy / dist) * 28);
+    ctx.stroke();
+    // Red markings
+    ctx.fillStyle = '#a33';
+    ctx.fillRect(bs.x - 10, bs.y - 25, 20, 4);
+
+    // HP bar
+    const hpFrac = boss.hp / boss.maxHp;
+    const barW = 80;
+    ctx.fillStyle = '#222';
+    ctx.fillRect(bs.x - barW / 2, bs.y - 35, barW, 6);
+    ctx.fillStyle = hpFrac > 0.5 ? '#4a4' : hpFrac > 0.25 ? '#fa0' : '#f44';
+    ctx.fillRect(bs.x - barW / 2, bs.y - 35, barW * hpFrac, 6);
+    ctx.strokeStyle = '#666';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(bs.x - barW / 2, bs.y - 35, barW, 6);
+
+    // Boss label
+    ctx.fillStyle = '#f44';
+    ctx.font = 'bold 12px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('BOSS', bs.x, bs.y - 40);
+  }
+
+  // Draw player
+  if (!gameOver) {
+    const px = player.x;
+    const py = player.y;
+
+    // Player body (commando)
+    ctx.fillStyle = '#3a7a3a';
+    ctx.fillRect(px - 6, py - 8, 12, 16);
+    // Head
+    ctx.fillStyle = '#6a9a5a';
+    ctx.beginPath();
+    ctx.arc(px, py - 11, 5, 0, Math.PI * 2);
+    ctx.fill();
+    // Helmet
+    ctx.fillStyle = '#2a5a2a';
+    ctx.beginPath();
+    ctx.arc(px, py - 12, 5, Math.PI, Math.PI * 2);
+    ctx.fill();
+
+    // Gun direction indicator
+    const gunLen = 14;
+    const gx = px + Math.cos(player.dir) * gunLen;
+    const gy = py + Math.sin(player.dir) * gunLen;
+    ctx.strokeStyle = '#aaa';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(px, py);
+    ctx.lineTo(gx, gy);
+    ctx.stroke();
+    // Muzzle
+    ctx.fillStyle = '#ddd';
+    ctx.beginPath();
+    ctx.arc(gx, gy, 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Speed boost indicator
+    if (speedTimer > 0) {
+      ctx.strokeStyle = `rgba(68,68,255,${0.3 + Math.sin(frame * 0.2) * 0.2})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(px, py, 16, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    // Spread shot indicator
+    if (spreadTimer > 0) {
+      ctx.strokeStyle = `rgba(255,68,255,${0.3 + Math.sin(frame * 0.2) * 0.2})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(px, py, 19, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+
+  // Draw player bullets
+  ctx.fillStyle = '#ff0';
+  for (const b of bullets) {
+    if (!b.isPlayer) continue;
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Draw enemy bullets
+  ctx.fillStyle = '#f55';
+  for (const b of eBullets) {
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Draw grenades
+  for (const g of grenades) {
+    ctx.fillStyle = '#5a5';
+    ctx.beginPath();
+    ctx.arc(g.x, g.y, 5, 0, Math.PI * 2);
+    ctx.fill();
+    // Fuse spark
+    if (frame % 4 < 2) {
+      ctx.fillStyle = '#ff0';
+      ctx.beginPath();
+      ctx.arc(g.x + 3, g.y - 4, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // Shadow / arc indicator
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath();
+    ctx.ellipse(g.x, g.y + 8, 4, 2, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Draw explosions
+  for (const e of explosions) {
+    if (e.t < 0) continue;
+    const t = e.t / 25;
+    const r = e.r || 15;
+    // Outer glow
+    ctx.fillStyle = `rgba(255,${Math.floor(180 - t * 180)},0,${(1 - t) * 0.5})`;
+    ctx.beginPath();
+    ctx.arc(e.x, e.y, r * 0.5 + r * t * 1.5, 0, Math.PI * 2);
+    ctx.fill();
+    // Inner bright
+    ctx.fillStyle = `rgba(255,255,${Math.floor(200 - t * 200)},${1 - t})`;
+    ctx.beginPath();
+    ctx.arc(e.x, e.y, r * 0.3 + r * t * 0.6, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // --- HUD ---
+  // Background bar
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(0, 0, W, 36);
+
+  // Title badge
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(8, 6, 280, 24);
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(8, 6, 280, 24);
+  ctx.fillStyle = '#666';
+  ctx.font = '13px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('SCR-004 \u00B7 JUNGLE SQUAD  [?]', 16, 23);
+
+  // Score
+  ctx.fillStyle = '#ff0';
+  ctx.font = 'bold 14px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('SCORE: ' + score, 310, 23);
+
+  // Lives
+  ctx.fillStyle = '#6f6';
+  ctx.textAlign = 'right';
+  ctx.fillText('LIVES: ' + lives, W - 120, 23);
+
+  // Grenades
+  ctx.fillStyle = grenadeAmmo > 3 ? '#aaf' : '#f88';
+  ctx.fillText('G:' + grenadeAmmo, W - 16, 23);
+
+  // Active powerups
+  if (spreadTimer > 0) {
+    ctx.fillStyle = '#f4f';
+    ctx.font = '11px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('SPREAD', 310, 48);
+  }
+  if (speedTimer > 0) {
+    ctx.fillStyle = '#44f';
+    ctx.font = '11px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('SPEED', spreadTimer > 0 ? 380 : 310, 48);
+  }
+
+  // Progress bar
+  const progress = Math.min(1, scrollY / BOSS_SCROLL);
+  ctx.fillStyle = '#222';
+  ctx.fillRect(10, H - 12, W - 20, 5);
+  ctx.fillStyle = bossActive ? '#f44' : '#4a4';
+  ctx.fillRect(10, H - 12, (W - 20) * progress, 5);
+  ctx.strokeStyle = '#444';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(10, H - 12, W - 20, 5);
+
+  // Game over
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.75)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.font = 'bold 48px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#f44';
+    ctx.fillText('GAME OVER', W / 2, H / 2 - 30);
+    ctx.fillStyle = '#aaa';
+    ctx.font = '18px monospace';
+    ctx.fillText('SCORE: ' + score, W / 2, H / 2 + 10);
+    ctx.fillStyle = '#888';
+    ctx.font = '14px monospace';
+    ctx.fillText('Press R to restart', W / 2, H / 2 + 40);
+  }
+
+  // Victory
+  if (gameWon) {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.font = 'bold 40px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#4f4';
+    ctx.fillText('MISSION COMPLETE', W / 2, H / 2 - 30);
+    ctx.fillStyle = '#ff0';
+    ctx.font = '22px monospace';
+    ctx.fillText('SCORE: ' + score, W / 2, H / 2 + 10);
+    ctx.fillStyle = '#888';
+    ctx.font = '14px monospace';
+    ctx.fillText('Press R to play again', W / 2, H / 2 + 40);
+  }
+}
+
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: twin-stick ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("twin-stick");
+</script>
+</body>
+</html>

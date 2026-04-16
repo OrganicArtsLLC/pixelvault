@@ -1,0 +1,833 @@
+<!--
+PROTOTYPE: rhythm-dance
+SERIES: spt
+NUMBER: 025
+DATE: 2026-03-24
+MECHANIC: dance key combo — arrow key sequences scroll as combos; input the full combo then press Space on the beat; more complex combos = more impressive dance moves
+ANCESTRY: Audition Online (2004, T3 Entertainment), Pump It Up (1999, Andamiro), Dance Dance Revolution (1998, Konami), BeatMania (1997, Konami)
+CONTROLS: Arrow keys — input combo sequence | Space — confirm on the beat | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 5 (Statistical Learning — sequence memorization, temporal beat alignment)
+AI-INSIGHT: Audition Online separates the rhythm game into two cognitive phases: first memorize a sequence (working memory), then execute with precise timing (motor timing). This two-phase structure mirrors how statistical models handle sequence-to-sequence tasks — encode the input, then decode at the right moment. The combo length scaling tests working memory capacity, which in humans is famously limited to 7±2 items.
+NOTES: T3 Entertainment's Audition Online (2004) became Korea's most popular casual online game, spawning versions across Southeast Asia and Latin America.
+       Unlike DDR where you hit arrows as they arrive, Audition requires memorizing the full combo THEN hitting Space on the beat — memory + timing.
+       Combo length progression (4→5→6→7→8) maps to increasing working memory load.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPT-025 · RHYTHM DANCE</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SPT-025 · RHYTHM DANCE</h1>
+    <p><span class="tag series">SPT — Sports</span> <span class="tag">Prototype #025</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>A dance key combo rhythm game inspired by Audition Online. Memorize the arrow combo, input it, then press Space on the beat!</p>
+    <ul>
+      <li><kbd>&#8592;</kbd> <kbd>&#8593;</kbd> <kbd>&#8594;</kbd> <kbd>&#8595;</kbd> — Input arrow combo sequence</li>
+      <li><kbd>Space</kbd> — Confirm combo on the beat</li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <p>Watch the combo sequence displayed on screen. Type the full arrow sequence, then hit Space when the timing bar reaches the beat zone. Better timing = higher score. Combo length increases each round (4 to 8 arrows).</p>
+
+    <h2>History</h2>
+    <p><em>Audition Online</em> (2004) by T3 Entertainment became Korea's most popular casual online game, defining the "casual dance game" genre for PC. Unlike arcade rhythm games like DDR where players react to scrolling arrows in real-time, Audition separates the challenge into two phases: memorize a key combo, then execute it and hit Space on the beat.</p>
+    <p>The game spread across Southeast Asia, Latin America, and China, becoming a cultural phenomenon with over 300 million registered accounts worldwide. Its social features — dance battles, avatar customization, in-game weddings — made it as much a social platform as a game. The franchise spawned mobile versions, sequels (Audition 2, Club Audition), and countless imitators.</p>
+    <p>The two-phase design (memorize then execute) was brilliant for online play — it reduced the need for frame-perfect input timing that arcade games demanded, making it accessible on variable-latency internet connections while still rewarding skill.</p>
+
+    <h2>AI Archaeology</h2>
+    <h3>Era 5 — Statistical Learning</h3>
+    <p>Audition's two-phase gameplay mirrors sequence-to-sequence models in machine learning: first encode (memorize the combo), then decode (execute at the right time). The combo length progression from 4 to 8 arrows directly tests working memory capacity — George Miller's famous "7 plus or minus 2" limit. An AI agent would need both sequence memory and precise temporal calibration, combining the challenges of sequence prediction with beat tracking.</p>
+    <p>The scoring system (timing accuracy x combo length) creates an interesting optimization problem: longer combos are worth more but harder to remember, creating a risk-reward curve that parallels exploration-exploitation tradeoffs in reinforcement learning.</p>
+
+    <h3>Classification</h3>
+    <p><span class="tag">rhythm game</span> <span class="tag">key combo</span> <span class="tag">working memory</span> <span class="tag">beat timing</span> <span class="tag">dance game</span> <span class="tag">Korean gaming</span></p>
+
+    <h2>Prototype Notes</h2>
+    <p>This prototype captures Audition's core two-phase loop: memorize the combo, input it, then hit the beat. The character performs dance animations on success and stumbles on failure. BPM indicator and timing bar visualize the beat. Combo length scales from 4 to 8 arrows across rounds.</p>
+    <p>Simplifications: single-player only (original was multiplayer dance battle), no avatar customization, no song selection. The beat is synthesized rather than music-driven.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype was created for educational and preservation purposes, exploring the mechanics of casual rhythm games pioneered in Korea. Audition Online is a trademark of T3 Entertainment. This is an independent study, not affiliated with or endorsed by T3 Entertainment.</p>
+  </div>
+</div>
+
+<script>
+// ── Info panel ──
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// ── Canvas setup ──
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+
+function resize() {
+  const s = Math.min(innerWidth / W, innerHeight / H);
+  canvas.style.width = (W * s) + 'px';
+  canvas.style.height = (H * s) + 'px';
+}
+resize();
+addEventListener('resize', resize);
+
+function hudText(text, x, y, size, color, align) {
+  ctx.save();
+  ctx.font = size + 'px monospace';
+  ctx.fillStyle = color || '#fff';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+// ── Audio ──
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function playTone(freq, dur, type, vol) {
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = type || 'square';
+  osc.frequency.value = freq;
+  gain.gain.value = vol || 0.15;
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + dur);
+}
+
+function playBeat() { playTone(80, 0.08, 'sine', 0.3); }
+function playSuccess() {
+  playTone(523, 0.1, 'sine', 0.2);
+  setTimeout(() => playTone(659, 0.1, 'sine', 0.2), 80);
+  setTimeout(() => playTone(784, 0.15, 'sine', 0.2), 160);
+}
+function playStumble() { playTone(150, 0.3, 'sawtooth', 0.15); }
+function playKeyClick() { playTone(800, 0.03, 'square', 0.08); }
+function playBeatHit() { playTone(440, 0.05, 'triangle', 0.2); }
+
+// ── Constants ──
+const BPM = 120;
+const BEAT_INTERVAL = 60000 / BPM; // ms per beat
+const ARROWS = ['ArrowLeft', 'ArrowUp', 'ArrowRight', 'ArrowDown'];
+const ARROW_SYMS = ['\u2190', '\u2191', '\u2192', '\u2193'];
+const ARROW_COLORS = ['#ff4488', '#44ff88', '#4488ff', '#ffaa44'];
+
+// ── Game State ──
+let state = 'title'; // title, playing, result, gameover
+let score = 0;
+let round = 0;
+let combo = 0;
+let maxCombo = 0;
+let comboSeq = [];      // target combo arrows (indices 0-3)
+let inputSeq = [];       // player input so far
+let comboComplete = false;
+let beatPhase = 0;       // 0 to 1, cycles with BPM
+let lastBeatTime = 0;
+let gameStartTime = 0;
+let roundResult = '';    // 'perfect', 'great', 'good', 'miss', ''
+let resultTimer = 0;
+let danceTimer = 0;
+let stumbleTimer = 0;
+let roundDelay = 0;
+let totalRounds = 15;
+let dancePose = 0;
+let dancePoseTimer = 0;
+
+// character animation
+let charY = 0;
+let charBob = 0;
+let charArmL = 0;
+let charArmR = 0;
+let charLegSpread = 0;
+
+// beat tracking visuals
+let beatFlash = 0;
+
+// stage lights
+let lightHue = 0;
+
+function getComboLength() {
+  return Math.min(4 + Math.floor(round / 3), 8);
+}
+
+function generateCombo() {
+  comboSeq = [];
+  const len = getComboLength();
+  for (let i = 0; i < len; i++) {
+    comboSeq.push(Math.floor(Math.random() * 4));
+  }
+  inputSeq = [];
+  comboComplete = false;
+  roundResult = '';
+}
+
+function startGame() {
+  state = 'playing';
+  score = 0;
+  round = 0;
+  combo = 0;
+  maxCombo = 0;
+  gameStartTime = performance.now();
+  lastBeatTime = performance.now();
+  generateCombo();
+  roundDelay = 0;
+  danceTimer = 0;
+  stumbleTimer = 0;
+}
+
+function calcTimingScore(now) {
+  // How close to the beat?
+  const elapsed = now - lastBeatTime;
+  const beatPos = (elapsed % BEAT_INTERVAL) / BEAT_INTERVAL;
+  // beatPos 0 or 1 = on the beat, 0.5 = off beat
+  const dist = Math.min(beatPos, 1 - beatPos); // 0 = perfect, 0.5 = worst
+  if (dist < 0.08) return { rating: 'PERFECT', mult: 3, color: '#ffff00' };
+  if (dist < 0.16) return { rating: 'GREAT', mult: 2, color: '#44ff88' };
+  if (dist < 0.28) return { rating: 'GOOD', mult: 1, color: '#4488ff' };
+  return { rating: 'MISS', mult: 0, color: '#ff4444' };
+}
+
+// ── Input ──
+const keys = {};
+addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+  if (infoOpen) return;
+
+  if (e.key === 'r' || e.key === 'R') {
+    state = 'title';
+    e.preventDefault();
+    return;
+  }
+
+  if (state === 'title' || state === 'gameover') {
+    if (e.key === ' ') { startGame(); e.preventDefault(); }
+    return;
+  }
+
+  if (state === 'result') return;
+
+  if (state === 'playing' && roundDelay <= 0) {
+    // Arrow key input for combo
+    if (!comboComplete) {
+      const idx = ARROWS.indexOf(e.key);
+      if (idx !== -1) {
+        e.preventDefault();
+        inputSeq.push(idx);
+        playKeyClick();
+
+        // Check if wrong
+        if (inputSeq[inputSeq.length - 1] !== comboSeq[inputSeq.length - 1]) {
+          // Wrong input — stumble
+          roundResult = 'MISS';
+          resultTimer = 90;
+          stumbleTimer = 60;
+          combo = 0;
+          playStumble();
+          roundDelay = 100;
+          round++;
+          if (round >= totalRounds) {
+            state = 'gameover';
+          }
+          return;
+        }
+
+        // Check if combo complete
+        if (inputSeq.length === comboSeq.length) {
+          comboComplete = true;
+        }
+      }
+    }
+
+    // Space to confirm on beat
+    if (e.key === ' ' && comboComplete) {
+      e.preventDefault();
+      const now = performance.now();
+      const timing = calcTimingScore(now);
+      const points = timing.mult * comboSeq.length * 100;
+      score += points;
+      roundResult = timing.rating;
+      resultTimer = 90;
+
+      if (timing.mult > 0) {
+        combo++;
+        if (combo > maxCombo) maxCombo = combo;
+        danceTimer = 80;
+        dancePose = Math.floor(Math.random() * 5);
+        playSuccess();
+        playBeatHit();
+      } else {
+        combo = 0;
+        stumbleTimer = 60;
+        playStumble();
+      }
+
+      roundDelay = 100;
+      round++;
+      if (round >= totalRounds) {
+        state = 'gameover';
+      }
+    }
+
+    // Space pressed but combo not complete — miss
+    if (e.key === ' ' && !comboComplete && inputSeq.length > 0) {
+      e.preventDefault();
+      roundResult = 'MISS';
+      resultTimer = 90;
+      stumbleTimer = 60;
+      combo = 0;
+      playStumble();
+      roundDelay = 100;
+      round++;
+      if (round >= totalRounds) {
+        state = 'gameover';
+      }
+    }
+  }
+
+  keys[e.key] = true;
+});
+
+addEventListener('keyup', e => { keys[e.key] = false; });
+
+// ── Draw helpers ──
+function drawStage() {
+  // Floor
+  const grad = ctx.createLinearGradient(0, 380, 0, H);
+  grad.addColorStop(0, '#1a1a2e');
+  grad.addColorStop(1, '#0a0a1a');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 380, W, 220);
+
+  // Dance floor tiles
+  for (let x = 0; x < 10; x++) {
+    for (let y = 0; y < 3; y++) {
+      const tx = 100 + x * 60;
+      const ty = 400 + y * 50;
+      const bright = ((x + y) % 2 === 0) ? 0.15 : 0.08;
+      const hue = (lightHue + x * 30 + y * 60) % 360;
+      ctx.fillStyle = `hsla(${hue}, 80%, 50%, ${bright})`;
+      ctx.fillRect(tx + 2, ty + 2, 56, 46);
+    }
+  }
+
+  // Stage lights
+  for (let i = 0; i < 5; i++) {
+    const lx = 100 + i * 160;
+    const hue = (lightHue + i * 72) % 360;
+    const alpha = 0.12 + beatFlash * 0.15;
+    const lgrd = ctx.createRadialGradient(lx, 0, 0, lx, 200, 200);
+    lgrd.addColorStop(0, `hsla(${hue}, 100%, 70%, ${alpha})`);
+    lgrd.addColorStop(1, 'transparent');
+    ctx.fillStyle = lgrd;
+    ctx.fillRect(lx - 200, 0, 400, 400);
+  }
+
+  // Speakers
+  ctx.fillStyle = '#222';
+  ctx.fillRect(30, 300, 50, 80);
+  ctx.fillRect(720, 300, 50, 80);
+  ctx.fillStyle = '#333';
+  ctx.beginPath(); ctx.arc(55, 330, 15, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(55, 360, 10, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(745, 330, 15, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(745, 360, 10, 0, Math.PI * 2); ctx.fill();
+}
+
+function drawCharacter(x, y, dancing, stumbling) {
+  const bob = dancing ? Math.sin(dancePoseTimer * 0.2) * 8 : (stumbling ? Math.sin(stumbleTimer * 0.3) * 5 : Math.sin(charBob) * 2);
+  const cy = y + bob;
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath();
+  ctx.ellipse(x, y + 60, 25, 8, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  if (stumbling) {
+    // Stumble pose — leaning
+    ctx.save();
+    ctx.translate(x, cy);
+    ctx.rotate(Math.sin(stumbleTimer * 0.4) * 0.3);
+    // Body
+    ctx.fillStyle = '#e74c3c';
+    ctx.fillRect(-12, -30, 24, 35);
+    // Head
+    ctx.fillStyle = '#f5d6a8';
+    ctx.beginPath(); ctx.arc(0, -40, 14, 0, Math.PI * 2); ctx.fill();
+    // Eyes — dizzy
+    hudText('x', -5, -42, 10, '#333', 'center');
+    hudText('x', 5, -42, 10, '#333', 'center');
+    // Arms flailing
+    ctx.strokeStyle = '#f5d6a8';
+    ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(-12, -20); ctx.lineTo(-30, -35 + Math.sin(stumbleTimer * 0.5) * 15); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(12, -20); ctx.lineTo(30, -10 + Math.cos(stumbleTimer * 0.5) * 15); ctx.stroke();
+    // Legs
+    ctx.beginPath(); ctx.moveTo(-6, 5); ctx.lineTo(-15, 55); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(6, 5); ctx.lineTo(20, 50); ctx.stroke();
+    ctx.restore();
+    return;
+  }
+
+  if (dancing) {
+    ctx.save();
+    ctx.translate(x, cy);
+
+    const t = dancePoseTimer * 0.15;
+    const pose = dancePose;
+
+    // Body
+    ctx.fillStyle = '#3498db';
+    ctx.fillRect(-12, -30, 24, 35);
+
+    // Head
+    ctx.fillStyle = '#f5d6a8';
+    ctx.beginPath(); ctx.arc(0, -40, 14, 0, Math.PI * 2); ctx.fill();
+
+    // Happy face
+    ctx.fillStyle = '#333';
+    ctx.beginPath(); ctx.arc(-5, -42, 2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(5, -42, 2, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(0, -37, 5, 0.1, Math.PI - 0.1); ctx.stroke();
+
+    ctx.strokeStyle = '#f5d6a8';
+    ctx.lineWidth = 4;
+
+    // Different dance poses
+    if (pose === 0) {
+      // Arms up
+      ctx.beginPath(); ctx.moveTo(-12, -20); ctx.lineTo(-28, -50 + Math.sin(t * 3) * 10); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(12, -20); ctx.lineTo(28, -50 + Math.cos(t * 3) * 10); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-6, 5); ctx.lineTo(-12 + Math.sin(t * 2) * 5, 55); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(6, 5); ctx.lineTo(12 + Math.cos(t * 2) * 5, 55); ctx.stroke();
+    } else if (pose === 1) {
+      // Side to side
+      const sw = Math.sin(t * 4) * 20;
+      ctx.beginPath(); ctx.moveTo(-12, -20); ctx.lineTo(-30 + sw, -15); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(12, -20); ctx.lineTo(30 + sw, -15); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-6, 5); ctx.lineTo(-10 + sw * 0.3, 55); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(6, 5); ctx.lineTo(10 + sw * 0.3, 55); ctx.stroke();
+    } else if (pose === 2) {
+      // Spin move
+      const sp = Math.sin(t * 5);
+      ctx.beginPath(); ctx.moveTo(-12, -20); ctx.lineTo(-35 * sp, -30); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(12, -20); ctx.lineTo(35 * sp, -5); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-6, 5); ctx.lineTo(-18 * sp, 55); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(6, 5); ctx.lineTo(18 * sp, 55); ctx.stroke();
+    } else if (pose === 3) {
+      // Point up
+      ctx.beginPath(); ctx.moveTo(-12, -20); ctx.lineTo(-5, -60 + Math.sin(t * 6) * 5); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(12, -20); ctx.lineTo(30, -10 + Math.sin(t * 3) * 8); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-6, 5); ctx.lineTo(-15, 55); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(6, 5); ctx.lineTo(8, 55); ctx.stroke();
+    } else {
+      // Kick
+      const kk = Math.sin(t * 4);
+      ctx.beginPath(); ctx.moveTo(-12, -20); ctx.lineTo(-28, -25 + kk * 10); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(12, -20); ctx.lineTo(28, -25 - kk * 10); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-6, 5); ctx.lineTo(-20, 40 + kk * 15); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(6, 5); ctx.lineTo(20, 55); ctx.stroke();
+    }
+
+    // Headband
+    ctx.strokeStyle = '#e74c3c';
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(0, -44, 14, -0.3, Math.PI + 0.3); ctx.stroke();
+
+    ctx.restore();
+    return;
+  }
+
+  // Idle pose
+  ctx.save();
+  ctx.translate(x, cy);
+
+  // Body
+  ctx.fillStyle = '#3498db';
+  ctx.fillRect(-12, -30, 24, 35);
+
+  // Head
+  ctx.fillStyle = '#f5d6a8';
+  ctx.beginPath(); ctx.arc(0, -40, 14, 0, Math.PI * 2); ctx.fill();
+
+  // Eyes
+  ctx.fillStyle = '#333';
+  ctx.beginPath(); ctx.arc(-5, -42, 2, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(5, -42, 2, 0, Math.PI * 2); ctx.fill();
+
+  // Arms at sides
+  ctx.strokeStyle = '#f5d6a8';
+  ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(-12, -20); ctx.lineTo(-20, 0); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(12, -20); ctx.lineTo(20, 0); ctx.stroke();
+
+  // Legs
+  ctx.beginPath(); ctx.moveTo(-6, 5); ctx.lineTo(-10, 55); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(6, 5); ctx.lineTo(10, 55); ctx.stroke();
+
+  // Headband
+  ctx.strokeStyle = '#e74c3c';
+  ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(0, -44, 14, -0.3, Math.PI + 0.3); ctx.stroke();
+
+  ctx.restore();
+}
+
+function drawTimingBar(now) {
+  const barX = 200, barY = 520, barW = 400, barH = 30;
+
+  // Bar background
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fillRect(barX, barY, barW, barH);
+  ctx.strokeStyle = '#444';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(barX, barY, barW, barH);
+
+  // Beat zone (center)
+  const zoneW = 60;
+  const zoneX = barX + barW / 2 - zoneW / 2;
+  ctx.fillStyle = 'rgba(255, 255, 0, 0.15)';
+  ctx.fillRect(zoneX, barY, zoneW, barH);
+  ctx.strokeStyle = '#ff0';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(zoneX, barY, zoneW, barH);
+
+  // Perfect zone (narrower)
+  const pzW = 20;
+  const pzX = barX + barW / 2 - pzW / 2;
+  ctx.fillStyle = 'rgba(255, 255, 0, 0.25)';
+  ctx.fillRect(pzX, barY, pzW, barH);
+
+  // Moving indicator
+  const elapsed = now - lastBeatTime;
+  const beatPos = (elapsed % BEAT_INTERVAL) / BEAT_INTERVAL;
+  const indX = barX + beatPos * barW;
+  ctx.fillStyle = comboComplete ? '#fff' : '#888';
+  ctx.fillRect(indX - 3, barY - 2, 6, barH + 4);
+
+  // Labels
+  hudText('BEAT', barX + barW / 2, barY - 10, 12, '#ff0', 'center');
+  hudText(BPM + ' BPM', barX + barW + 10, barY + 15, 11, '#888', 'left');
+
+  if (comboComplete) {
+    hudText('HIT SPACE ON THE BEAT!', barX + barW / 2, barY + barH + 15, 13, '#ff0', 'center');
+  }
+}
+
+function drawComboDisplay() {
+  const cx = W / 2;
+  const cy = 100;
+
+  // Round info
+  hudText('ROUND ' + (round + 1) + '/' + totalRounds, cx, 30, 14, '#888', 'center');
+  hudText('COMBO LENGTH: ' + comboSeq.length, cx, 50, 12, '#aaa', 'center');
+
+  // Target combo
+  hudText('COMBO:', cx, 75, 13, '#ccc', 'center');
+
+  const arrowSize = 32;
+  const totalW = comboSeq.length * (arrowSize + 10) - 10;
+  const startX = cx - totalW / 2;
+
+  for (let i = 0; i < comboSeq.length; i++) {
+    const ax = startX + i * (arrowSize + 10);
+    const aIdx = comboSeq[i];
+
+    // Background
+    let bgColor = '#222';
+    if (i < inputSeq.length) {
+      if (inputSeq[i] === comboSeq[i]) bgColor = '#1a4a1a';
+      else bgColor = '#4a1a1a';
+    }
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(ax - 2, cy - arrowSize / 2 - 2, arrowSize + 4, arrowSize + 4);
+
+    // Arrow
+    let color = ARROW_COLORS[aIdx];
+    if (i < inputSeq.length && inputSeq[i] === comboSeq[i]) {
+      color = '#4f4';
+    }
+    hudText(ARROW_SYMS[aIdx], ax + arrowSize / 2, cy, arrowSize - 6, color, 'center');
+  }
+
+  // Player input display
+  if (inputSeq.length > 0 && !comboComplete) {
+    const inputY = cy + 45;
+    hudText('YOUR INPUT:', cx, inputY - 15, 11, '#999', 'center');
+    const itotalW = inputSeq.length * (arrowSize + 10) - 10;
+    const istartX = cx - itotalW / 2;
+    for (let i = 0; i < inputSeq.length; i++) {
+      const ix = istartX + i * (arrowSize + 10);
+      const correct = inputSeq[i] === comboSeq[i];
+      hudText(ARROW_SYMS[inputSeq[i]], ix + arrowSize / 2, inputY + 10, arrowSize - 8, correct ? '#4f4' : '#f44', 'center');
+    }
+  }
+
+  if (comboComplete) {
+    hudText('COMBO COMPLETE!', cx, cy + 55, 16, '#4f4', 'center');
+  }
+}
+
+function drawHUD() {
+  // Score
+  hudText('SCORE', 30, 25, 12, '#888', 'left');
+  hudText(score.toString().padStart(7, '0'), 30, 45, 20, '#fff', 'left');
+
+  // Combo streak
+  if (combo > 1) {
+    hudText(combo + 'x COMBO', W - 30, 25, 16, '#ff0', 'right');
+  }
+
+  // Max combo
+  hudText('BEST: ' + maxCombo + 'x', W - 30, 50, 11, '#666', 'right');
+
+  // Result flash
+  if (resultTimer > 0) {
+    const alpha = Math.min(1, resultTimer / 30);
+    let color = '#fff';
+    if (roundResult === 'PERFECT') color = '#ffff00';
+    else if (roundResult === 'GREAT') color = '#44ff88';
+    else if (roundResult === 'GOOD') color = '#4488ff';
+    else if (roundResult === 'MISS') color = '#ff4444';
+    ctx.globalAlpha = alpha;
+    hudText(roundResult, W / 2, 260, 40, color, 'center');
+    if (roundResult === 'PERFECT' || roundResult === 'GREAT') {
+      const pts = roundResult === 'PERFECT' ? comboSeq.length * 300 : comboSeq.length * 200;
+      hudText('+' + pts, W / 2, 295, 18, color, 'center');
+    }
+    ctx.globalAlpha = 1;
+  }
+}
+
+// ── Update ──
+function update(now) {
+  if (infoOpen) return;
+
+  charBob += 0.05;
+  lightHue = (lightHue + 0.5) % 360;
+
+  // Beat tracking
+  const elapsed = now - lastBeatTime;
+  const beatPos = (elapsed % BEAT_INTERVAL) / BEAT_INTERVAL;
+  const prevPhase = beatPhase;
+  beatPhase = beatPos;
+
+  // Detect beat crossing
+  if (beatPhase < prevPhase) {
+    beatFlash = 1;
+    if (state === 'playing') playBeat();
+  }
+  if (beatFlash > 0) beatFlash -= 0.05;
+
+  if (state === 'playing') {
+    if (resultTimer > 0) resultTimer--;
+    if (danceTimer > 0) {
+      danceTimer--;
+      dancePoseTimer++;
+    } else {
+      dancePoseTimer = 0;
+    }
+    if (stumbleTimer > 0) stumbleTimer--;
+
+    if (roundDelay > 0) {
+      roundDelay--;
+      if (roundDelay <= 0 && state === 'playing') {
+        generateCombo();
+      }
+    }
+  }
+}
+
+// ── Draw ──
+function draw(now) {
+  // Background
+  const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+  bgGrad.addColorStop(0, '#0d0221');
+  bgGrad.addColorStop(0.5, '#1a0533');
+  bgGrad.addColorStop(1, '#0a0a1a');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  if (state === 'title') {
+    drawStage();
+    drawCharacter(W / 2, 370, false, false);
+
+    hudText('AUDITION', W / 2, 150, 50, '#ff44aa', 'center');
+    hudText('DANCE KEY COMBO', W / 2, 195, 20, '#ff88cc', 'center');
+
+    hudText('Memorize the arrow combo', W / 2, 260, 14, '#aaa', 'center');
+    hudText('Input the sequence with arrow keys', W / 2, 280, 14, '#aaa', 'center');
+    hudText('Then press SPACE on the beat!', W / 2, 300, 14, '#ff0', 'center');
+
+    const pulse = 0.5 + Math.sin(now * 0.004) * 0.5;
+    ctx.globalAlpha = 0.5 + pulse * 0.5;
+    hudText('PRESS SPACE TO START', W / 2, 470, 18, '#fff', 'center');
+    ctx.globalAlpha = 1;
+
+    hudText('Press ? for info', W / 2, 560, 11, '#555', 'center');
+    return;
+  }
+
+  if (state === 'gameover') {
+    drawStage();
+    drawCharacter(W / 2, 370, false, false);
+
+    hudText('DANCE OVER!', W / 2, 100, 36, '#ff44aa', 'center');
+    hudText('FINAL SCORE', W / 2, 160, 14, '#888', 'center');
+    hudText(score.toString().padStart(7, '0'), W / 2, 195, 32, '#fff', 'center');
+    hudText('BEST COMBO: ' + maxCombo + 'x', W / 2, 240, 18, '#ff0', 'center');
+
+    // Rating
+    let rating = 'D';
+    if (score > 30000) rating = 'S';
+    else if (score > 20000) rating = 'A';
+    else if (score > 12000) rating = 'B';
+    else if (score > 6000) rating = 'C';
+    hudText('RANK: ' + rating, W / 2, 290, 28, rating === 'S' ? '#ff0' : rating === 'A' ? '#4f4' : '#4488ff', 'center');
+
+    const pulse = 0.5 + Math.sin(now * 0.004) * 0.5;
+    ctx.globalAlpha = 0.5 + pulse * 0.5;
+    hudText('PRESS SPACE TO RETRY', W / 2, 470, 18, '#fff', 'center');
+    ctx.globalAlpha = 1;
+    return;
+  }
+
+  // Playing state
+  drawStage();
+  drawCharacter(W / 2, 370, danceTimer > 0, stumbleTimer > 0);
+  drawComboDisplay();
+  drawTimingBar(now);
+  drawHUD();
+}
+
+// ── Main loop ──
+let lastTime = 0;
+function loop(now) {
+  if (!lastTime) { lastTime = now; lastBeatTime = now; }
+  update(now);
+  draw(now);
+  lastTime = now;
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

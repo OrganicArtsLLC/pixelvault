@@ -1,0 +1,803 @@
+<!--
+PROTOTYPE: ball-maze
+SERIES: puz
+NUMBER: 030
+DATE: 2026-03-24
+MECHANIC: maze rotation — rotate the entire maze around a marble to guide it to the exit; you move the world not the ball
+ANCESTRY: Cameltry (1989, Taito), Kororinpa: Marble Mania (2006, Hudson Soft), Super Monkey Ball (2001, Amusement Vision/Sega)
+CONTROLS: Left/Right arrows — rotate maze | R — restart level | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — physics simulation, real-time rotation transforms)
+AI-INSIGHT: Cameltry's genius is perceptual inversion. Instead of moving the player through the world, you rotate the world around the player. The marble obeys screen-space gravity while the maze rotates — a simple coordinate transform that creates deeply unintuitive yet learnable gameplay. The brain must decouple two reference frames simultaneously.
+NOTES: Rotating maze puzzle distilled to gravity and angular momentum.
+       The marble follows screen gravity while the maze spins — move the world, not the ball.
+       Taito, Japan, 1989 arcade. Designed by Yoshiki Okamoto's team.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PUZ-030 · BALL MAZE</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>PUZ-030 · BALL MAZE</h1>
+    <p><span class="tag series">PUZ — Puzzle</span> <span class="tag">Prototype #030</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Rotate the entire maze to guide the marble to the exit hole. Gravity always pulls the marble straight down on screen — by rotating the maze, you change which surfaces the marble rolls along.</p>
+    <ul>
+      <li><kbd>&larr;</kbd> / <kbd>&rarr;</kbd> — Rotate maze counter-clockwise / clockwise</li>
+      <li><kbd>R</kbd> — Restart current level</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Scoring</h3>
+    <ul>
+      <li>Each level has a countdown timer — reach the exit before time runs out</li>
+      <li><strong>Green bumpers</strong> — add bonus time (+3s)</li>
+      <li><strong>Red bumpers</strong> — subtract time (-2s)</li>
+      <li>Remaining time carries over as bonus points</li>
+      <li>6 mazes of increasing complexity</li>
+    </ul>
+
+    <h2>History</h2>
+    <p>Cameltry was released by Taito in 1989 as an arcade cabinet with a unique paddle controller for smooth maze rotation. The game was a critical darling for its innovative "rotate the world" mechanic. It was ported to SNES in 1992 (titled "On the Ball" in North America). The concept influenced later titles like Super Monkey Ball and Kororinpa.</p>
+    <p>The name "Cameltry" is a portmanteau — the exact origin is debated, but it captures the game's spirit of navigating through tight passages. The arcade version used analog paddle controls that made the rotation feel wonderfully precise.</p>
+
+    <h2>AI Archaeology</h2>
+    <h3>Classification</h3>
+    <p><strong>Era 3 — Knowledge Explosion.</strong> Cameltry requires real-time physics simulation with coordinate frame transformation. The marble's position must be tracked in world space while gravity operates in screen space, requiring continuous rotation matrix application. This was computationally straightforward but conceptually sophisticated for 1989.</p>
+    <h3>Mechanic DNA</h3>
+    <p>The "rotate the world" mechanic creates a perceptual puzzle: players must think in two reference frames simultaneously. The marble obeys screen-space gravity while the maze rotates around it. This dual-frame thinking is what makes Cameltry feel unlike any other maze game.</p>
+
+    <h2>Prototype Notes</h2>
+    <p>This sketch captures the core rotation mechanic with 6 hand-designed mazes. Physics use simplified collision against axis-aligned segments rotated into screen space. The visual of the maze spinning while the marble drops straight down recreates the mesmerizing quality of the original.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction for study purposes. Cameltry is a trademark of Taito Corporation. This project is not affiliated with or endorsed by Taito. Play the original — it is a masterpiece of arcade design.</p>
+  </div>
+</div>
+
+<script>
+// --- Info panel ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// --- Canvas setup ---
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+
+function resize() {
+  const s = Math.min(innerWidth / W, innerHeight / H);
+  canvas.style.width = (W * s) + 'px';
+  canvas.style.height = (H * s) + 'px';
+}
+resize();
+window.addEventListener('resize', resize);
+
+// --- Audio ---
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let audioCtx = null;
+function ensureAudio() { if (!audioCtx) audioCtx = new AudioCtx(); }
+
+function playTone(freq, dur, type, vol) {
+  if (!audioCtx) return;
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = type || 'sine';
+  o.frequency.value = freq;
+  g.gain.value = vol || 0.15;
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(); o.stop(audioCtx.currentTime + dur);
+}
+
+function playBounce() { playTone(300, 0.05, 'square', 0.08); }
+function playBumperGood() { playTone(880, 0.15, 'sine', 0.12); playTone(1100, 0.15, 'sine', 0.1); }
+function playBumperBad() { playTone(200, 0.2, 'sawtooth', 0.1); }
+function playExit() {
+  playTone(523, 0.15, 'sine', 0.15);
+  setTimeout(() => playTone(659, 0.15, 'sine', 0.15), 100);
+  setTimeout(() => playTone(784, 0.15, 'sine', 0.15), 200);
+  setTimeout(() => playTone(1047, 0.3, 'sine', 0.15), 300);
+}
+
+let rollOsc = null, rollGain = null;
+function startRoll() {
+  if (!audioCtx || rollOsc) return;
+  rollOsc = audioCtx.createOscillator();
+  rollGain = audioCtx.createGain();
+  rollOsc.type = 'sine';
+  rollOsc.frequency.value = 60;
+  rollGain.gain.value = 0;
+  rollOsc.connect(rollGain); rollGain.connect(audioCtx.destination);
+  rollOsc.start();
+}
+function updateRoll(speed) {
+  if (!rollGain) return;
+  const v = Math.min(speed / 4, 1) * 0.06;
+  rollGain.gain.value = v;
+  if (rollOsc) rollOsc.frequency.value = 60 + speed * 15;
+}
+function stopRoll() {
+  if (rollOsc) { rollOsc.stop(); rollOsc = null; rollGain = null; }
+}
+
+// --- Input ---
+const keys = {};
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+  keys[e.key] = true;
+  ensureAudio();
+  if (!rollOsc) startRoll();
+  if (e.key === 'r' || e.key === 'R') { if (state === 'gameover') { currentLevel = 0; score = 0; } initLevel(); }
+  if (e.key === ' ' && (state === 'complete' || state === 'gameover')) { if (state === 'complete') { currentLevel = 0; score = 0; } initLevel(); }
+  e.preventDefault();
+});
+window.addEventListener('keyup', e => { keys[e.key] = false; });
+
+// --- Maze definitions ---
+// Each maze: walls (line segments in maze-local coords), bumpers, start, exit, time
+// Coordinates centered on 0,0; maze roughly 500x500 units
+
+function makeMazes() {
+  const mazes = [];
+
+  // Level 1: Simple funnel
+  mazes.push({
+    walls: [
+      // Outer box
+      [-200,-200, 200,-200], [-200,-200, -200,200], [200,-200, 200,200], [-200,200, 200,200],
+      // Inner platforms
+      [-150,-100, -30,-100], [30,-100, 150,-100],
+      [-120,0, 120,0],
+      [-150,100, -30,100], [30,100, 150,100],
+    ],
+    bumpers: [
+      { x: 0, y: -50, r: 12, type: 'good' },
+      { x: -80, y: 50, r: 12, type: 'bad' },
+    ],
+    start: { x: 0, y: -170 },
+    exit: { x: 0, y: 170 },
+    time: 45
+  });
+
+  // Level 2: Zigzag descent
+  mazes.push({
+    walls: [
+      [-220,-220, 220,-220], [-220,-220, -220,220], [220,-220, 220,220], [-220,220, 220,220],
+      // Zigzag shelves
+      [-220,-140, 120,-140],
+      [-120,-60, 220,-60],
+      [-220,20, 120,20],
+      [-120,100, 220,100],
+      // Small blockers
+      [-180,-140, -180,-60],
+      [180,-60, 180,20],
+    ],
+    bumpers: [
+      { x: -50, y: -100, r: 12, type: 'good' },
+      { x: 60, y: -20, r: 12, type: 'good' },
+      { x: -50, y: 60, r: 12, type: 'bad' },
+      { x: 100, y: 140, r: 12, type: 'bad' },
+    ],
+    start: { x: 180, y: -190 },
+    exit: { x: -180, y: 180 },
+    time: 50
+  });
+
+  // Level 3: Spiral inward
+  mazes.push({
+    walls: [
+      [-240,-240, 240,-240], [-240,-240, -240,240], [240,-240, 240,240], [-240,240, 240,240],
+      // Spiral walls
+      [-240,-120, 160,-120],
+      [160,-120, 160,120],
+      [160,120, -80,120],
+      [-80,120, -80,-40],
+      [-80,-40, 60,-40],
+      [60,-40, 60,40],
+    ],
+    bumpers: [
+      { x: -40, y: -180, r: 12, type: 'good' },
+      { x: 100, y: 0, r: 12, type: 'bad' },
+      { x: -150, y: 0, r: 12, type: 'good' },
+      { x: 40, y: 80, r: 12, type: 'bad' },
+    ],
+    start: { x: -200, y: -190 },
+    exit: { x: 20, y: 0 },
+    time: 55
+  });
+
+  // Level 4: Multi-chamber
+  mazes.push({
+    walls: [
+      [-260,-260, 260,-260], [-260,-260, -260,260], [260,-260, 260,260], [-260,260, 260,260],
+      // Vertical dividers with gaps
+      [-80,-260, -80,-100], [-80,-40, -80,80], [-80,140, -80,260],
+      [80,-260, 80,-140], [80,-80, 80,40], [80,100, 80,260],
+      // Horizontal shelves
+      [-260,-80, -120,-80], [-40,-80, 40,-80], [120,-80, 260,-80],
+      [-260,80, -120,80], [-40,80, 40,80], [120,80, 260,80],
+    ],
+    bumpers: [
+      { x: -170, y: -170, r: 12, type: 'good' },
+      { x: 170, y: -170, r: 12, type: 'bad' },
+      { x: 0, y: 0, r: 12, type: 'good' },
+      { x: -170, y: 170, r: 12, type: 'bad' },
+      { x: 170, y: 170, r: 12, type: 'good' },
+    ],
+    start: { x: -170, y: -220 },
+    exit: { x: 170, y: 220 },
+    time: 60
+  });
+
+  // Level 5: Narrow corridors
+  mazes.push({
+    walls: [
+      [-270,-270, 270,-270], [-270,-270, -270,270], [270,-270, 270,270], [-270,270, 270,270],
+      // Maze corridors
+      [-270,-180, -60,-180], [0,-180, 270,-180],
+      [-200,-180, -200,-90], [200,-180, 200,-90],
+      [-270,-90, -100,-90], [-40,-90, 100,-90], [160,-90, 270,-90],
+      [-100,-90, -100,0], [100,-90, 100,0],
+      [-270,0, -30,0], [30,0, 270,0],
+      [-200,0, -200,90], [200,0, 200,90],
+      [-270,90, -100,90], [-40,90, 100,90], [160,90, 270,90],
+      [-100,90, -100,180], [100,90, 100,180],
+      [-270,180, -60,180], [0,180, 270,180],
+    ],
+    bumpers: [
+      { x: -30, y: -135, r: 10, type: 'good' },
+      { x: 130, y: -45, r: 10, type: 'bad' },
+      { x: -130, y: 45, r: 10, type: 'good' },
+      { x: 0, y: 45, r: 10, type: 'bad' },
+      { x: 30, y: 135, r: 10, type: 'good' },
+      { x: -130, y: -45, r: 10, type: 'bad' },
+    ],
+    start: { x: -230, y: -230 },
+    exit: { x: 230, y: 230 },
+    time: 70
+  });
+
+  // Level 6: The gauntlet
+  mazes.push({
+    walls: [
+      [-280,-280, 280,-280], [-280,-280, -280,280], [280,-280, 280,280], [-280,280, 280,280],
+      // Dense maze
+      [-280,-200, -100,-200], [-40,-200, 120,-200], [180,-200, 280,-200],
+      [-200,-200, -200,-120], [0,-200, 0,-120], [200,-200, 200,-120],
+      [-280,-120, -140,-120], [-80,-120, 80,-120], [140,-120, 280,-120],
+      [-140,-120, -140,-40], [140,-120, 140,-40],
+      [-280,-40, -60,-40], [0,-40, 60,-40], [120,-40, 280,-40],
+      [-200,-40, -200,40], [-60,-40, -60,40], [60,-40, 60,40], [200,-40, 200,40],
+      [-280,40, -140,40], [-80,40, 80,40], [140,40, 280,40],
+      [-140,40, -140,120], [140,40, 140,120],
+      [-280,120, -100,120], [-40,120, 120,120], [180,120, 280,120],
+      [-200,120, -200,200], [0,120, 0,200], [200,120, 200,200],
+      [-280,200, -140,200], [-80,200, 80,200], [140,200, 280,200],
+    ],
+    bumpers: [
+      { x: -100, y: -160, r: 10, type: 'good' },
+      { x: 100, y: -160, r: 10, type: 'bad' },
+      { x: -100, y: -80, r: 10, type: 'bad' },
+      { x: 100, y: -80, r: 10, type: 'good' },
+      { x: 0, y: 0, r: 14, type: 'good' },
+      { x: -100, y: 80, r: 10, type: 'good' },
+      { x: 100, y: 80, r: 10, type: 'bad' },
+      { x: -100, y: 160, r: 10, type: 'bad' },
+      { x: 100, y: 160, r: 10, type: 'good' },
+    ],
+    start: { x: -240, y: -250 },
+    exit: { x: 240, y: 250 },
+    time: 90
+  });
+
+  return mazes;
+}
+
+const MAZES = makeMazes();
+
+// --- Game State ---
+let currentLevel = 0;
+let score = 0;
+let mazeAngle = 0; // radians
+let ballX, ballY; // screen-space position
+let ballVX = 0, ballVY = 0;
+let timeLeft = 0;
+let state = 'playing'; // playing, levelcomplete, gameover, complete
+let levelCompleteTimer = 0;
+let exitPulse = 0;
+
+const BALL_R = 8;
+const GRAVITY = 400; // pixels/s^2 in screen space (downward)
+const ROTATE_SPEED = 2.0; // radians/s
+const FRICTION = 0.992;
+const BOUNCE = 0.4;
+const EXIT_R = 16;
+
+function initLevel() {
+  if (currentLevel >= MAZES.length) { state = 'complete'; return; }
+  const m = MAZES[currentLevel];
+  mazeAngle = 0;
+  // Place ball at start position (in maze coords, rotated to screen)
+  ballX = W / 2 + m.start.x;
+  ballY = H / 2 + m.start.y;
+  ballVX = 0; ballVY = 0;
+  timeLeft = m.time;
+  state = 'playing';
+  levelCompleteTimer = 0;
+}
+
+initLevel();
+
+// --- Coordinate transforms ---
+function mazeToScreen(mx, my) {
+  const c = Math.cos(mazeAngle), s = Math.sin(mazeAngle);
+  return [W / 2 + mx * c - my * s, H / 2 + mx * s + my * c];
+}
+
+function screenToMaze(sx, sy) {
+  const dx = sx - W / 2, dy = sy - H / 2;
+  const c = Math.cos(-mazeAngle), s = Math.sin(-mazeAngle);
+  return [dx * c - dy * s, dx * s + dy * c];
+}
+
+// --- Collision: ball vs rotated line segment ---
+function closestPointOnSegment(px, py, x1, y1, x2, y2) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const len2 = dx * dx + dy * dy;
+  if (len2 === 0) return [x1, y1];
+  let t = ((px - x1) * dx + (py - y1) * dy) / len2;
+  t = Math.max(0, Math.min(1, t));
+  return [x1 + t * dx, y1 + t * dy];
+}
+
+function collideBallWithWalls(dt) {
+  const maze = MAZES[currentLevel];
+  let bounced = false;
+
+  for (const w of maze.walls) {
+    // Transform wall endpoints to screen space
+    const [sx1, sy1] = mazeToScreen(w[0], w[1]);
+    const [sx2, sy2] = mazeToScreen(w[2], w[3]);
+
+    const [cx, cy] = closestPointOnSegment(ballX, ballY, sx1, sy1, sx2, sy2);
+    const dx = ballX - cx, dy = ballY - cy;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist < BALL_R && dist > 0.001) {
+      // Push ball out
+      const nx = dx / dist, ny = dy / dist;
+      ballX = cx + nx * BALL_R;
+      ballY = cy + ny * BALL_R;
+
+      // Reflect velocity
+      const dot = ballVX * nx + ballVY * ny;
+      if (dot < 0) {
+        ballVX -= (1 + BOUNCE) * dot * nx;
+        ballVY -= (1 + BOUNCE) * dot * ny;
+        bounced = true;
+      }
+    }
+  }
+  return bounced;
+}
+
+// --- Update ---
+let lastTime = 0;
+
+function update(timestamp) {
+  if (infoOpen) { requestAnimationFrame(update); return; }
+
+  if (!lastTime) lastTime = timestamp;
+  let dt = (timestamp - lastTime) / 1000;
+  lastTime = timestamp;
+  if (dt > 0.05) dt = 0.05; // cap delta
+
+  exitPulse += dt * 3;
+
+  if (state === 'playing') {
+    ensureAudio();
+    // Rotate maze
+    if (keys['ArrowLeft'] || keys['a']) mazeAngle -= ROTATE_SPEED * dt;
+    if (keys['ArrowRight'] || keys['d']) mazeAngle += ROTATE_SPEED * dt;
+
+    // Apply screen-space gravity
+    ballVY += GRAVITY * dt;
+
+    // Apply friction
+    ballVX *= FRICTION;
+    ballVY *= FRICTION;
+
+    // Move ball
+    const steps = 4;
+    for (let i = 0; i < steps; i++) {
+      ballX += ballVX * dt / steps;
+      ballY += ballVY * dt / steps;
+      if (collideBallWithWalls(dt / steps)) {
+        playBounce();
+      }
+    }
+
+    // Update rolling sound
+    const speed = Math.sqrt(ballVX * ballVX + ballVY * ballVY);
+    updateRoll(speed / 60);
+
+    // Check bumpers
+    const maze = MAZES[currentLevel];
+    for (const b of maze.bumpers) {
+      const [bx, by] = mazeToScreen(b.x, b.y);
+      const dx = ballX - bx, dy = ballY - by;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < BALL_R + b.r) {
+        // Bounce off bumper
+        const nx = dx / dist, ny = dy / dist;
+        ballX = bx + nx * (BALL_R + b.r);
+        ballY = by + ny * (BALL_R + b.r);
+        const dot = ballVX * nx + ballVY * ny;
+        if (dot < 0) {
+          ballVX -= (1 + 0.8) * dot * nx;
+          ballVY -= (1 + 0.8) * dot * ny;
+        }
+        if (b.type === 'good') { timeLeft += 3; playBumperGood(); }
+        else { timeLeft = Math.max(1, timeLeft - 2); playBumperBad(); }
+        b.hit = true;
+        setTimeout(() => { b.hit = false; }, 300);
+      }
+    }
+
+    // Check exit
+    const [ex, ey] = mazeToScreen(maze.exit.x, maze.exit.y);
+    const eDx = ballX - ex, eDy = ballY - ey;
+    if (Math.sqrt(eDx * eDx + eDy * eDy) < EXIT_R) {
+      playExit();
+      score += Math.floor(timeLeft) * 100;
+      state = 'levelcomplete';
+      levelCompleteTimer = 2.0;
+      stopRoll();
+    }
+
+    // Timer
+    timeLeft -= dt;
+    if (timeLeft <= 0) {
+      timeLeft = 0;
+      state = 'gameover';
+      stopRoll();
+    }
+  }
+
+  if (state === 'levelcomplete') {
+    levelCompleteTimer -= dt;
+    if (levelCompleteTimer <= 0) {
+      currentLevel++;
+      initLevel();
+    }
+  }
+
+  draw();
+  requestAnimationFrame(update);
+}
+
+// --- Draw ---
+const WALL_COLORS = ['#4af', '#f84', '#4f8', '#f4f', '#ff4', '#4ff'];
+
+function draw() {
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0, 0, W, H);
+
+  if (state === 'complete') {
+    drawComplete();
+    return;
+  }
+
+  const maze = MAZES[currentLevel];
+  const color = WALL_COLORS[currentLevel % WALL_COLORS.length];
+
+  // Draw maze walls
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 6;
+  ctx.lineCap = 'round';
+  for (const w of maze.walls) {
+    const [x1, y1] = mazeToScreen(w[0], w[1]);
+    const [x2, y2] = mazeToScreen(w[2], w[3]);
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+  }
+
+  // Draw wall glow
+  ctx.strokeStyle = color + '33';
+  ctx.lineWidth = 14;
+  for (const w of maze.walls) {
+    const [x1, y1] = mazeToScreen(w[0], w[1]);
+    const [x2, y2] = mazeToScreen(w[2], w[3]);
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+  }
+
+  // Draw exit
+  const [ex, ey] = mazeToScreen(maze.exit.x, maze.exit.y);
+  const ep = 0.5 + 0.5 * Math.sin(exitPulse);
+  ctx.beginPath();
+  ctx.arc(ex, ey, EXIT_R + ep * 4, 0, Math.PI * 2);
+  ctx.fillStyle = `rgba(0,255,100,${0.2 + ep * 0.3})`;
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(ex, ey, EXIT_R - 2, 0, Math.PI * 2);
+  ctx.fillStyle = '#0a0';
+  ctx.fill();
+  ctx.strokeStyle = '#0f0';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  // Arrow in exit
+  ctx.fillStyle = '#0f0';
+  ctx.font = '16px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('\u25BC', ex, ey);
+
+  // Draw bumpers
+  for (const b of maze.bumpers) {
+    const [bx, by] = mazeToScreen(b.x, b.y);
+    const br = b.hit ? b.r * 1.5 : b.r;
+    ctx.beginPath();
+    ctx.arc(bx, by, br, 0, Math.PI * 2);
+    if (b.type === 'good') {
+      ctx.fillStyle = b.hit ? '#0f0' : '#0a4';
+      ctx.strokeStyle = '#0f0';
+    } else {
+      ctx.fillStyle = b.hit ? '#f00' : '#400';
+      ctx.strokeStyle = '#f00';
+    }
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // Label
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 10px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(b.type === 'good' ? '+3' : '-2', bx, by);
+  }
+
+  // Draw ball
+  ctx.beginPath();
+  ctx.arc(ballX, ballY, BALL_R, 0, Math.PI * 2);
+  const grad = ctx.createRadialGradient(ballX - 2, ballY - 2, 1, ballX, ballY, BALL_R);
+  grad.addColorStop(0, '#fff');
+  grad.addColorStop(0.5, '#ddd');
+  grad.addColorStop(1, '#888');
+  ctx.fillStyle = grad;
+  ctx.fill();
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Draw ball trail
+  ctx.beginPath();
+  ctx.arc(ballX, ballY, BALL_R + 3, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // HUD
+  ctx.fillStyle = '#fff';
+  ctx.font = '16px monospace';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(`LEVEL ${currentLevel + 1}/${MAZES.length}`, 15, 15);
+
+  ctx.textAlign = 'center';
+  const timeColor = timeLeft < 10 ? '#f44' : timeLeft < 20 ? '#ff4' : '#4f4';
+  ctx.fillStyle = timeColor;
+  ctx.font = 'bold 22px monospace';
+  ctx.fillText(Math.ceil(timeLeft) + 's', W / 2, 15);
+
+  ctx.fillStyle = '#fff';
+  ctx.font = '16px monospace';
+  ctx.textAlign = 'right';
+  ctx.fillText(`SCORE: ${score}`, W - 15, 15);
+
+  // Rotation indicator
+  ctx.save();
+  ctx.translate(W / 2, H - 30);
+  ctx.fillStyle = '#555';
+  ctx.font = '12px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('\u2190 \u2192 ROTATE', 0, 10);
+  // Small compass
+  ctx.strokeStyle = '#555';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(0, -8, 10, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.strokeStyle = '#f44';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, -8);
+  ctx.lineTo(Math.sin(-mazeAngle) * 8, -8 - Math.cos(-mazeAngle) * 8);
+  ctx.stroke();
+  ctx.restore();
+
+  // Level complete overlay
+  if (state === 'levelcomplete') {
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#0f0';
+    ctx.font = 'bold 36px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('LEVEL CLEAR!', W / 2, H / 2 - 20);
+    ctx.fillStyle = '#ff0';
+    ctx.font = '20px monospace';
+    ctx.fillText(`TIME BONUS: +${Math.floor(timeLeft) * 100}`, W / 2, H / 2 + 20);
+  }
+
+  // Game over overlay
+  if (state === 'gameover') {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#f44';
+    ctx.font = 'bold 36px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('TIME UP!', W / 2, H / 2 - 40);
+    ctx.fillStyle = '#fff';
+    ctx.font = '20px monospace';
+    ctx.fillText(`FINAL SCORE: ${score}`, W / 2, H / 2);
+    ctx.fillStyle = '#888';
+    ctx.font = '14px monospace';
+    ctx.fillText('Press R to retry level or SPACE to restart', W / 2, H / 2 + 40);
+  }
+
+  // ? hint
+  ctx.fillStyle = '#444';
+  ctx.font = '12px monospace';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText('? for info', W - 10, H - 10);
+}
+
+function drawComplete() {
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = '#0f0';
+  ctx.font = 'bold 36px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('ALL MAZES COMPLETE!', W / 2, H / 2 - 60);
+
+  ctx.fillStyle = '#ff0';
+  ctx.font = 'bold 28px monospace';
+  ctx.fillText(`FINAL SCORE: ${score}`, W / 2, H / 2);
+
+  ctx.fillStyle = '#888';
+  ctx.font = '16px monospace';
+  ctx.fillText('Press SPACE to play again', W / 2, H / 2 + 50);
+
+  ctx.fillStyle = '#444';
+  ctx.font = '12px monospace';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText('? for info', W - 10, H - 10);
+}
+
+requestAnimationFrame(update);
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: dpad4 ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("dpad4");
+</script>
+</body>
+</html>

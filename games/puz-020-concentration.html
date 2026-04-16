@@ -1,0 +1,651 @@
+<!--
+PROTOTYPE: concentration
+SERIES: puz
+NUMBER: 020
+DATE: 2026-03-24
+MECHANIC: card memory matching — flip pairs of face-down cards to find matches; remember positions of previously seen cards
+ANCESTRY: Concentration (~1700s parlor game), Pelmanism, Memory (Ravensburger 1959), TV game show (1958)
+CONTROLS: Click card — flip it | R — new game | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 2 (Expert Systems — associative memory, pattern matching)
+AI-INSIGHT: Concentration directly tests spatial working memory — the ability to bind objects to locations and recall them after interference. The game's difficulty scales with grid size in the same way that memory span experiments do. Human chunking strategies (grouping nearby cards) mirror the memory management strategies that cache architectures use.
+NOTES: The simplest possible memory game. Used extensively in cognitive science to study memory decay, interference, and age-related decline. Ravensburger's Memory (1959) sold 75+ million copies. The mechanic appears in countless video games as a mini-game.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PUZ-020 · CONCENTRATION</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: pointer; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>PUZ-020 · CONCENTRATION</h1>
+    <p><span class="tag series">PUZ — Puzzle</span> <span class="tag">Prototype #020</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Find all 8 matching pairs of cards by flipping them two at a time. Remember where each symbol is located!</p>
+    <ul>
+      <li><strong>Click</strong> a face-down card to flip it</li>
+      <li>Flip two cards per turn &mdash; if they match, they stay face-up</li>
+      <li>If they don&rsquo;t match, they flip back after a moment</li>
+      <li>Find all 8 pairs to win</li>
+      <li><kbd>R</kbd> &mdash; Start a new game</li>
+      <li><kbd>?</kbd> &mdash; Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li>Focus on a few positions at a time &mdash; don&rsquo;t try to memorize every card at once</li>
+      <li>Pay attention to cards your opponent (your past self) has already revealed</li>
+      <li>Work systematically through rows or columns</li>
+      <li>Fewer moves = better score</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Concentration</strong> (also called <strong>Memory</strong>, <strong>Pelmanism</strong>, or <strong>Pairs</strong>) likely originated as a parlor game in the 1700s. The mechanic is ancient: lay cards face-down, turn them over two at a time, keep matching pairs. Its simplicity makes it playable by very young children, yet the combinatorial explosion of positions makes large grids genuinely challenging for adults.</p>
+    <p><strong>Ravensburger</strong> published the definitive commercial version as <em>Memory</em> in 1959, designed by William Hurter. It became one of the best-selling games of all time, with over 75 million copies sold across dozens of themed editions. The American TV game show <em>Concentration</em> (1958&ndash;1991) added a rebus puzzle layer to the matching mechanic.</p>
+    <p>In video games, memory matching appears as a mini-game in countless titles &mdash; from <em>Super Mario Bros. 3</em>&rsquo;s card-matching bonus to countless mobile games. Its pure test of short-term memory makes it a staple of cognitive training applications.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>Era 2 &mdash; Expert Systems (associative memory, pattern matching).</strong></p>
+    <p>Concentration directly tests <em>spatial working memory</em> &mdash; the ability to bind objects to locations and recall them after interference. Cognitive science uses it extensively to study memory decay, proactive interference, and age-related cognitive decline.</p>
+    <p>An AI player with perfect memory solves Concentration trivially: record every revealed card, match on second sight. The challenge for humans is that our working memory has limited capacity (Miller&rsquo;s 7&plusmn;2 items) and suffers from interference when new information displaces old. Human strategies &mdash; spatial chunking, narrative encoding, deliberate rehearsal &mdash; mirror the cache management strategies that computer architectures use.</p>
+    <p>The game&rsquo;s difficulty scales with grid size in the same way that memory span experiments do, making it a naturalistic cognitive assessment tool.</p>
+
+    <h2>Classification</h2>
+    <ul>
+      <li><strong>Series:</strong> PUZ &mdash; Puzzle</li>
+      <li><strong>Mechanic:</strong> Card memory matching</li>
+      <li><strong>Input:</strong> Mouse (click to flip)</li>
+      <li><strong>Complexity:</strong> O(n) with perfect memory, exponential with bounded memory</li>
+      <li><strong>State space:</strong> 4&times;4 grid, 8 pairs = 16! / (2^8) &asymp; 81,729,648,000 orderings</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <ul>
+      <li>4&times;4 grid (16 cards, 8 pairs) &mdash; classic balanced difficulty</li>
+      <li>8 distinct canvas-drawn symbols: star, heart, diamond, moon, sun, tree, fish, bell</li>
+      <li>Smooth card flip animation using horizontal scaling</li>
+      <li>Move counter, match counter, and timer</li>
+      <li>Success flash on match, shake on mismatch</li>
+    </ul>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game&rsquo;s creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+'use strict';
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+canvas.width = 800;
+canvas.height = 600;
+
+// ── Info panel ──
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// ── Responsive scaling ──
+function resize() {
+  const scaleX = window.innerWidth / 800;
+  const scaleY = window.innerHeight / 600;
+  const scale = Math.min(scaleX, scaleY);
+  canvas.style.width = (800 * scale) + 'px';
+  canvas.style.height = (600 * scale) + 'px';
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ── Constants ──
+const COLS = 4;
+const ROWS = 4;
+const CARD_W = 120;
+const CARD_H = 140;
+const GAP = 16;
+const GRID_W = COLS * CARD_W + (COLS - 1) * GAP;
+const GRID_H = ROWS * CARD_H + (ROWS - 1) * GAP;
+const GRID_X = (800 - GRID_W) / 2;
+const GRID_Y = (600 - GRID_H) / 2 + 20;
+const FLIP_SPEED = 0.08;
+const SHOW_DELAY = 1000; // ms before unmatched cards flip back
+
+const SYMBOLS = ['star', 'heart', 'diamond', 'moon', 'sun', 'tree', 'fish', 'bell'];
+const SYMBOL_COLORS = {
+  star: '#FFD700', heart: '#FF4466', diamond: '#44BBFF',
+  moon: '#C8A2FF', sun: '#FF9922', tree: '#44DD66',
+  fish: '#66CCDD', bell: '#FFAA44'
+};
+
+// ── Card state ──
+// flipState: 0 = face-down, 1 = face-up
+// flipAnim: 0..1 for animation (0 = fully face-down, 1 = fully face-up)
+// matched: boolean
+let cards = [];
+let firstCard = null;
+let secondCard = null;
+let lockBoard = false;
+let flipBackTimer = null;
+let moves = 0;
+let matches = 0;
+let startTime = 0;
+let elapsed = 0;
+let gameWon = false;
+let winTime = 0;
+let matchFlash = []; // {card, time}
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function initGame() {
+  const symbols = shuffle([...SYMBOLS, ...SYMBOLS]);
+  cards = [];
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const idx = r * COLS + c;
+      cards.push({
+        col: c, row: r,
+        symbol: symbols[idx],
+        flipState: 0,
+        flipAnim: 0,
+        matched: false,
+        x: GRID_X + c * (CARD_W + GAP),
+        y: GRID_Y + r * (CARD_H + GAP)
+      });
+    }
+  }
+  firstCard = null;
+  secondCard = null;
+  lockBoard = false;
+  if (flipBackTimer) clearTimeout(flipBackTimer);
+  flipBackTimer = null;
+  moves = 0;
+  matches = 0;
+  startTime = 0;
+  elapsed = 0;
+  gameWon = false;
+  winTime = 0;
+  matchFlash = [];
+}
+
+initGame();
+
+// ── Symbol drawing functions ──
+function drawSymbol(symbol, cx, cy, size) {
+  const s = size * 0.4;
+  ctx.fillStyle = SYMBOL_COLORS[symbol];
+  ctx.strokeStyle = SYMBOL_COLORS[symbol];
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  switch (symbol) {
+    case 'star': {
+      ctx.beginPath();
+      for (let i = 0; i < 5; i++) {
+        const angle = -Math.PI / 2 + (i * 2 * Math.PI / 5);
+        const outerX = cx + Math.cos(angle) * s;
+        const outerY = cy + Math.sin(angle) * s;
+        if (i === 0) ctx.moveTo(outerX, outerY);
+        else ctx.lineTo(outerX, outerY);
+        const innerAngle = angle + Math.PI / 5;
+        const innerX = cx + Math.cos(innerAngle) * s * 0.4;
+        const innerY = cy + Math.sin(innerAngle) * s * 0.4;
+        ctx.lineTo(innerX, innerY);
+      }
+      ctx.closePath();
+      ctx.fill();
+      break;
+    }
+    case 'heart': {
+      ctx.beginPath();
+      const hs = s * 0.9;
+      ctx.moveTo(cx, cy + hs * 0.7);
+      ctx.bezierCurveTo(cx - hs * 1.2, cy - hs * 0.1, cx - hs * 0.6, cy - hs * 1.0, cx, cy - hs * 0.4);
+      ctx.bezierCurveTo(cx + hs * 0.6, cy - hs * 1.0, cx + hs * 1.2, cy - hs * 0.1, cx, cy + hs * 0.7);
+      ctx.fill();
+      break;
+    }
+    case 'diamond': {
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - s);
+      ctx.lineTo(cx + s * 0.6, cy);
+      ctx.lineTo(cx, cy + s);
+      ctx.lineTo(cx - s * 0.6, cy);
+      ctx.closePath();
+      ctx.fill();
+      break;
+    }
+    case 'moon': {
+      ctx.beginPath();
+      ctx.arc(cx, cy, s * 0.7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#1a1a3a';
+      ctx.beginPath();
+      ctx.arc(cx + s * 0.35, cy - s * 0.15, s * 0.55, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+    case 'sun': {
+      // Center circle
+      ctx.beginPath();
+      ctx.arc(cx, cy, s * 0.35, 0, Math.PI * 2);
+      ctx.fill();
+      // Rays
+      for (let i = 0; i < 8; i++) {
+        const angle = (i * Math.PI) / 4;
+        ctx.beginPath();
+        ctx.moveTo(cx + Math.cos(angle) * s * 0.45, cy + Math.sin(angle) * s * 0.45);
+        ctx.lineTo(cx + Math.cos(angle) * s * 0.85, cy + Math.sin(angle) * s * 0.85);
+        ctx.lineWidth = 3;
+        ctx.stroke();
+      }
+      break;
+    }
+    case 'tree': {
+      // Trunk
+      ctx.fillStyle = '#8B6914';
+      ctx.fillRect(cx - s * 0.1, cy + s * 0.2, s * 0.2, s * 0.5);
+      // Foliage (three triangles)
+      ctx.fillStyle = SYMBOL_COLORS.tree;
+      for (let layer = 0; layer < 3; layer++) {
+        const ly = cy - s * 0.1 + layer * s * 0.25 - s * 0.35;
+        const lw = s * (0.35 + layer * 0.12);
+        ctx.beginPath();
+        ctx.moveTo(cx, ly);
+        ctx.lineTo(cx + lw, ly + s * 0.4);
+        ctx.lineTo(cx - lw, ly + s * 0.4);
+        ctx.closePath();
+        ctx.fill();
+      }
+      break;
+    }
+    case 'fish': {
+      // Body
+      ctx.beginPath();
+      ctx.ellipse(cx - s * 0.05, cy, s * 0.55, s * 0.3, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Tail
+      ctx.beginPath();
+      ctx.moveTo(cx + s * 0.4, cy);
+      ctx.lineTo(cx + s * 0.8, cy - s * 0.35);
+      ctx.lineTo(cx + s * 0.8, cy + s * 0.35);
+      ctx.closePath();
+      ctx.fill();
+      // Eye
+      ctx.fillStyle = '#1a1a3a';
+      ctx.beginPath();
+      ctx.arc(cx - s * 0.25, cy - s * 0.05, s * 0.07, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+    case 'bell': {
+      ctx.beginPath();
+      // Bell body
+      ctx.moveTo(cx - s * 0.5, cy + s * 0.3);
+      ctx.quadraticCurveTo(cx - s * 0.5, cy - s * 0.5, cx, cy - s * 0.7);
+      ctx.quadraticCurveTo(cx + s * 0.5, cy - s * 0.5, cx + s * 0.5, cy + s * 0.3);
+      ctx.lineTo(cx - s * 0.5, cy + s * 0.3);
+      ctx.fill();
+      // Brim
+      ctx.fillRect(cx - s * 0.6, cy + s * 0.25, s * 1.2, s * 0.12);
+      // Clapper
+      ctx.beginPath();
+      ctx.arc(cx, cy + s * 0.5, s * 0.1, 0, Math.PI * 2);
+      ctx.fill();
+      // Top nub
+      ctx.beginPath();
+      ctx.arc(cx, cy - s * 0.7, s * 0.08, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+  }
+}
+
+// ── Draw card back pattern ──
+function drawCardBack(x, y, w, h) {
+  // Border
+  ctx.fillStyle = '#2244aa';
+  ctx.fillRect(x, y, w, h);
+  // Inner
+  ctx.fillStyle = '#1a2a66';
+  ctx.fillRect(x + 4, y + 4, w - 8, h - 8);
+  // Cross-hatch pattern
+  ctx.strokeStyle = '#2a3a88';
+  ctx.lineWidth = 1;
+  const step = 12;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x + 4, y + 4, w - 8, h - 8);
+  ctx.clip();
+  for (let i = -h; i < w + h; i += step) {
+    ctx.beginPath();
+    ctx.moveTo(x + i, y);
+    ctx.lineTo(x + i + h, y + h);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x + i + h, y);
+    ctx.lineTo(x + i, y + h);
+    ctx.stroke();
+  }
+  ctx.restore();
+  // Center diamond
+  ctx.fillStyle = '#3355cc';
+  const dcx = x + w / 2, dcy = y + h / 2, ds = 15;
+  ctx.beginPath();
+  ctx.moveTo(dcx, dcy - ds);
+  ctx.lineTo(dcx + ds * 0.7, dcy);
+  ctx.lineTo(dcx, dcy + ds);
+  ctx.lineTo(dcx - ds * 0.7, dcy);
+  ctx.closePath();
+  ctx.fill();
+}
+
+// ── Draw card face ──
+function drawCardFace(card, x, y, w, h) {
+  // White face
+  ctx.fillStyle = '#f0f0ee';
+  ctx.fillRect(x, y, w, h);
+  // Border
+  ctx.strokeStyle = '#999';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
+  // Symbol
+  drawSymbol(card.symbol, x + w / 2, y + h / 2, Math.min(w, h));
+}
+
+// ── Input ──
+function getCardAt(mx, my) {
+  for (const card of cards) {
+    if (mx >= card.x && mx < card.x + CARD_W &&
+        my >= card.y && my < card.y + CARD_H) {
+      return card;
+    }
+  }
+  return null;
+}
+
+canvas.addEventListener('click', function(e) {
+  if (infoOpen || gameWon) return;
+  if (lockBoard) return;
+
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = 800 / rect.width;
+  const scaleY = 600 / rect.height;
+  const mx = (e.clientX - rect.left) * scaleX;
+  const my = (e.clientY - rect.top) * scaleY;
+
+  const card = getCardAt(mx, my);
+  if (!card) return;
+  if (card.matched) return;
+  if (card.flipState === 1) return;
+  if (card === firstCard) return;
+
+  // Start timer on first click
+  if (startTime === 0) startTime = performance.now();
+
+  card.flipState = 1;
+
+  if (!firstCard) {
+    firstCard = card;
+  } else {
+    secondCard = card;
+    moves++;
+    lockBoard = true;
+
+    // Check match after both cards finish flipping
+    flipBackTimer = setTimeout(function() {
+      if (firstCard.symbol === secondCard.symbol) {
+        // Match!
+        firstCard.matched = true;
+        secondCard.matched = true;
+        matchFlash.push({ card: firstCard, time: performance.now() });
+        matchFlash.push({ card: secondCard, time: performance.now() });
+        matches++;
+        if (matches === 8) {
+          gameWon = true;
+          winTime = elapsed;
+        }
+      } else {
+        // No match — flip back
+        firstCard.flipState = 0;
+        secondCard.flipState = 0;
+      }
+      firstCard = null;
+      secondCard = null;
+      lockBoard = false;
+      flipBackTimer = null;
+    }, SHOW_DELAY);
+  }
+});
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
+    toggleInfo();
+    return;
+  }
+  if (e.key === 'Escape' && infoOpen) {
+    toggleInfo();
+    return;
+  }
+  if (e.key === 'r' || e.key === 'R') {
+    initGame();
+    return;
+  }
+});
+
+// ── Update ──
+function update() {
+  if (infoOpen) return;
+
+  const now = performance.now();
+
+  // Update timer
+  if (startTime > 0 && !gameWon) {
+    elapsed = (now - startTime) / 1000;
+  }
+
+  // Animate flips
+  for (const card of cards) {
+    const target = card.flipState;
+    if (card.flipAnim < target) {
+      card.flipAnim = Math.min(card.flipAnim + FLIP_SPEED, target);
+    } else if (card.flipAnim > target) {
+      card.flipAnim = Math.max(card.flipAnim - FLIP_SPEED, target);
+    }
+  }
+
+  // Clean old match flashes
+  matchFlash = matchFlash.filter(f => now - f.time < 500);
+}
+
+// ── Draw ──
+function draw() {
+  const now = performance.now();
+
+  // Background
+  ctx.fillStyle = '#0a0a1e';
+  ctx.fillRect(0, 0, 800, 600);
+
+  // Subtle felt texture
+  ctx.fillStyle = '#0d1228';
+  ctx.fillRect(0, 0, 800, 600);
+
+  // HUD
+  const timeStr = formatTime(elapsed);
+  hudText('CONCENTRATION', 20, 12, '#7bf', 18);
+  hudText('Moves: ' + moves, 250, 14, '#ccc', 14);
+  hudText('Matches: ' + matches + '/8', 420, 14, '#ccc', 14);
+  hudText('Time: ' + timeStr, 600, 14, '#ccc', 14);
+  hudText('[?] Info  [R] New Game', 800 - 20, 14, '#555', 11, 'right');
+
+  // Draw cards
+  for (const card of cards) {
+    const anim = card.flipAnim;
+    // Horizontal scale for flip effect (goes 1 -> 0 -> 1)
+    // At anim=0: fully back (scale=1 showing back)
+    // At anim=0.5: edge-on (scale=0)
+    // At anim=1: fully face (scale=1 showing face)
+    let showFace;
+    let scaleX;
+    if (anim <= 0.5) {
+      scaleX = 1 - anim * 2; // 1 -> 0
+      showFace = false;
+    } else {
+      scaleX = (anim - 0.5) * 2; // 0 -> 1
+      showFace = true;
+    }
+    // Don't draw if edge-on
+    if (scaleX < 0.02) scaleX = 0.02;
+
+    const cx = card.x + CARD_W / 2;
+    const cy = card.y + CARD_H / 2;
+    const drawW = CARD_W * scaleX;
+    const drawX = cx - drawW / 2;
+
+    // Card shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillRect(drawX + 3, card.y + 3, drawW, CARD_H);
+
+    ctx.save();
+
+    if (showFace) {
+      drawCardFace(card, drawX, card.y, drawW, CARD_H);
+    } else {
+      drawCardBack(drawX, card.y, drawW, CARD_H);
+    }
+
+    ctx.restore();
+
+    // Match flash glow
+    const flash = matchFlash.find(f => f.card === card);
+    if (flash) {
+      const age = (now - flash.time) / 500;
+      if (age < 1) {
+        ctx.save();
+        ctx.globalAlpha = (1 - age) * 0.5;
+        ctx.fillStyle = '#4f4';
+        ctx.fillRect(card.x - 4, card.y - 4, CARD_W + 8, CARD_H + 8);
+        ctx.globalAlpha = 1;
+        ctx.restore();
+      }
+    }
+
+    // Matched cards get a subtle border glow
+    if (card.matched && !flash) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(68, 255, 68, 0.3)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(card.x - 2, card.y - 2, CARD_W + 4, CARD_H + 4);
+      ctx.restore();
+    }
+  }
+
+  // Win screen
+  if (gameWon) {
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(0, 0, 800, 600);
+
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = '36px monospace';
+    ctx.shadowColor = 'rgba(0,0,0,0.8)';
+    ctx.shadowBlur = 6;
+    ctx.fillStyle = '#FFD700';
+    ctx.fillText('ALL PAIRS FOUND!', 400, 250);
+
+    ctx.font = '20px monospace';
+    ctx.fillStyle = '#fff';
+    ctx.fillText('Moves: ' + moves + '    Time: ' + formatTime(winTime), 400, 300);
+
+    // Rating
+    let rating;
+    if (moves <= 10) rating = 'Perfect Memory!';
+    else if (moves <= 14) rating = 'Excellent!';
+    else if (moves <= 18) rating = 'Great!';
+    else if (moves <= 24) rating = 'Good';
+    else rating = 'Keep practicing!';
+
+    ctx.font = '18px monospace';
+    ctx.fillStyle = '#7bf';
+    ctx.fillText(rating, 400, 340);
+
+    ctx.font = '14px monospace';
+    ctx.fillStyle = '#888';
+    ctx.fillText('Press R for a new game', 400, 400);
+    ctx.restore();
+  }
+}
+
+function formatTime(secs) {
+  const m = Math.floor(secs / 60);
+  const s = Math.floor(secs % 60);
+  return m + ':' + (s < 10 ? '0' : '') + s;
+}
+
+// ── Main loop ──
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+</script>
+</body>
+</html>

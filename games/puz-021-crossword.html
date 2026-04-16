@@ -1,0 +1,533 @@
+<!--
+PROTOTYPE: crossword
+SERIES: puz
+NUMBER: 021
+DATE: 2026-03-24
+MECHANIC: word clue grid — fill a grid with words from intersecting across and down clues
+ANCESTRY: Arthur Wynne's Word-Cross (1913), New York Times Crossword (1942), Dr.Fill AI (2021)
+CONTROLS: Click cell — select | Type letter — fill | Arrow keys — navigate | Tab — next clue | Backspace — delete | R — new puzzle | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 5-7 (Statistical Learning → Generative-Agentic — NLP, constraint satisfaction, Dr.Fill 2021)
+AI-INSIGHT: Crossword construction is constraint satisfaction: each word must be valid AND intersecting letters must agree. Dr.Fill (Matt Ginsberg, 2021) used NLP embeddings to solve crosswords at human-expert level. The puzzle teaches vocabulary, lateral thinking, and constraint reasoning simultaneously.
+NOTES: Arthur Wynne published the first crossword in the New York World (1913). The NYT crossword (1942, edited by Will Shortz since 1993) is the gold standard. Crosswords are the most widely solved puzzle format in history.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PUZ-021 · CROSSWORD</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: pointer; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>PUZ-021 · CROSSWORD</h1>
+    <p><span class="tag series">PUZ — Puzzle</span> <span class="tag">Prototype #021</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Fill the crossword grid by solving across and down clues. Every white cell needs a letter.</p>
+    <ul>
+      <li><strong>Click</strong> a cell to select it (click again to toggle across/down)</li>
+      <li><strong>Type a letter</strong> to fill the selected cell and advance</li>
+      <li><kbd>&larr;</kbd> <kbd>&rarr;</kbd> <kbd>&uarr;</kbd> <kbd>&darr;</kbd> — Navigate between cells</li>
+      <li><kbd>Tab</kbd> — Jump to next clue</li>
+      <li><kbd>Backspace</kbd> — Delete letter and move back</li>
+      <li><kbd>R</kbd> — New puzzle</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li>The current word is highlighted in blue</li>
+      <li>The current clue is highlighted in the clue list</li>
+      <li>Intersecting letters help you solve harder clues</li>
+      <li>All letters turn green when the puzzle is complete</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Arthur Wynne's Word-Cross (1913) &rarr; New York Times Crossword (1942) &rarr; Dr.Fill AI (2021)</p>
+    <p>Arthur Wynne, a journalist from Liverpool, published the first crossword puzzle in the New York World on December 21, 1913. It was diamond-shaped and called a "Word-Cross." The New York Times began publishing crosswords in 1942, and under editor Will Shortz (since 1993), the NYT crossword became the gold standard. Crosswords are the most widely solved puzzle format in history, appearing in virtually every newspaper worldwide.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 5-7 — Statistical Learning to Generative-Agentic</p>
+    <p>Crossword construction is a constraint satisfaction problem: each word must be valid AND intersecting letters must agree. Dr.Fill, created by Matt Ginsberg, used NLP embeddings to solve crosswords at human-expert level, placing first at the American Crossword Puzzle Tournament in 2021. Modern LLMs can both solve and construct crosswords, combining vocabulary knowledge with spatial constraint reasoning.</p>
+
+    <h2>Classification</h2>
+    <p><strong>Mechanic:</strong> Word clue grid — fill a grid with words from intersecting across and down clues</p>
+    <p><strong>Genre:</strong> Word Puzzle / Knowledge</p>
+
+    <h2>Prototype Notes</h2>
+    <p>Three hand-crafted 8x8 crossword grids with common English vocabulary. Clues range from simple definitions to mild wordplay. Grid numbering follows standard crossword conventions. Compact data representation keeps the file well under 50KB.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+const W=800,H=600;
+const cv=document.getElementById('c');cv.width=W;cv.height=H;
+const cx=cv.getContext('2d');
+let infoOpen=false;
+function toggleInfo(){infoOpen=!infoOpen;document.getElementById('info-panel').style.display=infoOpen?'block':'none';}
+
+// Puzzle data: each puzzle has grid (. = black, letter = white), across clues, down clues
+// Grid is 8x8
+const PUZZLES=[
+{grid:[
+"CASH.APE",
+"ORAL.PEA",
+"DELI.EEL",
+"EYES....",
+"....FARM",
+"OWL.IDEA",
+"PIG.NOON",
+"END.GENE"],
+across:{1:"Money; bills and coins",5:"Primate without a tail",7:"Spoken, not written",9:"Green vegetable in a pod",10:"Sandwich shop",12:"Slippery fish",13:"Organs of sight",15:"Rural land with crops",17:"Nocturnal bird",18:"A thought or concept",20:"Barnyard animal",21:"Midday; 12 o'clock",22:"Finish; conclusion",23:"Unit of heredity"},
+down:{1:"Comfortable; relaxed",2:"Region; zone",3:"Trade; exchange",4:"Refuge; a place of safety",5:"Private; not public",6:"Enthusiastic; keen",8:"Large body of water",11:"Observed; noticed",14:"Corrosion; oxidize",15:"Destiny; what will happen",16:"Not old",19:"Frozen water"}
+},
+{grid:[
+"BOLD.JAM",
+"AREA.AWE",
+"KEEN.NET",
+"EDDY....",
+"....STOP",
+"HUB.TAXI",
+"OAK.IBIS",
+"PEW.NEST"],
+across:{1:"Brave; daring",5:"Fruit preserve",7:"Surface measure",9:"Wonder; amazement",10:"Eager; enthusiastic",12:"Mesh for catching",13:"Circular current",15:"Halt; cease",17:"Center; focal point",18:"Yellow cab",20:"Strong hardwood tree",21:"Long-legged wading bird",22:"Church bench",23:"Bird's home"},
+down:{1:"Pastry; dinner roll",2:"Mineral deposit",3:"Donkey",4:"Average; typical",5:"Airplane; jet",6:"Marry; take vows",8:"Leg joint",11:"Thick; dense",14:"Foot digit",15:"Heavenly body; sun",16:"Heap; stack",19:"Fishing mesh"}
+},
+{grid:[
+"LAMP.OAR",
+"IDEA.PIE",
+"FERN.ERA",
+"TREE....",
+"....GOLD",
+"HEN.BLUE",
+"OWE.LIME",
+"PEA.EDGE"],
+across:{1:"Light source on a desk",5:"Rowing blade",7:"A thought or plan",9:"Baked pastry dish",10:"Leafy green plant",12:"Time period; epoch",13:"Woody plant",15:"Precious yellow metal",17:"Female chicken",18:"Color of the sky",20:"Be in debt",21:"Green citrus fruit",22:"Small green vegetable",23:"Border; boundary"},
+down:{1:"Transparent; not murky",2:"Monkey or great ape",3:"Nickname; short name",4:"Function; purpose",5:"Mineral from the earth",6:"Not odd",8:"Rage; fury",11:"Group of soldiers",14:"Sticky substance; paste",15:"Spirit; phantom",16:"Solitary; only one",19:"Falsehood; untruth"}
+}
+];
+
+// Game state
+let pzIdx=0,grid,solution,clueNums,acrossClues,downClues,acrossWords,downWords;
+let selR=-1,selC=-1,dir=0; // dir: 0=across, 1=down
+let won=false,msg='',msgTimer=0;
+const GS=8,CS=42,GX=30,GY=60;
+
+function initPuzzle(idx){
+  pzIdx=idx%PUZZLES.length;
+  const pz=PUZZLES[pzIdx];
+  solution=[];grid=[];clueNums=[];
+  acrossClues=pz.across;downClues=pz.down;
+  acrossWords=[];downWords=[];
+  for(let r=0;r<GS;r++){
+    solution[r]=[];grid[r]=[];clueNums[r]=[];
+    for(let c=0;c<GS;c++){
+      const ch=pz.grid[r][c];
+      if(ch==='.'){solution[r][c]=null;grid[r][c]=null;}
+      else{solution[r][c]=ch;grid[r][c]='';}
+      clueNums[r][c]=0;
+    }
+  }
+  // Assign clue numbers
+  let num=1;
+  for(let r=0;r<GS;r++){
+    for(let c=0;c<GS;c++){
+      if(solution[r][c]===null)continue;
+      let needsNum=false;
+      // across start: left is black/edge AND right exists
+      if((c===0||solution[r][c-1]===null)&&c<GS-1&&solution[r][c+1]!==null){
+        needsNum=true;
+      }
+      // down start: top is black/edge AND bottom exists
+      if((r===0||solution[r-1][c]===null)&&r<GS-1&&solution[r+1][c]!==null){
+        needsNum=true;
+      }
+      if(needsNum){clueNums[r][c]=num;num++;}
+    }
+  }
+  // Build word lists for navigation
+  buildWordLists();
+  selR=selC=-1;dir=0;won=false;
+  // Select first across cell
+  for(let r=0;r<GS&&selR<0;r++)for(let c=0;c<GS&&selR<0;c++)if(solution[r][c]!==null){selR=r;selC=c;}
+  msg='Puzzle '+(pzIdx+1)+' of '+PUZZLES.length;msgTimer=120;
+}
+
+function buildWordLists(){
+  acrossWords=[];downWords=[];
+  for(let r=0;r<GS;r++){
+    for(let c=0;c<GS;c++){
+      if(solution[r][c]===null)continue;
+      // across word start
+      if((c===0||solution[r][c-1]===null)&&c<GS-1&&solution[r][c+1]!==null){
+        let cells=[];
+        for(let cc=c;cc<GS&&solution[r][cc]!==null;cc++)cells.push([r,cc]);
+        acrossWords.push({num:clueNums[r][c],cells:cells});
+      }
+      // down word start
+      if((r===0||solution[r-1][c]===null)&&r<GS-1&&solution[r+1][c]!==null){
+        let cells=[];
+        for(let rr=r;rr<GS&&solution[rr][c]!==null;rr++)cells.push([rr,c]);
+        downWords.push({num:clueNums[r][c],cells:cells});
+      }
+    }
+  }
+}
+
+function getWordAt(r,c,d){
+  const list=d===0?acrossWords:downWords;
+  for(const w of list){
+    for(const cell of w.cells){
+      if(cell[0]===r&&cell[1]===c)return w;
+    }
+  }
+  return null;
+}
+
+function getAllWords(){return acrossWords.concat(downWords);}
+
+function checkWin(){
+  for(let r=0;r<GS;r++)for(let c=0;c<GS;c++){
+    if(solution[r][c]!==null&&grid[r][c]!==solution[r][c])return false;
+  }
+  return true;
+}
+
+function nextClue(){
+  const list=dir===0?acrossWords:downWords;
+  const cur=getWordAt(selR,selC,dir);
+  if(!cur){dir=1-dir;const w=(dir===0?acrossWords:downWords)[0];if(w){selR=w.cells[0][0];selC=w.cells[0][1];}return;}
+  let idx=list.indexOf(cur);
+  idx++;
+  if(idx>=list.length){
+    dir=1-dir;
+    const otherList=dir===0?acrossWords:downWords;
+    if(otherList.length>0){selR=otherList[0].cells[0][0];selC=otherList[0].cells[0][1];}
+    else{idx=0;dir=1-dir;selR=list[0].cells[0][0];selC=list[0].cells[0][1];}
+  }else{
+    selR=list[idx].cells[0][0];selC=list[idx].cells[0][1];
+  }
+}
+
+function moveInDir(dr,dc){
+  let nr=selR+dr,nc=selC+dc;
+  while(nr>=0&&nr<GS&&nc>=0&&nc<GS){
+    if(solution[nr][nc]!==null){selR=nr;selC=nc;return;}
+    nr+=dr;nc+=dc;
+  }
+}
+
+initPuzzle(0);
+
+// Input
+cv.addEventListener('click',function(e){
+  if(infoOpen||won)return;
+  const rect=cv.getBoundingClientRect();
+  const sx=W/rect.width,sy=H/rect.height;
+  const mx=(e.clientX-rect.left)*sx,my=(e.clientY-rect.top)*sy;
+  const c=Math.floor((mx-GX)/CS),r=Math.floor((my-GY)/CS);
+  if(r>=0&&r<GS&&c>=0&&c<GS&&solution[r][c]!==null){
+    if(selR===r&&selC===c){dir=1-dir;} // toggle direction on same cell
+    else{selR=r;selC=c;}
+    // Auto-pick direction if only one word passes through
+    const aw=getWordAt(r,c,0),dw=getWordAt(r,c,1);
+    if(aw&&!dw)dir=0;
+    else if(dw&&!aw)dir=1;
+  }
+});
+
+document.addEventListener('keydown',function(e){
+  if(e.key==='?'||e.key==='/'){e.preventDefault();toggleInfo();return;}
+  if(e.key==='Escape'&&infoOpen){toggleInfo();return;}
+  if(infoOpen)return;
+  if(won&&e.key.toLowerCase()==='r'){initPuzzle(pzIdx+1);return;}
+  if(won)return;
+
+  if(e.key==='r'||e.key==='R'){initPuzzle(pzIdx+1);return;}
+  if(e.key==='Tab'){e.preventDefault();nextClue();return;}
+
+  if(e.key==='ArrowLeft'){e.preventDefault();dir=0;moveInDir(0,-1);return;}
+  if(e.key==='ArrowRight'){e.preventDefault();dir=0;moveInDir(0,1);return;}
+  if(e.key==='ArrowUp'){e.preventDefault();dir=1;moveInDir(-1,0);return;}
+  if(e.key==='ArrowDown'){e.preventDefault();dir=1;moveInDir(1,0);return;}
+
+  if(e.key==='Backspace'){
+    e.preventDefault();
+    if(selR<0)return;
+    if(grid[selR][selC]!==''){grid[selR][selC]='';}
+    else{
+      // Move back
+      if(dir===0)moveInDir(0,-1);else moveInDir(-1,0);
+      if(grid[selR][selC]!==undefined)grid[selR][selC]='';
+    }
+    return;
+  }
+
+  if(/^[a-zA-Z]$/.test(e.key)){
+    e.preventDefault();
+    if(selR<0)return;
+    grid[selR][selC]=e.key.toUpperCase();
+    // Advance
+    const w=getWordAt(selR,selC,dir);
+    if(w){
+      const idx=w.cells.findIndex(c=>c[0]===selR&&c[1]===selC);
+      if(idx<w.cells.length-1){selR=w.cells[idx+1][0];selC=w.cells[idx+1][1];}
+    }
+    if(checkWin()){won=true;msg='PUZZLE COMPLETE!';msgTimer=300;}
+  }
+});
+
+// Resize
+function resize(){
+  const s=Math.min(window.innerWidth/W,window.innerHeight/H);
+  cv.style.width=(W*s)+'px';cv.style.height=(H*s)+'px';
+}
+window.addEventListener('resize',resize);resize();
+
+// HUD text helper
+function hudText(text,x,y,size,color,align){
+  cx.font=size+'px monospace';cx.fillStyle=color;cx.textAlign=align||'left';cx.textBaseline='top';
+  cx.fillText(text,x,y);
+}
+
+function draw(){
+  cx.fillStyle='#111';cx.fillRect(0,0,W,H);
+
+  // Title
+  hudText('CROSSWORD','10','10','18','#7bf','left');
+  hudText('Puzzle '+(pzIdx+1)+'/'+PUZZLES.length,200,12,13,'#888','left');
+  hudText('? = info   R = new',W-10,12,12,'#555','right');
+
+  // Get current word cells for highlighting
+  const curWord=selR>=0?getWordAt(selR,selC,dir):null;
+  const curCells=curWord?curWord.cells:[];
+
+  // Draw grid
+  for(let r=0;r<GS;r++){
+    for(let c=0;c<GS;c++){
+      const x=GX+c*CS,y=GY+r*CS;
+      if(solution[r][c]===null){
+        cx.fillStyle='#222';cx.fillRect(x,y,CS,CS);
+      }else{
+        // Background
+        let bg='#f5f0e8';
+        const inCur=curCells.some(cc=>cc[0]===r&&cc[1]===c);
+        if(won)bg='#b5e8b0';
+        else if(selR===r&&selC===c)bg='#ffd700';
+        else if(inCur)bg='#c8ddf0';
+        cx.fillStyle=bg;cx.fillRect(x,y,CS,CS);
+
+        // Clue number
+        if(clueNums[r][c]>0){
+          cx.font='10px monospace';cx.fillStyle='#444';cx.textAlign='left';cx.textBaseline='top';
+          cx.fillText(clueNums[r][c],x+2,y+2);
+        }
+        // Letter
+        if(grid[r][c]){
+          const correct=grid[r][c]===solution[r][c];
+          cx.font='bold 22px monospace';
+          cx.fillStyle=won?'#1a6b1a':(correct?'#222':'#222');
+          cx.textAlign='center';cx.textBaseline='middle';
+          cx.fillText(grid[r][c],x+CS/2,y+CS/2+2);
+        }
+        // Cell border
+        cx.strokeStyle='#999';cx.lineWidth=1;cx.strokeRect(x+0.5,y+0.5,CS-1,CS-1);
+      }
+    }
+  }
+
+  // Grid outer border
+  cx.strokeStyle='#666';cx.lineWidth=2;cx.strokeRect(GX,GY,GS*CS,GS*CS);
+
+  // Clue area
+  const clueX=GX+GS*CS+20;
+  const clueW=W-clueX-10;
+  const clueTop=GY;
+
+  // Current clue number
+  let curNum=0,curDir='';
+  if(curWord){curNum=curWord.num;curDir=dir===0?'A':'D';}
+
+  // Draw ACROSS clues
+  hudText('ACROSS',clueX,clueTop,13,'#f80','left');
+  let cy2=clueTop+18;
+  const aKeys=Object.keys(acrossClues).map(Number).sort((a,b)=>a-b);
+  for(const k of aKeys){
+    const isCur=(curNum===k&&dir===0);
+    const clueText=k+'. '+acrossClues[k];
+    // Truncate if too long
+    const maxChars=Math.floor(clueW/6.5);
+    const display=clueText.length>maxChars?clueText.substring(0,maxChars-1)+'\u2026':clueText;
+    if(isCur){
+      cx.fillStyle='rgba(100,150,220,0.3)';
+      cx.fillRect(clueX-2,cy2-1,clueW+4,13);
+    }
+    // Check if word is complete
+    const word=acrossWords.find(w=>w.num===k);
+    const complete=word&&word.cells.every(c=>grid[c[0]][c[1]]===solution[c[0]][c[1]]);
+    cx.font='11px monospace';cx.fillStyle=complete?'#4a4':'#ccc';cx.textAlign='left';cx.textBaseline='top';
+    cx.fillText(display,clueX,cy2);
+    cy2+=14;
+  }
+
+  // Draw DOWN clues
+  cy2+=8;
+  hudText('DOWN',clueX,cy2,13,'#f80','left');
+  cy2+=18;
+  const dKeys=Object.keys(downClues).map(Number).sort((a,b)=>a-b);
+  for(const k of dKeys){
+    const isCur=(curNum===k&&dir===1);
+    const clueText=k+'. '+downClues[k];
+    const maxChars=Math.floor(clueW/6.5);
+    const display=clueText.length>maxChars?clueText.substring(0,maxChars-1)+'\u2026':clueText;
+    if(isCur){
+      cx.fillStyle='rgba(100,150,220,0.3)';
+      cx.fillRect(clueX-2,cy2-1,clueW+4,13);
+    }
+    const word=downWords.find(w=>w.num===k);
+    const complete=word&&word.cells.every(c=>grid[c[0]][c[1]]===solution[c[0]][c[1]]);
+    cx.font='11px monospace';cx.fillStyle=complete?'#4a4':'#ccc';cx.textAlign='left';cx.textBaseline='top';
+    cx.fillText(display,clueX,cy2);
+    cy2+=14;
+  }
+
+  // Current clue at bottom
+  if(curWord&&!won){
+    const clueMap=dir===0?acrossClues:downClues;
+    const label=(dir===0?'ACROSS':'DOWN');
+    const fullClue=curNum+'-'+label+': '+clueMap[curNum];
+    cx.fillStyle='rgba(0,0,0,0.8)';cx.fillRect(0,H-36,W,36);
+    hudText(fullClue,10,H-28,14,'#ffd700','left');
+  }
+
+  // Win message
+  if(won){
+    cx.fillStyle='rgba(0,0,0,0.7)';cx.fillRect(0,H/2-30,W,60);
+    hudText('PUZZLE COMPLETE!  Press R for next',W/2,H/2-12,18,'#4f4','center');
+  }
+
+  // Flash message
+  if(msgTimer>0&&!won){
+    msgTimer--;
+    cx.fillStyle='rgba(0,0,0,0.6)';cx.fillRect(0,H/2-20,W,40);
+    hudText(msg,W/2,H/2-8,16,'#ff0','center');
+  }
+}
+
+function update(){
+  if(infoOpen)return;
+  draw();
+}
+
+function loop(){update();requestAnimationFrame(loop);}
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

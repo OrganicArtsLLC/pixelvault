@@ -1,0 +1,809 @@
+<!--
+PROTOTYPE: drill-mine
+SERIES: sim
+NUMBER: 016
+DATE: 2026-03-24
+MECHANIC: downward mining — drill through dirt on Mars to collect minerals; manage fuel and hull integrity; sell minerals to upgrade drill; deeper means rarer minerals and greater danger
+ANCESTRY: Motherload (2004, XGen Studios), Dig Dug (1982, Namco), Mr. Driller (1999, Namco), SteamWorld Dig (2013, Image & Form)
+CONTROLS: Arrow keys — move/drill | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 5 (Deep Learning — procedural mineral distribution, risk/reward depth curves)
+AI-INSIGHT: Motherload distills the core loop of resource extraction games into its purest form — the downward journey as metaphor for increasing commitment. Each descent is a gamble: fuel is finite, minerals are uncertain, and the surface grows farther away. The game teaches sunk-cost reasoning through embodied experience.
+NOTES: Downward mining with upgrade progression loop.
+       Fuel management creates tension between greed and survival.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SIM-016 · DRILL MINE</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: crosshair; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SIM-016 · DRILL MINE</h1>
+    <p><span class="tag series">SIM — Simulation</span> <span class="tag">Prototype #016</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Pilot your mining pod on Mars. Drill downward through layers of dirt and rock to collect valuable minerals, then return to the surface to sell them and upgrade your equipment.</p>
+    <ul>
+      <li><kbd>&larr;</kbd> <kbd>&rarr;</kbd> — Move left/right (drills through dirt)</li>
+      <li><kbd>&darr;</kbd> — Drill downward</li>
+      <li><kbd>&uarr;</kbd> — Fly upward (uses extra fuel)</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>The Loop</h3>
+    <ul>
+      <li>Dig down to find minerals — deeper = rarer and more valuable</li>
+      <li>Watch your fuel gauge — running out means you are stranded!</li>
+      <li>Return to the surface to sell minerals at the shop</li>
+      <li>Buy upgrades: better drill, bigger fuel tank, stronger hull, more cargo space</li>
+      <li>Dig deeper with your new equipment</li>
+    </ul>
+    <h3>Minerals</h3>
+    <ul>
+      <li><strong>Iron</strong> (grey) — Common, $5 each. Found near the surface.</li>
+      <li><strong>Gold</strong> (yellow) — Medium rarity, $25 each. Below depth 20.</li>
+      <li><strong>Diamond</strong> (cyan) — Rare, $100 each. Below depth 45.</li>
+      <li><strong>Emerald</strong> (green) — Very rare, $250 each. Below depth 70.</li>
+    </ul>
+    <h3>Hazards</h3>
+    <ul>
+      <li><strong>Lava</strong> — Damages your hull on contact. Appears at greater depths.</li>
+      <li><strong>Falling</strong> — Drilling removes support; falling too far damages hull.</li>
+    </ul>
+
+    <h2>History</h2>
+    <p>Motherload was created by XGen Studios in 2004 as a Flash browser game. Players controlled a mining machine on Mars, drilling through layers of earth to collect minerals and upgrade their equipment. The game became one of the most popular Flash games of its era, spawning a commercial sequel, Super Motherload (2013), which added cooperative multiplayer and procedurally generated worlds.</p>
+    <p>The downward-mining loop influenced numerous indie games including SteamWorld Dig (2013), Dome Keeper (2022), and countless mining-themed idle games. The core tension — how deep do you dare go before turning back — remains one of gaming's most compelling risk/reward loops.</p>
+
+    <h2>AI Archaeology</h2>
+    <p>The mining loop is a near-perfect illustration of exploration-exploitation tradeoffs studied in reinforcement learning. Each descent is a sequential decision problem: the agent must balance the diminishing marginal returns of surface minerals against the uncertain but potentially high rewards at depth, all while managing a depleting resource (fuel). This maps directly to the multi-armed bandit problem with resource constraints.</p>
+
+    <h2>Classification</h2>
+    <p><strong>Series:</strong> SIM (Simulation) — resource management and economic progression</p>
+    <p><strong>AI Era:</strong> 5 — Deep Learning. The procedural mineral distribution and depth-scaling difficulty curve reflect modern approaches to content generation and reward shaping.</p>
+
+    <h2>Prototype Notes</h2>
+    <p>This prototype captures the essential Motherload loop: dig, collect, surface, sell, upgrade, repeat. The map is procedurally generated with mineral density increasing with depth. The upgrade system provides satisfying progression while fuel management maintains tension throughout each run.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This is an educational prototype created to study game design mechanics and their relationship to AI concepts. It is not affiliated with or endorsed by XGen Studios. The original Motherload (2004) is the work of its creators and publishers.</p>
+  </div>
+</div>
+
+<script>
+// Info panel
+let infoOpen = false;
+const infoPanel = document.getElementById('info-panel');
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  infoPanel.style.display = infoOpen ? 'block' : 'none';
+}
+
+// Canvas setup
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+canvas.width = 800;
+canvas.height = 600;
+
+function resize() {
+  const s = Math.min(window.innerWidth / 800, window.innerHeight / 600);
+  canvas.style.width = (800 * s) + 'px';
+  canvas.style.height = (600 * s) + 'px';
+}
+window.addEventListener('resize', resize);
+resize();
+
+function hudText(ctx, text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.fillStyle = color || '#fff';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+// Constants
+const TILE = 20;
+const COLS = 30;
+const ROWS = 120;
+const SKY_ROWS = 4;
+const MAP_W = COLS * TILE;
+const MAP_H = ROWS * TILE;
+
+// Tile types
+const T_AIR = 0, T_DIRT = 1, T_IRON = 2, T_GOLD = 3, T_DIAMOND = 4, T_EMERALD = 5, T_LAVA = 6, T_ROCK = 7;
+
+const MINERAL_NAMES = { [T_IRON]: 'Iron', [T_GOLD]: 'Gold', [T_DIAMOND]: 'Diamond', [T_EMERALD]: 'Emerald' };
+const MINERAL_VALUES = { [T_IRON]: 5, [T_GOLD]: 25, [T_DIAMOND]: 100, [T_EMERALD]: 250 };
+const MINERAL_COLORS = { [T_IRON]: '#aaa', [T_GOLD]: '#fd0', [T_DIAMOND]: '#0ef', [T_EMERALD]: '#0d6' };
+
+// Dirt colors by depth band
+function dirtColor(row) {
+  if (row < 20) return '#8B4513';
+  if (row < 40) return '#6B3410';
+  if (row < 65) return '#5a2d0c';
+  if (row < 90) return '#4a2508';
+  return '#3a1d06';
+}
+
+// Generate map
+let map = [];
+function generateMap() {
+  map = [];
+  for (let r = 0; r < ROWS; r++) {
+    map[r] = [];
+    for (let c = 0; c < COLS; c++) {
+      if (r < SKY_ROWS) { map[r][c] = T_AIR; continue; }
+      if (r === SKY_ROWS) { map[r][c] = T_DIRT; continue; }
+      const depth = r - SKY_ROWS;
+      let tile = T_DIRT;
+      const rnd = Math.random();
+      // Rock (undrillable without upgrades)
+      if (depth > 15 && rnd < 0.03) tile = T_ROCK;
+      // Lava
+      else if (depth > 35 && rnd < 0.02 + (depth - 35) * 0.001) tile = T_LAVA;
+      // Minerals — rarer types appear deeper
+      else if (depth >= 70 && rnd < 0.04) tile = T_EMERALD;
+      else if (depth >= 45 && rnd < 0.05) tile = T_DIAMOND;
+      else if (depth >= 20 && rnd < 0.08) tile = T_GOLD;
+      else if (depth >= 3 && rnd < 0.12) tile = T_IRON;
+      map[r][c] = tile;
+    }
+  }
+}
+
+// Player state
+let player, shop, keys, gameState, msgTimer, msgText;
+
+const UPGRADES = {
+  drill: { name: 'Drill', levels: [0, 100, 300, 800, 2000], desc: ['Basic', 'Steel', 'Titanium', 'Diamond', 'Plasma'] },
+  fuel: { name: 'Fuel Tank', levels: [0, 75, 200, 500, 1500], desc: ['50L', '80L', '120L', '180L', '260L'] },
+  hull: { name: 'Hull', levels: [0, 100, 250, 600, 1800], desc: ['Tin', 'Iron', 'Steel', 'Titanium', 'Composite'] },
+  cargo: { name: 'Cargo', levels: [0, 50, 150, 400, 1200], desc: ['5 slots', '8 slots', '12 slots', '18 slots', '25 slots'] }
+};
+
+const FUEL_CAPS = [50, 80, 120, 180, 260];
+const HULL_CAPS = [50, 80, 120, 180, 260];
+const CARGO_CAPS = [5, 8, 12, 18, 25];
+
+function initGame() {
+  generateMap();
+  player = {
+    x: Math.floor(COLS / 2) * TILE,
+    y: (SKY_ROWS - 1) * TILE,
+    w: TILE, h: TILE,
+    fuel: 50, maxFuel: 50,
+    hull: 50, maxHull: 50,
+    money: 0,
+    cargo: [],
+    maxCargo: 5,
+    drillLevel: 0,
+    fuelLevel: 0,
+    hullLevel: 0,
+    cargoLevel: 0,
+    vx: 0, vy: 0,
+    grounded: false,
+    fallDist: 0,
+    moveCD: 0,
+    dead: false,
+    won: false,
+    totalEarned: 0,
+    maxDepth: 0
+  };
+  shop = false;
+  gameState = 'play';
+  msgTimer = 0;
+  msgText = '';
+  keys = {};
+}
+
+function showMsg(text, dur) {
+  msgText = text;
+  msgTimer = dur || 120;
+}
+
+// Input
+document.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+  if (infoOpen) return;
+  keys[e.key] = true;
+  if (shop && e.key >= '1' && e.key <= '4') { buyUpgrade(parseInt(e.key)); e.preventDefault(); }
+  if (e.key === 'Escape' && shop) { shop = false; e.preventDefault(); }
+  if (e.key === 'r' && (player.dead || player.won)) { initGame(); e.preventDefault(); }
+  e.preventDefault();
+});
+document.addEventListener('keyup', e => { keys[e.key] = false; });
+
+function buyUpgrade(slot) {
+  const types = ['drill', 'fuel', 'hull', 'cargo'];
+  const type = types[slot - 1];
+  const levelKey = type + 'Level';
+  const current = player[levelKey];
+  if (current >= 4) { showMsg('MAX LEVEL!', 60); return; }
+  const cost = UPGRADES[type].levels[current + 1];
+  if (player.money < cost) { showMsg('Not enough money!', 60); return; }
+  player.money -= cost;
+  player[levelKey] = current + 1;
+  // Apply upgrade
+  if (type === 'fuel') { player.maxFuel = FUEL_CAPS[player.fuelLevel]; player.fuel = player.maxFuel; }
+  if (type === 'hull') { player.maxHull = HULL_CAPS[player.hullLevel]; player.hull = player.maxHull; }
+  if (type === 'cargo') player.maxCargo = CARGO_CAPS[player.cargoLevel];
+  showMsg(UPGRADES[type].name + ' upgraded to ' + UPGRADES[type].desc[player[levelKey]] + '!', 90);
+}
+
+function getPlayerTile() {
+  return { col: Math.round(player.x / TILE), row: Math.round(player.y / TILE) };
+}
+
+function canDrill(tileType) {
+  if (tileType === T_AIR) return true;
+  if (tileType === T_LAVA) return true;
+  if (tileType === T_ROCK) return player.drillLevel >= 2;
+  return tileType >= T_DIRT && tileType <= T_EMERALD;
+}
+
+function drillTile(col, row) {
+  if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return;
+  const t = map[row][col];
+  if (t === T_AIR) return;
+  if (!canDrill(t)) { showMsg('Need better drill!', 45); return; }
+  if (t >= T_IRON && t <= T_EMERALD) {
+    if (player.cargo.length < player.maxCargo) {
+      player.cargo.push(t);
+    } else {
+      showMsg('Cargo full!', 45);
+      return;
+    }
+  }
+  if (t === T_LAVA) {
+    player.hull -= 15;
+    showMsg('LAVA! Hull damaged!', 45);
+  }
+  map[row][col] = T_AIR;
+  player.fuel -= (player.drillLevel >= 3) ? 0.3 : (player.drillLevel >= 1) ? 0.5 : 0.8;
+}
+
+// Update
+let lastTime = 0;
+const MOVE_SPEED = TILE;
+const MOVE_DELAY = 6;
+
+function update() {
+  if (infoOpen) return;
+  if (player.dead || player.won) return;
+
+  if (shop) return;
+
+  if (player.moveCD > 0) { player.moveCD--; return; }
+
+  const pt = getPlayerTile();
+  const depth = Math.max(0, pt.row - SKY_ROWS);
+  player.maxDepth = Math.max(player.maxDepth, depth);
+
+  // Win condition: reach bottom
+  if (depth >= ROWS - SKY_ROWS - 2) {
+    player.won = true;
+    showMsg('YOU REACHED THE CORE! Total earned: $' + player.totalEarned, 300);
+    return;
+  }
+
+  // Check if on surface
+  const onSurface = pt.row <= SKY_ROWS;
+
+  // Auto-open shop when on surface
+  if (onSurface && player.cargo.length > 0 && !shop) {
+    let total = 0;
+    for (const m of player.cargo) total += MINERAL_VALUES[m];
+    player.money += total;
+    player.totalEarned += total;
+    showMsg('Sold minerals for $' + total + '!', 90);
+    player.cargo = [];
+  }
+
+  // Refuel and repair on surface
+  if (onSurface) {
+    player.fuel = player.maxFuel;
+    player.hull = player.maxHull;
+  }
+
+  // Gravity — check if ground below
+  const belowRow = pt.row + 1;
+  if (belowRow < ROWS) {
+    const below = map[belowRow][pt.col];
+    player.grounded = below !== T_AIR;
+  } else {
+    player.grounded = true;
+  }
+
+  // Apply gravity if not grounded and not flying up
+  if (!player.grounded && !keys['ArrowUp']) {
+    const fallTarget = pt.row + 1;
+    if (fallTarget < ROWS && map[fallTarget][pt.col] === T_AIR) {
+      player.y = fallTarget * TILE;
+      player.fallDist++;
+      if (player.fallDist > 3) {
+        player.hull -= (player.fallDist - 3) * 3;
+        if (player.fallDist > 5) showMsg('Hard landing!', 30);
+      }
+      player.moveCD = 2;
+      return;
+    } else {
+      if (player.fallDist > 3) showMsg('Ouch! -' + ((player.fallDist - 3) * 3) + ' hull', 40);
+      player.fallDist = 0;
+    }
+  } else {
+    player.fallDist = 0;
+  }
+
+  // Movement
+  let moved = false;
+  if (keys['ArrowLeft']) {
+    const nc = pt.col - 1;
+    if (nc >= 0) {
+      const t = map[pt.row][nc];
+      if (t === T_AIR) {
+        player.x = nc * TILE;
+        player.fuel -= 0.3;
+        moved = true;
+      } else if (canDrill(t)) {
+        drillTile(nc, pt.row);
+        player.x = nc * TILE;
+        moved = true;
+      }
+    }
+  } else if (keys['ArrowRight']) {
+    const nc = pt.col + 1;
+    if (nc < COLS) {
+      const t = map[pt.row][nc];
+      if (t === T_AIR) {
+        player.x = nc * TILE;
+        player.fuel -= 0.3;
+        moved = true;
+      } else if (canDrill(t)) {
+        drillTile(nc, pt.row);
+        player.x = nc * TILE;
+        moved = true;
+      }
+    }
+  } else if (keys['ArrowDown']) {
+    const nr = pt.row + 1;
+    if (nr < ROWS) {
+      const t = map[nr][pt.col];
+      if (t === T_AIR) {
+        player.y = nr * TILE;
+        player.fuel -= 0.3;
+        moved = true;
+      } else if (canDrill(t)) {
+        drillTile(pt.col, nr);
+        player.y = nr * TILE;
+        moved = true;
+      }
+    }
+  } else if (keys['ArrowUp']) {
+    const nr = pt.row - 1;
+    if (nr >= 0) {
+      const t = map[nr][pt.col];
+      if (t === T_AIR) {
+        player.y = nr * TILE;
+        player.fuel -= 0.8;
+        moved = true;
+      }
+    }
+  }
+
+  if (moved) player.moveCD = MOVE_DELAY;
+
+  // Fuel check
+  if (player.fuel <= 0) {
+    player.fuel = 0;
+    if (!onSurface) {
+      player.dead = true;
+      showMsg('OUT OF FUEL! Stranded at depth ' + depth + 'm', 300);
+    }
+  }
+
+  // Hull check
+  if (player.hull <= 0) {
+    player.hull = 0;
+    player.dead = true;
+    showMsg('HULL DESTROYED at depth ' + depth + 'm!', 300);
+  }
+
+  // Open shop with Enter on surface
+  if (keys['Enter'] && onSurface) {
+    shop = true;
+    keys['Enter'] = false;
+  }
+
+  if (msgTimer > 0) msgTimer--;
+}
+
+// Draw
+function draw() {
+  ctx.fillStyle = '#1a0a00';
+  ctx.fillRect(0, 0, 800, 600);
+
+  const pt = getPlayerTile();
+  // Camera
+  const camX = Math.max(0, Math.min(player.x - 400 + TILE / 2, MAP_W - 800));
+  const camY = Math.max(0, Math.min(player.y - 350 + TILE / 2, MAP_H - 600));
+
+  const startCol = Math.floor(camX / TILE);
+  const endCol = Math.min(COLS, startCol + 42);
+  const startRow = Math.floor(camY / TILE);
+  const endRow = Math.min(ROWS, startRow + 32);
+
+  // Sky
+  for (let r = startRow; r < Math.min(SKY_ROWS, endRow); r++) {
+    for (let c = startCol; c < endCol; c++) {
+      const sx = c * TILE - camX;
+      const sy = r * TILE - camY;
+      // Mars sky gradient
+      const skyG = Math.floor(60 + r * 15);
+      ctx.fillStyle = 'rgb(' + skyG + ',' + Math.floor(skyG * 0.4) + ',' + Math.floor(skyG * 0.2) + ')';
+      ctx.fillRect(sx, sy, TILE, TILE);
+    }
+  }
+
+  // Surface buildings
+  const surfaceY = SKY_ROWS * TILE - camY;
+  // Shop building
+  const shopX = Math.floor(COLS / 2) * TILE - camX;
+  if (surfaceY > -60 && surfaceY < 600) {
+    ctx.fillStyle = '#555';
+    ctx.fillRect(shopX - 30, surfaceY - 40, 80, 40);
+    ctx.fillStyle = '#888';
+    ctx.fillRect(shopX - 25, surfaceY - 35, 70, 30);
+    hudText(ctx, 'SHOP', shopX - 5, surfaceY - 32, '#ff0', 10, 'center');
+    // Fuel pump
+    ctx.fillStyle = '#a33';
+    ctx.fillRect(shopX + 60, surfaceY - 25, 15, 25);
+    hudText(ctx, 'F', shopX + 65, surfaceY - 20, '#fff', 9, 'center');
+  }
+
+  // Tiles
+  for (let r = Math.max(SKY_ROWS, startRow); r < endRow; r++) {
+    for (let c = startCol; c < endCol; c++) {
+      const t = map[r][c];
+      const sx = c * TILE - camX;
+      const sy = r * TILE - camY;
+      if (t === T_AIR) {
+        // Dark background for tunnels
+        ctx.fillStyle = '#0a0500';
+        ctx.fillRect(sx, sy, TILE, TILE);
+        continue;
+      }
+      if (t === T_DIRT) {
+        ctx.fillStyle = dirtColor(r);
+        ctx.fillRect(sx, sy, TILE, TILE);
+        // Texture
+        ctx.fillStyle = 'rgba(0,0,0,0.15)';
+        ctx.fillRect(sx + 2, sy + 2, 4, 4);
+        ctx.fillRect(sx + 12, sy + 10, 3, 3);
+      } else if (t >= T_IRON && t <= T_EMERALD) {
+        ctx.fillStyle = dirtColor(r);
+        ctx.fillRect(sx, sy, TILE, TILE);
+        // Mineral sparkle
+        ctx.fillStyle = MINERAL_COLORS[t];
+        ctx.fillRect(sx + 4, sy + 4, 5, 5);
+        ctx.fillRect(sx + 11, sy + 9, 5, 5);
+        ctx.fillRect(sx + 6, sy + 13, 4, 4);
+        ctx.fillStyle = 'rgba(255,255,255,0.3)';
+        ctx.fillRect(sx + 5, sy + 5, 2, 2);
+      } else if (t === T_LAVA) {
+        ctx.fillStyle = '#d30';
+        ctx.fillRect(sx, sy, TILE, TILE);
+        ctx.fillStyle = '#fa0';
+        const pulse = Math.sin(Date.now() * 0.005 + r * c) * 0.3 + 0.5;
+        ctx.globalAlpha = pulse;
+        ctx.fillRect(sx + 3, sy + 3, 14, 14);
+        ctx.globalAlpha = 1;
+      } else if (t === T_ROCK) {
+        ctx.fillStyle = '#444';
+        ctx.fillRect(sx, sy, TILE, TILE);
+        ctx.fillStyle = '#555';
+        ctx.fillRect(sx + 2, sy + 6, 8, 4);
+        ctx.fillRect(sx + 10, sy + 2, 6, 6);
+      }
+      // Grid line
+      ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+      ctx.strokeRect(sx, sy, TILE, TILE);
+    }
+  }
+
+  // Player
+  const px = player.x - camX;
+  const py = player.y - camY;
+  // Body
+  ctx.fillStyle = player.dead ? '#600' : '#e82';
+  ctx.fillRect(px + 2, py + 2, 16, 16);
+  // Cabin
+  ctx.fillStyle = '#4af';
+  ctx.fillRect(px + 5, py + 3, 10, 7);
+  // Drill bit
+  ctx.fillStyle = '#ccc';
+  ctx.fillRect(px + 8, py + 16, 4, 4);
+  // Treads
+  ctx.fillStyle = '#333';
+  ctx.fillRect(px + 1, py + 14, 4, 6);
+  ctx.fillRect(px + 15, py + 14, 4, 6);
+
+  // HUD
+  const depth = Math.max(0, pt.row - SKY_ROWS);
+
+  // Background bar
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(0, 0, 800, 28);
+
+  // Fuel bar
+  const fuelPct = player.fuel / player.maxFuel;
+  ctx.fillStyle = '#333';
+  ctx.fillRect(5, 5, 100, 12);
+  ctx.fillStyle = fuelPct > 0.3 ? '#0a0' : (fuelPct > 0.15 ? '#da0' : '#f00');
+  ctx.fillRect(5, 5, Math.max(0, 100 * fuelPct), 12);
+  hudText(ctx, 'FUEL', 108, 4, '#aaa', 11);
+
+  // Hull bar
+  const hullPct = player.hull / player.maxHull;
+  ctx.fillStyle = '#333';
+  ctx.fillRect(155, 5, 100, 12);
+  ctx.fillStyle = hullPct > 0.3 ? '#07a' : (hullPct > 0.15 ? '#da0' : '#f00');
+  ctx.fillRect(155, 5, Math.max(0, 100 * hullPct), 12);
+  hudText(ctx, 'HULL', 258, 4, '#aaa', 11);
+
+  // Stats
+  hudText(ctx, '$' + player.money, 320, 4, '#fd0', 12);
+  hudText(ctx, 'Cargo: ' + player.cargo.length + '/' + player.maxCargo, 420, 4, '#ccc', 11);
+  hudText(ctx, 'Depth: ' + depth + 'm', 560, 4, '#f80', 11);
+  hudText(ctx, 'Max: ' + player.maxDepth + 'm', 670, 4, '#888', 11);
+
+  // Cargo contents icons
+  if (player.cargo.length > 0) {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(0, 28, player.cargo.length * 16 + 8, 18);
+    for (let i = 0; i < player.cargo.length; i++) {
+      ctx.fillStyle = MINERAL_COLORS[player.cargo[i]];
+      ctx.fillRect(4 + i * 16, 32, 10, 10);
+    }
+  }
+
+  // Minimap
+  const mmX = 740, mmY = 50, mmW = 55, mmH = 200;
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(mmX - 2, mmY - 2, mmW + 4, mmH + 4);
+  ctx.strokeStyle = '#444';
+  ctx.strokeRect(mmX - 2, mmY - 2, mmW + 4, mmH + 4);
+
+  const mmScaleX = mmW / COLS;
+  const mmScaleY = mmH / ROWS;
+
+  for (let r = 0; r < ROWS; r += 2) {
+    for (let c = 0; c < COLS; c += 2) {
+      const t = map[r][c];
+      if (t === T_AIR) continue;
+      if (t === T_LAVA) ctx.fillStyle = '#f30';
+      else if (t >= T_IRON && t <= T_EMERALD) ctx.fillStyle = MINERAL_COLORS[t];
+      else if (t === T_ROCK) ctx.fillStyle = '#555';
+      else ctx.fillStyle = '#532';
+      ctx.fillRect(mmX + c * mmScaleX, mmY + r * mmScaleY, Math.max(1, mmScaleX * 2), Math.max(1, mmScaleY * 2));
+    }
+  }
+  // Player on minimap
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(mmX + pt.col * mmScaleX - 1, mmY + pt.row * mmScaleY - 1, 3, 3);
+
+  // Surface line on minimap
+  ctx.strokeStyle = '#0f0';
+  ctx.beginPath();
+  ctx.moveTo(mmX, mmY + SKY_ROWS * mmScaleY);
+  ctx.lineTo(mmX + mmW, mmY + SKY_ROWS * mmScaleY);
+  ctx.stroke();
+
+  // Messages
+  if (msgTimer > 0) {
+    const alpha = Math.min(1, msgTimer / 30);
+    ctx.fillStyle = 'rgba(0,0,0,' + (0.7 * alpha) + ')';
+    ctx.fillRect(200, 270, 400, 40);
+    hudText(ctx, msgText, 400, 278, 'rgba(255,255,100,' + alpha + ')', 14, 'center');
+  }
+
+  // Shop overlay
+  if (shop) drawShop();
+
+  // Death / Win screen
+  if (player.dead) {
+    ctx.fillStyle = 'rgba(80,0,0,0.8)';
+    ctx.fillRect(200, 200, 400, 180);
+    hudText(ctx, 'STRANDED!', 400, 220, '#f44', 24, 'center');
+    hudText(ctx, msgText, 400, 260, '#faa', 13, 'center');
+    hudText(ctx, 'Total earned: $' + player.totalEarned, 400, 290, '#fd0', 14, 'center');
+    hudText(ctx, 'Max depth: ' + player.maxDepth + 'm', 400, 315, '#f80', 13, 'center');
+    hudText(ctx, 'Press R to restart', 400, 350, '#888', 12, 'center');
+  }
+  if (player.won) {
+    ctx.fillStyle = 'rgba(0,60,0,0.85)';
+    ctx.fillRect(150, 180, 500, 220);
+    hudText(ctx, 'MARS CORE REACHED!', 400, 200, '#0f0', 24, 'center');
+    hudText(ctx, 'You drilled to the center of Mars!', 400, 240, '#afa', 14, 'center');
+    hudText(ctx, 'Total earned: $' + player.totalEarned, 400, 275, '#fd0', 16, 'center');
+    hudText(ctx, 'Max depth: ' + player.maxDepth + 'm', 400, 305, '#f80', 14, 'center');
+    hudText(ctx, 'Press R to play again', 400, 355, '#888', 12, 'center');
+  }
+
+  // Surface indicator
+  if (pt.row <= SKY_ROWS && !shop) {
+    hudText(ctx, '[Enter] Open Shop', 400, 580, '#ff0', 12, 'center');
+  }
+
+  // ? hint
+  hudText(ctx, '? = info', 750, 585, '#444', 10, 'center');
+}
+
+function drawShop() {
+  ctx.fillStyle = 'rgba(0,0,30,0.92)';
+  ctx.fillRect(100, 60, 600, 480);
+  ctx.strokeStyle = '#f80';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(100, 60, 600, 480);
+
+  hudText(ctx, 'MARS MINING SUPPLY', 400, 80, '#f80', 20, 'center');
+  hudText(ctx, 'Money: $' + player.money, 400, 110, '#fd0', 16, 'center');
+
+  const types = ['drill', 'fuel', 'hull', 'cargo'];
+  const typeColors = ['#ccc', '#0c0', '#4af', '#da0'];
+
+  for (let i = 0; i < 4; i++) {
+    const type = types[i];
+    const u = UPGRADES[type];
+    const level = player[type + 'Level'];
+    const y = 155 + i * 90;
+
+    ctx.fillStyle = 'rgba(40,40,60,0.8)';
+    ctx.fillRect(130, y, 540, 75);
+    ctx.strokeStyle = typeColors[i];
+    ctx.lineWidth = 1;
+    ctx.strokeRect(130, y, 540, 75);
+
+    hudText(ctx, '[' + (i + 1) + '] ' + u.name, 150, y + 8, typeColors[i], 15);
+    hudText(ctx, 'Current: ' + u.desc[level] + ' (Lv.' + level + ')', 150, y + 30, '#aaa', 12);
+
+    if (level < 4) {
+      const cost = u.levels[level + 1];
+      const canBuy = player.money >= cost;
+      hudText(ctx, 'Next: ' + u.desc[level + 1] + ' — $' + cost, 150, y + 50, canBuy ? '#0f0' : '#f44', 12);
+    } else {
+      hudText(ctx, 'MAX LEVEL', 150, y + 50, '#ff0', 12);
+    }
+
+    // Level pips
+    for (let l = 0; l < 5; l++) {
+      ctx.fillStyle = l <= level ? typeColors[i] : '#333';
+      ctx.fillRect(560 + l * 20, y + 30, 14, 14);
+    }
+  }
+
+  hudText(ctx, '[Esc] Close Shop', 400, 520, '#888', 12, 'center');
+  hudText(ctx, 'Fuel and hull fully restored!', 400, 500, '#0a0', 11, 'center');
+}
+
+// Game loop
+function loop(time) {
+  const dt = time - lastTime;
+  lastTime = time;
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+initGame();
+requestAnimationFrame(loop);
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

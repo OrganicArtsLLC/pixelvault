@@ -1,0 +1,1088 @@
+<!--
+PROTOTYPE: rank-battle
+SERIES: anc
+NUMBER: 003
+DATE: 2026-03-22
+MECHANIC: move hidden-rank pieces, bluff and deduce to capture flag
+ANCESTRY: Stratego (1947, Jacques Johan Mogendorff/Milton Bradley), L'Attaque (1909)
+CONTROLS: Click — select piece and move | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 2 (Expert Systems — hidden information, deductive reasoning)
+AI-INSIGHT: Stratego is an imperfect information game where each combat reveals information — players build a probabilistic model of opponent piece identities through observation. This is Bayesian inference applied to adversarial game theory, where each engagement updates the belief state.
+NOTES: Hidden information creates a deduction game layered on tactical movement.
+       The bluff — is this piece a Marshal or a Scout? — is the core tension.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ANC-003 · RANK BATTLE</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #1a1410; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: pointer; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>ANC-003 · RANK BATTLE</h1>
+    <p><span class="tag series">ANC — Ancient Games</span> <span class="tag">Prototype #003</span> <span class="tag">★★★★☆</span></p>
+
+    <h2>How to Play</h2>
+    <p>Place your pieces, then move them to attack and capture the enemy Flag. Piece ranks are hidden until combat.</p>
+    <ul>
+      <li><strong>Setup:</strong> Click a piece in the tray, then click a cell in rows 5-6 to place it. Click an already-placed piece to swap.</li>
+      <li><strong>Auto-place:</strong> Click "AUTO" to randomly place remaining pieces.</li>
+      <li><strong>Play:</strong> Click your piece to select, then click a valid destination (green dots) to move.</li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Ranks (lower number = stronger)</h3>
+    <ul>
+      <li><strong>1 Marshal</strong> — Strongest piece (killed by Spy if Spy attacks)</li>
+      <li><strong>2 General</strong> — Second strongest</li>
+      <li><strong>3 Colonel, 4 Major, 5 Captain, 6 Lieutenant, 7 Sergeant</strong></li>
+      <li><strong>8 Miner</strong> — Only piece that can defuse Bombs</li>
+      <li><strong>9 Scout</strong> — Moves any number of squares in a line</li>
+      <li><strong>S Spy</strong> — Kills Marshal if Spy attacks; loses to everything else</li>
+      <li><strong>B Bomb</strong> — Cannot move; destroys attackers (except Miner)</li>
+      <li><strong>F Flag</strong> — Cannot move; capture it to win!</li>
+    </ul>
+    <h3>Combat</h3>
+    <ul>
+      <li>Lower rank number wins (Marshal 1 beats General 2, etc.)</li>
+      <li>Equal ranks: both pieces are destroyed</li>
+      <li>Spy attacking Marshal: Spy wins</li>
+      <li>Any piece attacking Bomb: attacker dies (unless Miner)</li>
+      <li>Miner attacking Bomb: Bomb is defused, Miner survives</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> L'Attaque (1909) → Stratego (1947, Mogendorff) → Milton Bradley (1961)</p>
+    <p>Stratego descends from L'Attaque, a French game patented in 1909. Jacques Johan Mogendorff acquired and refined the design, publishing it in the Netherlands in 1947. Milton Bradley brought it to the US in 1961, where it became one of the best-selling board games of the 20th century.</p>
+    <p>The genius of Stratego is hidden information. Unlike chess, you don't know what you're attacking until contact. Every move is a question: is that piece guarding the flag, or is it bait? The game is as much about reading your opponent as calculating positions.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 2 — Expert Systems (1965-1985)</p>
+    <p><strong>Contemporary AI:</strong> Stratego's hidden information makes it fundamentally harder than chess for AI. You can't minimax what you can't see. Instead, the game demands probabilistic reasoning — maintaining beliefs about opponent piece identities and updating them with each observation.</p>
+    <p><strong>Hidden Intelligence:</strong> Each combat reveals one data point, but the absence of movement reveals even more. A piece that never moves is likely a Bomb or Flag. A piece that charges forward is probably expendable. The game is a natural laboratory for Bayesian inference in adversarial settings.</p>
+    <p><strong>The Convergence:</strong> DeepNash (2022, DeepMind) achieved expert-level Stratego play using game-theoretic reasoning without search — a breakthrough because traditional game tree methods fail with hidden information. Stratego was one of the last classic board games to fall to AI.</p>
+    <p><strong>If AI Had Designed This:</strong> It might have added more information channels — sound, weight, partial reveals — to increase the inference surface area and make deduction richer.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: ANC — Ancient Games</h3>
+    <p>Games with deep historical roots. Stratego's hidden-rank mechanic traces to military simulation games spanning centuries.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Hidden ranks, bluff and deduction, capture by rank comparison.</strong> Imperfect information creates a deduction layer atop tactical movement. Every engagement is an intelligence operation.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Setup phase — does placing pieces feel strategic?</li>
+      <li>Hidden information — does the "fog of war" create tension?</li>
+      <li>Combat resolution — is the reveal moment satisfying?</li>
+      <li>Deduction — can the player track revealed information?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Simplified to 6x6 grid with 12 pieces per side. AI uses heuristic evaluation with knowledge tracking. Full Stratego uses 10x10 with 40 pieces — this prototype captures the core tension in a smaller format.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+window.addEventListener('keydown', e => {
+  if (infoOpen) return;
+  if (e.key === 'r' || e.key === 'R') { initGame(); e.preventDefault(); }
+});
+
+// --- CONSTANTS ---
+const COLS = 6, ROWS = 6;
+const CELL = 76;
+const BOARD_X = (W - COLS * CELL) / 2;
+const BOARD_Y = (H - ROWS * CELL) / 2 + 10;
+
+// Lakes: two impassable cells in center
+const LAKES = [{r: 2, c: 2}, {r: 3, c: 3}];
+function isLake(r, c) { return LAKES.some(l => l.r === r && l.c === c); }
+
+// Ranks: id, label, display, count per side
+// Power: lower number = stronger. Spy=10 (weakest in direct combat), Bomb=98, Flag=99 (immobile)
+const RANK_DEFS = [
+  { id: 'M1', label: '1',  name: 'Marshal',    power: 1,  mobile: true,  scout: false, count: 1 },
+  { id: 'G2', label: '2',  name: 'General',    power: 2,  mobile: true,  scout: false, count: 1 },
+  { id: 'C3', label: '3',  name: 'Colonel',    power: 3,  mobile: true,  scout: false, count: 1 },
+  { id: 'J4', label: '4',  name: 'Major',      power: 4,  mobile: true,  scout: false, count: 1 },
+  { id: 'A5', label: '5',  name: 'Captain',    power: 5,  mobile: true,  scout: false, count: 1 },
+  { id: 'L6', label: '6',  name: 'Lieutenant', power: 6,  mobile: true,  scout: false, count: 1 },
+  { id: 'S7', label: '7',  name: 'Sergeant',   power: 7,  mobile: true,  scout: false, count: 1 },
+  { id: 'N8', label: '8',  name: 'Miner',      power: 8,  mobile: true,  scout: false, count: 1 },
+  { id: 'T9', label: '9',  name: 'Scout',      power: 9,  mobile: true,  scout: true,  count: 1 },
+  { id: 'SP', label: 'S',  name: 'Spy',        power: 10, mobile: true,  scout: false, count: 1 },
+  { id: 'BB', label: 'B',  name: 'Bomb',       power: 98, mobile: false, scout: false, count: 1 },
+  { id: 'FF', label: 'F',  name: 'Flag',       power: 99, mobile: false, scout: false, count: 1 },
+];
+// 12 pieces per side, one of each
+
+function getRankDef(id) { return RANK_DEFS.find(r => r.id === id); }
+
+// --- GAME STATE ---
+const PHASE_SETUP = 0, PHASE_PLAY = 1, PHASE_OVER = 2;
+let phase, board, selectedPiece, validMoves, turn, combatLog, lastMove;
+let setupTray, setupSelected, gameOverMsg;
+let aiRevealedPieces; // track which AI pieces have been revealed
+let combatAnim; // {timer, attR, attC, defR, defC, attRank, defRank, result, msg}
+let aiThinkTimer;
+let moveHistory; // for last-move highlight
+
+function createPiece(rankId, owner) {
+  return { rank: rankId, owner: owner, revealed: false };
+}
+
+function initGame() {
+  phase = PHASE_SETUP;
+  board = [];
+  for (let r = 0; r < ROWS; r++) {
+    board[r] = [];
+    for (let c = 0; c < COLS; c++) {
+      board[r][c] = null;
+    }
+  }
+  selectedPiece = null;
+  validMoves = [];
+  turn = 1; // 1 = player, 2 = AI
+  combatLog = [];
+  lastMove = null;
+  combatAnim = null;
+  aiThinkTimer = 0;
+  moveHistory = [];
+  gameOverMsg = '';
+
+  // Setup tray: all player pieces to place
+  setupTray = RANK_DEFS.map(rd => ({ rankId: rd.id, placed: false }));
+  setupSelected = -1;
+
+  // AI places its pieces randomly in top 2 rows
+  placeAIPieces();
+}
+
+function placeAIPieces() {
+  const positions = [];
+  for (let r = 0; r < 2; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (!isLake(r, c)) positions.push({r, c});
+    }
+  }
+  // Shuffle positions
+  for (let i = positions.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [positions[i], positions[j]] = [positions[j], positions[i]];
+  }
+  // Place AI pieces (one of each rank)
+  const aiRanks = RANK_DEFS.map(rd => rd.id);
+  // Shuffle ranks for random placement
+  for (let i = aiRanks.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [aiRanks[i], aiRanks[j]] = [aiRanks[j], aiRanks[i]];
+  }
+  for (let i = 0; i < aiRanks.length && i < positions.length; i++) {
+    const p = positions[i];
+    board[p.r][p.c] = createPiece(aiRanks[i], 2);
+  }
+}
+
+function autoPlacePlayerPieces() {
+  const positions = [];
+  for (let r = ROWS - 2; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (!isLake(r, c) && !board[r][c]) positions.push({r, c});
+    }
+  }
+  // Shuffle
+  for (let i = positions.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [positions[i], positions[j]] = [positions[j], positions[i]];
+  }
+  let pi = 0;
+  for (let i = 0; i < setupTray.length; i++) {
+    if (!setupTray[i].placed && pi < positions.length) {
+      const p = positions[pi++];
+      board[p.r][p.c] = createPiece(setupTray[i].rankId, 1);
+      setupTray[i].placed = true;
+    }
+  }
+}
+
+function allPlaced() {
+  return setupTray.every(t => t.placed);
+}
+
+function startPlay() {
+  if (allPlaced()) {
+    phase = PHASE_PLAY;
+    turn = 1;
+    selectedPiece = null;
+    validMoves = [];
+  }
+}
+
+initGame();
+
+// --- COMBAT ---
+function resolveCombat(attR, attC, defR, defC) {
+  const attacker = board[attR][attC];
+  const defender = board[defR][defC];
+  const attDef = getRankDef(attacker.rank);
+  const defDef = getRankDef(defender.rank);
+
+  // Reveal both pieces
+  defender.revealed = true;
+  attacker.revealed = true;
+
+  let result, msg;
+
+  // Special: Spy attacks Marshal
+  if (attacker.rank === 'SP' && defender.rank === 'M1') {
+    result = 'att_wins';
+    msg = 'Spy assassinates Marshal!';
+  }
+  // Special: Anything attacks Bomb
+  else if (defender.rank === 'BB') {
+    if (attacker.rank === 'N8') {
+      result = 'att_wins';
+      msg = 'Miner defuses Bomb!';
+    } else {
+      result = 'def_wins';
+      msg = attDef.name + ' destroyed by Bomb!';
+    }
+  }
+  // Special: Attacking the Flag
+  else if (defender.rank === 'FF') {
+    result = 'att_wins';
+    msg = attDef.name + ' captures the Flag!';
+  }
+  // Normal combat: lower power number wins
+  else if (attDef.power < defDef.power) {
+    result = 'att_wins';
+    msg = attDef.name + ' (' + attDef.label + ') defeats ' + defDef.name + ' (' + defDef.label + ')';
+  } else if (attDef.power > defDef.power) {
+    result = 'def_wins';
+    msg = defDef.name + ' (' + defDef.label + ') defeats ' + attDef.name + ' (' + attDef.label + ')';
+  } else {
+    result = 'both_die';
+    msg = 'Both ' + attDef.name + 's destroyed!';
+  }
+
+  combatLog.unshift({ msg: msg, attRank: attacker.rank, defRank: defender.rank, result: result });
+  if (combatLog.length > 8) combatLog.pop();
+
+  // Start combat animation
+  combatAnim = {
+    timer: 90,
+    attR, attC, defR, defC,
+    attLabel: attDef.label, defLabel: defDef.label,
+    attName: attDef.name, defName: defDef.name,
+    attOwner: attacker.owner, defOwner: defender.owner,
+    result, msg
+  };
+
+  // Apply result
+  if (result === 'att_wins') {
+    board[defR][defC] = board[attR][attC];
+    board[attR][attC] = null;
+    // Check for flag capture
+    if (defender.rank === 'FF') {
+      phase = PHASE_OVER;
+      gameOverMsg = attacker.owner === 1 ? 'YOU WIN!' : 'AI WINS';
+    }
+  } else if (result === 'def_wins') {
+    board[attR][attC] = null;
+    // Bomb stays but is now revealed; if bomb was defending, it stays
+    if (defender.rank !== 'BB') {
+      // Defender stays
+    }
+  } else {
+    // Both die
+    board[attR][attC] = null;
+    board[defR][defC] = null;
+  }
+}
+
+// --- MOVEMENT ---
+function getValidMoves(r, c) {
+  const piece = board[r][c];
+  if (!piece) return [];
+  const def = getRankDef(piece.rank);
+  if (!def.mobile) return [];
+
+  const moves = [];
+  const dirs = [[0,1],[0,-1],[1,0],[-1,0]];
+
+  if (def.scout) {
+    // Scout: move any number in straight line
+    for (const [dr, dc] of dirs) {
+      let nr = r + dr, nc = c + dc;
+      while (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) {
+        if (isLake(nr, nc)) break;
+        const target = board[nr][nc];
+        if (target) {
+          if (target.owner !== piece.owner) {
+            moves.push({r: nr, c: nc, attack: true});
+          }
+          break;
+        }
+        moves.push({r: nr, c: nc, attack: false});
+        nr += dr; nc += dc;
+      }
+    }
+  } else {
+    // Normal: one square orthogonal
+    for (const [dr, dc] of dirs) {
+      const nr = r + dr, nc = c + dc;
+      if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS) continue;
+      if (isLake(nr, nc)) continue;
+      const target = board[nr][nc];
+      if (target && target.owner === piece.owner) continue;
+      moves.push({r: nr, c: nc, attack: target !== null});
+    }
+  }
+  return moves;
+}
+
+// --- AI ---
+function aiTurn() {
+  // Gather all AI mobile pieces with valid moves
+  const candidates = [];
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const p = board[r][c];
+      if (!p || p.owner !== 2) continue;
+      const def = getRankDef(p.rank);
+      if (!def.mobile) continue;
+      const moves = getValidMoves(r, c);
+      if (moves.length > 0) {
+        candidates.push({r, c, piece: p, moves, def});
+      }
+    }
+  }
+
+  if (candidates.length === 0) {
+    // AI has no moves — player wins
+    phase = PHASE_OVER;
+    gameOverMsg = 'YOU WIN! (AI has no moves)';
+    return;
+  }
+
+  // Score each move
+  let bestScore = -Infinity;
+  let bestMove = null;
+
+  for (const cand of candidates) {
+    for (const move of cand.moves) {
+      let score = 0;
+
+      if (move.attack) {
+        const target = board[move.r][move.c];
+        const tDef = getRankDef(target.rank);
+
+        if (target.revealed) {
+          // Known piece — evaluate combat
+          // Spy attacking Marshal
+          if (cand.piece.rank === 'SP' && target.rank === 'M1') {
+            score = 100;
+          }
+          // Miner attacking Bomb
+          else if (cand.piece.rank === 'N8' && target.rank === 'BB') {
+            score = 30;
+          }
+          // Attacking Flag
+          else if (target.rank === 'FF') {
+            score = 1000;
+          }
+          // We'd lose to a bomb
+          else if (target.rank === 'BB') {
+            score = -50;
+          }
+          // Normal combat — only attack if we'd win
+          else if (cand.def.power < tDef.power) {
+            score = 40 + (10 - tDef.power); // prefer killing stronger pieces
+          } else if (cand.def.power === tDef.power) {
+            score = -5; // mutual destruction — meh
+          } else {
+            score = -40; // we'd lose
+          }
+        } else {
+          // Unknown piece — risk assessment
+          // Scouts are expendable probes
+          if (cand.piece.rank === 'T9') {
+            score = 15; // scout probing is good
+          }
+          // Strong pieces should be cautious
+          else if (cand.def.power <= 3) {
+            score = 5; // slight positive — might win
+          }
+          // Mid-rank: moderate risk
+          else if (cand.def.power <= 7) {
+            score = 8;
+          }
+          // Spy: only attack if it might be Marshal
+          else if (cand.piece.rank === 'SP') {
+            // Check if we've seen the marshal already
+            const marshalRevealed = isRankRevealed('M1', 1);
+            score = marshalRevealed ? -20 : 12;
+          }
+          // Miner: valuable, avoid random attacks
+          else if (cand.piece.rank === 'N8') {
+            score = 3;
+          } else {
+            score = 5;
+          }
+        }
+      } else {
+        // Non-attack move — evaluate positionally
+        // Prefer moving toward player side
+        score = (move.r - cand.r) * 2; // positive = moving south toward player
+        // Small random factor
+        score += Math.random() * 3;
+        // Scouts in back should advance
+        if (cand.piece.rank === 'T9' && cand.r < 2) score += 5;
+        // Don't move pieces away from flag area if they might be guarding
+        if (cand.r <= 1 && (cand.piece.rank === 'BB' || cand.piece.rank === 'FF')) {
+          score = -100; // shouldn't happen (immobile), but safety
+        }
+      }
+
+      // Add small random noise to break ties
+      score += Math.random() * 2;
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestMove = { fromR: cand.r, fromC: cand.c, toR: move.r, toC: move.c, attack: move.attack };
+      }
+    }
+  }
+
+  if (bestMove) {
+    lastMove = { fromR: bestMove.fromR, fromC: bestMove.fromC, toR: bestMove.toR, toC: bestMove.toC };
+    if (bestMove.attack) {
+      resolveCombat(bestMove.fromR, bestMove.fromC, bestMove.toR, bestMove.toC);
+    } else {
+      board[bestMove.toR][bestMove.toC] = board[bestMove.fromR][bestMove.fromC];
+      board[bestMove.fromR][bestMove.fromC] = null;
+    }
+  }
+}
+
+function isRankRevealed(rankId, owner) {
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const p = board[r][c];
+      if (p && p.owner === owner && p.rank === rankId && p.revealed) return true;
+    }
+  }
+  return false;
+}
+
+// Check if player has any valid moves
+function hasValidMoves(owner) {
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const p = board[r][c];
+      if (p && p.owner === owner) {
+        const def = getRankDef(p.rank);
+        if (def.mobile && getValidMoves(r, c).length > 0) return true;
+      }
+    }
+  }
+  return false;
+}
+
+// --- MOUSE ---
+let mouseX = 0, mouseY = 0;
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  mouseX = (e.clientX - rect.left) * (W / rect.width);
+  mouseY = (e.clientY - rect.top) * (H / rect.height);
+});
+
+canvas.addEventListener('click', e => {
+  if (infoOpen) return;
+  const rect = canvas.getBoundingClientRect();
+  const mx = (e.clientX - rect.left) * (W / rect.width);
+  const my = (e.clientY - rect.top) * (H / rect.height);
+
+  if (phase === PHASE_SETUP) {
+    handleSetupClick(mx, my);
+  } else if (phase === PHASE_PLAY) {
+    handlePlayClick(mx, my);
+  }
+});
+
+function cellFromMouse(mx, my) {
+  const c = Math.floor((mx - BOARD_X) / CELL);
+  const r = Math.floor((my - BOARD_Y) / CELL);
+  if (r >= 0 && r < ROWS && c >= 0 && c < COLS) return {r, c};
+  return null;
+}
+
+// --- SETUP PHASE ---
+const TRAY_X = BOARD_X;
+const TRAY_Y = BOARD_Y + ROWS * CELL + 10;
+const TRAY_SIZE = 36;
+const TRAY_GAP = 4;
+
+// Auto button position
+const AUTO_BTN_X = BOARD_X + COLS * CELL - 80;
+const AUTO_BTN_Y = TRAY_Y;
+const AUTO_BTN_W = 70;
+const AUTO_BTN_H = 30;
+
+// Start button
+const START_BTN_X = BOARD_X + COLS * CELL - 80;
+const START_BTN_Y = TRAY_Y + 34;
+const START_BTN_W = 70;
+const START_BTN_H = 30;
+
+function handleSetupClick(mx, my) {
+  // Check auto button
+  if (mx >= AUTO_BTN_X && mx <= AUTO_BTN_X + AUTO_BTN_W &&
+      my >= AUTO_BTN_Y && my <= AUTO_BTN_Y + AUTO_BTN_H) {
+    autoPlacePlayerPieces();
+    setupSelected = -1;
+    return;
+  }
+
+  // Check start button
+  if (allPlaced() && mx >= START_BTN_X && mx <= START_BTN_X + START_BTN_W &&
+      my >= START_BTN_Y && my <= START_BTN_Y + START_BTN_H) {
+    startPlay();
+    return;
+  }
+
+  // Check tray click
+  for (let i = 0; i < setupTray.length; i++) {
+    if (setupTray[i].placed) continue;
+    const tx = TRAY_X + i * (TRAY_SIZE + TRAY_GAP);
+    const ty = TRAY_Y;
+    if (mx >= tx && mx <= tx + TRAY_SIZE && my >= ty && my <= ty + TRAY_SIZE) {
+      setupSelected = i;
+      return;
+    }
+  }
+
+  // Check board click (rows 4-5, 0-indexed)
+  const cell = cellFromMouse(mx, my);
+  if (cell && cell.r >= ROWS - 2 && cell.r < ROWS && !isLake(cell.r, cell.c)) {
+    if (setupSelected >= 0) {
+      // Place selected piece from tray
+      const existingPiece = board[cell.r][cell.c];
+      if (existingPiece && existingPiece.owner === 1) {
+        // Swap: put existing piece back in tray
+        const trayIdx = setupTray.findIndex(t => t.rankId === existingPiece.rank && t.placed);
+        if (trayIdx >= 0) setupTray[trayIdx].placed = false;
+      }
+      board[cell.r][cell.c] = createPiece(setupTray[setupSelected].rankId, 1);
+      setupTray[setupSelected].placed = true;
+      setupSelected = -1;
+    } else if (board[cell.r][cell.c] && board[cell.r][cell.c].owner === 1) {
+      // Pick up a placed piece — find it in tray and unplace
+      const piece = board[cell.r][cell.c];
+      const trayIdx = setupTray.findIndex(t => t.rankId === piece.rank && t.placed);
+      if (trayIdx >= 0) {
+        setupTray[trayIdx].placed = false;
+        board[cell.r][cell.c] = null;
+        setupSelected = trayIdx;
+      }
+    }
+  }
+}
+
+// --- PLAY PHASE ---
+function handlePlayClick(mx, my) {
+  if (turn !== 1 || combatAnim) return;
+
+  const cell = cellFromMouse(mx, my);
+  if (!cell) { selectedPiece = null; validMoves = []; return; }
+
+  // Check if clicking a valid move destination
+  if (selectedPiece) {
+    const vm = validMoves.find(m => m.r === cell.r && m.c === cell.c);
+    if (vm) {
+      lastMove = { fromR: selectedPiece.r, fromC: selectedPiece.c, toR: cell.r, toC: cell.c };
+      if (vm.attack) {
+        resolveCombat(selectedPiece.r, selectedPiece.c, cell.r, cell.c);
+      } else {
+        board[cell.r][cell.c] = board[selectedPiece.r][selectedPiece.c];
+        board[selectedPiece.r][selectedPiece.c] = null;
+      }
+      selectedPiece = null;
+      validMoves = [];
+      if (phase === PHASE_PLAY) {
+        turn = 2;
+        aiThinkTimer = 0;
+      }
+      return;
+    }
+  }
+
+  // Select a piece
+  const piece = board[cell.r][cell.c];
+  if (piece && piece.owner === 1) {
+    const def = getRankDef(piece.rank);
+    if (def.mobile) {
+      selectedPiece = { r: cell.r, c: cell.c };
+      validMoves = getValidMoves(cell.r, cell.c);
+    } else {
+      selectedPiece = null;
+      validMoves = [];
+    }
+  } else {
+    selectedPiece = null;
+    validMoves = [];
+  }
+}
+
+// --- UPDATE ---
+function update() {
+  if (infoOpen) return;
+
+  if (phase === PHASE_PLAY) {
+    // Combat animation
+    if (combatAnim) {
+      combatAnim.timer--;
+      if (combatAnim.timer <= 0) combatAnim = null;
+      return;
+    }
+
+    // AI turn
+    if (turn === 2 && phase === PHASE_PLAY) {
+      aiThinkTimer++;
+      if (aiThinkTimer > 30) {
+        aiTurn();
+        aiThinkTimer = 0;
+        if (phase === PHASE_PLAY) {
+          turn = 1;
+          // Check if player has moves
+          if (!hasValidMoves(1)) {
+            phase = PHASE_OVER;
+            gameOverMsg = 'AI WINS (no moves left)';
+          }
+        }
+      }
+    }
+  }
+}
+
+// --- DRAWING ---
+function drawBoard() {
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const x = BOARD_X + c * CELL;
+      const y = BOARD_Y + r * CELL;
+
+      // Cell background
+      if (isLake(r, c)) {
+        ctx.fillStyle = '#1a3a5a';
+        ctx.fillRect(x, y, CELL, CELL);
+        // Water pattern
+        ctx.fillStyle = '#1a4a6a';
+        for (let wy = 0; wy < CELL; wy += 12) {
+          ctx.fillRect(x + 4 + (wy % 24 ? 8 : 0), y + wy, 24, 4);
+        }
+        ctx.strokeStyle = '#0a2a3a'; ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, CELL, CELL);
+      } else {
+        const light = (r + c) % 2 === 0;
+        ctx.fillStyle = light ? '#c8a96a' : '#b89850';
+        ctx.fillRect(x, y, CELL, CELL);
+        ctx.strokeStyle = '#8a7030'; ctx.lineWidth = 1;
+        ctx.strokeRect(x, y, CELL, CELL);
+      }
+
+      // Setup phase: highlight valid placement rows
+      if (phase === PHASE_SETUP && r >= ROWS - 2 && !isLake(r, c)) {
+        ctx.fillStyle = 'rgba(60,80,200,0.12)';
+        ctx.fillRect(x, y, CELL, CELL);
+      }
+
+      // Last move highlight
+      if (lastMove) {
+        if ((r === lastMove.fromR && c === lastMove.fromC) ||
+            (r === lastMove.toR && c === lastMove.toC)) {
+          ctx.fillStyle = 'rgba(255,255,100,0.15)';
+          ctx.fillRect(x, y, CELL, CELL);
+        }
+      }
+    }
+  }
+}
+
+function drawPieces() {
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const piece = board[r][c];
+      if (!piece) continue;
+
+      const x = BOARD_X + c * CELL + CELL / 2;
+      const y = BOARD_Y + r * CELL + CELL / 2;
+      const sz = CELL * 0.4;
+
+      // Selected highlight
+      if (selectedPiece && selectedPiece.r === r && selectedPiece.c === c) {
+        ctx.fillStyle = 'rgba(255,255,0,0.3)';
+        ctx.fillRect(BOARD_X + c * CELL + 2, BOARD_Y + r * CELL + 2, CELL - 4, CELL - 4);
+      }
+
+      // Piece body
+      ctx.beginPath();
+      ctx.roundRect(x - sz, y - sz, sz * 2, sz * 2, 6);
+      if (piece.owner === 1) {
+        ctx.fillStyle = '#2a5aaa';
+        ctx.fill();
+        ctx.strokeStyle = '#4a8adf'; ctx.lineWidth = 2; ctx.stroke();
+      } else {
+        ctx.fillStyle = '#aa2a2a';
+        ctx.fill();
+        ctx.strokeStyle = '#df4a4a'; ctx.lineWidth = 2; ctx.stroke();
+      }
+
+      // Rank label
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      if (piece.owner === 1 || piece.revealed) {
+        const def = getRankDef(piece.rank);
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 22px monospace';
+        ctx.fillText(def.label, x, y + 1);
+      } else {
+        ctx.fillStyle = '#ddd';
+        ctx.font = 'bold 24px monospace';
+        ctx.fillText('?', x, y + 1);
+      }
+    }
+  }
+}
+
+function drawValidMoves() {
+  for (const vm of validMoves) {
+    const x = BOARD_X + vm.c * CELL + CELL / 2;
+    const y = BOARD_Y + vm.r * CELL + CELL / 2;
+    if (vm.attack) {
+      // Attack indicator: red ring
+      ctx.strokeStyle = 'rgba(255,60,60,0.7)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(x, y, CELL * 0.35, 0, Math.PI * 2);
+      ctx.stroke();
+    } else {
+      // Move indicator: green dot
+      ctx.fillStyle = 'rgba(60,200,60,0.5)';
+      ctx.beginPath();
+      ctx.arc(x, y, 10, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+function drawSetupTray() {
+  // Tray label
+  ctx.fillStyle = '#aaa'; ctx.font = '12px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('Place pieces in rows 5-6:', TRAY_X, TRAY_Y - 6);
+
+  for (let i = 0; i < setupTray.length; i++) {
+    const t = setupTray[i];
+    const tx = TRAY_X + i * (TRAY_SIZE + TRAY_GAP);
+    const ty = TRAY_Y;
+    const def = getRankDef(t.rankId);
+
+    if (t.placed) {
+      ctx.fillStyle = '#333';
+      ctx.fillRect(tx, ty, TRAY_SIZE, TRAY_SIZE);
+      ctx.fillStyle = '#555'; ctx.font = '14px monospace'; ctx.textAlign = 'center';
+      ctx.fillText(def.label, tx + TRAY_SIZE / 2, ty + TRAY_SIZE / 2 + 5);
+    } else {
+      // Highlight if selected
+      if (setupSelected === i) {
+        ctx.fillStyle = '#ffcc00';
+        ctx.fillRect(tx - 2, ty - 2, TRAY_SIZE + 4, TRAY_SIZE + 4);
+      }
+      ctx.fillStyle = '#2a5aaa';
+      ctx.fillRect(tx, ty, TRAY_SIZE, TRAY_SIZE);
+      ctx.strokeStyle = '#4a8adf'; ctx.lineWidth = 1;
+      ctx.strokeRect(tx, ty, TRAY_SIZE, TRAY_SIZE);
+      ctx.fillStyle = '#fff'; ctx.font = 'bold 16px monospace'; ctx.textAlign = 'center';
+      ctx.fillText(def.label, tx + TRAY_SIZE / 2, ty + TRAY_SIZE / 2 + 5);
+    }
+
+    // Rank name below (tiny)
+    ctx.fillStyle = '#777'; ctx.font = '8px monospace'; ctx.textAlign = 'center';
+    const shortName = def.name.substring(0, 4);
+    ctx.fillText(shortName, tx + TRAY_SIZE / 2, ty + TRAY_SIZE + 10);
+  }
+
+  // Auto button
+  ctx.fillStyle = '#444';
+  ctx.fillRect(AUTO_BTN_X, AUTO_BTN_Y, AUTO_BTN_W, AUTO_BTN_H);
+  ctx.strokeStyle = '#888'; ctx.lineWidth = 1;
+  ctx.strokeRect(AUTO_BTN_X, AUTO_BTN_Y, AUTO_BTN_W, AUTO_BTN_H);
+  ctx.fillStyle = '#ddd'; ctx.font = '13px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('AUTO', AUTO_BTN_X + AUTO_BTN_W / 2, AUTO_BTN_Y + AUTO_BTN_H / 2 + 4);
+
+  // Start button (only if all placed)
+  if (allPlaced()) {
+    ctx.fillStyle = '#2a7a2a';
+    ctx.fillRect(START_BTN_X, START_BTN_Y, START_BTN_W, START_BTN_H);
+    ctx.strokeStyle = '#4adf4a'; ctx.lineWidth = 2;
+    ctx.strokeRect(START_BTN_X, START_BTN_Y, START_BTN_W, START_BTN_H);
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 13px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('START', START_BTN_X + START_BTN_W / 2, START_BTN_Y + START_BTN_H / 2 + 4);
+  }
+}
+
+function drawCombatAnim() {
+  if (!combatAnim) return;
+  const ca = combatAnim;
+  const alpha = Math.min(1, ca.timer / 30);
+
+  // Overlay
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(0, 0, W, H);
+
+  // Combat card
+  const cx = W / 2, cy = H / 2;
+  ctx.fillStyle = '#1a1a1a';
+  ctx.beginPath(); ctx.roundRect(cx - 180, cy - 80, 360, 160, 12); ctx.fill();
+  ctx.strokeStyle = '#555'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.roundRect(cx - 180, cy - 80, 360, 160, 12); ctx.stroke();
+
+  // Attacker
+  const attColor = ca.attOwner === 1 ? '#2a5aaa' : '#aa2a2a';
+  ctx.fillStyle = attColor;
+  ctx.beginPath(); ctx.roundRect(cx - 150, cy - 50, 80, 80, 8); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 32px monospace'; ctx.textAlign = 'center';
+  ctx.fillText(ca.attLabel, cx - 110, cy + 5);
+  ctx.font = '11px monospace'; ctx.fillStyle = '#aaa';
+  ctx.fillText(ca.attName, cx - 110, cy + 45);
+
+  // VS
+  ctx.fillStyle = '#ff0'; ctx.font = 'bold 20px monospace';
+  ctx.fillText('VS', cx, cy - 5);
+
+  // Defender
+  const defColor = ca.defOwner === 1 ? '#2a5aaa' : '#aa2a2a';
+  ctx.fillStyle = defColor;
+  ctx.beginPath(); ctx.roundRect(cx + 70, cy - 50, 80, 80, 8); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 32px monospace';
+  ctx.fillText(ca.defLabel, cx + 110, cy + 5);
+  ctx.font = '11px monospace'; ctx.fillStyle = '#aaa';
+  ctx.fillText(ca.defName, cx + 110, cy + 45);
+
+  // Result
+  let resultColor = '#ff0';
+  if (ca.result === 'att_wins') resultColor = ca.attOwner === 1 ? '#4af' : '#f44';
+  else if (ca.result === 'def_wins') resultColor = ca.defOwner === 1 ? '#4af' : '#f44';
+  ctx.fillStyle = resultColor; ctx.font = 'bold 14px monospace';
+  ctx.fillText(ca.msg, cx, cy + 68);
+}
+
+function drawCombatLog() {
+  if (combatLog.length === 0) return;
+  const logX = BOARD_X + COLS * CELL + 12;
+  const logY = BOARD_Y + 6;
+
+  ctx.fillStyle = '#888'; ctx.font = '11px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('COMBAT LOG', logX, logY);
+
+  for (let i = 0; i < Math.min(combatLog.length, 7); i++) {
+    const entry = combatLog[i];
+    const ey = logY + 18 + i * 16;
+    const fade = 1 - i * 0.1;
+    ctx.fillStyle = `rgba(170,170,170,${fade})`;
+    ctx.font = '10px monospace';
+    // Truncate long messages
+    const maxLen = 22;
+    const txt = entry.msg.length > maxLen ? entry.msg.substring(0, maxLen - 1) + '...' : entry.msg;
+    ctx.fillText(txt, logX, ey);
+  }
+}
+
+function drawHUD() {
+  // Title badge
+  ctx.fillStyle = '#1a1a1a'; ctx.fillRect(8, 8, 250, 28);
+  ctx.fillStyle = '#555'; ctx.font = '13px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('ANC-003 \u00b7 STRATEGO  [?]', 16, 26);
+
+  // Turn indicator
+  if (phase === PHASE_PLAY) {
+    const turnMsg = turn === 1 ? 'YOUR TURN' : 'AI THINKING...';
+    const turnColor = turn === 1 ? '#4488ff' : '#ff4444';
+    ctx.fillStyle = turnColor; ctx.font = '14px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(turnMsg, W / 2, BOARD_Y - 12);
+  } else if (phase === PHASE_SETUP) {
+    ctx.fillStyle = '#ffcc00'; ctx.font = '14px monospace'; ctx.textAlign = 'center';
+    const remaining = setupTray.filter(t => !t.placed).length;
+    ctx.fillText('SETUP PHASE — ' + remaining + ' pieces to place', W / 2, BOARD_Y - 12);
+  }
+
+  // Row/col labels
+  ctx.fillStyle = '#666'; ctx.font = '11px monospace'; ctx.textAlign = 'center';
+  for (let c = 0; c < COLS; c++) {
+    ctx.fillText(String.fromCharCode(65 + c), BOARD_X + c * CELL + CELL / 2, BOARD_Y - 28);
+  }
+  ctx.textAlign = 'right';
+  for (let r = 0; r < ROWS; r++) {
+    ctx.fillText('' + (r + 1), BOARD_X - 8, BOARD_Y + r * CELL + CELL / 2 + 4);
+  }
+
+  // Piece count sidebar (left)
+  const sideX = 12;
+  const sideY = BOARD_Y + 6;
+  ctx.fillStyle = '#888'; ctx.font = '11px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('YOUR ARMY', sideX, sideY);
+
+  let playerPieces = 0, aiPieces = 0;
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const p = board[r][c];
+      if (p) {
+        if (p.owner === 1) playerPieces++;
+        else aiPieces++;
+      }
+    }
+  }
+  ctx.fillStyle = '#4488ff'; ctx.fillText('Pieces: ' + playerPieces, sideX, sideY + 18);
+  ctx.fillStyle = '#888'; ctx.fillText('AI ARMY', sideX, sideY + 42);
+  ctx.fillStyle = '#ff4444'; ctx.fillText('Pieces: ' + aiPieces, sideX, sideY + 58);
+
+  // Known AI pieces
+  if (phase === PHASE_PLAY) {
+    ctx.fillStyle = '#888'; ctx.font = '10px monospace';
+    ctx.fillText('KNOWN:', sideX, sideY + 82);
+    let knownY = sideY + 96;
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const p = board[r][c];
+        if (p && p.owner === 2 && p.revealed) {
+          const def = getRankDef(p.rank);
+          ctx.fillStyle = '#cc6666';
+          ctx.fillText(def.label + ' ' + def.name, sideX, knownY);
+          knownY += 14;
+        }
+      }
+    }
+    // Show destroyed AI pieces from combat log
+    ctx.fillStyle = '#555';
+    ctx.fillText('DEFEATED:', sideX, knownY + 6);
+    knownY += 20;
+    const defeated = [];
+    for (const entry of combatLog) {
+      if (entry.result === 'att_wins' || entry.result === 'both_die') {
+        // Parse from message — simplified: just show log
+      }
+    }
+  }
+}
+
+function drawGameOver() {
+  ctx.fillStyle = 'rgba(0,0,0,0.75)'; ctx.fillRect(0, 0, W, H);
+
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 48px monospace';
+  if (gameOverMsg.includes('YOU WIN')) {
+    ctx.fillStyle = '#4488ff';
+  } else {
+    ctx.fillStyle = '#ff4444';
+  }
+  ctx.fillText(gameOverMsg, W / 2, H / 2 - 20);
+
+  ctx.fillStyle = '#aaa'; ctx.font = '16px monospace';
+  ctx.fillText('Press R to restart', W / 2, H / 2 + 25);
+}
+
+function draw() {
+  ctx.fillStyle = '#1a1410'; ctx.fillRect(0, 0, W, H);
+
+  drawBoard();
+  drawPieces();
+
+  if (phase === PHASE_SETUP) {
+    drawSetupTray();
+  } else if (phase === PHASE_PLAY) {
+    drawValidMoves();
+    drawCombatLog();
+  }
+
+  drawHUD();
+
+  if (combatAnim) drawCombatAnim();
+  if (phase === PHASE_OVER && !combatAnim) drawGameOver();
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+</body>
+</html>

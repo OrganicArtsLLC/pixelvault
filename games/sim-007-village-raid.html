@@ -1,0 +1,960 @@
+<!--
+PROTOTYPE: village-raid
+SERIES: sim
+NUMBER: 007
+DATE: 2026-03-23
+MECHANIC: base building defense and army deployment attack in alternating phases
+ANCESTRY: Clash of Clans (2012, Supercell), Tower Defense genre (2000s), Rampart (1990, Atari)
+CONTROLS: Mouse — place buildings/deploy troops | Tab — switch phase | 1-4 — select unit type | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 6 (Transformer Era — base layout optimization, troop deployment AI)
+AI-INSIGHT: Clash of Clans split strategy into two asymmetric problems: defense design (offline optimization) and attack execution (real-time deployment). This separation mirrors the train/inference split in machine learning — one phase optimizes a static structure, the other executes decisions against it.
+NOTES: Build-then-attack loop creates two distinct strategy layers.
+       Base layout is a spatial optimization puzzle; attack is real-time tactics.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SIM-007 · VILLAGE RAID</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: crosshair; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SIM-007 · VILLAGE RAID</h1>
+    <p><span class="tag series">SIM — Simulation</span> <span class="tag">Prototype #007</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Build a defensive base, then deploy troops to attack the enemy! Two alternating phases create a deep strategy loop.</p>
+    <ul>
+      <li><kbd>1</kbd> — Select Cannon (shoots ground troops, 2x2)</li>
+      <li><kbd>2</kbd> — Select Archer Tower (shoots air+ground, 2x2)</li>
+      <li><kbd>3</kbd> — Select Wall segment (blocks paths, 1x1)</li>
+      <li><kbd>4</kbd> — Select Town Hall (must protect!, 3x3)</li>
+      <li><kbd>Left Click</kbd> — Place building (build) / Deploy troop (attack)</li>
+      <li><kbd>Right Click</kbd> — Remove building (build phase)</li>
+      <li><kbd>Tab</kbd> — Switch to Attack Phase (from build) / Next Round (after attack)</li>
+      <li><kbd>R</kbd> — Restart game</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Build Phase</h3>
+    <ul>
+      <li>Place defensive buildings on the grid to protect your Town Hall.</li>
+      <li>You get: 1 Town Hall, 3 Cannons, 2 Archer Towers, 15 Walls.</li>
+      <li>Walls block troop movement. Cluster defenses around your Town Hall.</li>
+    </ul>
+    <h3>Attack Phase</h3>
+    <ul>
+      <li>Deploy troops on the edges of the enemy base to destroy it.</li>
+      <li><kbd>1</kbd> Barbarian — melee fighter, balanced stats</li>
+      <li><kbd>2</kbd> Archer — ranged attacker, fragile</li>
+      <li><kbd>3</kbd> Giant — tanky, targets defenses first</li>
+      <li><kbd>4</kbd> Goblin — fast, targets Town Hall and resources</li>
+      <li>Get 3 minutes. Stars: 50% destruction = 1★, Town Hall = 2★, 100% = 3★</li>
+    </ul>
+    <h3>Defense Replay</h3>
+    <p>After your attack, watch AI troops assault your base. Good placement matters!</p>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Rampart (1990, Atari) &rarr; Tower Defense (2000s) &rarr; Clash of Clans (2012, Supercell)</p>
+    <p>Clash of Clans (2012) by Supercell became one of the highest-grossing mobile games ever by splitting strategy into two asymmetric halves: designing a defensive base (an offline optimization puzzle) and attacking enemy bases (real-time tactical deployment). Rampart (1990) pioneered the build-then-defend loop, while the tower defense genre of the 2000s refined the idea of placing static defenses against waves of attackers.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 6 — Transformer Era</p>
+    <p>Clash of Clans' dual-phase design mirrors the train/inference split in machine learning. Base layout is an optimization problem solved offline (like training a model), while attack execution requires real-time decision-making against that frozen structure (like inference). Modern AI approaches to the game use reinforcement learning for troop deployment and evolutionary algorithms for base layout optimization.</p>
+
+    <h2>Classification</h2>
+    <p><strong>Genre:</strong> Strategy / Base Building / Tower Defense</p>
+    <p><strong>Input:</strong> Mouse + Keyboard</p>
+    <p><strong>Core Loop:</strong> Build defenses → Attack enemy → Watch defense → Score stars → Repeat</p>
+
+    <h2>Prototype Notes</h2>
+    <p>Simplified to a grid-based system with four building types and four troop types. Pathfinding uses BFS on the grid. AI base generation creates randomized but structurally sound layouts. Defense replay simulates AI attacking with similar troop composition.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+var C = document.getElementById('c'), X = C.getContext('2d');
+C.width = 800; C.height = 600;
+var infoOpen = false;
+
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// Constants
+var GS = 20; // grid cell size
+var GW = 20, GH = 20; // grid dimensions (playfield)
+var OX = 200, OY = 100; // grid offset on canvas
+
+// Building types
+var B_CANNON = 0, B_ARCHER = 1, B_WALL = 2, B_TOWNHALL = 3;
+var BDATA = [
+  { name: 'Cannon', w: 2, h: 2, hp: 400, range: 4, dmg: 20, rate: 60, color: '#888', ground: true, air: false, cost: 'cannon' },
+  { name: 'Archer Tower', w: 2, h: 2, hp: 300, range: 5, dmg: 12, rate: 40, color: '#a6f', ground: true, air: true, cost: 'archer' },
+  { name: 'Wall', w: 1, h: 1, hp: 500, range: 0, dmg: 0, rate: 0, color: '#965', ground: false, air: false, cost: 'wall' },
+  { name: 'Town Hall', w: 3, h: 3, hp: 1500, range: 0, dmg: 0, rate: 0, color: '#fc0', ground: false, air: false, cost: 'townhall' }
+];
+
+// Troop types
+var T_BARB = 0, T_ARCH = 1, T_GIANT = 2, T_GOB = 3;
+var TDATA = [
+  { name: 'Barbarian', hp: 200, dmg: 15, rate: 30, speed: 1.2, range: 1.0, color: '#fa0', targetDef: false, targetTH: false },
+  { name: 'Archer', hp: 100, dmg: 10, rate: 25, speed: 1.0, range: 4.0, color: '#f6f', targetDef: false, targetTH: false },
+  { name: 'Giant', hp: 600, dmg: 12, rate: 45, speed: 0.6, range: 1.0, color: '#a72', targetDef: true, targetTH: false },
+  { name: 'Goblin', hp: 80, dmg: 12, rate: 20, speed: 2.0, range: 1.0, color: '#0f4', targetDef: false, targetTH: true }
+];
+
+// Game state
+var phase, selectedBuild, selectedTroop;
+var playerBase, enemyBase, troops, projectiles;
+var buildCounts, maxBuilds;
+var attackTimer, attackMaxTime, attackDone;
+var stars, totalStars, round;
+var defensePhase, defTroops, defProjectiles, defTimer, defDone, defStars;
+var gameMessage, messageDuration;
+
+function initGame() {
+  phase = 'build'; // build, attack, defense, results
+  selectedBuild = B_CANNON;
+  selectedTroop = T_BARB;
+  playerBase = { grid: makeGrid(), buildings: [] };
+  enemyBase = { grid: makeGrid(), buildings: [] };
+  troops = []; projectiles = [];
+  buildCounts = { cannon: 0, archer: 0, wall: 0, townhall: 0 };
+  maxBuilds = { cannon: 3, archer: 2, wall: 15, townhall: 1 };
+  attackTimer = 0; attackMaxTime = 180 * 60; // 3min at 60fps
+  attackDone = false;
+  stars = 0; totalStars = 0; round = 1;
+  defensePhase = false; defTroops = []; defProjectiles = [];
+  defTimer = 0; defDone = false; defStars = 0;
+  gameMessage = 'BUILD PHASE: Place buildings to defend your base';
+  messageDuration = 180;
+  troopCounts = { barb: 15, arch: 10, giant: 3, gob: 8 };
+}
+
+function makeGrid() {
+  var g = [];
+  for (var i = 0; i < GW; i++) { g[i] = []; for (var j = 0; j < GH; j++) g[i][j] = 0; }
+  return g;
+}
+
+function placeBuilding(base, type, gx, gy) {
+  var bd = BDATA[type];
+  // Check bounds
+  if (gx < 0 || gy < 0 || gx + bd.w > GW || gy + bd.h > GH) return false;
+  // Check grid clear
+  for (var dx = 0; dx < bd.w; dx++)
+    for (var dy = 0; dy < bd.h; dy++)
+      if (base.grid[gx + dx][gy + dy] !== 0) return false;
+  var b = { type: type, gx: gx, gy: gy, hp: bd.hp, maxHp: bd.hp, shootTimer: 0 };
+  base.buildings.push(b);
+  for (var dx = 0; dx < bd.w; dx++)
+    for (var dy = 0; dy < bd.h; dy++)
+      base.grid[gx + dx][gy + dy] = base.buildings.length; // 1-indexed id
+  return true;
+}
+
+function removeBuilding(base, gx, gy) {
+  if (gx < 0 || gy < 0 || gx >= GW || gy >= GH) return;
+  var id = base.grid[gx][gy];
+  if (id === 0) return;
+  var b = base.buildings[id - 1];
+  if (!b) return;
+  var bd = BDATA[b.type];
+  for (var dx = 0; dx < bd.w; dx++)
+    for (var dy = 0; dy < bd.h; dy++)
+      base.grid[b.gx + dx][b.gy + dy] = 0;
+  var ckey = bd.cost;
+  buildCounts[ckey]--;
+  base.buildings.splice(id - 1, 1);
+  // Rebuild grid ids
+  rebuildGridIds(base);
+}
+
+function rebuildGridIds(base) {
+  for (var i = 0; i < GW; i++) for (var j = 0; j < GH; j++) base.grid[i][j] = 0;
+  for (var k = 0; k < base.buildings.length; k++) {
+    var b = base.buildings[k], bd = BDATA[b.type];
+    for (var dx = 0; dx < bd.w; dx++)
+      for (var dy = 0; dy < bd.h; dy++)
+        base.grid[b.gx + dx][b.gy + dy] = k + 1;
+  }
+}
+
+function generateAIBase() {
+  enemyBase = { grid: makeGrid(), buildings: [] };
+  // Place town hall center-ish
+  var thx = 8 + Math.floor(Math.random() * 4);
+  var thy = 8 + Math.floor(Math.random() * 4);
+  placeBuilding(enemyBase, B_TOWNHALL, thx, thy);
+  // Place cannons
+  var positions = [[thx - 3, thy - 1], [thx + 4, thy - 1], [thx, thy + 4]];
+  for (var i = 0; i < 3; i++) {
+    var px = positions[i][0] + Math.floor(Math.random() * 2);
+    var py = positions[i][1] + Math.floor(Math.random() * 2);
+    px = Math.max(0, Math.min(GW - 2, px));
+    py = Math.max(0, Math.min(GH - 2, py));
+    if (!placeBuilding(enemyBase, B_CANNON, px, py)) {
+      // Try nearby
+      for (var a = -2; a <= 2; a++) for (var bb = -2; bb <= 2; bb++) {
+        if (placeBuilding(enemyBase, B_CANNON, px + a, py + bb)) { a = 3; break; }
+      }
+    }
+  }
+  // Place archer towers
+  var apos = [[thx - 2, thy + 3], [thx + 3, thy + 3]];
+  for (var i = 0; i < 2; i++) {
+    var px = apos[i][0] + Math.floor(Math.random() * 2);
+    var py = apos[i][1] + Math.floor(Math.random() * 2);
+    px = Math.max(0, Math.min(GW - 2, px));
+    py = Math.max(0, Math.min(GH - 2, py));
+    if (!placeBuilding(enemyBase, B_ARCHER, px, py)) {
+      for (var a = -2; a <= 2; a++) for (var bb = -2; bb <= 2; bb++) {
+        if (placeBuilding(enemyBase, B_ARCHER, px + a, py + bb)) { a = 3; break; }
+      }
+    }
+  }
+  // Place walls around town hall
+  for (var wx = thx - 1; wx <= thx + 3; wx++) {
+    placeBuilding(enemyBase, B_WALL, wx, thy - 1);
+    placeBuilding(enemyBase, B_WALL, wx, thy + 3);
+  }
+  for (var wy = thy; wy < thy + 3; wy++) {
+    placeBuilding(enemyBase, B_WALL, thx - 1, wy);
+    placeBuilding(enemyBase, B_WALL, thx + 3, wy);
+  }
+}
+
+// BFS pathfinding
+function bfsPath(grid, sx, sy, tx, ty) {
+  var gsx = Math.floor(sx), gsy = Math.floor(sy);
+  var gtx = Math.floor(tx), gty = Math.floor(ty);
+  gsx = Math.max(0, Math.min(GW - 1, gsx));
+  gsy = Math.max(0, Math.min(GH - 1, gsy));
+  gtx = Math.max(0, Math.min(GW - 1, gtx));
+  gty = Math.max(0, Math.min(GH - 1, gty));
+  if (gsx === gtx && gsy === gty) return [];
+  var visited = makeGrid();
+  var queue = [[gsx, gsy]];
+  var parent = {};
+  visited[gsx][gsy] = 1;
+  parent[gsx + ',' + gsy] = null;
+  var dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+  while (queue.length > 0) {
+    var cur = queue.shift();
+    if (cur[0] === gtx && cur[1] === gty) {
+      // Reconstruct
+      var path = [];
+      var k = gtx + ',' + gty;
+      while (parent[k] !== null) {
+        var parts = k.split(',');
+        path.unshift([parseInt(parts[0]) + 0.5, parseInt(parts[1]) + 0.5]);
+        k = parent[k];
+      }
+      return path;
+    }
+    for (var d = 0; d < 4; d++) {
+      var nx = cur[0] + dirs[d][0], ny = cur[1] + dirs[d][1];
+      if (nx >= 0 && nx < GW && ny >= 0 && ny < GH && !visited[nx][ny]) {
+        // Walls block, but target cell is always reachable
+        if (grid[nx][ny] !== 0 && !(nx === gtx && ny === gty)) {
+          // Check if it's a wall specifically
+          continue;
+        }
+        visited[nx][ny] = 1;
+        parent[nx + ',' + ny] = cur[0] + ',' + cur[1];
+        queue.push([nx, ny]);
+      }
+    }
+  }
+  // No path found - return direct line
+  return [[tx, ty]];
+}
+
+function spawnTroop(type, gx, gy, troopList, targetBase) {
+  var td = TDATA[type];
+  troopList.push({
+    type: type, x: gx + 0.5, y: gy + 0.5,
+    hp: td.hp, maxHp: td.hp,
+    attackTimer: 0, target: null, path: [], pathIdx: 0,
+    targetBase: targetBase
+  });
+}
+
+function dist(x1, y1, x2, y2) {
+  var dx = x1 - x2, dy = y1 - y2;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+function findTroopTarget(troop, base) {
+  var td = TDATA[troop.type];
+  var best = null, bestDist = 9999;
+  for (var i = 0; i < base.buildings.length; i++) {
+    var b = base.buildings[i];
+    if (b.hp <= 0) continue;
+    var bd = BDATA[b.type];
+    var cx = b.gx + bd.w / 2, cy = b.gy + bd.h / 2;
+    var d = dist(troop.x, troop.y, cx, cy);
+    // Priority targeting
+    if (td.targetDef && (b.type === B_CANNON || b.type === B_ARCHER)) d -= 10;
+    if (td.targetTH && b.type === B_TOWNHALL) d -= 15;
+    if (d < bestDist) { bestDist = d; best = i; }
+  }
+  return best;
+}
+
+function updateTroops(troopList, projList, base, dt) {
+  for (var i = troopList.length - 1; i >= 0; i--) {
+    var t = troopList[i];
+    if (t.hp <= 0) { troopList.splice(i, 1); continue; }
+    var td = TDATA[t.type];
+
+    // Find target
+    if (t.target === null || t.target >= base.buildings.length || base.buildings[t.target].hp <= 0) {
+      t.target = findTroopTarget(t, base);
+      t.path = [];
+    }
+    if (t.target === null) continue; // Nothing left
+
+    var b = base.buildings[t.target];
+    var bd = BDATA[b.type];
+    var bcx = b.gx + bd.w / 2, bcy = b.gy + bd.h / 2;
+    var d = dist(t.x, t.y, bcx, bcy);
+
+    if (d <= td.range + bd.w / 2) {
+      // Attack
+      t.attackTimer++;
+      if (t.attackTimer >= td.rate) {
+        t.attackTimer = 0;
+        b.hp -= td.dmg;
+        // Visual projectile for archers
+        if (t.type === T_ARCH) {
+          projList.push({ x: t.x * GS + OX, y: t.y * GS + OY,
+            tx: bcx * GS + OX, ty: bcy * GS + OY,
+            life: 10, color: '#f6f' });
+        }
+      }
+    } else {
+      // Move toward target
+      if (t.path.length === 0) {
+        t.path = bfsPath(base.grid, t.x, t.y, bcx, bcy);
+        t.pathIdx = 0;
+      }
+      var goal;
+      if (t.pathIdx < t.path.length) {
+        goal = t.path[t.pathIdx];
+      } else {
+        goal = [bcx, bcy];
+      }
+      var dx = goal[0] - t.x, dy = goal[1] - t.y;
+      var dd = Math.sqrt(dx * dx + dy * dy);
+      if (dd > 0.1) {
+        t.x += (dx / dd) * td.speed * 0.03;
+        t.y += (dy / dd) * td.speed * 0.03;
+      } else if (t.pathIdx < t.path.length) {
+        t.pathIdx++;
+      }
+    }
+  }
+}
+
+function updateDefenses(base, troopList, projList) {
+  for (var i = 0; i < base.buildings.length; i++) {
+    var b = base.buildings[i];
+    if (b.hp <= 0) continue;
+    var bd = BDATA[b.type];
+    if (bd.range === 0) continue;
+
+    b.shootTimer++;
+    if (b.shootTimer >= bd.rate) {
+      // Find closest troop in range
+      var bcx = b.gx + bd.w / 2, bcy = b.gy + bd.h / 2;
+      var best = null, bestD = 9999;
+      for (var j = 0; j < troopList.length; j++) {
+        var t = troopList[j];
+        if (t.hp <= 0) continue;
+        var d = dist(bcx, bcy, t.x, t.y);
+        if (d <= bd.range + 1 && d < bestD) { bestD = d; best = j; }
+      }
+      if (best !== null) {
+        b.shootTimer = 0;
+        troopList[best].hp -= bd.dmg;
+        projList.push({
+          x: bcx * GS + OX, y: bcy * GS + OY,
+          tx: troopList[best].x * GS + OX, ty: troopList[best].y * GS + OY,
+          life: 8, color: bd.color
+        });
+      }
+    }
+  }
+}
+
+function calcDestruction(base) {
+  var totalHp = 0, destroyed = 0;
+  for (var i = 0; i < base.buildings.length; i++) {
+    totalHp += base.buildings[i].maxHp;
+    if (base.buildings[i].hp <= 0) destroyed += base.buildings[i].maxHp;
+  }
+  return totalHp > 0 ? destroyed / totalHp : 0;
+}
+
+function calcStars(base) {
+  var s = 0;
+  var pct = calcDestruction(base);
+  if (pct >= 0.5) s = 1;
+  // Check TH destroyed
+  for (var i = 0; i < base.buildings.length; i++) {
+    if (base.buildings[i].type === B_TOWNHALL && base.buildings[i].hp <= 0) { s = Math.max(s, 2); break; }
+  }
+  if (pct >= 1.0) s = 3;
+  return s;
+}
+
+function startAttackPhase() {
+  generateAIBase();
+  phase = 'attack';
+  troops = []; projectiles = [];
+  attackTimer = 0; attackDone = false;
+  selectedTroop = T_BARB;
+  troopCounts = { barb: 15, arch: 10, giant: 3, gob: 8 };
+  gameMessage = 'ATTACK! Deploy troops on the edges!';
+  messageDuration = 120;
+}
+
+function startDefensePhase() {
+  phase = 'defense';
+  defTroops = []; defProjectiles = [];
+  defTimer = 0; defDone = false; defStars = 0;
+  // Reset player base HP
+  for (var i = 0; i < playerBase.buildings.length; i++) {
+    playerBase.buildings[i].hp = playerBase.buildings[i].maxHp;
+    playerBase.buildings[i].shootTimer = 0;
+  }
+  // AI deploys troops over time
+  gameMessage = 'DEFENSE: Watch AI attack your base!';
+  messageDuration = 120;
+}
+
+var troopCounts;
+
+// Mouse
+var mouseGX = 0, mouseGY = 0, mouseInGrid = false;
+
+C.addEventListener('mousemove', function(e) {
+  var rect = C.getBoundingClientRect();
+  var mx = (e.clientX - rect.left) * (800 / rect.width);
+  var my = (e.clientY - rect.top) * (600 / rect.height);
+  mouseGX = Math.floor((mx - OX) / GS);
+  mouseGY = Math.floor((my - OY) / GS);
+  mouseInGrid = mouseGX >= 0 && mouseGX < GW && mouseGY >= 0 && mouseGY < GH;
+});
+
+C.addEventListener('click', function(e) {
+  if (infoOpen) return;
+  if (phase === 'build' && mouseInGrid) {
+    var bd = BDATA[selectedBuild];
+    var ckey = bd.cost;
+    if (buildCounts[ckey] < maxBuilds[ckey]) {
+      if (placeBuilding(playerBase, selectedBuild, mouseGX, mouseGY)) {
+        buildCounts[ckey]++;
+      }
+    }
+  } else if (phase === 'attack' && mouseInGrid && !attackDone) {
+    // Deploy on edges
+    var edge = mouseGX === 0 || mouseGX >= GW - 1 || mouseGY === 0 || mouseGY >= GH - 1;
+    if (edge) {
+      var tkey = ['barb', 'arch', 'giant', 'gob'][selectedTroop];
+      if (troopCounts[tkey] > 0) {
+        spawnTroop(selectedTroop, mouseGX, mouseGY, troops, enemyBase);
+        troopCounts[tkey]--;
+      }
+    }
+  }
+});
+
+C.addEventListener('contextmenu', function(e) {
+  e.preventDefault();
+  if (infoOpen) return;
+  if (phase === 'build' && mouseInGrid) {
+    removeBuilding(playerBase, mouseGX, mouseGY);
+  }
+});
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); return; }
+  if (infoOpen) return;
+
+  if (e.key === 'r' || e.key === 'R') { initGame(); return; }
+
+  if (e.key === '1') {
+    if (phase === 'build') selectedBuild = B_CANNON;
+    else if (phase === 'attack') selectedTroop = T_BARB;
+  }
+  if (e.key === '2') {
+    if (phase === 'build') selectedBuild = B_ARCHER;
+    else if (phase === 'attack') selectedTroop = T_ARCH;
+  }
+  if (e.key === '3') {
+    if (phase === 'build') selectedBuild = B_WALL;
+    else if (phase === 'attack') selectedTroop = T_GIANT;
+  }
+  if (e.key === '4') {
+    if (phase === 'build') selectedBuild = B_TOWNHALL;
+    else if (phase === 'attack') selectedTroop = T_GOB;
+  }
+
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    if (phase === 'build') {
+      // Check town hall placed
+      var hasTH = false;
+      for (var i = 0; i < playerBase.buildings.length; i++) {
+        if (playerBase.buildings[i].type === B_TOWNHALL) { hasTH = true; break; }
+      }
+      if (!hasTH) {
+        gameMessage = 'Place your Town Hall first!';
+        messageDuration = 90;
+        return;
+      }
+      startAttackPhase();
+    } else if (phase === 'results') {
+      round++;
+      phase = 'build';
+      // Reset build
+      playerBase = { grid: makeGrid(), buildings: [] };
+      buildCounts = { cannon: 0, archer: 0, wall: 0, townhall: 0 };
+      gameMessage = 'ROUND ' + round + ': Build your base!';
+      messageDuration = 120;
+    }
+  }
+});
+
+// AI troop spawn schedule for defense
+var aiSpawnTimer = 0, aiSpawnCount = 0;
+var AI_MAX_TROOPS = 20;
+
+function updateDefenseAI() {
+  aiSpawnTimer++;
+  if (aiSpawnTimer >= 30 && aiSpawnCount < AI_MAX_TROOPS) {
+    aiSpawnTimer = 0;
+    aiSpawnCount++;
+    // Pick random edge
+    var edge = Math.floor(Math.random() * 4);
+    var gx, gy;
+    if (edge === 0) { gx = 0; gy = Math.floor(Math.random() * GH); }
+    else if (edge === 1) { gx = GW - 1; gy = Math.floor(Math.random() * GH); }
+    else if (edge === 2) { gx = Math.floor(Math.random() * GW); gy = 0; }
+    else { gx = Math.floor(Math.random() * GW); gy = GH - 1; }
+    var ttype = [T_BARB, T_BARB, T_BARB, T_ARCH, T_ARCH, T_GIANT, T_GOB, T_GOB][Math.floor(Math.random() * 8)];
+    spawnTroop(ttype, gx, gy, defTroops, playerBase);
+  }
+}
+
+function update() {
+  if (infoOpen) return;
+
+  if (messageDuration > 0) messageDuration--;
+
+  if (phase === 'attack' && !attackDone) {
+    attackTimer++;
+    updateTroops(troops, projectiles, enemyBase, 1);
+    updateDefenses(enemyBase, troops, projectiles);
+
+    // Update projectiles
+    for (var i = projectiles.length - 1; i >= 0; i--) {
+      projectiles[i].life--;
+      if (projectiles[i].life <= 0) projectiles.splice(i, 1);
+    }
+
+    // Check end conditions
+    var allDead = true;
+    for (var i = 0; i < enemyBase.buildings.length; i++) {
+      if (enemyBase.buildings[i].hp > 0) { allDead = false; break; }
+    }
+    var allTroopsDead = troops.length === 0 && troopCounts.barb === 0 &&
+      troopCounts.arch === 0 && troopCounts.giant === 0 && troopCounts.gob === 0;
+
+    if (allDead || attackTimer >= attackMaxTime || allTroopsDead) {
+      attackDone = true;
+      stars = calcStars(enemyBase);
+      totalStars += stars;
+      gameMessage = 'Attack complete! ' + stars + ' star' + (stars !== 1 ? 's' : '') + '!';
+      messageDuration = 120;
+      // Start defense after brief pause
+      setTimeout(function() { if (phase === 'attack') startDefensePhase(); }, 2000);
+    }
+  }
+
+  if (phase === 'defense') {
+    defTimer++;
+    updateDefenseAI();
+    updateTroops(defTroops, defProjectiles, playerBase, 1);
+    updateDefenses(playerBase, defTroops, defProjectiles);
+
+    for (var i = defProjectiles.length - 1; i >= 0; i--) {
+      defProjectiles[i].life--;
+      if (defProjectiles[i].life <= 0) defProjectiles.splice(i, 1);
+    }
+
+    // End after all AI troops deployed and dead, or timeout
+    var allDone = aiSpawnCount >= AI_MAX_TROOPS && defTroops.length === 0;
+    if (allDone || defTimer >= 180 * 60) {
+      defStars = calcStars(playerBase);
+      phase = 'results';
+      aiSpawnTimer = 0; aiSpawnCount = 0;
+      gameMessage = 'Round ' + round + ' complete! Press Tab for next round.';
+      messageDuration = 300;
+    }
+  }
+}
+
+function drawGrid(base, ox, oy) {
+  // Grid background
+  X.fillStyle = '#1a2a1a';
+  X.fillRect(ox, oy, GW * GS, GH * GS);
+  // Grid lines
+  X.strokeStyle = '#2a3a2a';
+  X.lineWidth = 0.5;
+  for (var i = 0; i <= GW; i++) {
+    X.beginPath(); X.moveTo(ox + i * GS, oy); X.lineTo(ox + i * GS, oy + GH * GS); X.stroke();
+  }
+  for (var j = 0; j <= GH; j++) {
+    X.beginPath(); X.moveTo(ox, oy + j * GS); X.lineTo(ox + GW * GS, oy + j * GS); X.stroke();
+  }
+
+  // Buildings
+  for (var i = 0; i < base.buildings.length; i++) {
+    var b = base.buildings[i];
+    var bd = BDATA[b.type];
+    var bx = ox + b.gx * GS, by = oy + b.gy * GS;
+    var bw = bd.w * GS, bh = bd.h * GS;
+
+    if (b.hp <= 0) {
+      X.fillStyle = '#333';
+      X.fillRect(bx + 1, by + 1, bw - 2, bh - 2);
+      X.strokeStyle = '#555';
+      X.strokeRect(bx + 1, by + 1, bw - 2, bh - 2);
+      // Rubble
+      X.fillStyle = '#555';
+      X.fillRect(bx + 3, by + 3, 4, 4);
+      X.fillRect(bx + bw - 7, by + bh - 7, 4, 4);
+      continue;
+    }
+
+    // Building body
+    X.fillStyle = bd.color;
+    X.fillRect(bx + 1, by + 1, bw - 2, bh - 2);
+
+    // Detail by type
+    if (b.type === B_CANNON) {
+      X.fillStyle = '#555';
+      X.fillRect(bx + bw / 2 - 2, by + 2, 4, bh - 4);
+    } else if (b.type === B_ARCHER) {
+      X.fillStyle = '#d8f';
+      X.fillRect(bx + 3, by + 3, bw - 6, 3);
+      X.fillRect(bx + 3, by + bh - 6, bw - 6, 3);
+    } else if (b.type === B_TOWNHALL) {
+      X.fillStyle = '#a80';
+      X.fillRect(bx + 4, by + 4, bw - 8, bh - 8);
+      X.fillStyle = '#ff0';
+      X.font = '12px monospace';
+      X.textAlign = 'center';
+      X.fillText('TH', bx + bw / 2, by + bh / 2 + 4);
+    }
+
+    // HP bar
+    if (b.hp < b.maxHp) {
+      var hpPct = b.hp / b.maxHp;
+      X.fillStyle = '#300';
+      X.fillRect(bx, by - 4, bw, 3);
+      X.fillStyle = hpPct > 0.5 ? '#0f0' : hpPct > 0.25 ? '#ff0' : '#f00';
+      X.fillRect(bx, by - 4, bw * hpPct, 3);
+    }
+
+    // Range indicator for defenses (subtle)
+    if (bd.range > 0 && phase !== 'results') {
+      X.strokeStyle = 'rgba(255,100,100,0.15)';
+      X.beginPath();
+      X.arc(bx + bw / 2, by + bh / 2, bd.range * GS, 0, Math.PI * 2);
+      X.stroke();
+    }
+  }
+}
+
+function drawTroops(troopList, projList, ox, oy) {
+  for (var i = 0; i < troopList.length; i++) {
+    var t = troopList[i];
+    if (t.hp <= 0) continue;
+    var td = TDATA[t.type];
+    var tx = ox + t.x * GS, ty = oy + t.y * GS;
+
+    X.fillStyle = td.color;
+    X.beginPath();
+    X.arc(tx, ty, 5, 0, Math.PI * 2);
+    X.fill();
+
+    // HP indicator
+    if (t.hp < t.maxHp) {
+      var hpPct = t.hp / t.maxHp;
+      X.fillStyle = '#300';
+      X.fillRect(tx - 5, ty - 9, 10, 2);
+      X.fillStyle = hpPct > 0.5 ? '#0f0' : '#f00';
+      X.fillRect(tx - 5, ty - 9, 10 * hpPct, 2);
+    }
+  }
+
+  // Projectiles
+  for (var i = 0; i < projList.length; i++) {
+    var p = projList[i];
+    var prog = 1 - p.life / 10;
+    var px = p.x + (p.tx - p.x) * prog;
+    var py = p.y + (p.ty - p.y) * prog;
+    X.fillStyle = p.color;
+    X.beginPath();
+    X.arc(px, py, 2, 0, Math.PI * 2);
+    X.fill();
+  }
+}
+
+function drawBuildUI() {
+  var ux = 5, uy = 100;
+  X.fillStyle = '#ddd';
+  X.font = '14px monospace';
+  X.textAlign = 'left';
+  X.fillText('BUILDINGS:', ux, uy);
+
+  var items = [
+    { key: '1', name: 'Cannon', type: B_CANNON, k: 'cannon' },
+    { key: '2', name: 'Archer Twr', type: B_ARCHER, k: 'archer' },
+    { key: '3', name: 'Wall', type: B_WALL, k: 'wall' },
+    { key: '4', name: 'Town Hall', type: B_TOWNHALL, k: 'townhall' }
+  ];
+
+  for (var i = 0; i < items.length; i++) {
+    var item = items[i];
+    var y = uy + 20 + i * 30;
+    var sel = selectedBuild === item.type;
+    X.fillStyle = sel ? '#ff0' : '#aaa';
+    X.fillText('[' + item.key + '] ' + item.name, ux, y);
+    X.fillStyle = '#888';
+    X.fillText(buildCounts[item.k] + '/' + maxBuilds[item.k], ux + 130, y);
+  }
+
+  // Ghost preview
+  if (mouseInGrid && phase === 'build') {
+    var bd = BDATA[selectedBuild];
+    var bx = OX + mouseGX * GS, by = OY + mouseGY * GS;
+    var canPlace = true;
+    if (mouseGX + bd.w > GW || mouseGY + bd.h > GH) canPlace = false;
+    if (buildCounts[bd.cost] >= maxBuilds[bd.cost]) canPlace = false;
+    if (canPlace) {
+      for (var dx = 0; dx < bd.w; dx++)
+        for (var dy = 0; dy < bd.h; dy++)
+          if (playerBase.grid[mouseGX + dx] && playerBase.grid[mouseGX + dx][mouseGY + dy] !== 0) canPlace = false;
+    }
+    X.fillStyle = canPlace ? 'rgba(0,255,0,0.3)' : 'rgba(255,0,0,0.3)';
+    X.fillRect(bx, by, bd.w * GS, bd.h * GS);
+    X.strokeStyle = canPlace ? '#0f0' : '#f00';
+    X.strokeRect(bx, by, bd.w * GS, bd.h * GS);
+  }
+
+  X.fillStyle = '#888';
+  X.font = '11px monospace';
+  X.fillText('Click: place', ux, uy + 150);
+  X.fillText('R-click: remove', ux, uy + 164);
+  X.fillText('Tab: start attack', ux, uy + 178);
+}
+
+function drawAttackUI() {
+  var ux = 5, uy = 100;
+  X.fillStyle = '#ddd';
+  X.font = '14px monospace';
+  X.textAlign = 'left';
+  X.fillText('TROOPS:', ux, uy);
+
+  var items = [
+    { key: '1', name: 'Barbarian', k: 'barb', type: T_BARB },
+    { key: '2', name: 'Archer', k: 'arch', type: T_ARCH },
+    { key: '3', name: 'Giant', k: 'giant', type: T_GIANT },
+    { key: '4', name: 'Goblin', k: 'gob', type: T_GOB }
+  ];
+
+  for (var i = 0; i < items.length; i++) {
+    var item = items[i];
+    var y = uy + 20 + i * 30;
+    var sel = selectedTroop === item.type;
+    X.fillStyle = sel ? '#ff0' : '#aaa';
+    X.fillText('[' + item.key + '] ' + item.name, ux, y);
+    X.fillStyle = TDATA[item.type].color;
+    X.fillText('x' + troopCounts[item.k], ux + 130, y);
+  }
+
+  // Timer
+  var timeLeft = Math.max(0, Math.ceil((attackMaxTime - attackTimer) / 60));
+  var min = Math.floor(timeLeft / 60);
+  var sec = timeLeft % 60;
+  X.fillStyle = timeLeft < 30 ? '#f00' : '#fff';
+  X.font = '16px monospace';
+  X.fillText(min + ':' + (sec < 10 ? '0' : '') + sec, ux + 20, uy + 160);
+
+  // Destruction
+  var pct = Math.floor(calcDestruction(enemyBase) * 100);
+  X.fillStyle = '#0f0';
+  X.fillText(pct + '% destroyed', ux, uy + 185);
+
+  // Deploy hint
+  X.fillStyle = '#888';
+  X.font = '11px monospace';
+  X.fillText('Click edges to', ux, uy + 210);
+  X.fillText('deploy troops', ux, uy + 224);
+
+  // Edge highlight
+  if (mouseInGrid && !attackDone) {
+    var edge = mouseGX === 0 || mouseGX >= GW - 1 || mouseGY === 0 || mouseGY >= GH - 1;
+    if (edge) {
+      X.fillStyle = 'rgba(0,255,255,0.3)';
+      X.fillRect(OX + mouseGX * GS, OY + mouseGY * GS, GS, GS);
+    }
+  }
+}
+
+function drawStars(n, x, y, size) {
+  for (var i = 0; i < 3; i++) {
+    X.fillStyle = i < n ? '#fc0' : '#444';
+    X.font = size + 'px monospace';
+    X.fillText('\u2605', x + i * (size + 4), y);
+  }
+}
+
+function draw() {
+  X.fillStyle = '#0a0a0a';
+  X.fillRect(0, 0, 800, 600);
+
+  // Title bar
+  X.fillStyle = '#7bf';
+  X.font = '16px monospace';
+  X.textAlign = 'center';
+  var phaseLabel = phase === 'build' ? 'BUILD PHASE' : phase === 'attack' ? 'ATTACK PHASE' :
+    phase === 'defense' ? 'DEFENSE REPLAY' : 'RESULTS';
+  X.fillText('SIM-007 \u00b7 CLASH OF CLANS \u2014 ' + phaseLabel, 400, 20);
+
+  // Round & Stars
+  X.font = '12px monospace';
+  X.textAlign = 'left';
+  X.fillStyle = '#aaa';
+  X.fillText('Round: ' + round, 10, 40);
+  X.fillText('Total Stars: ', 10, 58);
+  X.fillStyle = '#fc0';
+  X.fillText(totalStars, 110, 58);
+  X.fillStyle = '#666';
+  X.fillText('? for help', 10, 590);
+
+  if (phase === 'build') {
+    drawGrid(playerBase, OX, OY);
+    drawBuildUI();
+  } else if (phase === 'attack') {
+    drawGrid(enemyBase, OX, OY);
+    drawTroops(troops, projectiles, OX, OY);
+    drawAttackUI();
+  } else if (phase === 'defense') {
+    drawGrid(playerBase, OX, OY);
+    drawTroops(defTroops, defProjectiles, OX, OY);
+    // Defense info
+    X.fillStyle = '#ddd';
+    X.font = '14px monospace';
+    X.textAlign = 'left';
+    X.fillText('AI ATTACKING...', 10, 120);
+    var dpct = Math.floor(calcDestruction(playerBase) * 100);
+    X.fillStyle = dpct < 50 ? '#0f0' : '#f00';
+    X.fillText(dpct + '% destroyed', 10, 140);
+  } else if (phase === 'results') {
+    X.fillStyle = '#ddd';
+    X.font = '20px monospace';
+    X.textAlign = 'center';
+    X.fillText('ROUND ' + round + ' RESULTS', 400, 120);
+
+    X.font = '16px monospace';
+    X.fillStyle = '#7bf';
+    X.fillText('Your Attack:', 400, 180);
+    var aPct = Math.floor(calcDestruction(enemyBase) * 100);
+    X.fillStyle = '#fff';
+    X.fillText(aPct + '% destruction', 400, 205);
+    X.textAlign = 'center';
+    drawStars(stars, 370, 225, 20);
+
+    X.fillStyle = '#f87';
+    X.fillText('AI Attack on Your Base:', 400, 280);
+    var dPct = Math.floor(calcDestruction(playerBase) * 100);
+    X.fillStyle = '#fff';
+    X.fillText(dPct + '% destruction', 400, 305);
+    drawStars(defStars, 370, 325, 20);
+
+    X.fillStyle = '#fc0';
+    X.font = '18px monospace';
+    X.fillText('Total Stars: ' + totalStars, 400, 390);
+
+    X.fillStyle = '#888';
+    X.font = '14px monospace';
+    X.fillText('Press Tab for next round', 400, 440);
+    X.fillText('Press R to restart', 400, 465);
+  }
+
+  // Message
+  if (messageDuration > 0 && gameMessage) {
+    X.fillStyle = 'rgba(0,0,0,0.7)';
+    X.fillRect(200, 560, 400, 30);
+    X.fillStyle = '#ff0';
+    X.font = '14px monospace';
+    X.textAlign = 'center';
+    X.fillText(gameMessage, 400, 580);
+  }
+}
+
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+initGame();
+loop();
+</script>
+</body>
+</html>

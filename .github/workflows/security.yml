@@ -1,0 +1,90 @@
+name: Security — Scheduled Audit
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'  # Every Monday 09:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  # ── Deep secret + history scan ────────────────────────────────────
+  gitleaks-full:
+    name: Full History Secret Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: true
+
+  # ── Custom security scanner ────────────────────────────────────
+  security-scan:
+    name: Game Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run security scanner
+        run: node tools/qa-security.js --fix
+
+      - name: Scan for eval / new Function
+        run: |
+          FOUND=0
+          if grep -rlE '(^|[^a-zA-Z.])eval\(' --include="*.html" prototypes/ ai-archaeology/ ai-evolution/ 2>/dev/null; then
+            echo "::error::eval() found in game files"
+            FOUND=1
+          fi
+          if grep -rl 'new Function(' --include="*.html" prototypes/ ai-archaeology/ ai-evolution/ 2>/dev/null; then
+            echo "::error::new Function() found in game files"
+            FOUND=1
+          fi
+          if grep -rlE "fetch\([[:space:]]*['\"]https?://" --include="*.html" prototypes/ ai-archaeology/ ai-evolution/ 2>/dev/null; then
+            echo "::error::External fetch() found in game files"
+            FOUND=1
+          fi
+          [[ $FOUND -eq 0 ]] && echo "✓ No dangerous patterns found" || exit 1
+
+      - name: Check for hardcoded secrets
+        run: |
+          FOUND=0
+          if grep -rlE 'AKIA[0-9A-Z]{16}' --include="*.html" --include="*.js" --include="*.py" . 2>/dev/null; then
+            echo "::error::Potential AWS access key found"
+            FOUND=1
+          fi
+          if grep -riE '(password|api_key|secret_key|private_key)\s*=\s*["\x27][^"\x27]{8,}' \
+               --include="*.html" --include="*.js" --include="*.py" . 2>/dev/null; then
+            echo "::error::Potential hardcoded credential found"
+            FOUND=1
+          fi
+          [[ $FOUND -eq 0 ]] && echo "✓ No hardcoded secrets detected" || exit 1
+
+  # ── Comprehensive SAST ──────────────────────────────────────────
+  semgrep-deep:
+    name: Deep SAST Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Semgrep (full ruleset)
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: >-
+            p/javascript
+            p/security-audit
+            p/owasp-top-ten
+            p/xss
+            p/injection
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+        continue-on-error: true

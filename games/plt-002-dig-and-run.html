@@ -1,0 +1,591 @@
+<!--
+PROTOTYPE: dig-and-run
+SERIES: plt
+NUMBER: 002
+DATE: 2026-03-22
+MECHANIC: dig traps — collect gold and trap enemies without jumping
+ANCESTRY: Lode Runner (1983, Doug Smith/Broderbund), Championship Lode Runner (1984)
+CONTROLS: Left/Right or A/D — move | Up/W — climb | Down/S — descend | Z — dig left | X — dig right | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — rule-based, pre-backpropagation)
+AI-INSIGHT: The absence of jump IS the design — the player must use terrain modification (digging) as both traversal and trap mechanic. This is a planning problem where the action space includes environment modification. Enemies that can be temporarily trapped but regenerate create a temporal constraint on exploration. The level design becomes a puzzle where the solution path must account for dig-fill cycles.
+NOTES: Absence of jump is the design — trap mechanic + puzzle.
+       Dig creates temporary holes that trap enemies and create paths.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PLT-002 · DIG AND RUN</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>PLT-002 · DIG AND RUN</h1>
+    <p><span class="tag series">PLT — Platformer</span> <span class="tag">Prototype #002</span> <span class="tag">★★★★☆</span></p>
+
+    <h2>How to Play</h2>
+    <p>Collect all gold pieces, then reach the top to escape. Dig holes to trap enemies and create paths. You cannot jump — only move, climb ladders, and dig.</p>
+    <ul>
+      <li><kbd>←</kbd> <kbd>→</kbd> or <kbd>A</kbd> <kbd>D</kbd> — Move left/right</li>
+      <li><kbd>↑</kbd> or <kbd>W</kbd> — Climb up ladder</li>
+      <li><kbd>↓</kbd> or <kbd>S</kbd> — Descend / fall through</li>
+      <li><kbd>Z</kbd> — Dig left</li>
+      <li><kbd>X</kbd> — Dig right</li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>No jump:</strong> You fall whenever there's no floor, ladder, or rope beneath you.</li>
+      <li><strong>Digging:</strong> Creates temporary holes. Enemies fall in and are trapped until the hole fills.</li>
+      <li><strong>Ropes:</strong> You can traverse along ropes (horizontal bars) — hang and move.</li>
+      <li><strong>Trapped enemies:</strong> They regenerate after a few seconds. Don't be nearby when they do.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Lode Runner (1983, Doug Smith/Broderbund) → Championship Lode Runner (1984) → Spelunky (2008, inspired by)</p>
+    <p>Lode Runner (1983) by Doug Smith, a college student, was one of the first games with a level editor — spawning a user-generated content community decades before Minecraft. The core insight: removing jump from a platformer turns it into a puzzle game. Without jump, the player must think about path planning, dig strategically, and use enemies' behavior patterns.</p>
+    <p>The dig mechanic serves dual purposes: create paths through solid ground, AND trap enemies. This dual-use verb is elegant design — one action, two strategic applications.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 3 — Knowledge Explosion (1978–1983)</p>
+    <p><strong>Contemporary AI:</strong> Pathfinding algorithms (A*) were well-established. Planning with environment modification was not.</p>
+    <p><strong>Hidden Intelligence:</strong> Lode Runner is a planning problem where the action space includes environment modification. The player must reason about dig-fill cycles, enemy pathing, and gold collection order. Enemies that regenerate from traps create temporal constraints — the player must plan sequences that account for time. This is a form of temporal planning with destructive and constructive actions, a class of problem that PDDL (Planning Domain Definition Language) wouldn't formalize until 1998.</p>
+    <p><strong>The Convergence:</strong> Modern game-playing agents struggle with Lode Runner because the solution requires environment modification planning — something that standard RL doesn't handle well. The game requires a world model.</p>
+    <p><strong>If AI Had Designed This:</strong> Procedurally generated levels with guaranteed solvability — a constraint satisfaction problem over dig sequences and enemy patrol routes.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: PLT — Platformer</h3>
+    <p>Lode Runner removes the defining platformer verb (jump) and replaces it with dig. This transforms the genre from reflexive to strategic.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Dig traps, collect gold, no jump.</strong> Ladder climbing. Rope traversal. Temporary holes that trap and regenerate. Gold collection + escape objective.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>No-jump constraint — does removing jump make movement feel puzzle-like?</li>
+      <li>Dig as dual-use verb — does digging feel useful for both paths and traps?</li>
+      <li>Enemy trapping — does the trap-and-escape cycle feel satisfying?</li>
+      <li>Level as puzzle — does gold collection order matter?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Hand-crafted level with ladders, ropes, gold, and enemies. Dig mechanic with timed regeneration.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+const keys = {};
+const justPressed = {};
+window.addEventListener('keydown', e => {
+  if (infoOpen) return;
+  if (!keys[e.code]) justPressed[e.code] = true;
+  keys[e.code] = true;
+  e.preventDefault();
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+function pop(code) { if (justPressed[code]) { justPressed[code] = false; return true; } return false; }
+
+// --- LEVEL ---
+const COLS = 28, ROWS = 16, T = 24;
+const OX = (W - COLS * T) / 2;
+const OY = (H - ROWS * T) / 2 + 10;
+
+// Cell types: 0=empty, 1=brick, 2=ladder, 3=rope, 4=gold, 5=steel(undiggable), 6=dug hole
+const LEVEL = [
+  '5000000000000000000000000005',
+  '5000000002000000020000000005',
+  '5111111112111111121111111115',
+  '5000040002000000020004000005',
+  '5000011112000000021111000005',
+  '5002000000000000000000020005',
+  '5112111111133331111111121105',
+  '5000000004002000400000000005',
+  '5011111111112111111111110005',
+  '5000400000002000000004002005',
+  '5000111111112111111110021105',
+  '5020000000002000000000020005',
+  '5121111133312111331111121105',
+  '5000040000002000000400000005',
+  '5111111111112111111111111115',
+  '5555555555555555555555555555',
+];
+
+let map, player, enemies, goldCount, goldCollected, gameOver, won, frame, holes;
+
+function parseLevel() {
+  map = [];
+  const golds = [];
+  const enemySpawns = [];
+  let px = 1, py = 1;
+
+  for (let r = 0; r < ROWS; r++) {
+    map[r] = [];
+    for (let c = 0; c < COLS; c++) {
+      const ch = LEVEL[r][c];
+      map[r][c] = parseInt(ch);
+    }
+  }
+
+  // Count gold
+  goldCount = 0;
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++)
+      if (map[r][c] === 4) goldCount++;
+
+  return { px: 1, py: 13 };
+}
+
+function initGame() {
+  const start = parseLevel();
+  player = { col: start.px, row: start.py, falling: false, onRope: false, facing: 1 };
+  enemies = [
+    { col: 10, row: 1, falling: false, trapped: 0, alive: true },
+    { col: 18, row: 1, falling: false, trapped: 0, alive: true },
+    { col: 14, row: 5, falling: false, trapped: 0, alive: true },
+  ];
+  goldCollected = 0;
+  gameOver = false; won = false; frame = 0;
+  holes = []; // { col, row, timer }
+}
+initGame();
+
+function isSolid(c, r) {
+  if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return true;
+  const cell = map[r][c];
+  return cell === 1 || cell === 5;
+}
+
+function isPassable(c, r) {
+  if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return false;
+  const cell = map[r][c];
+  return cell !== 1 && cell !== 5;
+}
+
+function isLadder(c, r) {
+  if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return false;
+  return map[r][c] === 2;
+}
+
+function isRope(c, r) {
+  if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return false;
+  return map[r][c] === 3;
+}
+
+function hasSupport(c, r) {
+  return isSolid(c, r + 1) || isLadder(c, r) || isRope(c, r) ||
+    (r + 1 < ROWS && map[r + 1][c] === 6 && holes.some(h => h.col === c && h.row === r + 1 && h.timer > 0));
+}
+
+function dig(dc) {
+  const tc = player.col + dc;
+  const tr = player.row + 1;
+  if (tc < 0 || tc >= COLS || tr >= ROWS) return;
+  if (map[tr][tc] !== 1) return; // can only dig brick
+  if (!isPassable(tc, player.row)) return; // must be empty space to dig into
+
+  map[tr][tc] = 0;
+  holes.push({ col: tc, row: tr, timer: 300 }); // refills after 300 frames
+}
+
+function update() {
+  if (infoOpen) return;
+  if (gameOver || won) { if (pop('KeyR')) initGame(); return; }
+  frame++;
+
+  // Hole timers
+  for (const h of holes) {
+    h.timer--;
+    if (h.timer <= 0) {
+      map[h.row][h.col] = 1; // refill
+      // Kill anything trapped in hole
+      for (const e of enemies) {
+        if (e.col === h.col && e.row === h.row) {
+          e.col = e.col < COLS / 2 ? 2 : COLS - 3;
+          e.row = 1;
+          e.trapped = 0;
+        }
+      }
+      if (player.col === h.col && player.row === h.row) {
+        gameOver = true; return;
+      }
+    }
+  }
+  holes = holes.filter(h => h.timer > 0);
+
+  // Player movement (every 4 frames for tile-based feel)
+  if (frame % 4 === 0) {
+    // Gravity
+    if (!hasSupport(player.col, player.row) && !isLadder(player.col, player.row)) {
+      if (isPassable(player.col, player.row + 1)) {
+        player.row++;
+        player.onRope = false;
+      }
+    } else {
+      // Input
+      if (keys['ArrowLeft'] || keys['KeyA']) {
+        player.facing = -1;
+        if (isPassable(player.col - 1, player.row)) {
+          player.col--;
+          player.onRope = isRope(player.col, player.row);
+        }
+      }
+      if (keys['ArrowRight'] || keys['KeyD']) {
+        player.facing = 1;
+        if (isPassable(player.col + 1, player.row)) {
+          player.col++;
+          player.onRope = isRope(player.col, player.row);
+        }
+      }
+      if (keys['ArrowUp'] || keys['KeyW']) {
+        if (isLadder(player.col, player.row) && isPassable(player.col, player.row - 1)) {
+          player.row--;
+          player.onRope = false;
+        }
+      }
+      if (keys['ArrowDown'] || keys['KeyS']) {
+        if ((isLadder(player.col, player.row) || isLadder(player.col, player.row + 1)) && isPassable(player.col, player.row + 1)) {
+          player.row++;
+          player.onRope = false;
+        }
+      }
+    }
+
+    // Dig
+    if (pop('KeyZ')) dig(-1);
+    if (pop('KeyX')) dig(1);
+
+    // Collect gold
+    if (map[player.row][player.col] === 4) {
+      map[player.row][player.col] = 0;
+      goldCollected++;
+    }
+
+    // Win: all gold + reach top row
+    if (goldCollected >= goldCount && player.row <= 1) {
+      won = true;
+    }
+
+    // Enemy AI
+    for (const e of enemies) {
+      if (e.trapped > 0) { e.trapped--; continue; }
+
+      // Gravity
+      if (!hasSupport(e.col, e.row) && !isLadder(e.col, e.row)) {
+        if (isPassable(e.col, e.row + 1)) {
+          e.row++;
+          // Check if fell into hole
+          if (holes.some(h => h.col === e.col && h.row === e.row)) {
+            e.trapped = 200;
+          }
+          continue;
+        }
+      }
+
+      // Chase player (simple: move toward player)
+      const dx = player.col - e.col;
+      const dy = player.row - e.row;
+
+      if (Math.abs(dx) > Math.abs(dy)) {
+        const nc = e.col + Math.sign(dx);
+        if (isPassable(nc, e.row)) e.col = nc;
+        else if (dy !== 0 && isLadder(e.col, e.row)) {
+          const nr = e.row + Math.sign(dy);
+          if (isPassable(e.col, nr)) e.row = nr;
+        }
+      } else {
+        if (isLadder(e.col, e.row) && dy !== 0) {
+          const nr = e.row + Math.sign(dy);
+          if (isPassable(e.col, nr)) e.row = nr;
+        } else {
+          const nc = e.col + Math.sign(dx);
+          if (isPassable(nc, e.row)) e.col = nc;
+        }
+      }
+
+      // Enemy-player collision
+      if (e.col === player.col && e.row === player.row && e.trapped <= 0) {
+        gameOver = true; return;
+      }
+    }
+  }
+}
+
+function draw() {
+  ctx.fillStyle = '#08080f'; ctx.fillRect(0, 0, W, H);
+
+  // Draw map
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const x = OX + c * T, y = OY + r * T;
+      const cell = map[r][c];
+
+      if (cell === 1) {
+        // Brick
+        ctx.fillStyle = '#8a5a2a';
+        ctx.fillRect(x, y, T, T);
+        ctx.strokeStyle = '#6a4020'; ctx.lineWidth = 1;
+        ctx.strokeRect(x, y, T / 2, T / 2);
+        ctx.strokeRect(x + T / 2, y + T / 2, T / 2, T / 2);
+      } else if (cell === 5) {
+        // Steel
+        ctx.fillStyle = '#555';
+        ctx.fillRect(x, y, T, T);
+        ctx.fillStyle = '#666';
+        ctx.fillRect(x + 2, y + 2, T - 4, T - 4);
+      } else if (cell === 2) {
+        // Ladder
+        ctx.strokeStyle = '#888'; ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x + 4, y); ctx.lineTo(x + 4, y + T);
+        ctx.moveTo(x + T - 4, y); ctx.lineTo(x + T - 4, y + T);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x + 4, y + T / 3); ctx.lineTo(x + T - 4, y + T / 3);
+        ctx.moveTo(x + 4, y + 2 * T / 3); ctx.lineTo(x + T - 4, y + 2 * T / 3);
+        ctx.stroke();
+      } else if (cell === 3) {
+        // Rope
+        ctx.strokeStyle = '#aa8844'; ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x, y + 4); ctx.lineTo(x + T, y + 4);
+        ctx.stroke();
+      } else if (cell === 4) {
+        // Gold
+        ctx.fillStyle = '#ffd700';
+        ctx.fillRect(x + 6, y + 10, T - 12, T - 14);
+        ctx.fillStyle = '#ffaa00';
+        ctx.fillRect(x + 8, y + 6, T - 16, 6);
+      }
+
+      // Dug hole visual
+      if (holes.some(h => h.col === c && h.row === r)) {
+        ctx.fillStyle = '#08080f';
+        ctx.fillRect(x, y, T, T);
+        // Crumbling edges
+        const h = holes.find(hh => hh.col === c && hh.row === r);
+        if (h && h.timer < 60) {
+          ctx.fillStyle = '#8a5a2a';
+          const fill = 1 - h.timer / 60;
+          ctx.fillRect(x, y + T * (1 - fill), T, T * fill);
+        }
+      }
+    }
+  }
+
+  // Enemies
+  for (const e of enemies) {
+    const ex = OX + e.col * T, ey = OY + e.row * T;
+    if (e.trapped > 0) {
+      // Trapped — just head visible
+      ctx.fillStyle = '#f44';
+      ctx.fillRect(ex + 4, ey + 2, T - 8, T / 2);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(ex + 8, ey + 6, 3, 3);
+      ctx.fillRect(ex + T - 11, ey + 6, 3, 3);
+    } else {
+      ctx.fillStyle = '#f44';
+      ctx.fillRect(ex + 4, ey + 2, T - 8, T - 4);
+      // Head
+      ctx.fillStyle = '#ff6666';
+      ctx.fillRect(ex + 6, ey, T - 12, T / 2);
+      // Eyes
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(ex + 8, ey + 4, 3, 3);
+      ctx.fillRect(ex + T - 11, ey + 4, 3, 3);
+    }
+  }
+
+  // Player
+  const px = OX + player.col * T, py = OY + player.row * T;
+  ctx.fillStyle = '#4af';
+  ctx.fillRect(px + 4, py + 2, T - 8, T - 4);
+  ctx.fillStyle = '#6cf';
+  ctx.fillRect(px + 6, py, T - 12, T / 2);
+  // Eyes
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(px + 8, py + 4, 3, 3);
+  ctx.fillRect(px + T - 11, py + 4, 3, 3);
+  // Arms (dig direction)
+  ctx.fillStyle = '#4af';
+  if (player.facing < 0) {
+    ctx.fillRect(px - 2, py + 8, 6, 4);
+  } else {
+    ctx.fillRect(px + T - 4, py + 8, 6, 4);
+  }
+
+  // HUD
+  ctx.fillStyle = '#ffd700'; ctx.font = '16px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('GOLD: ' + goldCollected + '/' + goldCount, 10, 26);
+
+  if (goldCollected >= goldCount) {
+    ctx.fillStyle = '#4f4'; ctx.textAlign = 'center';
+    ctx.fillText('ALL GOLD — REACH THE TOP!', W / 2, 26);
+  }
+
+  // Game over / win
+  if (gameOver || won) {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, W, H);
+    ctx.font = 'bold 48px monospace'; ctx.textAlign = 'center';
+    ctx.fillStyle = won ? '#4f4' : '#f55';
+    ctx.fillText(won ? 'ESCAPED!' : 'GAME OVER', W / 2, H / 2 - 20);
+    ctx.fillStyle = '#aaa'; ctx.font = '18px monospace';
+    ctx.fillText('R to restart', W / 2, H / 2 + 24);
+  }
+
+  // Title badge
+  ctx.fillStyle = '#1a1a1a'; ctx.fillRect(8, 8, 260, 28);
+  ctx.fillStyle = '#555'; ctx.font = '13px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('PLT-002 · DIG AND RUN  [?]', 16, 26);
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: pong ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("pong");
+</script>
+</body>
+</html>

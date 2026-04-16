@@ -1,0 +1,1508 @@
+<!--
+PROTOTYPE: crown-adventure
+SERIES: adv
+NUMBER: 002
+DATE: 2026-03-22
+MECHANIC: explore rooms, collect items, solve inventory puzzles
+ANCESTRY: King's Quest (1984, Sierra/Roberta Williams), Adventure (1980, Atari/Warren Robinett)
+CONTROLS: Arrow keys — move | Space — interact/pick up | I — inventory | 1-5 — select item | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — adventure game logic, state machines)
+AI-INSIGHT: King's Quest transformed text adventure state machines into spatial puzzles — the dependency graph of items and locks became a physical world the player walks through. This is constraint satisfaction made tangible, where the search space is literal geography.
+NOTES: Inventory puzzles are dependency graphs in disguise.
+       Each room is a scene — visual storytelling replaces text descriptions.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ADV-002 · CROWN ADVENTURE</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>ADV-002 · CROWN ADVENTURE</h1>
+    <p><span class="tag series">ADV — Adventure</span> <span class="tag">Prototype #002</span> <span class="tag">★★★★☆</span></p>
+
+    <h2>How to Play</h2>
+    <p>Explore a fairy-tale kingdom of 10 rooms. Collect items, solve puzzles, and retrieve the crown from the Throne Room to win.</p>
+    <ul>
+      <li><kbd>Arrow keys</kbd> — Move the knight</li>
+      <li><kbd>Space</kbd> — Pick up items / interact with puzzle objects</li>
+      <li><kbd>I</kbd> — Toggle inventory display</li>
+      <li><kbd>1</kbd>-<kbd>5</kbd> — Select active item from inventory</li>
+      <li><kbd>R</kbd> — Restart game</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Walk to screen edges</strong> to travel between rooms.</li>
+      <li><strong>Stand near objects</strong> and press Space to interact.</li>
+      <li><strong>Select the right item</strong> before interacting with puzzle objects.</li>
+      <li><strong>Watch your lives:</strong> water, guards, and dragon fire are dangerous.</li>
+      <li><strong>The map:</strong> 3×3 grid plus a bonus room behind the dragon.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Adventure (1980, Atari/Warren Robinett) → King's Quest (1984, Sierra/Roberta Williams)</p>
+    <p>King's Quest was created by Roberta Williams at Sierra On-Line and is widely regarded as the first graphical adventure game with animated characters. It replaced text parsers with a character walking through illustrated scenes — the player's avatar became part of the picture.</p>
+    <p>Warren Robinett's Adventure (1980) for the Atari 2600 pioneered the concept of room-based exploration with inventory items, but King's Quest added narrative depth, puzzle chains, and the idea that the world itself tells a story through its scenery.</p>
+    <p>The "use item X on object Y" puzzle paradigm that King's Quest popularized became the backbone of the entire adventure game genre through the 1990s.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 3 — Knowledge Explosion (1978–1983)</p>
+    <p><strong>Contemporary AI:</strong> Expert systems were booming. MYCIN diagnosed diseases using if-then rules. Adventure games used the same pattern: if player has key AND is at locked door, THEN unlock door.</p>
+    <p><strong>Hidden Intelligence:</strong> King's Quest transformed text adventure state machines into spatial puzzles. The dependency graph of items and locks became a physical world the player walks through. This is constraint satisfaction made tangible — the search space is literal geography. Each puzzle is a precondition check: do you have item X? Are you at location Y? The entire game is a directed acyclic graph of dependencies disguised as a fairy tale.</p>
+    <p><strong>The Convergence:</strong> Modern game AI uses the same dependency-graph planning that adventure games pioneered. GOAP (Goal-Oriented Action Planning) in games like F.E.A.R. is essentially an automated adventure game puzzle solver — find the sequence of actions that satisfies all preconditions to reach the goal state.</p>
+    <p><strong>If AI Had Designed This:</strong> An automated planner would generate the optimal item collection route — solving the constraint satisfaction problem in minimum steps. The human designer instead optimized for narrative surprise and exploration joy.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: ADV — Adventure</h3>
+    <p>Room exploration with inventory puzzles. The player navigates a world, collects objects, and uses them to overcome obstacles — the core loop of every adventure game from Colossal Cave to modern point-and-clicks.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Room exploration with inventory-based puzzle solving.</strong> Walk through scenes, collect items, combine items with world objects to progress. Dependency chain of puzzles gates access to the final goal.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Room transitions — does walking to screen edges feel natural?</li>
+      <li>Item pickup — is the proximity interaction intuitive?</li>
+      <li>Puzzle feedback — does the player understand what to use where?</li>
+      <li>Exploration motivation — do distinct rooms encourage wandering?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. 10 rooms in a 3×3+1 grid. 5 collectible items. 4 inventory puzzles chained in a dependency graph. 3 lives system. Canvas-drawn fairy-tale scenes with distinct color palettes per room.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+const keys = {};
+window.addEventListener('keydown', e => {
+  if (!infoOpen) keys[e.code] = true;
+  if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+// --- CONSTANTS ---
+const PLAYER_W = 20, PLAYER_H = 28;
+const PLAYER_SPEED = 3;
+const GROUND_Y = 500; // ground level for side-view rooms
+const INTERACT_DIST = 50;
+const EDGE_MARGIN = 10;
+
+// Room IDs
+const FOREST = 0, CASTLE_GATE = 1, TOWER = 2;
+const LAKE = 3, COURTYARD = 4, DUNGEON = 5;
+const CAVE = 6, BRIDGE = 7, DRAGON_LAIR = 8;
+const THRONE = 9;
+
+// Item IDs
+const PLANK = 'plank', FISH = 'fish', KEY = 'key', SHIELD = 'shield', RING = 'ring', CROWN = 'crown';
+
+// Room adjacency: [left, right, up, down] — -1 = no exit
+const ROOM_MAP = [
+  /* 0 FOREST */      [-1,  1, -1,  3],
+  /* 1 CASTLE_GATE */ [ 0,  2, -1,  4],
+  /* 2 TOWER */       [ 1, -1, -1,  5],
+  /* 3 LAKE */        [-1,  4,  0,  6],
+  /* 4 COURTYARD */   [ 3,  5,  1,  7],
+  /* 5 DUNGEON */     [ 4, -1,  2,  8],
+  /* 6 CAVE */        [-1,  7,  3, -1],
+  /* 7 BRIDGE */      [ 6,  8,  4, -1],
+  /* 8 DRAGON_LAIR */ [ 7, -1,  5,  9],
+  /* 9 THRONE */      [-1, -1,  8, -1]
+];
+
+const ROOM_NAMES = [
+  'Forest', 'Castle Gate', 'Tower',
+  'Lake Shore', 'Courtyard', 'Dungeon',
+  'Cave', 'Bridge', "Dragon's Lair",
+  'Throne Room'
+];
+
+// --- STATE ---
+let player, inventory, activeItem, lives, currentRoom, roomStates, message, msgTimer;
+let gameWon, gameOver, showInventory, frame, deathTimer, hurtFlash;
+let dragonFireTimer, dragonFireActive, guardAttackTimer;
+
+function initGame() {
+  player = { x: 400, y: 440, vx: 0, vy: 0, dir: 1, walkFrame: 0 };
+  inventory = [];
+  activeItem = -1;
+  lives = 3;
+  currentRoom = FOREST;
+  gameWon = false;
+  gameOver = false;
+  showInventory = false;
+  message = 'Explore the kingdom! Find the crown!';
+  msgTimer = 180;
+  frame = 0;
+  deathTimer = 0;
+  hurtFlash = 0;
+  dragonFireTimer = 0;
+  dragonFireActive = false;
+  guardAttackTimer = 0;
+
+  // Room states track puzzle progress
+  roomStates = {
+    plankPlaced: false,    // bridge fixed
+    fishGiven: false,      // guard fed
+    chestOpened: false,    // dungeon chest
+    dragonAsleep: false,   // dragon defeated
+    crownTaken: false,     // crown collected
+    // Items present in rooms (can be picked up)
+    items: {
+      [FOREST]: { id: PLANK, x: 580, y: 460, w: 40, h: 10, taken: false },
+      [LAKE]: { id: FISH, x: 300, y: 470, w: 30, h: 15, taken: false },
+      [CAVE]: { id: KEY, x: 200, y: 465, w: 16, h: 22, taken: false },
+      [COURTYARD]: { id: SHIELD, x: 600, y: 445, w: 24, h: 30, taken: false },
+      [DUNGEON]: { id: RING, x: 500, y: 465, w: 14, h: 14, taken: false, locked: true },
+      [THRONE]: { id: CROWN, x: 400, y: 420, w: 28, h: 20, taken: false, locked: true }
+    },
+    // Puzzle objects in rooms
+    puzzles: {
+      [BRIDGE]: { id: 'gap', x: 380, y: 470, w: 80, h: 30, label: 'Gap in bridge' },
+      [CASTLE_GATE]: { id: 'guard', x: 400, y: 420, w: 30, h: 60, label: 'Castle guard' },
+      [DUNGEON]: { id: 'chest', x: 480, y: 440, w: 50, h: 35, label: 'Locked chest' },
+      [DRAGON_LAIR]: { id: 'dragon', x: 550, y: 380, w: 80, h: 80, label: 'Dragon' }
+    },
+    // Hazard zones
+    hazards: {
+      [LAKE]: { x: 100, y: 490, w: 350, h: 110, type: 'water' },
+      [BRIDGE]: { x: 380, y: 490, w: 80, h: 110, type: 'gap' }
+    }
+  };
+}
+initGame();
+
+function hasItem(id) { return inventory.includes(id); }
+function getActiveItem() { return activeItem >= 0 && activeItem < inventory.length ? inventory[activeItem] : null; }
+
+function showMsg(text, dur) { message = text; msgTimer = dur || 150; }
+
+function hurtPlayer(reason) {
+  lives--;
+  hurtFlash = 30;
+  showMsg(reason + ' (' + lives + ' lives left)', 120);
+  if (lives <= 0) {
+    gameOver = true;
+    showMsg('Game Over! Press R to restart.', 9999);
+  } else {
+    // Respawn at safe position in room
+    player.x = 400; player.y = 440;
+    deathTimer = 60;
+  }
+}
+
+function tryPickup() {
+  const item = roomStates.items[currentRoom];
+  if (!item || item.taken) return false;
+  if (item.locked) return false;
+  const dx = Math.abs(player.x - (item.x + item.w / 2));
+  const dy = Math.abs((player.y + PLAYER_H / 2) - (item.y + item.h / 2));
+  if (dx < INTERACT_DIST && dy < INTERACT_DIST) {
+    item.taken = true;
+    inventory.push(item.id);
+    showMsg('Got ' + item.id + '! Press I for inventory.', 120);
+    if (item.id === CROWN) {
+      showMsg('Got the CROWN! Return to the Forest to win!', 240);
+    }
+    return true;
+  }
+  return false;
+}
+
+function tryInteract() {
+  const puzzle = roomStates.puzzles[currentRoom];
+  if (!puzzle) return false;
+  const dx = Math.abs(player.x - (puzzle.x + puzzle.w / 2));
+  const dy = Math.abs((player.y + PLAYER_H / 2) - (puzzle.y + puzzle.h / 2));
+  if (dx > INTERACT_DIST + 20 || dy > INTERACT_DIST + 20) return false;
+
+  const active = getActiveItem();
+
+  switch (puzzle.id) {
+    case 'gap':
+      if (roomStates.plankPlaced) { showMsg('The bridge is repaired.', 90); return true; }
+      if (active === PLANK) {
+        roomStates.plankPlaced = true;
+        inventory.splice(activeItem, 1);
+        activeItem = -1;
+        // Remove hazard
+        delete roomStates.hazards[BRIDGE];
+        showMsg('Placed the plank! The bridge is fixed!', 120);
+        return true;
+      }
+      showMsg('A gap in the bridge. Need something to cross...', 120);
+      return true;
+
+    case 'guard':
+      if (roomStates.fishGiven) { showMsg('The guard lets you pass, content and full.', 90); return true; }
+      if (active === FISH) {
+        roomStates.fishGiven = true;
+        inventory.splice(activeItem, 1);
+        activeItem = -1;
+        showMsg('The guard takes the fish and steps aside!', 120);
+        return true;
+      }
+      showMsg('A hungry guard blocks the gate. He looks famished...', 120);
+      return true;
+
+    case 'chest':
+      if (roomStates.chestOpened) { showMsg('The chest is empty now.', 90); return true; }
+      if (active === KEY) {
+        roomStates.chestOpened = true;
+        inventory.splice(activeItem, 1);
+        activeItem = -1;
+        // Unlock ring
+        roomStates.items[DUNGEON].locked = false;
+        showMsg('Unlocked the chest! A magic ring glows inside!', 120);
+        return true;
+      }
+      showMsg('A locked chest. You need a key...', 120);
+      return true;
+
+    case 'dragon':
+      if (roomStates.dragonAsleep) { showMsg('The dragon snores peacefully.', 90); return true; }
+      if (active === RING && hasItem(SHIELD)) {
+        roomStates.dragonAsleep = true;
+        inventory.splice(inventory.indexOf(RING), 1);
+        if (activeItem >= inventory.length) activeItem = inventory.length - 1;
+        // Unlock crown
+        roomStates.items[THRONE].locked = false;
+        showMsg('The ring glows! The dragon falls into deep sleep!', 150);
+        return true;
+      }
+      if (active === SHIELD) {
+        showMsg('The shield blocks fire, but you need more to defeat the dragon!', 120);
+        return true;
+      }
+      showMsg('A fearsome dragon! You need protection and magic...', 120);
+      return true;
+  }
+  return false;
+}
+
+function changeRoom(newRoom) {
+  currentRoom = newRoom;
+  showMsg(ROOM_NAMES[newRoom], 90);
+  dragonFireTimer = 0;
+  dragonFireActive = false;
+  guardAttackTimer = 0;
+}
+
+function update() {
+  if (infoOpen) return;
+  frame++;
+
+  if (gameOver || gameWon) {
+    if (keys['KeyR']) initGame();
+    return;
+  }
+
+  if (deathTimer > 0) { deathTimer--; return; }
+
+  // Movement
+  let dx = 0, dy = 0;
+  if (keys['ArrowLeft']) { dx = -PLAYER_SPEED; player.dir = -1; }
+  if (keys['ArrowRight']) { dx = PLAYER_SPEED; player.dir = 1; }
+  if (keys['ArrowUp']) dy = -PLAYER_SPEED;
+  if (keys['ArrowDown']) dy = PLAYER_SPEED;
+
+  player.x += dx;
+  player.y += dy;
+
+  // Walk animation
+  if (dx !== 0 || dy !== 0) player.walkFrame += 0.15;
+  else player.walkFrame = 0;
+
+  // Bounds
+  const minY = 360, maxY = 510;
+  if (player.y < minY) player.y = minY;
+  if (player.y > maxY) player.y = maxY;
+
+  // Room transitions at edges
+  if (player.x < EDGE_MARGIN) {
+    const next = ROOM_MAP[currentRoom][0];
+    if (next >= 0 && canEnterRoom(next)) {
+      player.x = W - EDGE_MARGIN - PLAYER_W;
+      changeRoom(next);
+    } else {
+      player.x = EDGE_MARGIN;
+      if (next >= 0) showMsg(getBlockedMsg(next), 90);
+    }
+  }
+  if (player.x > W - EDGE_MARGIN - PLAYER_W) {
+    const next = ROOM_MAP[currentRoom][1];
+    if (next >= 0 && canEnterRoom(next)) {
+      player.x = EDGE_MARGIN;
+      changeRoom(next);
+    } else {
+      player.x = W - EDGE_MARGIN - PLAYER_W;
+      if (next >= 0) showMsg(getBlockedMsg(next), 90);
+    }
+  }
+  if (player.y < minY + 5) {
+    const next = ROOM_MAP[currentRoom][2];
+    if (next >= 0 && canEnterRoom(next)) {
+      player.y = maxY - 5;
+      changeRoom(next);
+    } else {
+      player.y = minY + 5;
+      if (next >= 0) showMsg(getBlockedMsg(next), 90);
+    }
+  }
+  if (player.y > maxY - 5) {
+    const next = ROOM_MAP[currentRoom][3];
+    if (next >= 0 && canEnterRoom(next)) {
+      player.y = minY + 10;
+      changeRoom(next);
+    } else {
+      player.y = maxY - 5;
+      if (next >= 0) showMsg(getBlockedMsg(next), 90);
+    }
+  }
+
+  // Hazard check
+  const hz = roomStates.hazards[currentRoom];
+  if (hz) {
+    const px = player.x + PLAYER_W / 2, py = player.y + PLAYER_H;
+    if (px > hz.x && px < hz.x + hz.w && py > hz.y && py < hz.y + hz.h) {
+      if (hz.type === 'water') hurtPlayer('Fell in the water!');
+      else if (hz.type === 'gap') hurtPlayer('Fell through the gap!');
+    }
+  }
+
+  // Dragon fire hazard
+  if (currentRoom === DRAGON_LAIR && !roomStates.dragonAsleep) {
+    dragonFireTimer++;
+    if (dragonFireTimer % 180 < 60 && dragonFireTimer > 30) {
+      dragonFireActive = true;
+      // Check if player is hit (in front of dragon, no shield)
+      if (dragonFireTimer % 180 === 31) {
+        if (!hasItem(SHIELD)) {
+          hurtPlayer('Burned by dragon fire!');
+        } else {
+          showMsg('Your shield blocks the fire!', 60);
+        }
+      }
+    } else {
+      dragonFireActive = false;
+    }
+  }
+
+  // Guard attack
+  if (currentRoom === CASTLE_GATE && !roomStates.fishGiven) {
+    const guardPuzzle = roomStates.puzzles[CASTLE_GATE];
+    const gx = guardPuzzle.x + guardPuzzle.w / 2;
+    const gy = guardPuzzle.y + guardPuzzle.h / 2;
+    const pdx = Math.abs(player.x - gx);
+    const pdy = Math.abs(player.y + PLAYER_H / 2 - gy);
+    if (pdx < 40 && pdy < 40) {
+      guardAttackTimer++;
+      if (guardAttackTimer > 60) {
+        hurtPlayer('The guard shoved you away!');
+        player.x = player.x < gx ? 200 : 600;
+        guardAttackTimer = 0;
+      }
+    } else {
+      guardAttackTimer = Math.max(0, guardAttackTimer - 2);
+    }
+  }
+
+  // Win condition: have crown and in forest
+  if (hasItem(CROWN) && currentRoom === FOREST) {
+    gameWon = true;
+    showMsg('You returned the crown! A true hero!', 9999);
+  }
+
+  // Interaction
+  if (keys['Space']) {
+    keys['Space'] = false;
+    if (!tryPickup()) tryInteract();
+  }
+
+  // Inventory toggle
+  if (keys['KeyI']) {
+    keys['KeyI'] = false;
+    showInventory = !showInventory;
+  }
+
+  // Item selection
+  for (let i = 1; i <= 5; i++) {
+    if (keys['Digit' + i]) {
+      keys['Digit' + i] = false;
+      if (i - 1 < inventory.length) {
+        activeItem = i - 1;
+        showMsg('Selected: ' + inventory[activeItem], 60);
+      }
+    }
+  }
+
+  // Restart
+  if (keys['KeyR']) { keys['KeyR'] = false; initGame(); }
+
+  // Message timer
+  if (msgTimer > 0) msgTimer--;
+
+  // Hurt flash
+  if (hurtFlash > 0) hurtFlash--;
+}
+
+function canEnterRoom(room) {
+  // Guard blocks entry to courtyard from castle gate
+  if (room === COURTYARD && currentRoom === CASTLE_GATE && !roomStates.fishGiven) return false;
+  // Dragon blocks entry to throne room
+  if (room === THRONE && !roomStates.dragonAsleep) return false;
+  return true;
+}
+
+function getBlockedMsg(room) {
+  if (room === COURTYARD && !roomStates.fishGiven) return 'The guard blocks your way!';
+  if (room === THRONE && !roomStates.dragonAsleep) return 'The dragon blocks the way!';
+  return '';
+}
+
+// --- DRAWING ---
+
+function drawSky(topColor, botColor) {
+  const grad = ctx.createLinearGradient(0, 0, 0, 360);
+  grad.addColorStop(0, topColor);
+  grad.addColorStop(1, botColor);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, 360);
+}
+
+function drawGround(color1, color2) {
+  ctx.fillStyle = color1;
+  ctx.fillRect(0, 480, W, 120);
+  ctx.fillStyle = color2;
+  ctx.fillRect(0, 500, W, 100);
+}
+
+function drawTree(x, y, size) {
+  ctx.fillStyle = '#4a2800';
+  ctx.fillRect(x - 4, y, 8, size * 0.6);
+  ctx.fillStyle = '#1a6b1a';
+  ctx.beginPath();
+  ctx.arc(x, y - size * 0.1, size * 0.4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#228b22';
+  ctx.beginPath();
+  ctx.arc(x - 5, y + 2, size * 0.35, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawCastle(x, y, w, h) {
+  ctx.fillStyle = '#888';
+  ctx.fillRect(x, y, w, h);
+  // Battlements
+  ctx.fillStyle = '#999';
+  for (let i = 0; i < w; i += 16) {
+    ctx.fillRect(x + i, y - 12, 10, 12);
+  }
+  // Window
+  ctx.fillStyle = '#446';
+  ctx.fillRect(x + w / 2 - 8, y + 15, 16, 20);
+  // Door
+  ctx.fillStyle = '#553311';
+  ctx.fillRect(x + w / 2 - 10, y + h - 35, 20, 35);
+}
+
+function drawWater(x, y, w, h) {
+  ctx.fillStyle = '#1a5599';
+  ctx.fillRect(x, y, w, h);
+  // Ripples
+  ctx.strokeStyle = '#2a7acc';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 6; i++) {
+    const rx = x + 20 + i * (w / 6);
+    const ry = y + 10 + Math.sin(frame * 0.05 + i) * 4;
+    ctx.beginPath();
+    ctx.moveTo(rx - 15, ry);
+    ctx.quadraticCurveTo(rx, ry - 4, rx + 15, ry);
+    ctx.stroke();
+  }
+}
+
+function drawRoom() {
+  switch (currentRoom) {
+    case FOREST: drawForest(); break;
+    case CASTLE_GATE: drawCastleGate(); break;
+    case TOWER: drawTower(); break;
+    case LAKE: drawLake(); break;
+    case COURTYARD: drawCourtyard(); break;
+    case DUNGEON: drawDungeonRoom(); break;
+    case CAVE: drawCaveRoom(); break;
+    case BRIDGE: drawBridgeRoom(); break;
+    case DRAGON_LAIR: drawDragonLair(); break;
+    case THRONE: drawThroneRoom(); break;
+  }
+}
+
+function drawForest() {
+  drawSky('#3388cc', '#88bbdd');
+  // Grass
+  ctx.fillStyle = '#2d8a2d';
+  ctx.fillRect(0, 360, W, 120);
+  ctx.fillStyle = '#257025';
+  ctx.fillRect(0, 480, W, 120);
+  // Trees
+  drawTree(80, 380, 60);
+  drawTree(200, 370, 70);
+  drawTree(650, 375, 65);
+  drawTree(750, 385, 55);
+  drawTree(120, 410, 50);
+  drawTree(700, 400, 55);
+  // Path
+  ctx.fillStyle = '#8b7355';
+  ctx.fillRect(350, 400, 100, 200);
+  // Flowers
+  ctx.fillStyle = '#ff6688';
+  for (let i = 0; i < 8; i++) {
+    ctx.beginPath();
+    ctx.arc(300 + i * 30, 450 + Math.sin(i * 2) * 15, 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // Item: plank
+  drawRoomItem(FOREST);
+}
+
+function drawCastleGate() {
+  drawSky('#5577aa', '#99aabb');
+  // Castle wall background
+  ctx.fillStyle = '#777';
+  ctx.fillRect(0, 200, W, 160);
+  // Battlements
+  ctx.fillStyle = '#888';
+  for (let i = 0; i < W; i += 30) {
+    ctx.fillRect(i, 185, 20, 15);
+  }
+  // Ground
+  ctx.fillStyle = '#8b8b6b';
+  ctx.fillRect(0, 360, W, 120);
+  ctx.fillStyle = '#7a7a5a';
+  ctx.fillRect(0, 480, W, 120);
+  // Gate
+  ctx.fillStyle = '#553311';
+  ctx.fillRect(360, 300, 80, 80);
+  ctx.fillStyle = '#442200';
+  ctx.fillRect(365, 305, 70, 75);
+  // Portcullis lines
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 3;
+  for (let i = 370; i < 430; i += 12) {
+    ctx.beginPath(); ctx.moveTo(i, 305); ctx.lineTo(i, 380); ctx.stroke();
+  }
+  // Guard
+  if (!roomStates.fishGiven) {
+    drawGuard(400, 420);
+  }
+  // Towers
+  drawCastle(100, 240, 60, 120);
+  drawCastle(640, 240, 60, 120);
+}
+
+function drawGuard(x, y) {
+  // Body
+  ctx.fillStyle = '#aa3333';
+  ctx.fillRect(x - 12, y, 24, 40);
+  // Head
+  ctx.fillStyle = '#dda580';
+  ctx.fillRect(x - 8, y - 15, 16, 16);
+  // Helmet
+  ctx.fillStyle = '#666';
+  ctx.fillRect(x - 9, y - 18, 18, 8);
+  // Spear
+  ctx.fillStyle = '#8b7355';
+  ctx.fillRect(x + 14, y - 30, 3, 70);
+  ctx.fillStyle = '#aaa';
+  ctx.beginPath();
+  ctx.moveTo(x + 11, y - 30);
+  ctx.lineTo(x + 15, y - 42);
+  ctx.lineTo(x + 20, y - 30);
+  ctx.closePath();
+  ctx.fill();
+  // Warning indicator
+  if (guardAttackTimer > 20) {
+    ctx.fillStyle = '#ff0';
+    ctx.font = '16px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('!', x, y - 50);
+  }
+}
+
+function drawTower() {
+  drawSky('#4466aa', '#7799cc');
+  // Tower
+  ctx.fillStyle = '#888';
+  ctx.fillRect(300, 100, 200, 280);
+  ctx.fillStyle = '#999';
+  for (let i = 300; i < 500; i += 25) {
+    ctx.fillRect(i, 85, 16, 15);
+  }
+  // Windows
+  ctx.fillStyle = '#335';
+  ctx.fillRect(370, 150, 20, 30);
+  ctx.fillRect(410, 150, 20, 30);
+  ctx.fillRect(370, 220, 20, 30);
+  ctx.fillRect(410, 220, 20, 30);
+  // Flag
+  ctx.fillStyle = '#cc2222';
+  ctx.fillRect(390, 60, 40, 25);
+  ctx.fillStyle = '#888';
+  ctx.fillRect(388, 55, 3, 50);
+  // Ground
+  ctx.fillStyle = '#778866';
+  ctx.fillRect(0, 360, W, 120);
+  ctx.fillStyle = '#667755';
+  ctx.fillRect(0, 480, W, 120);
+  // Stone path
+  ctx.fillStyle = '#999';
+  ctx.fillRect(350, 380, 100, 220);
+}
+
+function drawLake() {
+  drawSky('#3388cc', '#66aacc');
+  // Shore
+  ctx.fillStyle = '#c2b280';
+  ctx.fillRect(0, 360, W, 130);
+  ctx.fillStyle = '#a89860';
+  ctx.fillRect(0, 480, W, 120);
+  // Water
+  drawWater(80, 490, 380, 110);
+  // Reeds
+  ctx.strokeStyle = '#3a7a3a';
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 5; i++) {
+    const rx = 100 + i * 35;
+    ctx.beginPath();
+    ctx.moveTo(rx, 490);
+    ctx.lineTo(rx + Math.sin(frame * 0.03 + i) * 5, 460);
+    ctx.stroke();
+  }
+  // Trees on far shore
+  drawTree(550, 390, 50);
+  drawTree(650, 385, 55);
+  // Item: fish
+  drawRoomItem(LAKE);
+}
+
+function drawCourtyard() {
+  drawSky('#5577aa', '#8899bb');
+  // Walls
+  ctx.fillStyle = '#888';
+  ctx.fillRect(0, 200, 100, 180);
+  ctx.fillRect(700, 200, 100, 180);
+  ctx.fillRect(0, 200, W, 30);
+  // Ground - stone tiles
+  ctx.fillStyle = '#998877';
+  ctx.fillRect(0, 360, W, 240);
+  for (let x = 0; x < W; x += 60) {
+    for (let y = 360; y < 600; y += 40) {
+      ctx.strokeStyle = '#887766';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x, y, 60, 40);
+    }
+  }
+  // Fountain
+  ctx.fillStyle = '#777';
+  ctx.fillRect(350, 400, 100, 20);
+  ctx.fillRect(370, 380, 60, 20);
+  ctx.fillStyle = '#3388cc';
+  ctx.fillRect(375, 385, 50, 12);
+  // Water splash animation
+  if (frame % 30 < 15) {
+    ctx.fillStyle = '#5599dd';
+    ctx.beginPath();
+    ctx.arc(400, 380, 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // Banners
+  ctx.fillStyle = '#cc2222';
+  ctx.fillRect(150, 250, 20, 40);
+  ctx.fillRect(630, 250, 20, 40);
+  // Item: shield
+  drawRoomItem(COURTYARD);
+}
+
+function drawDungeonRoom() {
+  // Dark room
+  ctx.fillStyle = '#1a1a2a'; ctx.fillRect(0, 0, W, 360);
+  // Stone walls
+  ctx.fillStyle = '#3a3a4a';
+  for (let x = 0; x < W; x += 50) {
+    for (let y = 0; y < 360; y += 30) {
+      ctx.fillRect(x + 1, y + 1, 48, 28);
+    }
+  }
+  // Floor
+  ctx.fillStyle = '#2a2a3a';
+  ctx.fillRect(0, 360, W, 240);
+  ctx.fillStyle = '#333345';
+  for (let x = 0; x < W; x += 40) {
+    ctx.fillRect(x, 360, 38, 240);
+  }
+  // Chains on wall
+  ctx.strokeStyle = '#666';
+  ctx.lineWidth = 2;
+  for (let cx = 150; cx < W; cx += 200) {
+    ctx.beginPath();
+    ctx.moveTo(cx, 200);
+    for (let cy = 200; cy < 320; cy += 15) {
+      ctx.lineTo(cx + (cy % 30 < 15 ? 5 : -5), cy);
+    }
+    ctx.stroke();
+  }
+  // Torch
+  ctx.fillStyle = '#8b4513';
+  ctx.fillRect(100, 250, 6, 30);
+  ctx.fillStyle = '#ff8800';
+  ctx.beginPath();
+  ctx.arc(103, 248, 8 + Math.sin(frame * 0.2) * 2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#ffcc00';
+  ctx.beginPath();
+  ctx.arc(103, 245, 4, 0, Math.PI * 2);
+  ctx.fill();
+  // Chest
+  if (!roomStates.chestOpened) {
+    ctx.fillStyle = '#8b6914';
+    ctx.fillRect(480, 440, 50, 35);
+    ctx.fillStyle = '#a07818';
+    ctx.fillRect(480, 440, 50, 10);
+    ctx.fillStyle = '#ccc';
+    ctx.fillRect(500, 450, 10, 10);
+  } else {
+    // Open chest
+    ctx.fillStyle = '#8b6914';
+    ctx.fillRect(480, 445, 50, 30);
+    ctx.fillStyle = '#a07818';
+    ctx.fillRect(478, 425, 54, 20);
+    ctx.fillStyle = '#6b4e0a';
+    ctx.fillRect(482, 448, 46, 24);
+  }
+  // Item: ring (only visible after chest opened)
+  if (roomStates.chestOpened) {
+    drawRoomItem(DUNGEON);
+  }
+}
+
+function drawCaveRoom() {
+  // Dark cave
+  ctx.fillStyle = '#0d0d1a'; ctx.fillRect(0, 0, W, H);
+  // Cave walls - rough shapes
+  ctx.fillStyle = '#2a2015';
+  ctx.beginPath();
+  ctx.moveTo(0, 0); ctx.lineTo(120, 50); ctx.lineTo(80, 200);
+  ctx.lineTo(0, 360); ctx.lineTo(0, 0);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(W, 0); ctx.lineTo(W - 100, 60); ctx.lineTo(W - 70, 220);
+  ctx.lineTo(W, 360); ctx.lineTo(W, 0);
+  ctx.fill();
+  // Ceiling
+  ctx.fillStyle = '#2a2015';
+  ctx.beginPath();
+  ctx.moveTo(0, 0); ctx.lineTo(200, 100); ctx.lineTo(400, 70);
+  ctx.lineTo(600, 110); ctx.lineTo(W, 0); ctx.lineTo(0, 0);
+  ctx.fill();
+  // Floor
+  ctx.fillStyle = '#1f1a10';
+  ctx.fillRect(0, 400, W, 200);
+  ctx.fillStyle = '#2a2015';
+  ctx.fillRect(0, 360, W, 40);
+  // Stalactites
+  ctx.fillStyle = '#3a3025';
+  for (let i = 0; i < 8; i++) {
+    const sx = 120 + i * 80;
+    const sh = 30 + Math.sin(i * 3) * 20;
+    ctx.beginPath();
+    ctx.moveTo(sx - 8, 70 + i * 5);
+    ctx.lineTo(sx, 70 + i * 5 + sh);
+    ctx.lineTo(sx + 8, 70 + i * 5);
+    ctx.closePath();
+    ctx.fill();
+  }
+  // Glowing crystals
+  ctx.fillStyle = '#4488ff';
+  ctx.globalAlpha = 0.5 + Math.sin(frame * 0.05) * 0.3;
+  ctx.beginPath(); ctx.arc(600, 390, 8, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#44ff88';
+  ctx.beginPath(); ctx.arc(150, 410, 6, 0, Math.PI * 2); ctx.fill();
+  ctx.globalAlpha = 1;
+  // Item: key
+  drawRoomItem(CAVE);
+}
+
+function drawBridgeRoom() {
+  drawSky('#5577aa', '#8899bb');
+  // Ravine
+  ctx.fillStyle = '#1a1a30';
+  ctx.fillRect(0, 400, W, 200);
+  // Bridge surface
+  ctx.fillStyle = '#8b6914';
+  ctx.fillRect(0, 470, 370, 20);
+  if (roomStates.plankPlaced) {
+    // Fixed bridge
+    ctx.fillRect(370, 470, 90, 20);
+  } else {
+    // Gap
+    ctx.fillStyle = '#1a1a30';
+    ctx.fillRect(370, 470, 90, 20);
+    // Gap markers
+    ctx.strokeStyle = '#ff4444';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 4]);
+    ctx.strokeRect(375, 468, 80, 24);
+    ctx.setLineDash([]);
+  }
+  ctx.fillStyle = '#8b6914';
+  ctx.fillRect(460, 470, 340, 20);
+  // Bridge rails
+  ctx.fillStyle = '#6b4e0a';
+  ctx.fillRect(0, 460, 370, 4);
+  ctx.fillRect(460, 460, 340, 4);
+  if (roomStates.plankPlaced) {
+    ctx.fillRect(370, 460, 90, 4);
+  }
+  // Posts
+  for (let px = 50; px < W; px += 100) {
+    if (!roomStates.plankPlaced && px > 360 && px < 470) continue;
+    ctx.fillRect(px, 440, 6, 30);
+  }
+  // Rocky sides
+  ctx.fillStyle = '#555';
+  ctx.fillRect(0, 360, W, 40);
+  // Trees on edges
+  drawTree(50, 370, 50);
+  drawTree(750, 375, 45);
+  // Rocks at bottom
+  ctx.fillStyle = '#333';
+  for (let i = 0; i < 6; i++) {
+    ctx.beginPath();
+    ctx.arc(100 + i * 130, 570, 20 + i * 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawDragonLair() {
+  // Fiery cave
+  ctx.fillStyle = '#1a0800'; ctx.fillRect(0, 0, W, H);
+  // Lava glow
+  const glow = ctx.createRadialGradient(400, 550, 50, 400, 550, 400);
+  glow.addColorStop(0, 'rgba(200,80,0,0.3)');
+  glow.addColorStop(1, 'rgba(100,20,0,0)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, W, H);
+  // Cave walls
+  ctx.fillStyle = '#2a1500';
+  ctx.beginPath();
+  ctx.moveTo(0, 0); ctx.lineTo(100, 80); ctx.lineTo(50, 250);
+  ctx.lineTo(0, 400); ctx.lineTo(0, 0);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(W, 0); ctx.lineTo(W - 80, 90); ctx.lineTo(W - 40, 260);
+  ctx.lineTo(W, 400); ctx.lineTo(W, 0);
+  ctx.fill();
+  // Floor
+  ctx.fillStyle = '#1a0e00';
+  ctx.fillRect(0, 440, W, 160);
+  // Lava pools
+  ctx.fillStyle = '#cc4400';
+  ctx.globalAlpha = 0.6 + Math.sin(frame * 0.08) * 0.2;
+  ctx.beginPath(); ctx.ellipse(200, 520, 60, 15, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(600, 540, 40, 10, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.globalAlpha = 1;
+  // Bones/treasure
+  ctx.fillStyle = '#ccc';
+  ctx.fillRect(120, 470, 20, 3);
+  ctx.fillRect(125, 465, 3, 15);
+  ctx.fillStyle = '#ffcc00';
+  ctx.fillRect(650, 465, 8, 8);
+  ctx.fillRect(665, 468, 6, 6);
+  // Dragon
+  if (!roomStates.dragonAsleep) {
+    drawDragon(570, 390, false);
+  } else {
+    drawDragon(570, 410, true);
+  }
+  // Fire breath
+  if (dragonFireActive && !roomStates.dragonAsleep) {
+    ctx.globalAlpha = 0.7;
+    ctx.fillStyle = '#ff4400';
+    ctx.beginPath();
+    ctx.moveTo(530, 400);
+    ctx.lineTo(300, 370);
+    ctx.lineTo(280, 420);
+    ctx.lineTo(530, 420);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#ffaa00';
+    ctx.beginPath();
+    ctx.moveTo(530, 405);
+    ctx.lineTo(340, 385);
+    ctx.lineTo(330, 415);
+    ctx.lineTo(530, 415);
+    ctx.closePath();
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawDragon(x, y, asleep) {
+  // Body
+  ctx.fillStyle = asleep ? '#335533' : '#448844';
+  ctx.beginPath();
+  ctx.ellipse(x, y + 20, 50, 30, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Head
+  ctx.fillStyle = asleep ? '#2a4a2a' : '#3a7a3a';
+  ctx.beginPath();
+  ctx.ellipse(x - 50, y - (asleep ? 0 : 10), 25, 18, asleep ? 0.3 : -0.3, 0, Math.PI * 2);
+  ctx.fill();
+  // Eye
+  if (!asleep) {
+    ctx.fillStyle = '#ff0';
+    ctx.beginPath(); ctx.arc(x - 60, y - 16, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.arc(x - 61, y - 16, 2, 0, Math.PI * 2); ctx.fill();
+  } else {
+    // Closed eye line
+    ctx.strokeStyle = '#1a3a1a';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x - 65, y);
+    ctx.lineTo(x - 55, y);
+    ctx.stroke();
+    // Zzz
+    ctx.fillStyle = '#aaa';
+    ctx.font = '14px monospace';
+    ctx.fillText('Z', x - 40, y - 30);
+    ctx.font = '11px monospace';
+    ctx.fillText('z', x - 30, y - 40);
+    ctx.font = '9px monospace';
+    ctx.fillText('z', x - 22, y - 48);
+  }
+  // Wings
+  ctx.fillStyle = asleep ? '#2a4a2a' : '#3a6a3a';
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.lineTo(x + 30, y - (asleep ? 15 : 35));
+  ctx.lineTo(x + 50, y - (asleep ? 5 : 15));
+  ctx.lineTo(x + 40, y + 10);
+  ctx.closePath();
+  ctx.fill();
+  // Tail
+  ctx.strokeStyle = asleep ? '#335533' : '#448844';
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.moveTo(x + 45, y + 25);
+  ctx.quadraticCurveTo(x + 80, y + 10, x + 70, y + 40);
+  ctx.stroke();
+  // Spikes
+  ctx.fillStyle = asleep ? '#224422' : '#336633';
+  for (let i = 0; i < 4; i++) {
+    const sx = x - 30 + i * 20;
+    const sy = y - (asleep ? 5 : 8);
+    ctx.beginPath();
+    ctx.moveTo(sx - 4, sy + 5);
+    ctx.lineTo(sx, sy - 8);
+    ctx.lineTo(sx + 4, sy + 5);
+    ctx.closePath();
+    ctx.fill();
+  }
+}
+
+function drawThroneRoom() {
+  // Grand room
+  ctx.fillStyle = '#1a0a2a'; ctx.fillRect(0, 0, W, H);
+  // Rich walls
+  ctx.fillStyle = '#2a1040';
+  ctx.fillRect(0, 0, W, 360);
+  // Tapestries
+  ctx.fillStyle = '#661133';
+  ctx.fillRect(100, 100, 80, 150);
+  ctx.fillRect(620, 100, 80, 150);
+  ctx.fillStyle = '#882244';
+  ctx.fillRect(105, 105, 70, 140);
+  // Gold trim
+  ctx.fillStyle = '#cc9900';
+  ctx.fillRect(100, 95, 80, 5);
+  ctx.fillRect(620, 95, 80, 5);
+  // Pillars
+  ctx.fillStyle = '#888';
+  ctx.fillRect(240, 150, 25, 230);
+  ctx.fillRect(535, 150, 25, 230);
+  ctx.fillStyle = '#999';
+  ctx.fillRect(235, 145, 35, 15);
+  ctx.fillRect(530, 145, 35, 15);
+  ctx.fillRect(235, 370, 35, 15);
+  ctx.fillRect(530, 370, 35, 15);
+  // Floor — royal carpet
+  ctx.fillStyle = '#3a2050';
+  ctx.fillRect(0, 380, W, 220);
+  ctx.fillStyle = '#881133';
+  ctx.fillRect(320, 380, 160, 220);
+  ctx.fillStyle = '#992244';
+  ctx.fillRect(330, 380, 140, 220);
+  // Gold border on carpet
+  ctx.strokeStyle = '#cc9900';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(325, 380, 150, 220);
+  // Throne
+  ctx.fillStyle = '#cc9900';
+  ctx.fillRect(370, 360, 60, 10);
+  ctx.fillRect(375, 370, 50, 50);
+  ctx.fillStyle = '#aa7700';
+  ctx.fillRect(372, 330, 8, 40);
+  ctx.fillRect(420, 330, 8, 40);
+  ctx.fillRect(370, 325, 62, 10);
+  // Gem on throne
+  ctx.fillStyle = '#ff2244';
+  ctx.beginPath(); ctx.arc(400, 335, 6, 0, Math.PI * 2); ctx.fill();
+  // Candles
+  for (let cx = 280; cx < W; cx += 240) {
+    ctx.fillStyle = '#ddd';
+    ctx.fillRect(cx, 300, 6, 25);
+    ctx.fillStyle = '#ff8800';
+    ctx.beginPath();
+    ctx.arc(cx + 3, 298, 5 + Math.sin(frame * 0.15 + cx) * 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // Item: crown
+  drawRoomItem(THRONE);
+}
+
+function drawRoomItem(roomId) {
+  const item = roomStates.items[roomId];
+  if (!item || item.taken) return;
+  if (item.locked) return;
+
+  const bx = item.x, by = item.y;
+  // Glow effect
+  ctx.fillStyle = 'rgba(255,255,100,0.15)';
+  ctx.beginPath();
+  ctx.arc(bx + item.w / 2, by + item.h / 2, 25 + Math.sin(frame * 0.1) * 5, 0, Math.PI * 2);
+  ctx.fill();
+
+  switch (item.id) {
+    case PLANK:
+      ctx.fillStyle = '#a08040';
+      ctx.fillRect(bx, by, 40, 10);
+      ctx.fillStyle = '#8b6914';
+      ctx.fillRect(bx + 5, by + 2, 30, 2);
+      break;
+    case FISH:
+      ctx.fillStyle = '#6699cc';
+      ctx.beginPath();
+      ctx.ellipse(bx + 15, by + 7, 15, 7, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#5588bb';
+      ctx.beginPath();
+      ctx.moveTo(bx + 28, by + 7);
+      ctx.lineTo(bx + 38, by);
+      ctx.lineTo(bx + 38, by + 14);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#222';
+      ctx.beginPath();
+      ctx.arc(bx + 5, by + 5, 2, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    case KEY:
+      ctx.fillStyle = '#ccaa00';
+      ctx.fillRect(bx, by + 4, 12, 4);
+      ctx.beginPath();
+      ctx.arc(bx + 14, by + 6, 6, 0, Math.PI * 2);
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = '#ccaa00';
+      ctx.stroke();
+      ctx.fillRect(bx - 3, by + 3, 4, 6);
+      break;
+    case SHIELD:
+      ctx.fillStyle = '#888';
+      ctx.beginPath();
+      ctx.moveTo(bx + 12, by);
+      ctx.lineTo(bx + 24, by + 5);
+      ctx.lineTo(bx + 24, by + 18);
+      ctx.lineTo(bx + 12, by + 28);
+      ctx.lineTo(bx, by + 18);
+      ctx.lineTo(bx, by + 5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#cc2222';
+      ctx.beginPath();
+      ctx.moveTo(bx + 12, by + 6);
+      ctx.lineTo(bx + 18, by + 12);
+      ctx.lineTo(bx + 12, by + 22);
+      ctx.lineTo(bx + 6, by + 12);
+      ctx.closePath();
+      ctx.fill();
+      break;
+    case RING:
+      ctx.strokeStyle = '#ffcc00';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(bx + 7, by + 7, 7, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = '#ff44ff';
+      ctx.beginPath();
+      ctx.arc(bx + 7, by, 4, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    case CROWN:
+      ctx.fillStyle = '#ffcc00';
+      ctx.fillRect(bx, by + 10, 28, 10);
+      ctx.beginPath();
+      ctx.moveTo(bx, by + 10);
+      ctx.lineTo(bx + 4, by);
+      ctx.lineTo(bx + 9, by + 7);
+      ctx.lineTo(bx + 14, by);
+      ctx.lineTo(bx + 19, by + 7);
+      ctx.lineTo(bx + 24, by);
+      ctx.lineTo(bx + 28, by + 10);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#ff2244';
+      ctx.beginPath();
+      ctx.arc(bx + 14, by + 13, 3, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+  }
+}
+
+function drawPlayer() {
+  const px = player.x, py = player.y;
+  const bobY = Math.sin(player.walkFrame * 2) * 2;
+
+  // Hurt flash
+  if (hurtFlash > 0 && hurtFlash % 6 < 3) return;
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath();
+  ctx.ellipse(px + PLAYER_W / 2, py + PLAYER_H + 2, 12, 4, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Legs
+  const legOff = Math.sin(player.walkFrame * 2) * 4;
+  ctx.fillStyle = '#5555aa';
+  ctx.fillRect(px + 3, py + 18 + bobY, 5, 10);
+  ctx.fillRect(px + 12, py + 18 + bobY, 5, 10);
+  // Leg animation
+  if (Math.abs(legOff) > 1) {
+    ctx.fillRect(px + 3 + legOff * 0.3, py + 18 + bobY, 5, 10);
+    ctx.fillRect(px + 12 - legOff * 0.3, py + 18 + bobY, 5, 10);
+  }
+
+  // Body (armor)
+  ctx.fillStyle = '#777';
+  ctx.fillRect(px + 2, py + 6 + bobY, 16, 14);
+  // Armor cross
+  ctx.fillStyle = '#999';
+  ctx.fillRect(px + 9, py + 7 + bobY, 2, 12);
+  ctx.fillRect(px + 4, py + 11 + bobY, 12, 2);
+
+  // Head
+  ctx.fillStyle = '#dda580';
+  ctx.fillRect(px + 5, py - 2 + bobY, 10, 10);
+
+  // Helmet
+  ctx.fillStyle = '#888';
+  ctx.fillRect(px + 3, py - 4 + bobY, 14, 6);
+  ctx.fillStyle = '#999';
+  ctx.fillRect(px + 8, py - 7 + bobY, 4, 4);
+
+  // Direction indicator (small sword/arm)
+  ctx.fillStyle = '#aaa';
+  if (player.dir > 0) {
+    ctx.fillRect(px + 18, py + 10 + bobY, 6, 2);
+  } else {
+    ctx.fillRect(px - 4, py + 10 + bobY, 6, 2);
+  }
+
+  // Shield on player if carrying it
+  if (hasItem(SHIELD)) {
+    ctx.fillStyle = '#888';
+    if (player.dir > 0) {
+      ctx.fillRect(px - 4, py + 8 + bobY, 6, 10);
+      ctx.fillStyle = '#cc2222';
+      ctx.fillRect(px - 3, py + 10 + bobY, 4, 4);
+    } else {
+      ctx.fillRect(px + 18, py + 8 + bobY, 6, 10);
+      ctx.fillStyle = '#cc2222';
+      ctx.fillRect(px + 19, py + 10 + bobY, 4, 4);
+    }
+  }
+}
+
+function drawInventoryPanel() {
+  if (!showInventory) return;
+  ctx.fillStyle = 'rgba(0,0,0,0.85)';
+  ctx.fillRect(200, 150, 400, 300);
+  ctx.strokeStyle = '#cc9900';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(200, 150, 400, 300);
+
+  ctx.fillStyle = '#cc9900';
+  ctx.font = 'bold 18px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('INVENTORY', 400, 180);
+
+  ctx.font = '14px monospace';
+  ctx.textAlign = 'left';
+
+  if (inventory.length === 0) {
+    ctx.fillStyle = '#888';
+    ctx.fillText('No items collected yet.', 230, 220);
+  } else {
+    for (let i = 0; i < inventory.length; i++) {
+      const y = 215 + i * 35;
+      // Selection highlight
+      if (i === activeItem) {
+        ctx.fillStyle = 'rgba(204,153,0,0.2)';
+        ctx.fillRect(220, y - 15, 360, 30);
+        ctx.fillStyle = '#ffcc00';
+      } else {
+        ctx.fillStyle = '#ddd';
+      }
+      const itemName = inventory[i].charAt(0).toUpperCase() + inventory[i].slice(1);
+      ctx.fillText((i + 1) + '. ' + itemName, 240, y);
+      if (i === activeItem) {
+        ctx.fillStyle = '#ff0';
+        ctx.fillText(' [ACTIVE]', 370, y);
+      }
+    }
+  }
+
+  ctx.fillStyle = '#888';
+  ctx.font = '12px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('Press 1-5 to select | I to close', 400, 430);
+}
+
+function drawHUD() {
+  // Title badge
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(8, 8, 280, 28);
+  ctx.fillStyle = '#888';
+  ctx.font = '13px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('ADV-002 \u00b7 KING\'S QUEST  [?]', 16, 26);
+
+  // Lives
+  ctx.fillStyle = '#ff4444';
+  ctx.font = '14px monospace';
+  ctx.textAlign = 'right';
+  let heartsStr = '';
+  for (let i = 0; i < lives; i++) heartsStr += '\u2665 ';
+  ctx.fillText(heartsStr, W - 15, 26);
+
+  // Room name
+  ctx.fillStyle = '#ddd';
+  ctx.font = '14px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(ROOM_NAMES[currentRoom], W / 2, 26);
+
+  // Active item
+  if (activeItem >= 0 && activeItem < inventory.length) {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(8, 42, 160, 22);
+    ctx.fillStyle = '#ffcc00';
+    ctx.font = '12px monospace';
+    ctx.textAlign = 'left';
+    const itemName = inventory[activeItem].charAt(0).toUpperCase() + inventory[activeItem].slice(1);
+    ctx.fillText('Using: ' + itemName, 14, 57);
+  }
+
+  // Message
+  if (msgTimer > 0 && message) {
+    const alpha = msgTimer < 30 ? msgTimer / 30 : 1;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = 'rgba(0,0,0,0.8)';
+    const mw = ctx.measureText(message).width + 30;
+    ctx.fillRect(W / 2 - mw / 2, H - 60, mw, 30);
+    ctx.fillStyle = '#fff';
+    ctx.font = '14px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(message, W / 2, H - 40);
+    ctx.globalAlpha = 1;
+  }
+
+  // Inventory hint
+  if (inventory.length > 0 && !showInventory) {
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(W - 120, 42, 110, 20);
+    ctx.fillStyle = '#aaa';
+    ctx.font = '11px monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText('[I] Inventory', W - 15, 56);
+  }
+}
+
+function drawMinimap() {
+  const mapX = W - 110, mapY = 70;
+  const cellW = 28, cellH = 22;
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(mapX - 5, mapY - 5, cellW * 3 + 14, cellH * 4 + 14);
+
+  for (let r = 0; r < 10; r++) {
+    let col, row;
+    if (r < 9) { col = r % 3; row = Math.floor(r / 3); }
+    else { col = 2; row = 3; } // Throne room
+    const cx = mapX + col * (cellW + 2);
+    const cy = mapY + row * (cellH + 2);
+
+    // Color based on room type
+    const colors = ['#2d5a2d', '#888', '#778', '#2266aa', '#886644', '#333', '#3a2015', '#8b6914', '#4a2000', '#4a1040'];
+    ctx.fillStyle = r === currentRoom ? '#fff' : colors[r];
+    ctx.fillRect(cx, cy, cellW, cellH);
+
+    if (r === currentRoom) {
+      ctx.fillStyle = '#000';
+      ctx.font = '8px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('YOU', cx + cellW / 2, cy + cellH / 2 + 3);
+    }
+  }
+}
+
+function drawWinScreen() {
+  ctx.fillStyle = 'rgba(0,0,0,0.75)';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = '#ffcc00';
+  ctx.font = 'bold 42px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('VICTORY!', W / 2, H / 2 - 60);
+
+  ctx.fillStyle = '#ddd';
+  ctx.font = '18px monospace';
+  ctx.fillText('You returned the crown to the kingdom!', W / 2, H / 2 - 15);
+
+  ctx.fillStyle = '#aaa';
+  ctx.font = '14px monospace';
+  ctx.fillText('A true hero of the realm.', W / 2, H / 2 + 20);
+  ctx.fillText('Press R to play again', W / 2, H / 2 + 55);
+
+  // Crown animation
+  const crownY = H / 2 - 110 + Math.sin(frame * 0.05) * 8;
+  ctx.fillStyle = '#ffcc00';
+  ctx.fillRect(W / 2 - 20, crownY + 10, 40, 14);
+  ctx.beginPath();
+  ctx.moveTo(W / 2 - 20, crownY + 10);
+  ctx.lineTo(W / 2 - 14, crownY);
+  ctx.lineTo(W / 2 - 6, crownY + 8);
+  ctx.lineTo(W / 2, crownY);
+  ctx.lineTo(W / 2 + 6, crownY + 8);
+  ctx.lineTo(W / 2 + 14, crownY);
+  ctx.lineTo(W / 2 + 20, crownY + 10);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawGameOver() {
+  ctx.fillStyle = 'rgba(0,0,0,0.8)';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = '#ff4444';
+  ctx.font = 'bold 42px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('GAME OVER', W / 2, H / 2 - 30);
+
+  ctx.fillStyle = '#aaa';
+  ctx.font = '16px monospace';
+  ctx.fillText('The quest has ended...', W / 2, H / 2 + 10);
+  ctx.fillText('Press R to try again', W / 2, H / 2 + 45);
+}
+
+function draw() {
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, H);
+
+  drawRoom();
+  drawPlayer();
+  drawHUD();
+  drawMinimap();
+  drawInventoryPanel();
+
+  if (gameWon) drawWinScreen();
+  if (gameOver) drawGameOver();
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+</body>
+</html>

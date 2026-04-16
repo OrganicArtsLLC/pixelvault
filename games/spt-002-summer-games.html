@@ -1,0 +1,1606 @@
+<!--
+PROTOTYPE: summer-games
+SERIES: spt
+NUMBER: 002
+DATE: 2026-03-22
+MECHANIC: alternate-mash and timed-press across four athletic events
+ANCESTRY: Summer Games (1984, Epyx), Track & Field (1983, Konami)
+CONTROLS: ← → — alternate mash for speed | Space — jump/throw/action | Enter — next event | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — multi-modal game design, varied control schemes)
+AI-INSIGHT: Each event is a different optimization problem sharing the same interface — the player must rapidly switch mental models between speed-maximization (mashing), timing-optimization (jumping), and angle-selection (throwing). This multi-task learning from a unified input space prefigures transfer learning across related domains.
+NOTES: Button mashing as speed input is deliberately physical.
+       Four events test four different timing skills with same controls.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPT-002 · MULTI ATHLETICS</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SPT-002 · MULTI ATHLETICS</h1>
+    <p><span class="tag series">SPT — Sports</span> <span class="tag">Prototype #002</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Compete in four athletic events. Alternate-mash Left and Right arrow keys to build speed. Use Space for timed actions (jump, throw, clear).</p>
+    <ul>
+      <li><kbd>&larr;</kbd> <kbd>&rarr;</kbd> &mdash; Alternate mash to build running speed</li>
+      <li><kbd>Space</kbd> &mdash; Jump / throw / action (event-specific)</li>
+      <li><kbd>Enter</kbd> &mdash; Start event / proceed to next</li>
+      <li><kbd>R</kbd> &mdash; Restart current event or full game</li>
+      <li><kbd>?</kbd> &mdash; Toggle this info panel</li>
+    </ul>
+    <h3>Events</h3>
+    <ul>
+      <li><strong>100m Dash:</strong> Mash L/R as fast as possible. Pure speed race against the clock.</li>
+      <li><strong>Long Jump:</strong> Mash to build speed on the runway. Press Space at the foul line to jump. Timing determines angle &mdash; optimal is 45&deg;.</li>
+      <li><strong>Javelin:</strong> Mash to build speed. Press and hold Space &mdash; an angle meter oscillates. Release to throw at the selected angle.</li>
+      <li><strong>High Jump:</strong> Press L/R to approach the bar. Press Space to jump. Press Space again at peak height to arch over the bar.</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Alternate cleanly:</strong> Pressing the same key twice in a row does nothing &mdash; you must alternate L and R.</li>
+      <li><strong>Watch the speed meter:</strong> Speed decays if you stop mashing.</li>
+      <li><strong>Long Jump timing:</strong> Too early = short. Too late = foul. Aim for just before the line.</li>
+      <li><strong>Javelin angle:</strong> Around 40&ndash;45&deg; gives maximum distance at high speed.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Track &amp; Field (1983, Konami) &rarr; Summer Games (1984, Epyx) &rarr; Decathlon (1984, Activision)</p>
+    <p>Konami's Track &amp; Field (1983) introduced button-mashing as a primary game mechanic in arcades. Players wore out joysticks and spoons became the instrument of choice for rapid alternation. Epyx expanded the concept with Summer Games (1984), adding multiple event types with varied control schemes &mdash; the same inputs meant different things in each event.</p>
+    <p>The multi-event format forced players to rapidly switch mental models: pure speed optimization in sprints, timing optimization in jumps, angle selection in throws. This cognitive flexibility requirement made these games surprisingly deep despite simple inputs.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 3 &mdash; Knowledge Explosion (1978&ndash;1983)</p>
+    <p><strong>Contemporary AI:</strong> Multi-task learning was decades away. Transfer learning across domains was theoretical.</p>
+    <p><strong>Hidden Intelligence:</strong> Each event is a different optimization problem sharing the same interface. The 100m is pure throughput maximization. Long jump adds a timing constraint. Javelin introduces continuous angle selection. High jump requires sequential timing decisions. The player must rapidly switch between these optimization strategies using identical inputs &mdash; this is transfer learning across related domains, performed by human neural networks in real-time.</p>
+    <p><strong>The Convergence:</strong> Modern multi-task RL agents face this exact challenge: shared input/output spaces across tasks with different reward functions. The button-mashing interface is a bandwidth-limited channel &mdash; the player's maximum input rate IS the constraint, making it a physical optimization problem.</p>
+    <p><strong>If AI Had Designed This:</strong> Optimal mashing frequency analysis, biomechanically-informed timing windows, and adaptive difficulty based on measured human input bandwidth.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: SPT &mdash; Sports</h3>
+    <p>Multi-event athletics. The sports genre distills physical competition into input timing and rhythm.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Alternate-mash for speed, timed-press for action.</strong> Four events testing speed, timing, angle selection, and sequential precision. Shared control scheme across different optimization problems.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Button-mash feel &mdash; does alternating L/R feel physical and satisfying?</li>
+      <li>Event variety &mdash; do four events feel like four different games?</li>
+      <li>Timing windows &mdash; do jump/throw moments feel learnable?</li>
+      <li>Score motivation &mdash; does the results board inspire replay?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Four athletic events with shared mashing controls. Side-view stadium. Stick-figure athlete. Speed meter and results board.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+const keys = {};
+const justPressed = {};
+let justReleased = {};
+window.addEventListener('keydown', e => {
+  if (infoOpen) return;
+  if (!keys[e.code]) justPressed[e.code] = true;
+  keys[e.code] = true;
+  e.preventDefault();
+});
+window.addEventListener('keyup', e => {
+  keys[e.code] = false;
+  justReleased[e.code] = true;
+});
+function pop(code) { if (justPressed[code]) { justPressed[code] = false; return true; } return false; }
+function popRelease(code) { if (justReleased[code]) { justReleased[code] = false; return true; } return false; }
+
+// --- CONSTANTS ---
+const GROUND_Y = 480;
+const TRACK_TOP = 420;
+const SKY_BLUE = '#3388cc';
+const GRASS_GREEN = '#2a8c2a';
+const TRACK_BROWN = '#b87333';
+const TRACK_LINE = '#eeddbb';
+
+const EVENT_NAMES = ['100m DASH', 'LONG JUMP', 'JAVELIN', 'HIGH JUMP'];
+const EVENT_COUNT = 4;
+
+// --- GAME STATE ---
+let gamePhase = 'title'; // title, eventIntro, playing, result, final
+let currentEvent = 0;
+let frame = 0;
+let results = [null, null, null, null]; // stores best result per event
+
+// Shared athlete state
+let athlete = {};
+let speed = 0;
+let lastMashKey = ''; // track alternation
+let mashCooldown = 0;
+
+// Event-specific state
+let eventState = {};
+
+function initGame() {
+  gamePhase = 'title';
+  currentEvent = 0;
+  results = [null, null, null, null];
+  frame = 0;
+}
+
+function initEvent() {
+  speed = 0;
+  lastMashKey = '';
+  mashCooldown = 0;
+  frame = 0;
+
+  switch (currentEvent) {
+    case 0: // 100m Dash
+      athlete = { x: 60, y: GROUND_Y };
+      eventState = {
+        distance: 0,
+        finishLine: 700,
+        finished: false,
+        timer: 0,
+        countdown: 180, // 3 seconds at 60fps
+        started: false,
+        falseStart: false
+      };
+      break;
+    case 1: // Long Jump
+      athlete = { x: 60, y: GROUND_Y };
+      eventState = {
+        phase: 'run', // run, air, landed
+        foulLineX: 500,
+        jumpX: 0,
+        jumpY: 0,
+        vy: 0,
+        vx: 0,
+        jumpAngle: 0,
+        distance: 0,
+        foul: false,
+        landX: 0,
+        peakHeight: 0,
+        airTime: 0
+      };
+      break;
+    case 2: // Javelin
+      athlete = { x: 60, y: GROUND_Y };
+      eventState = {
+        phase: 'run', // run, aiming, throw, flight, landed
+        throwLineX: 480,
+        angleMeter: 0,
+        angleDir: 1,
+        angleSpeed: 3,
+        throwAngle: 0,
+        javX: 0,
+        javY: 0,
+        javVx: 0,
+        javVy: 0,
+        distance: 0,
+        releaseSpeed: 0
+      };
+      break;
+    case 3: // High Jump
+      athlete = { x: 60, y: GROUND_Y };
+      eventState = {
+        phase: 'approach', // approach, jump, peak, clear/fail, done
+        barX: 500,
+        barHeight: 100, // starting bar height in pixels above ground
+        attempt: 0,
+        maxAttempts: 3,
+        cleared: false,
+        jumpY: 0,
+        vy: 0,
+        jumpPower: 0,
+        archApplied: false,
+        bestHeight: 0,
+        currentBarM: 1.50, // meters display
+        heightStep: 0.10,
+        consecutiveFails: 0
+      };
+      break;
+  }
+  gamePhase = 'playing';
+}
+
+// --- MASH DETECTION ---
+function handleMash() {
+  if (mashCooldown > 0) return;
+  let mashed = false;
+  if (pop('ArrowLeft') || pop('KeyA')) {
+    if (lastMashKey !== 'left') {
+      mashed = true;
+      lastMashKey = 'left';
+    }
+  }
+  if (pop('ArrowRight') || pop('KeyD')) {
+    if (lastMashKey !== 'right') {
+      mashed = true;
+      lastMashKey = 'right';
+    }
+  }
+  if (mashed) {
+    speed = Math.min(speed + 1.8, 20);
+    mashCooldown = 2;
+  }
+}
+
+// --- UPDATE ---
+function update() {
+  if (infoOpen) return;
+  frame++;
+
+  // Clear just-pressed/released for consumed keys handled outside pop
+  // (pop handles clearing internally)
+
+  if (gamePhase === 'title') {
+    if (pop('Enter')) {
+      currentEvent = 0;
+      gamePhase = 'eventIntro';
+    }
+    return;
+  }
+
+  if (gamePhase === 'eventIntro') {
+    if (pop('Enter')) {
+      initEvent();
+    }
+    return;
+  }
+
+  if (gamePhase === 'result') {
+    if (pop('Enter')) {
+      currentEvent++;
+      if (currentEvent >= EVENT_COUNT) {
+        gamePhase = 'final';
+      } else {
+        gamePhase = 'eventIntro';
+      }
+    }
+    if (pop('KeyR')) {
+      gamePhase = 'eventIntro';
+    }
+    return;
+  }
+
+  if (gamePhase === 'final') {
+    if (pop('Enter') || pop('KeyR')) {
+      initGame();
+    }
+    return;
+  }
+
+  // --- PLAYING ---
+  if (pop('KeyR')) {
+    initEvent();
+    return;
+  }
+
+  // Speed decay
+  speed = Math.max(0, speed - 0.12);
+  if (mashCooldown > 0) mashCooldown--;
+
+  switch (currentEvent) {
+    case 0: updateDash(); break;
+    case 1: updateLongJump(); break;
+    case 2: updateJavelin(); break;
+    case 3: updateHighJump(); break;
+  }
+
+  // Clear justReleased at end of frame
+  justReleased = {};
+}
+
+// --- EVENT 0: 100m DASH ---
+function updateDash() {
+  const st = eventState;
+
+  if (!st.started) {
+    st.countdown--;
+    // False start detection
+    if (st.countdown > 0) {
+      if (pop('ArrowLeft') || pop('ArrowRight') || pop('KeyA') || pop('KeyD')) {
+        st.falseStart = true;
+        st.finished = true;
+        finishEvent(null);
+        return;
+      }
+    }
+    if (st.countdown <= 0) {
+      st.started = true;
+    }
+    return;
+  }
+
+  st.timer++;
+  handleMash();
+
+  // Move athlete
+  const moveSpeed = speed * 0.8;
+  athlete.x += moveSpeed;
+  st.distance += moveSpeed;
+
+  // Leg animation is handled in draw
+
+  // Check finish
+  if (athlete.x >= st.finishLine && !st.finished) {
+    st.finished = true;
+    const timeSeconds = (st.timer / 60).toFixed(2);
+    finishEvent(parseFloat(timeSeconds));
+  }
+}
+
+// --- EVENT 1: LONG JUMP ---
+function updateLongJump() {
+  const st = eventState;
+
+  if (st.phase === 'run') {
+    handleMash();
+    athlete.x += speed * 0.6;
+
+    // Check foul line
+    if (athlete.x >= st.foulLineX + 30) {
+      // Passed foul line without jumping
+      st.foul = true;
+      st.phase = 'landed';
+      finishEvent(null);
+      return;
+    }
+
+    // Space to jump
+    if (pop('Space')) {
+      const distToLine = st.foulLineX - athlete.x;
+      if (distToLine < -5) {
+        // Past the line = foul
+        st.foul = true;
+        st.phase = 'landed';
+        finishEvent(null);
+        return;
+      }
+
+      // Angle based on distance to foul line
+      // Optimal: right at the line (0 to ~10px before) = 45 degrees
+      // Too early: shallower angle, wasted runway
+      let quality = 1.0;
+      if (distToLine > 60) quality = 0.5;
+      else if (distToLine > 30) quality = 0.7;
+      else if (distToLine > 10) quality = 0.9;
+      else quality = 1.0;
+
+      st.jumpAngle = 30 + quality * 20; // 30-50 degrees, 50 optimal
+      const angleRad = st.jumpAngle * Math.PI / 180;
+      const jumpSpeed = speed * 1.2;
+      st.vx = jumpSpeed * Math.cos(angleRad) * 0.6;
+      st.vy = -jumpSpeed * Math.sin(angleRad) * 1.5;
+      st.jumpX = athlete.x;
+      st.phase = 'air';
+    }
+  }
+
+  if (st.phase === 'air') {
+    st.vy += 0.25; // gravity
+    athlete.x += st.vx;
+    athlete.y += st.vy;
+    st.airTime++;
+
+    if (athlete.y >= GROUND_Y && st.airTime > 5) {
+      athlete.y = GROUND_Y;
+      st.phase = 'landed';
+      st.landX = athlete.x;
+      // Distance in meters (pixels to meters rough conversion)
+      st.distance = ((st.landX - st.jumpX) / 30).toFixed(2);
+      finishEvent(parseFloat(st.distance));
+    }
+  }
+}
+
+// --- EVENT 2: JAVELIN ---
+function updateJavelin() {
+  const st = eventState;
+
+  if (st.phase === 'run') {
+    handleMash();
+    athlete.x += speed * 0.5;
+
+    if (athlete.x >= st.throwLineX) {
+      athlete.x = st.throwLineX;
+      st.releaseSpeed = speed;
+      st.phase = 'aiming';
+    }
+
+    // Early throw allowed
+    if (pop('Space') && speed > 2) {
+      st.releaseSpeed = speed;
+      st.phase = 'aiming';
+    }
+  }
+
+  if (st.phase === 'aiming') {
+    // Angle meter oscillates
+    st.angleMeter += st.angleDir * st.angleSpeed;
+    if (st.angleMeter >= 90) { st.angleMeter = 90; st.angleDir = -1; }
+    if (st.angleMeter <= 0) { st.angleMeter = 0; st.angleDir = 1; }
+
+    // Speed keeps decaying
+    speed = Math.max(0, speed - 0.05);
+
+    if (popRelease('Space') || pop('Space')) {
+      st.throwAngle = st.angleMeter;
+      const angleRad = st.throwAngle * Math.PI / 180;
+      const throwPower = st.releaseSpeed * 1.5;
+      st.javX = athlete.x + 20;
+      st.javY = athlete.y - 40;
+      st.javVx = throwPower * Math.cos(angleRad) * 0.8;
+      st.javVy = -throwPower * Math.sin(angleRad) * 1.2;
+      st.phase = 'flight';
+    }
+  }
+
+  if (st.phase === 'flight') {
+    st.javVy += 0.18; // gravity
+    st.javX += st.javVx;
+    st.javY += st.javVy;
+
+    if (st.javY >= GROUND_Y - 5) {
+      st.javY = GROUND_Y - 5;
+      st.phase = 'landed';
+      // Distance in meters
+      st.distance = ((st.javX - athlete.x) / 15).toFixed(2);
+      finishEvent(parseFloat(st.distance));
+    }
+  }
+}
+
+// --- EVENT 3: HIGH JUMP ---
+function updateHighJump() {
+  const st = eventState;
+
+  if (st.phase === 'approach') {
+    // Player presses L/R to approach
+    if (pop('ArrowLeft') || pop('ArrowRight') || pop('KeyA') || pop('KeyD')) {
+      speed = Math.min(speed + 2.5, 12);
+    }
+    athlete.x += speed * 0.4;
+    speed = Math.max(0, speed - 0.08);
+
+    // Reach bar area
+    if (athlete.x >= st.barX - 40) {
+      athlete.x = st.barX - 40;
+      // Must jump
+      if (pop('Space')) {
+        st.jumpPower = Math.min(speed + 6, 16);
+        st.vy = -st.jumpPower;
+        st.jumpY = athlete.y;
+        st.phase = 'jump';
+        st.archApplied = false;
+      }
+      // Speed decays fast if not jumping
+      speed = Math.max(0, speed - 0.3);
+    }
+
+    if (pop('Space') && athlete.x < st.barX - 40) {
+      // Too early jump
+      st.jumpPower = Math.min(speed + 4, 12);
+      st.vy = -st.jumpPower;
+      st.jumpY = athlete.y;
+      st.phase = 'jump';
+      st.archApplied = false;
+    }
+  }
+
+  if (st.phase === 'jump') {
+    st.vy += 0.35; // gravity
+    athlete.y += st.vy;
+
+    // At peak (vy crossing zero), player can press Space to arch
+    if (st.vy >= -1.5 && st.vy <= 2 && !st.archApplied) {
+      if (pop('Space')) {
+        st.archApplied = true;
+        // Arching gives bonus height clearance
+        athlete.y -= 15;
+        st.vy = Math.min(st.vy, 0.5);
+        st.phase = 'peak';
+      }
+    }
+
+    // Moving past bar horizontally
+    if (athlete.y <= GROUND_Y) {
+      athlete.x += 1.5;
+    }
+
+    // Check bar clearance
+    const athleteTop = athlete.y - 50;
+    const barY = GROUND_Y - st.barHeight;
+    if (Math.abs(athlete.x - st.barX) < 20) {
+      if (athleteTop > barY) {
+        // Hit the bar
+        st.phase = 'fail';
+      }
+    }
+
+    // Landed
+    if (athlete.y >= GROUND_Y) {
+      athlete.y = GROUND_Y;
+      if (athlete.x > st.barX + 20 && st.phase !== 'fail') {
+        st.cleared = true;
+        st.phase = 'done';
+      } else {
+        st.phase = 'fail';
+      }
+    }
+  }
+
+  if (st.phase === 'peak') {
+    st.vy += 0.3;
+    athlete.y += st.vy;
+    athlete.x += 2;
+
+    const athleteTop = athlete.y - 50;
+    const barY = GROUND_Y - st.barHeight;
+    if (Math.abs(athlete.x - st.barX) < 20) {
+      if (athleteTop > barY) {
+        st.phase = 'fail';
+      }
+    }
+
+    if (athlete.y >= GROUND_Y) {
+      athlete.y = GROUND_Y;
+      if (athlete.x > st.barX + 20) {
+        st.cleared = true;
+        st.phase = 'done';
+      } else {
+        st.phase = 'fail';
+      }
+    }
+  }
+
+  if (st.phase === 'fail') {
+    // Brief pause then reset
+    athlete.y = GROUND_Y;
+    st.attempt++;
+    st.consecutiveFails++;
+
+    if (st.consecutiveFails >= st.maxAttempts) {
+      // Event over
+      finishEvent(st.bestHeight > 0 ? st.bestHeight : null);
+      return;
+    }
+
+    // Reset for next attempt
+    athlete.x = 60;
+    athlete.y = GROUND_Y;
+    speed = 0;
+    st.phase = 'approach';
+    st.archApplied = false;
+  }
+
+  if (st.phase === 'done') {
+    // Cleared! Raise bar
+    st.bestHeight = st.currentBarM;
+    st.consecutiveFails = 0;
+    st.currentBarM = parseFloat((st.currentBarM + st.heightStep).toFixed(2));
+    st.barHeight += 18;
+    st.attempt++;
+
+    // Reset for next height
+    athlete.x = 60;
+    athlete.y = GROUND_Y;
+    speed = 0;
+    st.cleared = false;
+    st.archApplied = false;
+    st.phase = 'approach';
+
+    // Max height check
+    if (st.barHeight > 340) {
+      finishEvent(st.bestHeight);
+    }
+  }
+}
+
+function finishEvent(value) {
+  results[currentEvent] = value;
+  gamePhase = 'result';
+}
+
+// --- DRAWING ---
+function drawStadium() {
+  // Sky gradient
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, TRACK_TOP);
+  skyGrad.addColorStop(0, '#1a5599');
+  skyGrad.addColorStop(0.6, '#3388cc');
+  skyGrad.addColorStop(1, '#55aadd');
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, W, TRACK_TOP);
+
+  // Clouds
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  drawCloud(100, 60, 50);
+  drawCloud(350, 40, 70);
+  drawCloud(600, 80, 45);
+  drawCloud(750, 30, 55);
+
+  // Stadium stands (background)
+  ctx.fillStyle = '#556';
+  ctx.fillRect(0, TRACK_TOP - 80, W, 80);
+  // Crowd dots
+  for (let i = 0; i < 120; i++) {
+    const cx = (i * 7 + Math.sin(i * 1.3 + frame * 0.05) * 2) % W;
+    const cy = TRACK_TOP - 75 + (i * 11) % 70;
+    const colors = ['#f44', '#44f', '#ff4', '#4f4', '#f4f', '#fff', '#fa4'];
+    ctx.fillStyle = colors[i % colors.length];
+    ctx.fillRect(cx, cy, 4, 5);
+  }
+
+  // Track surface
+  ctx.fillStyle = TRACK_BROWN;
+  ctx.fillRect(0, TRACK_TOP, W, GROUND_Y - TRACK_TOP);
+
+  // Track lanes
+  ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 5; i++) {
+    const ly = TRACK_TOP + i * 12 + 6;
+    ctx.beginPath();
+    ctx.moveTo(0, ly); ctx.lineTo(W, ly);
+    ctx.stroke();
+  }
+
+  // Green infield (below track)
+  ctx.fillStyle = GRASS_GREEN;
+  ctx.fillRect(0, GROUND_Y, W, H - GROUND_Y);
+
+  // Grass texture
+  ctx.fillStyle = '#1e7a1e';
+  for (let i = 0; i < 40; i++) {
+    ctx.fillRect((i * 23 + 5) % W, GROUND_Y + (i * 7) % (H - GROUND_Y), 2, 4);
+  }
+}
+
+function drawCloud(x, y, w) {
+  ctx.beginPath();
+  ctx.arc(x, y, w * 0.3, 0, Math.PI * 2);
+  ctx.arc(x + w * 0.3, y - w * 0.15, w * 0.35, 0, Math.PI * 2);
+  ctx.arc(x + w * 0.6, y, w * 0.3, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawAthlete(x, y, running, jumping) {
+  const legPhase = running ? Math.sin(frame * 0.5) : 0;
+
+  // Body
+  ctx.fillStyle = '#ff4444';
+  ctx.fillRect(x - 5, y - 45, 10, 22); // torso
+
+  // Head
+  ctx.fillStyle = '#ffcc88';
+  ctx.beginPath();
+  ctx.arc(x, y - 52, 8, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Arms
+  ctx.strokeStyle = '#ffcc88';
+  ctx.lineWidth = 3;
+  if (running) {
+    // Running arms
+    ctx.beginPath();
+    ctx.moveTo(x - 3, y - 42);
+    ctx.lineTo(x - 12 + legPhase * 8, y - 32);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x + 3, y - 42);
+    ctx.lineTo(x + 12 - legPhase * 8, y - 32);
+    ctx.stroke();
+  } else {
+    // Standing arms
+    ctx.beginPath();
+    ctx.moveTo(x - 3, y - 42);
+    ctx.lineTo(x - 10, y - 30);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x + 3, y - 42);
+    ctx.lineTo(x + 10, y - 30);
+    ctx.stroke();
+  }
+
+  // Shorts
+  ctx.fillStyle = '#2244aa';
+  ctx.fillRect(x - 6, y - 24, 12, 8);
+
+  // Legs
+  ctx.strokeStyle = '#ffcc88';
+  ctx.lineWidth = 4;
+  if (running && !jumping) {
+    // Left leg
+    ctx.beginPath();
+    ctx.moveTo(x - 3, y - 16);
+    ctx.lineTo(x - 3 + legPhase * 12, y);
+    ctx.stroke();
+    // Right leg
+    ctx.beginPath();
+    ctx.moveTo(x + 3, y - 16);
+    ctx.lineTo(x + 3 - legPhase * 12, y);
+    ctx.stroke();
+  } else if (jumping) {
+    // Tucked legs
+    ctx.beginPath();
+    ctx.moveTo(x - 3, y - 16);
+    ctx.lineTo(x - 8, y - 8);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x + 3, y - 16);
+    ctx.lineTo(x + 8, y - 8);
+    ctx.stroke();
+  } else {
+    // Standing legs
+    ctx.beginPath();
+    ctx.moveTo(x - 3, y - 16);
+    ctx.lineTo(x - 3, y);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x + 3, y - 16);
+    ctx.lineTo(x + 3, y);
+    ctx.stroke();
+  }
+
+  // Shoes
+  ctx.fillStyle = '#fff';
+  if (running && !jumping) {
+    ctx.fillRect(x - 6 + legPhase * 12, y - 3, 7, 3);
+    ctx.fillRect(x + legPhase * -12, y - 3, 7, 3);
+  } else if (!jumping) {
+    ctx.fillRect(x - 7, y - 3, 7, 3);
+    ctx.fillRect(x, y - 3, 7, 3);
+  }
+}
+
+function drawSpeedMeter(x, y, w, label) {
+  ctx.fillStyle = '#222';
+  ctx.fillRect(x, y, w, 18);
+  ctx.strokeStyle = '#555';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x, y, w, 18);
+
+  const pct = speed / 20;
+  const barW = pct * (w - 4);
+  const grad = ctx.createLinearGradient(x + 2, 0, x + w - 2, 0);
+  grad.addColorStop(0, '#44ff44');
+  grad.addColorStop(0.5, '#ffff44');
+  grad.addColorStop(1, '#ff4444');
+  ctx.fillStyle = grad;
+  ctx.fillRect(x + 2, y + 2, barW, 14);
+
+  ctx.fillStyle = '#fff';
+  ctx.font = '11px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText(label || 'SPEED', x + 4, y + 14);
+}
+
+function draw() {
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, H);
+
+  if (gamePhase === 'title') {
+    drawTitleScreen();
+    drawBadge();
+    return;
+  }
+
+  if (gamePhase === 'eventIntro') {
+    drawEventIntro();
+    drawBadge();
+    return;
+  }
+
+  if (gamePhase === 'result') {
+    drawResultScreen();
+    drawBadge();
+    return;
+  }
+
+  if (gamePhase === 'final') {
+    drawFinalScreen();
+    drawBadge();
+    return;
+  }
+
+  // Playing
+  drawStadium();
+
+  switch (currentEvent) {
+    case 0: drawDash(); break;
+    case 1: drawLongJump(); break;
+    case 2: drawJavelin(); break;
+    case 3: drawHighJump(); break;
+  }
+
+  drawSpeedMeter(10, 50, 200, 'SPEED');
+
+  // Event name
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 16px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(EVENT_NAMES[currentEvent], W / 2, 74);
+
+  drawBadge();
+}
+
+// --- TITLE SCREEN ---
+function drawTitleScreen() {
+  // Background
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#0a1628');
+  grad.addColorStop(1, '#1a3355');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Olympic rings (simplified)
+  const ringColors = ['#0081C8', '#000', '#EE334E', '#FCB131', '#00A651'];
+  const ringY = 180;
+  const ringR = 28;
+  const ringSpacing = 65;
+  const startX = W / 2 - ringSpacing * 2;
+  ctx.lineWidth = 4;
+  for (let i = 0; i < 5; i++) {
+    ctx.strokeStyle = ringColors[i];
+    ctx.beginPath();
+    const rx = startX + i * ringSpacing;
+    const ry = ringY + (i % 2 === 0 ? 0 : ringR * 0.5);
+    ctx.arc(rx, ry, ringR, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // Title
+  ctx.fillStyle = '#ffd700';
+  ctx.font = 'bold 48px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('MULTI ATHLETICS', W / 2, 280);
+
+  ctx.fillStyle = '#aaccff';
+  ctx.font = '18px monospace';
+  ctx.fillText('Multi-Event Athletics', W / 2, 315);
+
+  // Events list
+  ctx.fillStyle = '#88aacc';
+  ctx.font = '16px monospace';
+  const evtY = 370;
+  for (let i = 0; i < EVENT_COUNT; i++) {
+    ctx.fillText((i + 1) + '. ' + EVENT_NAMES[i], W / 2, evtY + i * 28);
+  }
+
+  // Prompt
+  const blink = Math.sin(frame * 0.08) > 0;
+  if (blink) {
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 20px monospace';
+    ctx.fillText('PRESS ENTER TO BEGIN', W / 2, 530);
+  }
+
+  // Controls hint
+  ctx.fillStyle = '#556';
+  ctx.font = '12px monospace';
+  ctx.fillText('L/R mash for speed  |  Space for action  |  ? for info', W / 2, 570);
+}
+
+// --- EVENT INTRO SCREEN ---
+function drawEventIntro() {
+  ctx.fillStyle = '#0a1222';
+  ctx.fillRect(0, 0, W, H);
+
+  // Event number
+  ctx.fillStyle = '#445';
+  ctx.font = '120px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText((currentEvent + 1).toString(), W / 2, 220);
+
+  // Event name
+  ctx.fillStyle = '#ffd700';
+  ctx.font = 'bold 40px monospace';
+  ctx.fillText(EVENT_NAMES[currentEvent], W / 2, 290);
+
+  // Instructions
+  ctx.fillStyle = '#88aacc';
+  ctx.font = '14px monospace';
+  const inst = getEventInstructions();
+  for (let i = 0; i < inst.length; i++) {
+    ctx.fillText(inst[i], W / 2, 350 + i * 24);
+  }
+
+  const blink = Math.sin(frame * 0.08) > 0;
+  if (blink) {
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 18px monospace';
+    ctx.fillText('PRESS ENTER TO START', W / 2, 520);
+  }
+}
+
+function getEventInstructions() {
+  switch (currentEvent) {
+    case 0: return [
+      'Alternate LEFT and RIGHT rapidly to run!',
+      'Race 100 meters for the fastest time.',
+      'Wait for the starting signal!'
+    ];
+    case 1: return [
+      'Mash LEFT/RIGHT to build speed on the runway.',
+      'Press SPACE at the foul line to jump.',
+      'Timing at the line determines jump angle.'
+    ];
+    case 2: return [
+      'Mash LEFT/RIGHT to build speed.',
+      'At the throw line, press SPACE to aim.',
+      'An angle meter oscillates. Release SPACE to throw.'
+    ];
+    case 3: return [
+      'Press LEFT/RIGHT to approach the bar.',
+      'Press SPACE to jump.',
+      'Press SPACE again near the peak to arch over!',
+      '3 consecutive fails at a height = event over.'
+    ];
+  }
+}
+
+// --- DRAW EVENT 0: 100m DASH ---
+function drawDash() {
+  const st = eventState;
+
+  // Finish line
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 3;
+  ctx.setLineDash([8, 8]);
+  ctx.beginPath();
+  ctx.moveTo(st.finishLine, TRACK_TOP);
+  ctx.lineTo(st.finishLine, GROUND_Y);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Finish label
+  ctx.fillStyle = '#fff';
+  ctx.font = '12px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('FINISH', st.finishLine, TRACK_TOP - 5);
+
+  // Distance markers
+  ctx.fillStyle = '#aaa';
+  ctx.font = '10px monospace';
+  for (let m = 0; m <= 100; m += 10) {
+    const mx = 60 + m * 6.4;
+    if (mx > 0 && mx < W) {
+      ctx.fillText(m + 'm', mx, GROUND_Y + 16);
+    }
+  }
+
+  // Athlete
+  drawAthlete(athlete.x, athlete.y, st.started && !st.finished, false);
+
+  // Countdown
+  if (!st.started && !st.falseStart) {
+    const sec = Math.ceil(st.countdown / 60);
+    ctx.fillStyle = '#ff4';
+    ctx.font = 'bold 60px monospace';
+    ctx.textAlign = 'center';
+    if (sec > 0) {
+      ctx.fillText(sec.toString(), W / 2, H / 2 - 40);
+    }
+    if (st.countdown <= 0) {
+      ctx.fillStyle = '#4f4';
+      ctx.fillText('GO!', W / 2, H / 2 - 40);
+    }
+  }
+
+  if (st.falseStart) {
+    ctx.fillStyle = '#f44';
+    ctx.font = 'bold 36px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('FALSE START!', W / 2, H / 2 - 40);
+  }
+
+  // Timer
+  if (st.started) {
+    const t = (st.timer / 60).toFixed(2);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 24px monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText(t + 's', W - 20, 74);
+  }
+}
+
+// --- DRAW EVENT 1: LONG JUMP ---
+function drawLongJump() {
+  const st = eventState;
+
+  // Foul line
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(st.foulLineX, TRACK_TOP, 4, GROUND_Y - TRACK_TOP);
+
+  // Foul line label
+  ctx.fillStyle = '#fff';
+  ctx.font = '11px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('FOUL LINE', st.foulLineX + 2, TRACK_TOP - 5);
+
+  // Sand pit
+  ctx.fillStyle = '#ddc488';
+  ctx.fillRect(st.foulLineX + 30, TRACK_TOP + 10, 260, GROUND_Y - TRACK_TOP - 10);
+
+  // Runway markers
+  ctx.fillStyle = '#aaa';
+  ctx.font = '10px monospace';
+  for (let m = 0; m <= 40; m += 5) {
+    const mx = 60 + m * 11;
+    if (mx < st.foulLineX) {
+      ctx.fillText(m + 'm', mx, GROUND_Y + 16);
+    }
+  }
+
+  const isJumping = st.phase === 'air';
+  drawAthlete(athlete.x, athlete.y, st.phase === 'run' && speed > 1, isJumping);
+
+  // Landing mark
+  if (st.phase === 'landed' && !st.foul) {
+    ctx.fillStyle = '#f44';
+    ctx.beginPath();
+    ctx.arc(st.landX, GROUND_Y - 5, 5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Distance display
+  if (st.phase === 'landed') {
+    ctx.fillStyle = st.foul ? '#f44' : '#4f4';
+    ctx.font = 'bold 28px monospace';
+    ctx.textAlign = 'center';
+    if (st.foul) {
+      ctx.fillText('FOUL', W / 2, 130);
+    } else {
+      ctx.fillText(st.distance + 'm', W / 2, 130);
+    }
+  }
+
+  // Jump angle indicator when in air
+  if (st.phase === 'air') {
+    ctx.fillStyle = '#ff4';
+    ctx.font = '14px monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText(Math.round(st.jumpAngle) + '\u00B0', W - 20, 100);
+  }
+}
+
+// --- DRAW EVENT 2: JAVELIN ---
+function drawJavelin() {
+  const st = eventState;
+
+  // Throw line
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(st.throwLineX, TRACK_TOP, 4, GROUND_Y - TRACK_TOP);
+  ctx.fillStyle = '#fff';
+  ctx.font = '11px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('THROW LINE', st.throwLineX + 2, TRACK_TOP - 5);
+
+  // Field (for javelin to land)
+  ctx.fillStyle = '#2a7a2a';
+  ctx.fillRect(st.throwLineX + 20, TRACK_TOP, W - st.throwLineX - 20, GROUND_Y - TRACK_TOP);
+
+  // Distance markers on field
+  ctx.fillStyle = '#aaa';
+  ctx.font = '10px monospace';
+  for (let m = 10; m <= 100; m += 10) {
+    const mx = st.throwLineX + 20 + m * 3;
+    if (mx < W - 10) {
+      ctx.fillText(m + 'm', mx, GROUND_Y + 16);
+    }
+  }
+
+  drawAthlete(athlete.x, athlete.y, st.phase === 'run' && speed > 1, false);
+
+  // Javelin in flight
+  if (st.phase === 'flight' || st.phase === 'landed') {
+    ctx.strokeStyle = '#ffd700';
+    ctx.lineWidth = 3;
+    const angle = Math.atan2(st.javVy || 0, st.javVx || 1);
+    ctx.beginPath();
+    ctx.moveTo(st.javX, st.javY);
+    ctx.lineTo(st.javX - Math.cos(angle) * 35, st.javY - Math.sin(angle) * 35);
+    ctx.stroke();
+    // Tip
+    ctx.fillStyle = '#ccc';
+    ctx.beginPath();
+    ctx.arc(st.javX, st.javY, 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Angle meter
+  if (st.phase === 'aiming') {
+    const meterX = W / 2;
+    const meterY = 160;
+    const meterW = 200;
+    const meterH = 30;
+
+    ctx.fillStyle = '#222';
+    ctx.fillRect(meterX - meterW / 2, meterY, meterW, meterH);
+    ctx.strokeStyle = '#666';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(meterX - meterW / 2, meterY, meterW, meterH);
+
+    // Angle indicator
+    const indicatorX = meterX - meterW / 2 + (st.angleMeter / 90) * meterW;
+    ctx.fillStyle = '#ff4';
+    ctx.fillRect(indicatorX - 3, meterY - 2, 6, meterH + 4);
+
+    // Optimal zone (around 40-45)
+    const optL = meterX - meterW / 2 + (38 / 90) * meterW;
+    const optR = meterX - meterW / 2 + (47 / 90) * meterW;
+    ctx.fillStyle = 'rgba(68, 255, 68, 0.2)';
+    ctx.fillRect(optL, meterY, optR - optL, meterH);
+
+    // Labels
+    ctx.fillStyle = '#aaa';
+    ctx.font = '11px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('0\u00B0', meterX - meterW / 2, meterY - 6);
+    ctx.fillText('45\u00B0', meterX, meterY - 6);
+    ctx.fillText('90\u00B0', meterX + meterW / 2, meterY - 6);
+    ctx.fillStyle = '#ff4';
+    ctx.fillText('ANGLE: ' + Math.round(st.angleMeter) + '\u00B0', meterX, meterY + meterH + 18);
+    ctx.fillStyle = '#4f4';
+    ctx.font = '12px monospace';
+    ctx.fillText('Release SPACE to throw!', meterX, meterY + meterH + 36);
+  }
+
+  // Distance result
+  if (st.phase === 'landed') {
+    ctx.fillStyle = '#4f4';
+    ctx.font = 'bold 28px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(st.distance + 'm', W / 2, 130);
+    ctx.fillStyle = '#aaa';
+    ctx.font = '14px monospace';
+    ctx.fillText('Angle: ' + Math.round(st.throwAngle) + '\u00B0', W / 2, 155);
+  }
+}
+
+// --- DRAW EVENT 3: HIGH JUMP ---
+function drawHighJump() {
+  const st = eventState;
+
+  // Bar posts
+  ctx.fillStyle = '#888';
+  ctx.fillRect(st.barX - 3, GROUND_Y - st.barHeight - 30, 6, st.barHeight + 30);
+  ctx.fillRect(st.barX + 50, GROUND_Y - st.barHeight - 30, 6, st.barHeight + 30);
+
+  // Bar
+  if (st.phase !== 'fail') {
+    ctx.strokeStyle = '#ff4444';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(st.barX - 3, GROUND_Y - st.barHeight);
+    ctx.lineTo(st.barX + 56, GROUND_Y - st.barHeight);
+    ctx.stroke();
+  }
+
+  // Mat (landing area)
+  ctx.fillStyle = '#3344aa';
+  ctx.fillRect(st.barX + 10, GROUND_Y - 15, 80, 15);
+
+  // Height label
+  ctx.fillStyle = '#fff';
+  ctx.font = '14px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText(st.currentBarM.toFixed(2) + 'm', st.barX + 60, GROUND_Y - st.barHeight - 10);
+
+  // Best height
+  if (st.bestHeight > 0) {
+    ctx.fillStyle = '#4f4';
+    ctx.font = '14px monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText('Best: ' + st.bestHeight.toFixed(2) + 'm', W - 20, 100);
+  }
+
+  // Attempts
+  ctx.fillStyle = '#ff8';
+  ctx.font = '14px monospace';
+  ctx.textAlign = 'right';
+  const failsLeft = st.maxAttempts - st.consecutiveFails;
+  ctx.fillText('Attempts left: ' + failsLeft, W - 20, 120);
+
+  // Approach markers
+  ctx.fillStyle = '#aaa';
+  ctx.font = '10px monospace';
+  ctx.textAlign = 'center';
+  for (let i = 0; i < 5; i++) {
+    const mx = 100 + i * 80;
+    if (mx < st.barX - 40) {
+      ctx.fillRect(mx, GROUND_Y - 2, 2, 4);
+    }
+  }
+
+  const isRunning = st.phase === 'approach' && speed > 1;
+  const isJumping = st.phase === 'jump' || st.phase === 'peak';
+  drawAthlete(athlete.x, athlete.y, isRunning, isJumping);
+
+  // Jump timing hint
+  if (st.phase === 'jump' && !st.archApplied) {
+    const peakNear = st.vy >= -2.5 && st.vy <= 3;
+    if (peakNear) {
+      ctx.fillStyle = Math.sin(frame * 0.3) > 0 ? '#ff4' : '#aa2';
+      ctx.font = 'bold 16px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('PRESS SPACE TO ARCH!', W / 2, 130);
+    }
+  }
+
+  if (st.phase === 'fail') {
+    ctx.fillStyle = '#f44';
+    ctx.font = 'bold 28px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('KNOCKED BAR!', W / 2, 130);
+  }
+}
+
+// --- RESULT SCREEN ---
+function drawResultScreen() {
+  ctx.fillStyle = '#0a1222';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = '#ffd700';
+  ctx.font = 'bold 36px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(EVENT_NAMES[currentEvent], W / 2, 120);
+
+  ctx.fillStyle = '#fff';
+  ctx.font = '18px monospace';
+  ctx.fillText('RESULT', W / 2, 170);
+
+  const result = results[currentEvent];
+  if (result === null) {
+    ctx.fillStyle = '#f44';
+    ctx.font = 'bold 48px monospace';
+    if (currentEvent === 0) {
+      ctx.fillText('FALSE START', W / 2, 280);
+    } else if (currentEvent === 1) {
+      ctx.fillText('FOUL', W / 2, 280);
+    } else {
+      ctx.fillText('NO MARK', W / 2, 280);
+    }
+  } else {
+    ctx.fillStyle = '#4f4';
+    ctx.font = 'bold 56px monospace';
+    if (currentEvent === 0) {
+      ctx.fillText(result.toFixed(2) + 's', W / 2, 280);
+    } else if (currentEvent === 3) {
+      ctx.fillText(result.toFixed(2) + 'm', W / 2, 280);
+    } else {
+      ctx.fillText(result + 'm', W / 2, 280);
+    }
+  }
+
+  // Medal rating
+  if (result !== null) {
+    const medal = getMedalRating(currentEvent, result);
+    ctx.font = '24px monospace';
+    ctx.fillStyle = medal.color;
+    ctx.fillText(medal.label, W / 2, 340);
+  }
+
+  const blink = Math.sin(frame * 0.08) > 0;
+  if (blink) {
+    ctx.fillStyle = '#aaa';
+    ctx.font = '16px monospace';
+    if (currentEvent < EVENT_COUNT - 1) {
+      ctx.fillText('ENTER = next event  |  R = retry', W / 2, 450);
+    } else {
+      ctx.fillText('ENTER = final results', W / 2, 450);
+    }
+  }
+
+  // Progress
+  ctx.fillStyle = '#556';
+  ctx.font = '14px monospace';
+  ctx.fillText('Event ' + (currentEvent + 1) + ' of ' + EVENT_COUNT, W / 2, 520);
+}
+
+function getMedalRating(event, result) {
+  // Approximate medal thresholds
+  switch (event) {
+    case 0: // 100m (lower is better)
+      if (result <= 8.5) return { label: 'GOLD MEDAL', color: '#ffd700' };
+      if (result <= 10.5) return { label: 'SILVER MEDAL', color: '#c0c0c0' };
+      if (result <= 13.0) return { label: 'BRONZE MEDAL', color: '#cd7f32' };
+      return { label: 'FINISHED', color: '#888' };
+    case 1: // Long jump (higher is better)
+      if (result >= 7.0) return { label: 'GOLD MEDAL', color: '#ffd700' };
+      if (result >= 5.5) return { label: 'SILVER MEDAL', color: '#c0c0c0' };
+      if (result >= 4.0) return { label: 'BRONZE MEDAL', color: '#cd7f32' };
+      return { label: 'FINISHED', color: '#888' };
+    case 2: // Javelin (higher is better)
+      if (result >= 60) return { label: 'GOLD MEDAL', color: '#ffd700' };
+      if (result >= 40) return { label: 'SILVER MEDAL', color: '#c0c0c0' };
+      if (result >= 25) return { label: 'BRONZE MEDAL', color: '#cd7f32' };
+      return { label: 'FINISHED', color: '#888' };
+    case 3: // High jump (higher is better)
+      if (result >= 2.10) return { label: 'GOLD MEDAL', color: '#ffd700' };
+      if (result >= 1.80) return { label: 'SILVER MEDAL', color: '#c0c0c0' };
+      if (result >= 1.60) return { label: 'BRONZE MEDAL', color: '#cd7f32' };
+      return { label: 'FINISHED', color: '#888' };
+  }
+  return { label: '', color: '#888' };
+}
+
+// --- FINAL RESULTS ---
+function drawFinalScreen() {
+  ctx.fillStyle = '#0a0a1a';
+  ctx.fillRect(0, 0, W, H);
+
+  // Border
+  ctx.strokeStyle = '#ffd700';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(60, 40, W - 120, H - 80);
+  ctx.strokeRect(65, 45, W - 130, H - 90);
+
+  ctx.fillStyle = '#ffd700';
+  ctx.font = 'bold 36px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('FINAL RESULTS', W / 2, 100);
+
+  // Olympic rings small
+  const ringColors = ['#0081C8', '#333', '#EE334E', '#FCB131', '#00A651'];
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 5; i++) {
+    ctx.strokeStyle = ringColors[i];
+    ctx.beginPath();
+    ctx.arc(W / 2 - 60 + i * 30, 130, 12, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // Results table
+  const tableY = 175;
+  const rowH = 60;
+
+  // Header
+  ctx.fillStyle = '#888';
+  ctx.font = '14px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('EVENT', 140, tableY);
+  ctx.textAlign = 'center';
+  ctx.fillText('RESULT', 480, tableY);
+  ctx.fillText('MEDAL', 620, tableY);
+
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(120, tableY + 8);
+  ctx.lineTo(680, tableY + 8);
+  ctx.stroke();
+
+  let totalMedals = 0;
+  for (let i = 0; i < EVENT_COUNT; i++) {
+    const ry = tableY + 30 + i * rowH;
+
+    // Event name
+    ctx.fillStyle = '#ccddee';
+    ctx.font = '18px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText((i + 1) + '. ' + EVENT_NAMES[i], 140, ry);
+
+    // Result
+    ctx.textAlign = 'center';
+    if (results[i] === null) {
+      ctx.fillStyle = '#f44';
+      ctx.fillText('---', 480, ry);
+    } else {
+      ctx.fillStyle = '#4f4';
+      if (i === 0) {
+        ctx.fillText(results[i].toFixed(2) + 's', 480, ry);
+      } else {
+        ctx.fillText(results[i].toFixed(2) + 'm', 480, ry);
+      }
+    }
+
+    // Medal
+    if (results[i] !== null) {
+      const medal = getMedalRating(i, results[i]);
+      ctx.fillStyle = medal.color;
+      ctx.font = '14px monospace';
+      ctx.fillText(medal.label, 620, ry);
+      if (medal.label.includes('GOLD')) totalMedals += 3;
+      else if (medal.label.includes('SILVER')) totalMedals += 2;
+      else if (medal.label.includes('BRONZE')) totalMedals += 1;
+    }
+
+    // Separator
+    if (i < EVENT_COUNT - 1) {
+      ctx.strokeStyle = '#222';
+      ctx.beginPath();
+      ctx.moveTo(120, ry + 20);
+      ctx.lineTo(680, ry + 20);
+      ctx.stroke();
+    }
+  }
+
+  // Overall rating
+  const overallY = tableY + 30 + EVENT_COUNT * rowH + 20;
+  ctx.font = 'bold 20px monospace';
+  ctx.textAlign = 'center';
+  if (totalMedals >= 10) {
+    ctx.fillStyle = '#ffd700';
+    ctx.fillText('CHAMPION ATHLETE!', W / 2, overallY);
+  } else if (totalMedals >= 6) {
+    ctx.fillStyle = '#c0c0c0';
+    ctx.fillText('STRONG PERFORMANCE', W / 2, overallY);
+  } else if (totalMedals >= 3) {
+    ctx.fillStyle = '#cd7f32';
+    ctx.fillText('DECENT SHOWING', W / 2, overallY);
+  } else {
+    ctx.fillStyle = '#888';
+    ctx.fillText('KEEP TRAINING', W / 2, overallY);
+  }
+
+  const blink = Math.sin(frame * 0.08) > 0;
+  if (blink) {
+    ctx.fillStyle = '#aaa';
+    ctx.font = '16px monospace';
+    ctx.fillText('PRESS ENTER OR R TO PLAY AGAIN', W / 2, H - 70);
+  }
+}
+
+function drawBadge() {
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(8, 8, 280, 28);
+  ctx.fillStyle = '#555';
+  ctx.font = '13px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('SPT-002 \u00B7 MULTI ATHLETICS  [?]', 16, 26);
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+initGame();
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: runner ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("runner");
+</script>
+</body>
+</html>

@@ -1,0 +1,884 @@
+<!--
+PROTOTYPE: bar-serve
+SERIES: srv
+NUMBER: 001
+DATE: 2026-03-22
+MECHANIC: serve beer along multi-lane bar, catch returning mugs before they fall off
+ANCESTRY: Tapper (1983), Root Beer Tapper (1983), Diner Dash (2004)
+CONTROLS: Up/Down arrows or W/S — switch lane | Space or Enter — serve | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — rule-based dispatch, pre-neural)
+AI-INSIGHT: Tapper is a real-time multi-queue scheduling problem identical to CPU task dispatch, elevator routing, and later RL environments. The player IS the scheduler — choosing between N queues with different urgency levels and no lookahead. John Miller's bartender intuition ran on the same algorithm as Dijkstra's scheduler.
+NOTES: Four simultaneous queues with stochastic arrival rates. Core mechanic demands priority arbitration under incomplete information.
+       The serve-and-catch symmetry (dispatch right, catch return left) creates a beautiful two-phase timing challenge.
+       v2: added title screen, wave-bonus mini-game every 3rd round (keg-timing), high score, fixed wave clear guard.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SRV-001 · BAR SERVE</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #1a0800; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.93); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.65; }
+#info-panel h1 { color: #f90; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #fd6; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #321800; color: #f90; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SRV-001 · BAR SERVE</h1>
+    <p><span class="tag series">SRV — Service / Dispatch</span> <span class="tag">Prototype #001</span> <span class="tag">★★★★☆</span></p>
+
+    <h2>How to Play</h2>
+    <p>You're the bartender. Customers march in from the right — slide them a beer before they reach you. Catch the empty mugs they slide back or you lose a life. If a customer reaches you, you're thrown out.</p>
+    <ul>
+      <li><kbd>↑</kbd> <kbd>↓</kbd> or <kbd>W</kbd> <kbd>S</kbd> — Move between bar rails</li>
+      <li><kbd>Space</kbd> or <kbd>Enter</kbd> — Serve beer (slides right)</li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Priority scan:</strong> Glance all 4 rails — serve the customer closest to you first.</li>
+      <li><strong>Catch rhythm:</strong> After serving, watch for the return mug on that same rail.</li>
+      <li><strong>Don't over-serve:</strong> A second beer collides with a returning mug — both are wasted.</li>
+      <li><strong>Tipping:</strong> Each wave sends faster customers — there's no ceiling. Survive as long as possible.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Tapper (1983, Bally Midway) → Root Beer Tapper (1983) → Diner Dash (2004)</p>
+    <p>Tapper (1983) was designed by Larry Demar and Steve Ritchie at Bally Midway and originally sponsored by Anheuser-Busch (Budweiser branding). The game was so convincingly bar-themed that Midway re-released it as <em>Root Beer Tapper</em> for family arcades. It remains one of the few arcade games to use a tap handle as the control — an authentic beer tap mounted on the cabinet.</p>
+    <p>The game was unusual for its era: no shooting, no enemies with weapons. The threat is momentum and timing. Customers march relentlessly; the rules never change; the difficulty is pure throughput. It's the most honest representation of the service industry in arcade history.</p>
+    <p>The genre it founded — multi-lane timing service games — lay dormant for 20 years until Diner Dash (2004) revived it for casual audiences, spawning an entire category of "time management" games.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 3 — Knowledge Explosion (1980–1997)</p>
+    <p><strong>Contemporary AI:</strong> Operations research (OR) dominated service queue optimization. M/M/N queueing theory (Erlang, 1909 — re-popularized 1970s) described exactly this problem mathematically. AI systems in 1983 had no tools for real-time adaptive scheduling in physical contexts.</p>
+    <p><strong>Hidden Intelligence:</strong> Tapper is a real-time multi-queue scheduling problem. The player's cognitive process — scan all queues, assess urgency, dispatch, switch, catch return — mirrors the Shortest Job First (SJF) and Round Robin scheduling algorithms that governed every computer OS in 1983. John Miller's bartender was running the same decision algorithm as the Intel 8086 task switcher.</p>
+    <p><strong>The Convergence:</strong> Erlang's queueing theory (1909, revived 1950s–70s) modeled telephone exchanges as stochastic queues with service rates and arrival rates — exactly the Tapper problem. Neither Bally Midway nor the operations research community made the connection. They solved the same problem for different audiences.</p>
+    <p><strong>If AI Had Designed This:</strong> A 1983 expert system could have added urgency indicators — coloring customers red as their "patience" depleted — giving the player the equivalent of a priority queue visualization. The game intuited this later in Diner Dash.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: SRV — Service / Dispatch</h3>
+    <p>Games where the player manages delivery or dispatch across multiple simultaneous channels. Objects arrive with deadlines; the player routes responses; returns must be caught. The core tension: <em>N queues compete for one server's attention at all times.</em></p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Multi-lane serve and catch.</strong> 4 rails, customers advance left, player launches mugs right, catches empties left. Customer collision and mug escape are symmetric loss conditions.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Does the multi-rail priority decision feel tense and fair?</li>
+      <li>Is the serve-and-catch rhythm satisfying?</li>
+      <li>Does wave escalation maintain interest without feeling arbitrary?</li>
+      <li>Does the loss condition (customer reaching you) feel earned, not unfair?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. 4 rails, 4 customer escalation waves. Customers accelerate each wave. Mugs collide with customers and return. Round-clear bonus scoring. Particle effects on serve and catch.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// ─── INFO PANEL ────────────────────────────────────────────────
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+// ─── CANVAS SETUP ──────────────────────────────────────────────
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.97;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+// ─── INPUT ─────────────────────────────────────────────────────
+const keys = {};
+const pressed = {};
+window.addEventListener('keydown', e => {
+  if (infoOpen) return;
+  if (!keys[e.code]) pressed[e.code] = true;
+  keys[e.code] = true;
+  e.preventDefault();
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+function pop(code) { const v = pressed[code]; pressed[code] = false; return !!v; }
+
+// ─── CONSTANTS ─────────────────────────────────────────────────
+const RAILS = 4;
+const RAIL_H = 100;
+const RAIL_TOP = 80;
+const BAR_LEFT = 90;
+const BAR_RIGHT = 760;
+const MUG_SPEED = 6;
+const PLAYER_X = 60;
+const MINIGAME_EVERY = 3;   // trigger mini-game every Nth wave clear
+
+// ─── PERSISTENT ────────────────────────────────────────────────
+let hiScore = 0;
+try { hiScore = +(localStorage.getItem('pv_tap_hi') || 0); } catch(e) {}
+
+// ─── GAME PHASE STATE MACHINE ──────────────────────────────────
+// phase: 'title' | 'playing' | 'wave_clear' | 'minigame' | 'gameover'
+let phase = 'title';
+let titleAnim = 0;
+
+// ─── PLAYING STATE ─────────────────────────────────────────────
+let playerLane, lives, score, wave;
+let customers, mugs, particles;
+let spawnTimer, spawnInterval;
+let moveCooldown, serveCooldown;
+let waveClearTimer, waveClearGuard;
+
+// ─── MINI-GAME STATE ───────────────────────────────────────────
+// "Fill the Keg" — oscillating gauge; press Space in the sweet spot
+let mg = {};   // { kegs, cur, fill, dir, speed, state, resultTimer, result, bonus, waveBonusBase }
+
+function railY(lane) { return RAIL_TOP + lane * RAIL_H; }
+
+function startGame() {
+  playerLane = 1; lives = 3; score = 0; wave = 1;
+  customers = []; mugs = []; particles = [];
+  spawnTimer = 0; spawnInterval = 200;
+  moveCooldown = 0; serveCooldown = 0;
+  waveClearTimer = 0; waveClearGuard = false;
+  phase = 'playing';
+}
+
+// ─── HELPERS ───────────────────────────────────────────────────
+function rand(a, b) { return a + Math.random() * (b - a); }
+function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
+function spawnCustomer() {
+  const lanePool = [0,1,2,3].filter(l =>
+    !customers.some(c => c.lane === l && c.x > BAR_RIGHT - 80)
+  );
+  if (lanePool.length === 0) return;
+  const lane = lanePool[Math.floor(Math.random() * lanePool.length)];
+  const speed = 0.5 + wave * 0.18 + rand(0, 0.1);
+  customers.push({ lane, x: BAR_RIGHT, speed, anim: 0 });
+}
+
+function spawnMug(lane) {
+  if (mugs.some(m => m.lane === lane)) return false;
+  score += 5;
+  mugs.push({ lane, x: PLAYER_X + 18, returning: false, anim: 0 });
+  addParticle(PLAYER_X + 18, railY(lane), '#f90', 8);
+  return true;
+}
+
+function addParticle(x, y, color, count) {
+  for (let i = 0; i < count; i++) {
+    const a = Math.random() * Math.PI * 2, spd = rand(1, 3.5);
+    particles.push({ x, y, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd,
+                     life: 30, maxLife: 30, color });
+  }
+}
+
+function loseLife() {
+  lives--;
+  if (lives <= 0) {
+    lives = 0;
+    if (score > hiScore) { hiScore = score; try { localStorage.setItem('pv_tap_hi', hiScore); } catch(e) {} }
+    phase = 'gameover';
+  }
+}
+
+// ─── START MINI-GAME ───────────────────────────────────────────
+function startMinigame() {
+  mg = {
+    kegs: 3,
+    cur: 0,
+    fill: 0,
+    dir: 1,
+    speed: 0.38 + wave * 0.04,
+    state: 'filling',    // 'filling' | 'result'
+    resultTimer: 0,
+    result: '',
+    bonus: 0,
+    waveBonusBase: 50 * wave,
+  };
+  phase = 'minigame';
+}
+
+// ─── UPDATE TITLE ──────────────────────────────────────────────
+function updateTitle() {
+  titleAnim++;
+  if (pop('Space') || pop('Enter')) startGame();
+}
+
+// ─── UPDATE PLAYING ────────────────────────────────────────────
+function updatePlaying() {
+  moveCooldown = Math.max(0, moveCooldown - 1);
+  serveCooldown = Math.max(0, serveCooldown - 1);
+
+  // Player lane movement
+  if (moveCooldown === 0) {
+    if ((keys['ArrowUp'] || keys['KeyW']) && playerLane > 0) {
+      playerLane--; moveCooldown = 10;
+    } else if ((keys['ArrowDown'] || keys['KeyS']) && playerLane < RAILS - 1) {
+      playerLane++; moveCooldown = 10;
+    }
+  }
+
+  // Serve
+  if ((pop('Space') || pop('Enter')) && serveCooldown === 0) {
+    if (spawnMug(playerLane)) serveCooldown = 12;
+  }
+
+  // Spawn customers
+  spawnTimer++;
+  if (spawnTimer >= spawnInterval) {
+    spawnCustomer();
+    spawnTimer = 0;
+    spawnInterval = Math.max(55, spawnInterval - 2);
+  }
+
+  // Move mugs
+  for (let i = mugs.length - 1; i >= 0; i--) {
+    const m = mugs[i];
+    m.anim++;
+    if (!m.returning) {
+      m.x += MUG_SPEED;
+      let hit = false;
+      for (let j = customers.length - 1; j >= 0; j--) {
+        const c = customers[j];
+        if (c.lane === m.lane && Math.abs(c.x - m.x) < 20) {
+          score += 10 + wave * 2;
+          addParticle(c.x, railY(c.lane), '#fa0', 12);
+          customers.splice(j, 1);
+          m.returning = true;
+          hit = true;
+          break;
+        }
+      }
+      if (!hit && m.x > BAR_RIGHT + 20) {
+        mugs.splice(i, 1);
+        loseLife();
+        continue;
+      }
+    } else {
+      m.x -= MUG_SPEED;
+      if (m.x <= PLAYER_X + 22) {
+        if (m.lane === playerLane) {
+          score += 15;
+          addParticle(PLAYER_X + 10, railY(m.lane), '#4ff', 10);
+        } else {
+          addParticle(PLAYER_X, railY(m.lane), '#f44', 10);
+          loseLife();
+        }
+        mugs.splice(i, 1);
+      }
+    }
+  }
+
+  if (phase !== 'playing') return; // guard: loseLife may have changed phase
+
+  // Move customers
+  for (let i = customers.length - 1; i >= 0; i--) {
+    const c = customers[i];
+    c.x -= c.speed;
+    c.anim++;
+    if (c.x <= BAR_LEFT + 10) {
+      addParticle(BAR_LEFT, railY(c.lane), '#f44', 14);
+      customers.splice(i, 1);
+      loseLife();
+    }
+  }
+
+  if (phase !== 'playing') return;
+
+  // Particles
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx; p.y += p.vy; p.vy += 0.08;
+    p.life--;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+
+  // Wave clear check — only fire once per wave using waveClearGuard
+  const allGone = customers.length === 0 && mugs.length === 0;
+  const quietLong = spawnTimer > spawnInterval * 2;
+  if (!waveClearGuard && allGone && quietLong) {
+    waveClearGuard = true;
+    score += 50 * wave;
+    waveClearTimer = 90;  // ~1.5s display
+    phase = 'wave_clear';
+  }
+}
+
+// ─── UPDATE WAVE CLEAR ─────────────────────────────────────────
+function updateWaveClear() {
+  waveClearTimer--;
+  if (waveClearTimer <= 0) {
+    wave++;
+    // Reset spawn state for new wave
+    spawnTimer = 0;
+    spawnInterval = Math.max(55, 200 - wave * 18);
+    waveClearGuard = false;
+    if (wave % MINIGAME_EVERY === 0) {
+      startMinigame();
+    } else {
+      phase = 'playing';
+    }
+  }
+}
+
+// ─── UPDATE MINI-GAME ──────────────────────────────────────────
+function updateMinigame() {
+  if (mg.state === 'filling') {
+    mg.fill += mg.speed * mg.dir * (1 / 60);
+    if (mg.fill >= 1) { mg.fill = 1; mg.dir = -1; }
+    if (mg.fill <= 0) { mg.fill = 0; mg.dir = 1; }
+    if (pop('Space') || pop('Enter')) {
+      const inZone = mg.fill >= 0.60 && mg.fill <= 1.0;
+      const pts = inZone ? 60 : 10;
+      mg.bonus += pts;
+      mg.result = inZone ? 'PERFECT! +60' : 'CLOSE +10';
+      mg.state = 'result';
+      mg.resultTimer = 70;
+      mg.cur++;
+    }
+  } else if (mg.state === 'result') {
+    mg.resultTimer--;
+    if (mg.resultTimer <= 0) {
+      if (mg.cur >= mg.kegs) {
+        score += mg.bonus;
+        phase = 'playing';
+      } else {
+        mg.fill = 0; mg.dir = 1; mg.state = 'filling';
+      }
+    }
+  }
+}
+
+// ─── MASTER UPDATE ─────────────────────────────────────────────
+function update() {
+  if (infoOpen) return;
+  if (phase === 'title')      { updateTitle(); return; }
+  if (phase === 'gameover')   { if (pop('KeyR')) startGame(); return; }
+  if (phase === 'wave_clear') { updateWaveClear(); return; }
+  if (phase === 'minigame')   { updateMinigame(); return; }
+  if (phase === 'playing')    { updatePlaying(); }
+}
+
+// ─── DRAW ROUNDED RECT ─────────────────────────────────────────
+function drawRoundedRect(x, y, w, h, r, fill, stroke) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  ctx.lineTo(x + r, y + h);
+  ctx.arcTo(x, y + h, x, y + h - r, r);
+  ctx.lineTo(x, y + r);
+  ctx.arcTo(x, y, x + r, y, r);
+  ctx.closePath();
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1.5; ctx.stroke(); }
+}
+
+function drawPlayer() {
+  const x = PLAYER_X, y = railY(playerLane);
+  // Body
+  drawRoundedRect(x - 14, y - 20, 28, 36, 4, '#8b5e3c');
+  // Head
+  ctx.beginPath(); ctx.arc(x, y - 26, 12, 0, Math.PI * 2);
+  ctx.fillStyle = '#f4c891'; ctx.fill();
+  ctx.strokeStyle = '#c9956a'; ctx.lineWidth = 1.5; ctx.stroke();
+  // Apron
+  drawRoundedRect(x - 10, y - 12, 20, 26, 3, '#fff');
+  // Hand extended right (showing service direction)
+  ctx.beginPath(); ctx.arc(x + 22, y, 6, 0, Math.PI * 2);
+  ctx.fillStyle = '#f4c891'; ctx.fill();
+  // Hat
+  ctx.fillStyle = '#5c3317';
+  ctx.fillRect(x - 12, y - 40, 24, 10);
+  ctx.fillRect(x - 8, y - 50, 16, 12);
+}
+
+function drawCustomer(c) {
+  const x = c.x, y = railY(c.lane);
+  const bob = Math.sin(c.anim * 0.18) * 2;
+  // Body
+  const bodyColor = ['#3a6bc4','#c43a3a','#3ac46b','#c4b03a'][c.lane];
+  drawRoundedRect(x - 12, y - 20 + bob, 24, 34, 4, bodyColor);
+  // Head
+  ctx.beginPath(); ctx.arc(x, y - 26 + bob, 10, 0, Math.PI * 2);
+  ctx.fillStyle = '#f4c891'; ctx.fill();
+  ctx.strokeStyle = '#c9956a'; ctx.lineWidth = 1; ctx.stroke();
+  // Eyes
+  ctx.fillStyle = '#222';
+  ctx.fillRect(x - 5, y - 28 + bob, 3, 3);
+  ctx.fillRect(x + 2, y - 28 + bob, 3, 3);
+  // Urgency indicator: turn red as they get close
+  const urgency = 1 - clamp((c.x - BAR_LEFT) / (BAR_RIGHT - BAR_LEFT), 0, 1);
+  if (urgency > 0.55) {
+    ctx.strokeStyle = `rgba(255,60,60,${(urgency - 0.55) * 2.2})`;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.arc(x, y - 20 + bob, 18, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+}
+
+function drawMug(m) {
+  const x = m.x, y = railY(m.lane);
+  const slosh = Math.sin(m.anim * 0.4) * 1.5;
+  // Mug body
+  drawRoundedRect(x - 10, y - 14 + slosh, 20, 22, 3, '#d4a855', '#8a6620');
+  // Foam head
+  drawRoundedRect(x - 10, y - 18 + slosh, 20, 8, 3, '#fff8e0', '#e8d880');
+  // Handle
+  ctx.strokeStyle = '#8a6620'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(x + 12, y - 4 + slosh, 7, -Math.PI / 2, Math.PI / 2); ctx.stroke();
+  // If returning, show empty (darker)
+  if (m.returning) {
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    drawRoundedRect(x - 10, y - 10 + slosh, 20, 18, 3, 'rgba(0,0,0,0.35)');
+  }
+}
+
+function drawRails() {
+  for (let l = 0; l < RAILS; l++) {
+    const y = railY(l);
+    // Bar top (wood)
+    const grad = ctx.createLinearGradient(0, y - 8, 0, y + 8);
+    grad.addColorStop(0, '#7a4a1e');
+    grad.addColorStop(0.5, '#a0622a');
+    grad.addColorStop(1, '#5c3010');
+    ctx.fillStyle = grad;
+    ctx.fillRect(BAR_LEFT - 20, y - 8, (BAR_RIGHT - BAR_LEFT) + 40, 16);
+    // Rail line
+    ctx.strokeStyle = '#3a1800';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(BAR_LEFT - 20, y); ctx.lineTo(BAR_RIGHT + 20, y); ctx.stroke();
+  }
+}
+
+function drawBar() {
+  // Left wall / bartender stand
+  const grad = ctx.createLinearGradient(0, 0, 50, 0);
+  grad.addColorStop(0, '#2a1200');
+  grad.addColorStop(1, '#5c3010');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, RAIL_TOP - 40, BAR_LEFT - 20, (RAILS - 1) * RAIL_H + 80);
+  // Right side (customer entrance)
+  ctx.fillStyle = '#1a0800';
+  ctx.fillRect(BAR_RIGHT + 10, 0, W - BAR_RIGHT - 10, H);
+  // Entrance label
+  ctx.fillStyle = '#f90';
+  ctx.font = '11px monospace';
+  ctx.fillText('ENTER →', BAR_RIGHT - 40, RAIL_TOP - 15);
+}
+
+function drawHUD() {
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, 38);
+  ctx.fillRect(0, H - 32, W, 32);
+
+  // Title
+  ctx.fillStyle = '#f90';
+  ctx.font = 'bold 14px monospace';
+  ctx.fillText('SRV-001 · BAR SERVE', 10, 22);
+
+  // Score
+  ctx.fillStyle = '#fff';
+  ctx.font = '13px monospace';
+  ctx.fillText(`SCORE: ${score}`, 240, 22);
+
+  // Hi score
+  ctx.fillStyle = '#888';
+  ctx.fillText(`HI: ${hiScore}`, 370, 22);
+
+  // Wave
+  ctx.fillStyle = '#f90';
+  ctx.fillText(`WAVE: ${wave}`, 460, 22);
+
+  // Lives (beer mugs)
+  ctx.fillStyle = '#ddd';
+  ctx.fillText('LIVES:', 560, 22);
+  for (let i = 0; i < lives; i++) {
+    ctx.fillStyle = '#d4a855';
+    ctx.fillRect(614 + i * 22, 10, 10, 16);
+    ctx.fillStyle = '#fff8e0';
+    ctx.fillRect(614 + i * 22, 8, 10, 5);
+  }
+
+  // Controls hint
+  ctx.fillStyle = '#555';
+  ctx.font = '11px monospace';
+  ctx.fillText('↑↓ LANE   SPACE SERVE   ? INFO   R RESTART', 10, H - 10);
+}
+
+function drawGameOver() {
+  ctx.fillStyle = 'rgba(0,0,0,0.82)';
+  ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = 'center';
+
+  ctx.shadowColor = '#f44'; ctx.shadowBlur = 18;
+  ctx.fillStyle = '#f44';
+  ctx.font = 'bold 50px monospace';
+  ctx.fillText('LAST CALL!', W / 2, H / 2 - 60);
+  ctx.shadowBlur = 0;
+
+  ctx.fillStyle = '#fff';
+  ctx.font = '22px monospace';
+  ctx.fillText(`FINAL SCORE: ${score}`, W / 2, H / 2);
+  if (score >= hiScore && score > 0) {
+    ctx.fillStyle = '#2ecc71';
+    ctx.font = '16px monospace';
+    ctx.fillText('NEW HIGH SCORE!', W / 2, H / 2 + 32);
+  }
+  ctx.fillStyle = '#f90';
+  ctx.font = 'bold 18px monospace';
+  ctx.fillText('PRESS R TO PLAY AGAIN', W / 2, H / 2 + 80);
+  ctx.textAlign = 'left';
+}
+
+// ─── DRAW TITLE ────────────────────────────────────────────────
+function drawTitle() {
+  ctx.fillStyle = '#1a0800';
+  ctx.fillRect(0, 0, W, H);
+
+  // Wood panel background
+  ctx.fillStyle = '#3a1800';
+  ctx.fillRect(80, 50, 640, 500);
+  ctx.fillStyle = '#4a2200';
+  ctx.fillRect(86, 56, 628, 488);
+  ctx.strokeStyle = '#8b5e3c'; ctx.lineWidth = 3;
+  ctx.strokeRect(80, 50, 640, 500);
+
+  // Title with glow
+  ctx.shadowColor = '#f90'; ctx.shadowBlur = 22;
+  ctx.fillStyle = '#f90';
+  ctx.font = 'bold 88px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('BAR SERVE', W / 2, 170);
+  ctx.shadowBlur = 0;
+
+  ctx.fillStyle = '#d4a855';
+  ctx.font = '15px monospace';
+  ctx.fillText('1983 · Bally Midway  —  Pixel Vault SRV-001', W / 2, 208);
+
+  // Instructions
+  ctx.fillStyle = '#ccc';
+  ctx.font = '14px monospace';
+  const lines = [
+    '↑ / ↓  or  W / S  —  Switch bar lanes',
+    'SPACE  or  ENTER  —  Serve a beer',
+    '',
+    'Customers march from the right.',
+    'Slide them a beer before they reach you.',
+    'Catch the empty mugs that slide back!',
+    'Miss a mug or let someone reach you → lose a life.',
+    '',
+    'Bonus mini-game every 3rd wave cleared.',
+  ];
+  lines.forEach((l, i) => ctx.fillText(l, W / 2, 264 + i * 26));
+
+  // Flashing start prompt
+  if (Math.floor(titleAnim / 30) % 2 === 0) {
+    ctx.fillStyle = '#2ecc71';
+    ctx.font = 'bold 22px monospace';
+    ctx.fillText('PRESS SPACE TO START', W / 2, 510);
+  }
+
+  ctx.textAlign = 'left';
+}
+
+// ─── DRAW WAVE CLEAR OVERLAY ───────────────────────────────────
+function drawWaveClear() {
+  const alpha = Math.min(1, waveClearTimer / 20) * 0.72;
+  ctx.fillStyle = `rgba(0,0,0,${alpha})`;
+  ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#f90';
+  ctx.font = 'bold 46px monospace';
+  ctx.fillText(`WAVE ${wave} CLEARED!`, W / 2, H / 2 - 20);
+  ctx.fillStyle = '#fff';
+  ctx.font = '20px monospace';
+  ctx.fillText(`+${50 * wave} BONUS   SCORE: ${score}`, W / 2, H / 2 + 26);
+  if (wave % MINIGAME_EVERY === 0) {
+    ctx.fillStyle = '#2ecc71';
+    ctx.font = 'bold 16px monospace';
+    ctx.fillText('BONUS ROUND INCOMING!', W / 2, H / 2 + 62);
+  }
+  ctx.textAlign = 'left';
+}
+
+// ─── DRAW MINI-GAME ────────────────────────────────────────────
+function drawMinigame() {
+  ctx.fillStyle = '#1a0800';
+  ctx.fillRect(0, 0, W, H);
+
+  // Panel
+  ctx.fillStyle = '#3a1800';
+  ctx.fillRect(80, 40, 640, 520);
+  ctx.fillStyle = '#4a2200';
+  ctx.fillRect(86, 46, 628, 508);
+  ctx.strokeStyle = '#8b5e3c'; ctx.lineWidth = 3;
+  ctx.strokeRect(80, 40, 640, 520);
+
+  ctx.textAlign = 'center';
+
+  // Title
+  ctx.fillStyle = '#f90';
+  ctx.font = 'bold 36px monospace';
+  ctx.fillText('BONUS ROUND!', W / 2, 110);
+
+  ctx.fillStyle = '#f1c40f';
+  ctx.font = '18px monospace';
+  ctx.fillText(`Fill the Keg  (${mg.cur + 1} / ${mg.kegs})`, W / 2, 150);
+
+  ctx.fillStyle = '#aaa';
+  ctx.font = '14px monospace';
+  ctx.fillText('Stop the gauge in the GREEN ZONE for +60 pts', W / 2, 178);
+
+  // Keg gauge
+  const gx = W / 2 - 160, gy = 210, gw = 320, gh = 50;
+  ctx.fillStyle = '#1a0a00';
+  ctx.fillRect(gx, gy, gw, gh);
+
+  // Sweet-spot (green zone: 60%–100%)
+  ctx.fillStyle = 'rgba(46,204,113,0.25)';
+  ctx.fillRect(gx + gw * 0.60, gy, gw * 0.40, gh);
+  ctx.strokeStyle = '#2ecc71'; ctx.lineWidth = 2;
+  ctx.strokeRect(gx + gw * 0.60, gy, gw * 0.40, gh);
+
+  // Fill bar
+  const fillColor = mg.fill >= 0.60 ? '#2ecc71' : '#e67e22';
+  ctx.fillStyle = fillColor;
+  ctx.fillRect(gx, gy, gw * mg.fill, gh);
+
+  // Gauge border
+  ctx.strokeStyle = '#8b5e3c'; ctx.lineWidth = 3;
+  ctx.strokeRect(gx, gy, gw, gh);
+
+  // Labels
+  ctx.fillStyle = '#2ecc71';
+  ctx.font = '12px monospace';
+  ctx.fillText('SWEET SPOT', W / 2 + gw * 0.2, gy - 8);
+
+  // Pointer triangle
+  const px = gx + gw * mg.fill;
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.moveTo(px, gy - 4);
+  ctx.lineTo(px - 7, gy - 16);
+  ctx.lineTo(px + 7, gy - 16);
+  ctx.closePath(); ctx.fill();
+
+  // Result message
+  if (mg.state === 'result') {
+    const ok = mg.result.startsWith('PERFECT');
+    ctx.fillStyle = ok ? '#2ecc71' : '#e67e22';
+    ctx.font = 'bold 32px monospace';
+    ctx.fillText(mg.result, W / 2, 320);
+  } else {
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 20px monospace';
+    if (Math.floor(titleAnim / 22) % 2 === 0) {
+      ctx.fillText('PRESS SPACE to stop!', W / 2, 320);
+    }
+  }
+
+  // Keg icons (filled circles for completed, rings for remaining)
+  for (let i = 0; i < mg.kegs; i++) {
+    const kx = W / 2 + (i - 1) * 60;
+    ctx.beginPath(); ctx.arc(kx, 390, 18, 0, Math.PI * 2);
+    if (i < mg.cur) {
+      ctx.fillStyle = '#2ecc71'; ctx.fill();
+    } else if (i === mg.cur && mg.state === 'result') {
+      ctx.fillStyle = mg.result.startsWith('PERFECT') ? '#2ecc71' : '#e67e22'; ctx.fill();
+    } else {
+      ctx.strokeStyle = '#888'; ctx.lineWidth = 2; ctx.stroke();
+    }
+    ctx.fillStyle = '#222'; ctx.font = '12px monospace';
+    ctx.fillText(i + 1, kx - 4, 395);
+  }
+
+  // Bonus running total
+  ctx.fillStyle = '#f1c40f';
+  ctx.font = '17px monospace';
+  ctx.fillText(`Bonus so far: +${mg.bonus}`, W / 2, 445);
+
+  ctx.textAlign = 'left';
+  titleAnim++;
+}
+
+// ─── DRAW GAME SCENE (shared by playing, wave_clear, gameover) ──
+function drawScene() {
+  ctx.fillStyle = '#1a0800';
+  ctx.fillRect(0, 0, W, H);
+
+  drawBar();
+  drawRails();
+
+  // Particles (behind sprites)
+  for (const p of particles) {
+    ctx.globalAlpha = p.life / p.maxLife;
+    ctx.fillStyle = p.color;
+    ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // Lane highlight for current player lane
+  ctx.fillStyle = 'rgba(255,200,50,0.06)';
+  ctx.fillRect(BAR_LEFT - 20, railY(playerLane) - 40, (BAR_RIGHT - BAR_LEFT) + 40, 80);
+
+  for (const c of customers) drawCustomer(c);
+  for (const m of mugs) drawMug(m);
+  drawPlayer();
+  drawHUD();
+}
+
+// ─── RENDER (phase dispatcher) ────────────────────────────────
+function draw() {
+  if (phase === 'title')      { drawTitle(); return; }
+  if (phase === 'minigame')   { drawMinigame(); return; }
+
+  drawScene();
+
+  if (phase === 'wave_clear') drawWaveClear();
+  if (phase === 'gameover')   drawGameOver();
+}
+
+// ─── LOOP ──────────────────────────────────────────────────────
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: pong ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("pong");
+</script>
+</body>
+</html>

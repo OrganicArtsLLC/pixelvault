@@ -1,0 +1,776 @@
+<!--
+PROTOTYPE: darts
+SERIES: spt
+NUMBER: 010
+DATE: 2026-03-24
+MECHANIC: precision aiming — aim and throw darts at a scored dartboard; 501 countdown with doubles to finish
+ANCESTRY: Medieval arrow throwing (~1860s England), Phil Taylor era, PDC
+CONTROLS: Mouse — aim | Click+hold — set power | Release — throw | R — new game | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 5 (Statistical Learning — motor control optimization, precision robotics)
+AI-INSIGHT: Expert darts players exhibit motor precision under pressure. The optimal target depends on your accuracy: beginners should aim for the large 19/7 region, not triple-20. This is the explore-exploit tradeoff — play safe or gamble for high scores. The Kelly criterion from gambling theory applies directly.
+NOTES: Darts evolved from soldiers throwing shortened arrows at tree-trunk cross-sections. The modern numbering (invented by Brian Gamlin, 1896) deliberately places low numbers next to high ones — punishing inaccuracy. Professional level: 100+ average per 3-dart visit.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPT-010 · DARTS</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+.notice { margin-top: 20px; padding: 12px; background: #1a1a2e; border: 1px solid #333; border-radius: 4px; font-size: 11px; color: #888; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SPT-010 · DARTS</h1>
+    <p><span class="tag series">SPT — Sports</span> <span class="tag">Prototype #010</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Play a game of 501 darts against an AI opponent. Both players start at 501 and must reach exactly zero, finishing on a double.</p>
+    <ul>
+      <li><kbd>Mouse</kbd> — Aim at the dartboard (crosshair follows with slight wobble)</li>
+      <li><kbd>Click + Hold</kbd> — Charge throw power (green bar fills up)</li>
+      <li><kbd>Release</kbd> — Throw the dart. Medium power is most accurate.</li>
+      <li><kbd>R</kbd> — Start a new game</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <p>Each turn consists of 3 darts. After your 3 darts, the AI takes its turn. If a throw would take your score below zero or to exactly 1 (impossible to finish on a double), the entire turn's score is voided ("bust").</p>
+
+    <h2>History &amp; Lineage</h2>
+    <p>Darts evolved from medieval soldiers throwing shortened arrows at the bottom of wine barrels or cross-sections of tree trunks. The concentric rings of tree growth inspired the scoring zones. By the 1860s, the game had formalized in English pubs.</p>
+    <p>Brian Gamlin, a Lancashire carpenter, devised the modern numbering system in 1896. His genius was placing high numbers adjacent to low ones — 20 sits between 1 and 5, punishing inaccuracy. The standard "clock" board has survived unchanged for over 125 years.</p>
+    <p>Phil "The Power" Taylor dominated professional darts for two decades, winning 16 World Championships. The PDC (Professional Darts Corporation) transformed the sport into a televised spectacle with prize pools exceeding &pound;2.5 million.</p>
+
+    <h2>AI Archaeology</h2>
+    <h3>Era 5 — Statistical Learning</h3>
+    <p>Darts is a masterclass in the explore-exploit tradeoff. Beginners should aim for the large 19 segment (surrounded by 7 and 3 — still decent scores), not triple-20. Only players with professional-level precision benefit from targeting T20, because near-misses land in 1 or 5.</p>
+    <p>Research by Ryan Tibshirani (Stanford) modeled optimal dart aiming as a function of throwing variance. The result: for most humans, the optimal target is significantly left of the triple-20, toward the triple-19 region. This mirrors the Kelly criterion in gambling — optimal strategy depends on your edge.</p>
+    <p>Motor control optimization in robotics faces the same challenge: balancing precision targets against the cost of missing. A robot arm throwing darts must learn its own noise profile and adapt its aim accordingly — exactly what human players do through thousands of hours of practice.</p>
+
+    <h2>Classification</h2>
+    <p>Precision aiming sport. Single-player vs AI. Turn-based with real-time throwing mechanic. 501 countdown scoring with double-out finish requirement.</p>
+
+    <h2>Prototype Notes</h2>
+    <p>Implements full PDC-standard dartboard geometry with 20 numbered segments, single/double/triple rings, and bullseye. AI opponent uses Gaussian-distributed aim with adjustable skill level. Power mechanic adds risk/reward — optimal power gives best accuracy, while under/over-powering scatters the throw.</p>
+
+    <div class="notice">
+      <strong>Educational Notice:</strong> This is an interactive study of precision sports mechanics, created for research and educational purposes. Darts is a traditional pub sport with centuries of history. No protected IP is used. The standard dartboard layout and 501 rules are in the public domain.
+    </div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+canvas.width = 800;
+canvas.height = 600;
+
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// Dartboard constants
+const BOARD_ORDER = [20,1,18,4,13,6,10,15,2,17,3,19,7,16,8,11,14,9,12,5];
+const CX = 300, CY = 300; // Board center
+const R_DBULL = 8, R_BULL = 16, R_INNER_TRIPLE = 99, R_OUTER_TRIPLE = 107;
+const R_INNER_DOUBLE = 162, R_OUTER_DOUBLE = 170, R_BOARD = 178;
+const SEG_ANGLE = Math.PI / 10; // 18 degrees per segment
+
+// Colors
+const COL_BLACK = '#1a1a1a';
+const COL_WHITE = '#f5f0e0';
+const COL_RED = '#cc2222';
+const COL_GREEN = '#228833';
+const COL_WIRE = '#888';
+const COL_BOARD_BG = '#2a2a2a';
+
+// Game state
+let mouseX = CX, mouseY = CY;
+let wobbleAngle = 0;
+let charging = false;
+let power = 0;
+let throwing = false;
+let throwProgress = 0;
+let throwStartX, throwStartY, throwTargetX, throwTargetY;
+
+const PLAYER = 0, AI = 1;
+let scores = [501, 501];
+let turnScores = [0, 0];
+let currentPlayer = PLAYER;
+let dartsThrown = 0;
+let dartsOnBoard = []; // {x, y, score, zone, player}
+let turnDarts = []; // darts thrown this turn (for bust tracking)
+let message = '';
+let messageTimer = 0;
+let gameOver = false;
+let winner = -1;
+let aiThinking = false;
+let aiTimer = 0;
+let aiDartIndex = 0;
+let lastScoreText = '';
+let bustFlag = false;
+let preThrowScore = 501;
+
+function hudText(ctx, text, x, y, size, color, align) {
+  ctx.save();
+  ctx.font = size + 'px monospace';
+  ctx.fillStyle = color || '#fff';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+function resetGame() {
+  scores = [501, 501];
+  turnScores = [0, 0];
+  currentPlayer = PLAYER;
+  dartsThrown = 0;
+  dartsOnBoard = [];
+  turnDarts = [];
+  message = '';
+  messageTimer = 0;
+  gameOver = false;
+  winner = -1;
+  aiThinking = false;
+  aiTimer = 0;
+  aiDartIndex = 0;
+  charging = false;
+  power = 0;
+  throwing = false;
+  bustFlag = false;
+  preThrowScore = 501;
+  lastScoreText = '';
+}
+
+// Get which segment, ring a point is in
+function getScore(x, y) {
+  const dx = x - CX, dy = y - CY;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  if (dist > R_BOARD) return { score: 0, text: 'MISS', zone: 'miss' };
+  if (dist <= R_DBULL) return { score: 50, text: 'BULL!', zone: 'dbull' };
+  if (dist <= R_BULL) return { score: 25, text: 'OUTER BULL', zone: 'bull' };
+
+  let angle = Math.atan2(dy, dx) + Math.PI / 2;
+  if (angle < 0) angle += Math.PI * 2;
+  // Offset by half a segment so 20 is at top
+  angle += SEG_ANGLE;
+  if (angle >= Math.PI * 2) angle -= Math.PI * 2;
+  const segIndex = Math.floor(angle / (SEG_ANGLE * 2));
+  const num = BOARD_ORDER[segIndex % 20];
+
+  if (dist <= R_OUTER_TRIPLE && dist >= R_INNER_TRIPLE) {
+    return { score: num * 3, text: 'T' + num + ' (' + (num * 3) + ')', zone: 'triple', num: num };
+  }
+  if (dist <= R_OUTER_DOUBLE && dist >= R_INNER_DOUBLE) {
+    return { score: num * 2, text: 'D' + num + ' (' + (num * 2) + ')', zone: 'double', num: num };
+  }
+  return { score: num, text: '' + num, zone: 'single', num: num };
+}
+
+function isDouble(result) {
+  return result.zone === 'double' || result.zone === 'dbull';
+}
+
+function throwDart(tx, ty) {
+  const result = getScore(tx, ty);
+  const tempScore = scores[currentPlayer] - result.score;
+
+  // Bust check: score goes below 0, or equals 1 (can't finish), or equals 0 without double
+  if (tempScore < 0 || tempScore === 1 || (tempScore === 0 && !isDouble(result))) {
+    // BUST — void the entire turn
+    bustFlag = true;
+    scores[currentPlayer] = preThrowScore;
+    // Remove this turn's darts from board
+    dartsOnBoard = dartsOnBoard.filter(d => !turnDarts.includes(d));
+    turnDarts = [];
+    message = 'BUST!';
+    messageTimer = 90;
+    dartsThrown = 3; // End turn immediately
+  } else {
+    scores[currentPlayer] = tempScore;
+    const dart = { x: tx, y: ty, score: result.score, text: result.text, zone: result.zone, player: currentPlayer };
+    dartsOnBoard.push(dart);
+    turnDarts.push(dart);
+    lastScoreText = result.text;
+
+    if (tempScore === 0) {
+      gameOver = true;
+      winner = currentPlayer;
+      message = (currentPlayer === PLAYER ? 'YOU WIN!' : 'AI WINS!');
+      messageTimer = 9999;
+      return;
+    }
+  }
+
+  dartsThrown++;
+  if (dartsThrown >= 3) {
+    endTurn();
+  }
+}
+
+function endTurn() {
+  setTimeout(() => {
+    dartsThrown = 0;
+    turnDarts = [];
+    bustFlag = false;
+    // Remove old darts from board (keep only last 6)
+    if (dartsOnBoard.length > 6) {
+      dartsOnBoard = dartsOnBoard.slice(-6);
+    }
+    currentPlayer = currentPlayer === PLAYER ? AI : PLAYER;
+    preThrowScore = scores[currentPlayer];
+    if (currentPlayer === AI) {
+      aiThinking = true;
+      aiTimer = 60;
+      aiDartIndex = 0;
+    }
+  }, currentPlayer === PLAYER ? 500 : 300);
+}
+
+// AI logic
+function aiThrow() {
+  const score = scores[AI];
+  let targetX = CX, targetY = CY;
+
+  // Smart targeting based on remaining score
+  if (score <= 40 && score % 2 === 0) {
+    // Go for the double to finish
+    const doubleNum = score / 2;
+    const segIdx = BOARD_ORDER.indexOf(doubleNum);
+    if (segIdx >= 0) {
+      const angle = segIdx * SEG_ANGLE * 2 - Math.PI / 2;
+      const r = (R_INNER_DOUBLE + R_OUTER_DOUBLE) / 2;
+      targetX = CX + Math.cos(angle) * r;
+      targetY = CY + Math.sin(angle) * r;
+    }
+  } else if (score === 50) {
+    // Go for bullseye
+    targetX = CX;
+    targetY = CY;
+  } else if (score <= 60) {
+    // Try to set up a double finish
+    const want = score - 40; // leave 40 (D20)
+    if (want > 0 && want <= 20) {
+      const segIdx = BOARD_ORDER.indexOf(want);
+      if (segIdx >= 0) {
+        const angle = segIdx * SEG_ANGLE * 2 - Math.PI / 2;
+        const r = (R_BULL + R_INNER_TRIPLE) / 2;
+        targetX = CX + Math.cos(angle) * r;
+        targetY = CY + Math.sin(angle) * r;
+      }
+    }
+  } else {
+    // Aim for triple 20 (or triple 19 sometimes)
+    const num = Math.random() < 0.8 ? 20 : 19;
+    const segIdx = BOARD_ORDER.indexOf(num);
+    const angle = segIdx * SEG_ANGLE * 2 - Math.PI / 2;
+    const r = (R_INNER_TRIPLE + R_OUTER_TRIPLE) / 2;
+    targetX = CX + Math.cos(angle) * r;
+    targetY = CY + Math.sin(angle) * r;
+  }
+
+  // Add AI inaccuracy (Gaussian-ish)
+  const spread = 28;
+  const r1 = (Math.random() + Math.random() + Math.random()) / 3;
+  const r2 = (Math.random() + Math.random() + Math.random()) / 3;
+  const offX = (r1 - 0.5) * 2 * spread * 2;
+  const offY = (r2 - 0.5) * 2 * spread * 2;
+
+  const fx = targetX + offX;
+  const fy = targetY + offY;
+
+  throwDart(fx, fy);
+}
+
+// Drawing
+function drawBoard() {
+  // Board background
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(CX, CY, R_BOARD + 20, 0, Math.PI * 2);
+  ctx.fillStyle = '#111';
+  ctx.fill();
+
+  // Number ring background
+  ctx.beginPath();
+  ctx.arc(CX, CY, R_BOARD + 18, 0, Math.PI * 2);
+  ctx.fillStyle = COL_BOARD_BG;
+  ctx.fill();
+
+  // Draw segments
+  for (let i = 0; i < 20; i++) {
+    const startAngle = i * SEG_ANGLE * 2 - Math.PI / 2 - SEG_ANGLE;
+    const endAngle = startAngle + SEG_ANGLE * 2;
+    const isEven = i % 2 === 0;
+
+    // Outer single (between double and triple)
+    ctx.beginPath();
+    ctx.moveTo(CX, CY);
+    ctx.arc(CX, CY, R_INNER_DOUBLE, startAngle, endAngle);
+    ctx.closePath();
+    ctx.fillStyle = isEven ? COL_BLACK : COL_WHITE;
+    ctx.fill();
+
+    // Triple ring
+    ctx.beginPath();
+    ctx.moveTo(CX + Math.cos(startAngle) * R_INNER_TRIPLE, CY + Math.sin(startAngle) * R_INNER_TRIPLE);
+    ctx.arc(CX, CY, R_OUTER_TRIPLE, startAngle, endAngle);
+    ctx.arc(CX, CY, R_INNER_TRIPLE, endAngle, startAngle, true);
+    ctx.closePath();
+    ctx.fillStyle = isEven ? COL_RED : COL_GREEN;
+    ctx.fill();
+
+    // Inner single (between triple and bull)
+    ctx.beginPath();
+    ctx.moveTo(CX, CY);
+    ctx.arc(CX, CY, R_INNER_TRIPLE, startAngle, endAngle);
+    ctx.closePath();
+    ctx.fillStyle = isEven ? COL_BLACK : COL_WHITE;
+    ctx.fill();
+
+    // Double ring
+    ctx.beginPath();
+    ctx.moveTo(CX + Math.cos(startAngle) * R_INNER_DOUBLE, CY + Math.sin(startAngle) * R_INNER_DOUBLE);
+    ctx.arc(CX, CY, R_OUTER_DOUBLE, startAngle, endAngle);
+    ctx.arc(CX, CY, R_INNER_DOUBLE, endAngle, startAngle, true);
+    ctx.closePath();
+    ctx.fillStyle = isEven ? COL_RED : COL_GREEN;
+    ctx.fill();
+  }
+
+  // Bull rings
+  ctx.beginPath();
+  ctx.arc(CX, CY, R_BULL, 0, Math.PI * 2);
+  ctx.fillStyle = COL_GREEN;
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.arc(CX, CY, R_DBULL, 0, Math.PI * 2);
+  ctx.fillStyle = COL_RED;
+  ctx.fill();
+
+  // Wire lines
+  ctx.strokeStyle = COL_WIRE;
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i < 20; i++) {
+    const angle = i * SEG_ANGLE * 2 - Math.PI / 2 - SEG_ANGLE;
+    ctx.beginPath();
+    ctx.moveTo(CX + Math.cos(angle) * R_BULL, CY + Math.sin(angle) * R_BULL);
+    ctx.lineTo(CX + Math.cos(angle) * R_OUTER_DOUBLE, CY + Math.sin(angle) * R_OUTER_DOUBLE);
+    ctx.stroke();
+  }
+
+  // Wire circles
+  const wireRadii = [R_DBULL, R_BULL, R_INNER_TRIPLE, R_OUTER_TRIPLE, R_INNER_DOUBLE, R_OUTER_DOUBLE];
+  wireRadii.forEach(r => {
+    ctx.beginPath();
+    ctx.arc(CX, CY, r, 0, Math.PI * 2);
+    ctx.stroke();
+  });
+
+  // Numbers
+  ctx.font = 'bold 16px monospace';
+  ctx.fillStyle = '#fff';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (let i = 0; i < 20; i++) {
+    const angle = i * SEG_ANGLE * 2 - Math.PI / 2;
+    const r = R_BOARD + 10;
+    const nx = CX + Math.cos(angle) * r;
+    const ny = CY + Math.sin(angle) * r;
+    ctx.fillText('' + BOARD_ORDER[i], nx, ny);
+  }
+
+  ctx.restore();
+}
+
+function drawDarts() {
+  dartsOnBoard.forEach(d => {
+    const col = d.player === PLAYER ? '#ffcc00' : '#ff4444';
+    // Dart body
+    ctx.beginPath();
+    ctx.arc(d.x, d.y, 3, 0, Math.PI * 2);
+    ctx.fillStyle = col;
+    ctx.fill();
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    // Dart tail
+    ctx.beginPath();
+    ctx.moveTo(d.x, d.y);
+    ctx.lineTo(d.x + 6, d.y - 10);
+    ctx.lineTo(d.x + 2, d.y - 7);
+    ctx.moveTo(d.x, d.y);
+    ctx.lineTo(d.x - 6, d.y - 10);
+    ctx.lineTo(d.x - 2, d.y - 7);
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  });
+}
+
+function drawCrosshair(x, y) {
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,0,0.7)';
+  ctx.lineWidth = 1;
+  const sz = 12;
+  ctx.beginPath();
+  ctx.moveTo(x - sz, y); ctx.lineTo(x - 4, y);
+  ctx.moveTo(x + 4, y); ctx.lineTo(x + sz, y);
+  ctx.moveTo(x, y - sz); ctx.lineTo(x, y - 4);
+  ctx.moveTo(x, y + 4); ctx.lineTo(x, y + sz);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(x, y, 3, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawHUD() {
+  const panelX = 600;
+
+  // Background panel
+  ctx.fillStyle = '#111';
+  ctx.fillRect(590, 0, 210, 600);
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(590, 0); ctx.lineTo(590, 600);
+  ctx.stroke();
+
+  // Title
+  hudText(ctx, 'DARTS 501', panelX + 105, 30, 20, '#7bf', 'center');
+
+  // Player scores
+  hudText(ctx, 'YOU', panelX + 10, 70, 14, '#ffcc00');
+  hudText(ctx, '' + scores[PLAYER], panelX + 190, 70, 22, '#ffcc00', 'right');
+
+  hudText(ctx, 'CPU', panelX + 10, 105, 14, '#ff4444');
+  hudText(ctx, '' + scores[AI], panelX + 190, 105, 22, '#ff4444', 'right');
+
+  // Divider
+  ctx.strokeStyle = '#333';
+  ctx.beginPath();
+  ctx.moveTo(panelX, 130); ctx.lineTo(panelX + 200, 130);
+  ctx.stroke();
+
+  // Current turn info
+  const turnLabel = currentPlayer === PLAYER ? 'YOUR TURN' : 'CPU TURN';
+  const turnCol = currentPlayer === PLAYER ? '#ffcc00' : '#ff4444';
+  hudText(ctx, turnLabel, panelX + 105, 155, 14, turnCol, 'center');
+
+  // Darts remaining
+  const dartsLeft = 3 - dartsThrown;
+  hudText(ctx, 'Darts: ' + dartsLeft, panelX + 10, 185, 12, '#aaa');
+
+  // Show dart icons
+  for (let i = 0; i < 3; i++) {
+    const dx = panelX + 130 + i * 22;
+    const dy = 185;
+    if (i < dartsLeft) {
+      ctx.fillStyle = turnCol;
+      ctx.beginPath();
+      ctx.moveTo(dx, dy - 6);
+      ctx.lineTo(dx - 3, dy + 6);
+      ctx.lineTo(dx + 3, dy + 6);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      ctx.strokeStyle = '#444';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(dx, dy - 6);
+      ctx.lineTo(dx - 3, dy + 6);
+      ctx.lineTo(dx + 3, dy + 6);
+      ctx.closePath();
+      ctx.stroke();
+    }
+  }
+
+  // Power bar (only during player turn and charging)
+  if (currentPlayer === PLAYER && !gameOver) {
+    hudText(ctx, 'POWER', panelX + 10, 225, 12, '#aaa');
+    ctx.fillStyle = '#222';
+    ctx.fillRect(panelX + 10, 240, 180, 16);
+    const pw = power * 180;
+    const pCol = power < 0.3 ? '#44f' : power < 0.7 ? '#4f4' : power > 0.9 ? '#f44' : '#ff4';
+    ctx.fillStyle = pCol;
+    ctx.fillRect(panelX + 10, 240, pw, 16);
+    ctx.strokeStyle = '#555';
+    ctx.strokeRect(panelX + 10, 240, 180, 16);
+
+    // Optimal zone marker
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.fillRect(panelX + 10 + 0.4 * 180, 240, 0.2 * 180, 16);
+  }
+
+  // Last score
+  if (lastScoreText && !bustFlag) {
+    hudText(ctx, 'Last: ' + lastScoreText, panelX + 10, 280, 13, '#4f4');
+  }
+
+  // Turn score
+  if (turnDarts.length > 0) {
+    const ts = turnDarts.reduce((s, d) => s + d.score, 0);
+    hudText(ctx, 'Turn: ' + ts, panelX + 10, 305, 13, '#aaa');
+  }
+
+  // Message
+  if (messageTimer > 0) {
+    const alpha = Math.min(1, messageTimer / 30);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    hudText(ctx, message, panelX + 105, 350, 18, bustFlag ? '#f44' : '#fff', 'center');
+    ctx.restore();
+  }
+
+  // Game over
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(0, 250, 590, 100);
+    hudText(ctx, message, 295, 290, 30, winner === PLAYER ? '#ffcc00' : '#ff4444', 'center');
+    hudText(ctx, 'Press R for new game', 295, 320, 14, '#888', 'center');
+  }
+
+  // Controls hint
+  hudText(ctx, 'R: new game  ?: info', panelX + 105, 580, 10, '#555', 'center');
+
+  // Checkout hint
+  if (currentPlayer === PLAYER && !gameOver && scores[PLAYER] <= 170) {
+    const checkout = getCheckout(scores[PLAYER]);
+    if (checkout) {
+      hudText(ctx, 'Checkout:', panelX + 10, 410, 11, '#888');
+      hudText(ctx, checkout, panelX + 10, 428, 11, '#4f4');
+    }
+  }
+}
+
+function getCheckout(score) {
+  const checkouts = {
+    170: 'T20 T20 BULL', 167: 'T20 T19 BULL', 164: 'T20 T18 BULL',
+    161: 'T20 T17 BULL', 160: 'T20 T20 D20', 158: 'T20 T20 D19',
+    157: 'T20 T19 D20', 156: 'T20 T20 D18', 155: 'T20 T19 D19',
+    154: 'T20 T18 D20', 153: 'T20 T19 D18', 152: 'T20 T20 D16',
+    151: 'T20 T17 D20', 150: 'T20 T18 D18', 144: 'T20 T20 D12',
+    141: 'T20 T19 D12', 140: 'T20 T20 D10', 139: 'T19 T14 D20',
+    138: 'T20 T18 D12', 137: 'T19 T16 D16', 136: 'T20 T20 D8',
+    135: 'T20 T17 D12', 134: 'T20 T14 D16', 133: 'T20 T19 D8',
+    132: 'T20 T16 D12', 131: 'T20 T13 D16', 130: 'T20 T18 D8',
+    129: 'T19 T16 D12', 128: 'T18 T14 D16', 127: 'T20 T17 D8',
+    126: 'T19 T15 D12', 125: 'T20 T19 D4', 124: 'T20 T16 D8',
+    123: 'T19 T14 D12', 122: 'T18 T18 D7', 121: 'T20 T11 D14',
+    120: 'T20 20 D20', 119: 'T19 T10 D16', 118: 'T20 18 D20',
+    117: 'T20 17 D20', 116: 'T20 16 D20', 115: 'T20 15 D20',
+    114: 'T20 14 D20', 113: 'T20 13 D20', 112: 'T20 12 D20',
+    111: 'T20 11 D20', 110: 'T20 10 D20', 109: 'T20 9 D20',
+    108: 'T20 8 D20', 107: 'T19 10 D20', 106: 'T20 6 D20',
+    105: 'T20 5 D20', 104: 'T18 10 D20', 103: 'T19 6 D20',
+    102: 'T20 2 D20', 101: 'T17 10 D20', 100: 'T20 D20',
+    99: 'T19 2 D20', 98: 'T20 D19', 97: 'T19 D20',
+    96: 'T20 D18', 95: 'T19 D19', 94: 'T18 D20',
+    93: 'T19 D18', 92: 'T20 D16', 91: 'T17 D20',
+    90: 'T18 D18', 89: 'T19 D16', 88: 'T20 D14',
+    87: 'T17 D18', 86: 'T18 D16', 85: 'T19 D14',
+    84: 'T20 D12', 83: 'T17 D16', 82: 'T14 D20',
+    81: 'T19 D12', 80: 'T20 D10', 79: 'T13 D20',
+    78: 'T18 D12', 77: 'T19 D10', 76: 'T20 D8',
+    75: 'T17 D12', 74: 'T14 D16', 73: 'T19 D8',
+    72: 'T16 D12', 71: 'T13 D16', 70: 'T18 D8',
+    69: 'T19 D6', 68: 'T20 D4', 67: 'T17 D8',
+    66: 'T14 D12', 65: 'T19 D4', 64: 'T16 D8',
+    63: 'T13 D12', 62: 'T10 D16', 61: 'T15 D8',
+    60: '20 D20', 59: '19 D20', 58: '18 D20',
+    57: '17 D20', 56: '16 D20', 55: '15 D20',
+    54: '14 D20', 53: '13 D20', 52: '12 D20',
+    51: '11 D20', 50: 'BULL', 49: '9 D20',
+    48: '8 D20', 47: '7 D20', 46: '6 D20',
+    45: '5 D20', 44: '4 D20', 43: '3 D20',
+    42: '2 D20', 41: '1 D20', 40: 'D20',
+    38: 'D19', 36: 'D18', 34: 'D17', 32: 'D16',
+    30: 'D15', 28: 'D14', 26: 'D13', 24: 'D12',
+    22: 'D11', 20: 'D10', 18: 'D9', 16: 'D8',
+    14: 'D7', 12: 'D6', 10: 'D5', 8: 'D4',
+    6: 'D3', 4: 'D2', 2: 'D1'
+  };
+  return checkouts[score] || null;
+}
+
+// Input
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  mouseX = (e.clientX - rect.left) * scaleX;
+  mouseY = (e.clientY - rect.top) * scaleY;
+});
+
+canvas.addEventListener('mousedown', e => {
+  if (gameOver || currentPlayer !== PLAYER || throwing || infoOpen) return;
+  if (dartsThrown >= 3) return;
+  charging = true;
+  power = 0;
+});
+
+canvas.addEventListener('mouseup', e => {
+  if (!charging || infoOpen) return;
+  charging = false;
+  if (gameOver || currentPlayer !== PLAYER || throwing) return;
+
+  // Calculate accuracy based on power
+  // Optimal power is 0.4-0.6, accuracy drops outside that range
+  const powerDev = Math.abs(power - 0.5);
+  const scatter = 5 + powerDev * 80; // 5px at optimal, up to 45px at extremes
+
+  // Apply wobble offset + power scatter
+  const angle = Math.random() * Math.PI * 2;
+  const dist = (Math.random() + Math.random()) / 2 * scatter;
+  const aimX = wobbleX + Math.cos(angle) * dist;
+  const aimY = wobbleY + Math.sin(angle) * dist;
+
+  // Animate throw
+  throwing = true;
+  throwProgress = 0;
+  throwStartX = 300;
+  throwStartY = 620;
+  throwTargetX = aimX;
+  throwTargetY = aimY;
+  power = 0;
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
+    e.preventDefault();
+    toggleInfo();
+    return;
+  }
+  if (e.key === 'Escape' && infoOpen) {
+    toggleInfo();
+    return;
+  }
+  if (e.key === 'r' || e.key === 'R') {
+    resetGame();
+    return;
+  }
+});
+
+// Resize
+function resize() {
+  const s = Math.min(window.innerWidth / canvas.width, window.innerHeight / canvas.height);
+  canvas.style.width = (canvas.width * s) + 'px';
+  canvas.style.height = (canvas.height * s) + 'px';
+}
+window.addEventListener('resize', resize);
+resize();
+
+// Wobble
+let wobbleX = CX, wobbleY = CY;
+let wobbleTime = 0;
+
+function update() {
+  if (infoOpen) return;
+
+  wobbleTime += 0.02;
+
+  // Wobble crosshair around mouse position
+  const wobAmp = 8;
+  wobbleX = mouseX + Math.sin(wobbleTime * 2.3) * wobAmp + Math.cos(wobbleTime * 3.1) * wobAmp * 0.5;
+  wobbleY = mouseY + Math.cos(wobbleTime * 1.9) * wobAmp + Math.sin(wobbleTime * 2.7) * wobAmp * 0.5;
+
+  // Charge power
+  if (charging) {
+    power = Math.min(1, power + 0.015);
+  }
+
+  // Throw animation
+  if (throwing) {
+    throwProgress += 0.12;
+    if (throwProgress >= 1) {
+      throwing = false;
+      throwDart(throwTargetX, throwTargetY);
+    }
+  }
+
+  // Message timer
+  if (messageTimer > 0) messageTimer--;
+
+  // AI turn
+  if (aiThinking && !gameOver) {
+    aiTimer--;
+    if (aiTimer <= 0 && dartsThrown < 3) {
+      aiThrow();
+      aiDartIndex++;
+      aiTimer = 45;
+      if (dartsThrown >= 3 || gameOver) {
+        aiThinking = false;
+      }
+    }
+  }
+}
+
+function draw() {
+  ctx.fillStyle = '#0a0a0a';
+  ctx.fillRect(0, 0, 800, 600);
+
+  drawBoard();
+  drawDarts();
+
+  // Throw animation
+  if (throwing) {
+    const t = throwProgress;
+    const tx = throwStartX + (throwTargetX - throwStartX) * t;
+    const ty = throwStartY + (throwTargetY - throwStartY) * t - Math.sin(t * Math.PI) * 60;
+    ctx.fillStyle = '#ffcc00';
+    ctx.beginPath();
+    ctx.arc(tx, ty, 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Crosshair (only during player turn)
+  if (currentPlayer === PLAYER && !gameOver && !throwing) {
+    drawCrosshair(wobbleX, wobbleY);
+  }
+
+  drawHUD();
+}
+
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+resetGame();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

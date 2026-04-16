@@ -1,0 +1,1173 @@
+<!--
+PROTOTYPE: food-stack
+SERIES: srv
+NUMBER: 003
+DATE: 2026-03-22
+MECHANIC: walk over burger parts to drop them, assembling burgers while avoiding chasers
+ANCESTRY: BurgerTime (1982, Data East), Peter Pepper's Ice Cream Factory (1984, Data East)
+CONTROLS: Arrow keys — move | Space — pepper spray | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — deterministic chase AI with patrol paths)
+AI-INSIGHT: BurgerTime's enemies use simple pursuit algorithms but the multi-level platform structure creates emergent complexity — the player must plan paths that manipulate enemy positions while completing the burger assembly objective.
+NOTES: Walk over burger ingredients (bun, lettuce, meat, bun) to drop them down.
+       Enemies (Mr. Hot Dog, Mr. Pickle, Mr. Egg) chase on platforms and ladders.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SRV-003 · FOOD STACK</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SRV-003 · FOOD STACK</h1>
+    <p><span class="tag series">SRV — Service / Serve 'em Up</span> <span class="tag">Prototype #003</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Walk across burger ingredients on platforms to make them fall. Assemble complete burgers by dropping all parts to the bottom plates. Avoid the food enemies that chase you on platforms and ladders.</p>
+    <ul>
+      <li><kbd>&#8592;</kbd> <kbd>&#8594;</kbd> — Walk left / right on platforms</li>
+      <li><kbd>&#8593;</kbd> <kbd>&#8595;</kbd> — Climb up / down ladders</li>
+      <li><kbd>Space</kbd> — Pepper spray (stuns nearby enemies, limited uses)</li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Walk fully across:</strong> You must walk across the entire width of an ingredient to make it drop.</li>
+      <li><strong>Chain reactions:</strong> When a falling ingredient lands on another, the lower one drops too. Chain drops score big.</li>
+      <li><strong>Squish enemies:</strong> Dropping an ingredient onto an enemy squishes them for bonus points.</li>
+      <li><strong>Pepper sparingly:</strong> You only have a few pepper shots. Use them to create escape routes.</li>
+      <li><strong>Ladder strategy:</strong> Enemies follow you onto ladders. Use this to lure them away from ingredients.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> BurgerTime (1982, Data East) &rarr; Peter Pepper's Ice Cream Factory (1984) &rarr; BurgerTime Deluxe (1991, Game Boy)</p>
+    <p>BurgerTime (1982) was designed by Akira Fujita at Data East. The player controls Peter Pepper, a chef who must assemble hamburgers by walking over the ingredients laid across platforms. The game's innovation was its objective-based platforming: instead of reaching a goal, you must physically traverse specific tiles to complete a construction task.</p>
+    <p>The enemies — Mr. Hot Dog, Mr. Pickle, and Mr. Egg — chase using simple pursuit on the platform-and-ladder grid. Their movement is constrained to the same paths as the player, creating a shared navigation space where positional advantage matters more than speed.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 3 — Knowledge Explosion (1980-1987)</p>
+    <p><strong>Contemporary AI:</strong> Expert systems were dominant. MYCIN, DENDRAL. Path-planning algorithms were well-understood but rarely used in games due to hardware constraints.</p>
+    <p><strong>Hidden Intelligence:</strong> BurgerTime's enemies use simple deterministic chase — move toward the player on the shared platform/ladder grid. But the multi-level structure creates emergent complexity. The player must plan paths that simultaneously complete the burger assembly objective AND manipulate enemy positions. This is a multi-objective planning problem: the state space includes both ingredient positions and enemy positions.</p>
+    <p><strong>The Convergence:</strong> The ingredient-dropping mechanic is essentially a state-machine puzzle embedded in a real-time action game. Each ingredient has discrete states (its current platform level), and the player's traversal triggers state transitions. Modern task-planning AI solves similar problems — finding action sequences that achieve goal states while avoiding hazards.</p>
+    <p><strong>If AI Had Designed This:</strong> Adaptive enemy routing that accounts for ingredient states — enemies would guard undropped ingredients more aggressively, creating a dynamic difficulty system tied to player progress.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: SRV — Service / Serve 'em Up</h3>
+    <p>BurgerTime combines platforming with an assembly objective. The player serves food by constructing it — walking over ingredients to build burgers. The service mechanic is the core goal.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Objective-based traversal with assembly construction.</strong> Walk across ingredients to drop them. Multi-level platforms with ladder connections. Chase enemies on shared navigation grid. Pepper spray as limited defensive tool. Chain-reaction drops for scoring.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Platform/ladder movement — does grid-constrained movement feel natural?</li>
+      <li>Ingredient dropping — does the walk-across-to-drop mechanic feel satisfying?</li>
+      <li>Chain reactions — do cascading drops create rewarding moments?</li>
+      <li>Enemy pressure — do chasers create tension without feeling unfair?</li>
+      <li>Pepper management — does limited pepper create meaningful resource decisions?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Multi-level platform layout with ladders. Three enemy types chase on the platform grid. Ingredient dropping with chain reactions. Pepper spray as limited stun. Level progression when all burgers are assembled.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+const keys = {};
+window.addEventListener('keydown', e => { if (!infoOpen) keys[e.code] = true; e.preventDefault(); });
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+// --- CONSTANTS ---
+const PLAT_H = 6;          // platform thickness
+const TILE = 32;            // grid tile size
+const COLS = 24;            // grid columns
+const ROWS = 18;            // grid rows
+const INGREDIENT_W = 4;    // ingredient width in tiles (128px)
+const LADDER_W = 16;        // ladder pixel width
+const PLAYER_W = 20, PLAYER_H = 28;
+const GRAVITY = 0;          // no gravity — grid-based movement
+const PEPPER_RANGE = 60;
+const PEPPER_STUN = 180;    // frames of stun
+
+// Platform Y positions (6 levels, from top to bottom)
+const LEVEL_COUNT = 6;
+const LEVEL_TOP = 80;
+const LEVEL_SPACING = 90;
+function levelY(lv) { return LEVEL_TOP + lv * LEVEL_SPACING; }
+
+// --- LEVEL LAYOUT ---
+// Each level layout defines platforms, ladders, and burger ingredient positions
+function makeLevelLayout(levelNum) {
+  // Platforms: each level (row) is a full-width platform
+  const platforms = [];
+  for (let lv = 0; lv < LEVEL_COUNT; lv++) {
+    const y = levelY(lv);
+    platforms.push({ x: 40, y: y, w: W - 80 });
+  }
+
+  // Ladders connect adjacent levels
+  // Vary ladder positions by level number for variety
+  const ladders = [];
+  const seed = levelNum * 7 + 13;
+  const ladderPositions = [100, 220, 360, 500, 620, 720];
+  // Shift some ladders based on level
+  for (let lv = 0; lv < LEVEL_COUNT - 1; lv++) {
+    const y1 = levelY(lv);
+    const y2 = levelY(lv + 1);
+    // Pick 3-4 ladders for this gap
+    const count = 3 + ((seed + lv) % 2);
+    const offset = ((levelNum + lv) * 3) % ladderPositions.length;
+    for (let i = 0; i < count; i++) {
+      const idx = (offset + i * 2) % ladderPositions.length;
+      const lx = ladderPositions[idx] + ((levelNum * 13 + lv * 7) % 40) - 20;
+      const clampedX = Math.max(50, Math.min(W - 50, lx));
+      ladders.push({ x: clampedX, y: y1, h: y2 - y1 });
+    }
+  }
+
+  // Burger columns: 4 burgers across
+  // Each burger has 4 parts stacked on levels 0-3 (top bun, lettuce, patty, bottom bun)
+  // They need to fall to level 5 (bottom) to be assembled on plates
+  const burgerCount = 3 + Math.min(levelNum, 2); // 3-5 burgers
+  const burgers = [];
+  const spacing = (W - 160) / burgerCount;
+  for (let b = 0; b < burgerCount; b++) {
+    const bx = 100 + b * spacing;
+    const parts = [];
+    // 4 parts: top bun (lv0), lettuce (lv1), patty (lv2), bottom bun (lv3)
+    const types = ['topBun', 'lettuce', 'patty', 'bottomBun'];
+    for (let p = 0; p < 4; p++) {
+      parts.push({
+        type: types[p],
+        x: bx,
+        level: p,                   // current level (row)
+        y: levelY(p),
+        targetLevel: LEVEL_COUNT - 1, // all must reach bottom
+        walked: 0,                  // how many pixels player has walked across
+        walkNeeded: INGREDIENT_W * TILE, // full width must be walked
+        falling: false,
+        fallSpeed: 0,
+        assembled: false,           // reached final plate position
+        stomped: []                 // enemies riding this ingredient down
+      });
+    }
+    burgers.push({ parts, plateX: bx, assembled: false });
+  }
+
+  return { platforms, ladders, burgers };
+}
+
+// --- STATE ---
+let player, enemies, layout, score, lives, peppers, level, gameOver, gameWin, frame;
+let pepperActive, pepperTimer;
+let levelComplete, levelCompleteTimer;
+
+function initGame() {
+  score = 0; lives = 3; peppers = 5; level = 1; gameOver = false; gameWin = false; frame = 0;
+  startLevel(level);
+}
+
+function startLevel(lv) {
+  layout = makeLevelLayout(lv);
+  levelComplete = false;
+  levelCompleteTimer = 0;
+  pepperActive = false;
+  pepperTimer = 0;
+
+  // Player starts at bottom-center
+  player = {
+    x: W / 2, y: levelY(LEVEL_COUNT - 1) - PLAYER_H,
+    vx: 0, vy: 0,
+    onPlatform: true, onLadder: false, climbing: false,
+    dir: 1, walkFrame: 0, dead: false, deathTimer: 0
+  };
+
+  // Enemies
+  const enemyCount = 2 + Math.min(lv, 4);
+  enemies = [];
+  const types = ['hotdog', 'pickle', 'egg'];
+  for (let i = 0; i < enemyCount; i++) {
+    const etype = types[i % 3];
+    // Spawn at top levels
+    const spawnLevel = i % 2;
+    const spawnX = 100 + (i * 160) % (W - 200);
+    enemies.push({
+      type: etype,
+      x: spawnX,
+      y: levelY(spawnLevel) - 24,
+      dir: (i % 2 === 0) ? 1 : -1,
+      onPlatform: true,
+      onLadder: false,
+      climbing: false,
+      stunTimer: 0,
+      dead: false,
+      respawnTimer: 0,
+      speed: 1.2 + lv * 0.1,
+      walkFrame: 0
+    });
+  }
+}
+
+initGame();
+
+// --- PLATFORM / LADDER HELPERS ---
+function getPlatformAt(x, y) {
+  for (const p of layout.platforms) {
+    if (x >= p.x - 10 && x <= p.x + p.w + 10) {
+      if (Math.abs(y + PLAYER_H - p.y) < 8) return p;
+    }
+  }
+  return null;
+}
+
+function isOnPlatform(x, y, h) {
+  for (const p of layout.platforms) {
+    if (x >= p.x - 10 && x <= p.x + p.w + 10) {
+      const feetY = y + h;
+      if (feetY >= p.y - 4 && feetY <= p.y + 8) return p;
+    }
+  }
+  return null;
+}
+
+function getLadderAt(x, y) {
+  for (const l of layout.ladders) {
+    if (Math.abs(x - l.x) < LADDER_W &&
+        y >= l.y - 10 && y <= l.y + l.h + 10) return l;
+  }
+  return null;
+}
+
+function canClimbUp(x, y) {
+  for (const l of layout.ladders) {
+    if (Math.abs(x - l.x) < LADDER_W && y + PLAYER_H >= l.y && y <= l.y + l.h) return l;
+  }
+  return null;
+}
+
+function canClimbDown(x, y) {
+  for (const l of layout.ladders) {
+    if (Math.abs(x - l.x) < LADDER_W && y + PLAYER_H >= l.y - 4 && y + PLAYER_H <= l.y + l.h + 10) return l;
+  }
+  return null;
+}
+
+// --- INGREDIENT HELPERS ---
+function getIngredientAt(x, y) {
+  for (const b of layout.burgers) {
+    for (const part of b.parts) {
+      if (part.assembled || part.falling) continue;
+      const pw = INGREDIENT_W * TILE;
+      if (x >= part.x - 10 && x <= part.x + pw + 10) {
+        if (Math.abs(y - part.y) < 16) return part;
+      }
+    }
+  }
+  return null;
+}
+
+// --- UPDATE ---
+function update() {
+  if (infoOpen) return;
+  if (gameOver || gameWin) { if (keys['KeyR']) initGame(); return; }
+  if (levelComplete) {
+    levelCompleteTimer++;
+    if (levelCompleteTimer > 120) {
+      level++;
+      if (level > 6) { gameWin = true; return; }
+      startLevel(level);
+    }
+    return;
+  }
+  frame++;
+
+  if (player.dead) {
+    player.deathTimer++;
+    if (player.deathTimer > 90) {
+      lives--;
+      if (lives <= 0) { gameOver = true; return; }
+      // Reset player position, keep level state
+      player.x = W / 2;
+      player.y = levelY(LEVEL_COUNT - 1) - PLAYER_H;
+      player.dead = false;
+      player.deathTimer = 0;
+      // Re-stun is not given, but respawn enemies at top
+      for (const e of enemies) {
+        if (e.dead) {
+          e.dead = false;
+          e.respawnTimer = 0;
+          e.y = levelY(0) - 24;
+          e.x = 100 + Math.random() * (W - 200);
+        }
+      }
+    }
+    return;
+  }
+
+  // Pepper timer
+  if (pepperActive) {
+    pepperTimer--;
+    if (pepperTimer <= 0) pepperActive = false;
+  }
+
+  // --- Player Movement ---
+  const speed = 2.5;
+  let moving = false;
+
+  const plat = isOnPlatform(player.x, player.y, PLAYER_H);
+  const ladderUp = canClimbUp(player.x, player.y);
+  const ladderDown = canClimbDown(player.x, player.y);
+
+  if (player.climbing) {
+    // On ladder: move up/down
+    if (keys['ArrowUp']) {
+      player.y -= speed;
+      moving = true;
+      // Check if reached a platform at top of ladder
+      const curLadder = canClimbUp(player.x, player.y) || canClimbDown(player.x, player.y);
+      if (curLadder && player.y + PLAYER_H <= curLadder.y + 4) {
+        // Reached the top of the ladder — snap to the platform there
+        const p2 = isOnPlatform(player.x, player.y, PLAYER_H);
+        if (p2) {
+          player.y = p2.y - PLAYER_H;
+          player.climbing = false;
+          player.onPlatform = true;
+        }
+      }
+    }
+    if (keys['ArrowDown']) {
+      player.y += speed;
+      moving = true;
+      // Check if reached a platform at bottom of ladder
+      const curLadder = canClimbUp(player.x, player.y) || canClimbDown(player.x, player.y);
+      if (curLadder && player.y + PLAYER_H >= curLadder.y + curLadder.h - 4) {
+        // Reached the bottom of the ladder — snap to the platform there
+        const p2 = isOnPlatform(player.x, player.y, PLAYER_H);
+        if (p2) {
+          player.y = p2.y - PLAYER_H;
+          player.climbing = false;
+          player.onPlatform = true;
+        }
+      }
+    }
+    // Allow left/right to leave ladder if on a platform
+    if (keys['ArrowLeft'] || keys['ArrowRight']) {
+      const p3 = isOnPlatform(player.x, player.y, PLAYER_H);
+      if (p3) {
+        player.climbing = false;
+        player.onPlatform = true;
+      }
+    }
+    // Check if still on a ladder
+    if (player.climbing) {
+      const stillOnLadder = canClimbUp(player.x, player.y) || canClimbDown(player.x, player.y);
+      if (!stillOnLadder) {
+        // Snap to nearest platform
+        let bestPlat = null, bestDist = 999;
+        for (const p of layout.platforms) {
+          const d = Math.abs(player.y + PLAYER_H - p.y);
+          if (d < bestDist && player.x >= p.x - 10 && player.x <= p.x + p.w + 10) {
+            bestDist = d; bestPlat = p;
+          }
+        }
+        if (bestPlat) {
+          player.y = bestPlat.y - PLAYER_H;
+          player.climbing = false;
+          player.onPlatform = true;
+        }
+      }
+    }
+  } else {
+    // On platform: move left/right
+    if (keys['ArrowLeft']) {
+      player.x -= speed;
+      player.dir = -1;
+      moving = true;
+    }
+    if (keys['ArrowRight']) {
+      player.x += speed;
+      player.dir = 1;
+      moving = true;
+    }
+    // Start climbing
+    if (keys['ArrowUp'] && ladderUp) {
+      player.x = ladderUp.x;
+      player.climbing = true;
+      player.onPlatform = false;
+      moving = true;
+    }
+    if (keys['ArrowDown'] && ladderDown) {
+      player.x = ladderDown.x;
+      player.climbing = true;
+      player.onPlatform = false;
+      player.y += 4; // nudge down to start descending
+      moving = true;
+    }
+
+    // Clamp to platform edges and snap Y to platform surface
+    if (!player.climbing) {
+      const snapPlat = isOnPlatform(player.x, player.y, PLAYER_H);
+      if (snapPlat) {
+        player.y = snapPlat.y - PLAYER_H;
+        player.onPlatform = true;
+        if (player.x < snapPlat.x + 10) player.x = snapPlat.x + 10;
+        if (player.x > snapPlat.x + snapPlat.w - 10) player.x = snapPlat.x + snapPlat.w - 10;
+      } else {
+        // Gravity: not on platform and not climbing, fall
+        player.y += 3;
+        // Check if landed
+        const p2 = isOnPlatform(player.x, player.y, PLAYER_H);
+        if (p2) {
+          player.y = p2.y - PLAYER_H;
+          player.onPlatform = true;
+        }
+        // Fall off screen = death
+        if (player.y > H + 50) { player.dead = true; player.deathTimer = 0; return; }
+      }
+    }
+  }
+
+  if (moving) player.walkFrame++;
+
+  // Pepper spray
+  if (keys['Space'] && !pepperActive && peppers > 0) {
+    pepperActive = true;
+    pepperTimer = 30;
+    peppers--;
+    keys['Space'] = false;
+    // Stun nearby enemies
+    for (const e of enemies) {
+      if (e.dead || e.stunTimer > 0) continue;
+      const dx = e.x - player.x, dy = e.y - player.y;
+      if (Math.sqrt(dx * dx + dy * dy) < PEPPER_RANGE) {
+        e.stunTimer = PEPPER_STUN;
+      }
+    }
+  }
+
+  // --- Ingredient Walking ---
+  // Check if player is walking across an ingredient
+  if (!player.climbing) {
+    for (const b of layout.burgers) {
+      for (const part of b.parts) {
+        if (part.assembled || part.falling) continue;
+        const pw = INGREDIENT_W * TILE;
+        const playerFeetY = player.y + PLAYER_H;
+        // Player must be standing on the same level as the ingredient
+        if (Math.abs(playerFeetY - part.y) < 10 &&
+            player.x >= part.x && player.x <= part.x + pw) {
+          // Track walk progress based on player position
+          // Divide ingredient into 4 sections, each must be stepped on
+          if (!part.sections) {
+            part.sections = [false, false, false, false];
+          }
+          const section = Math.floor((player.x - part.x) / (pw / 4));
+          if (section >= 0 && section < 4 && moving) {
+            part.sections[section] = true;
+          }
+          // Check if all sections walked
+          if (part.sections.every(s => s)) {
+            // Drop this ingredient!
+            dropIngredient(part, b);
+          }
+        }
+      }
+    }
+  }
+
+  // --- Falling Ingredients ---
+  for (const b of layout.burgers) {
+    for (const part of b.parts) {
+      if (!part.falling) continue;
+      part.fallSpeed = Math.min(part.fallSpeed + 0.3, 6);
+      part.y += part.fallSpeed;
+
+      // Check if enemy is riding on it (was stomped)
+      for (const e of enemies) {
+        if (e.dead) continue;
+        const pw = INGREDIENT_W * TILE;
+        if (e.x >= part.x - 10 && e.x <= part.x + pw + 10 &&
+            Math.abs(e.y + 24 - part.y) < 14) {
+          if (!part.stomped.includes(e)) {
+            part.stomped.push(e);
+            score += 300;
+          }
+          e.y = part.y - 24;
+        }
+      }
+
+      // Find next level below current position
+      let landed = false;
+      for (const p of layout.platforms) {
+        // Skip the platform we started falling from
+        if (part.startFallY !== undefined && Math.abs(p.y - part.startFallY) < 5) continue;
+        if (part.y >= p.y && part.y - part.fallSpeed < p.y) {
+          // Check if there is already an ingredient at this level
+          let hitBelow = null;
+          for (const b2 of layout.burgers) {
+            for (const p2 of b2.parts) {
+              if (p2 === part || p2.falling) continue;
+              const pw = INGREDIENT_W * TILE;
+              if (Math.abs(p2.x - part.x) < pw * 0.7 && Math.abs(p2.y - p.y) < 12) {
+                hitBelow = p2;
+              }
+            }
+          }
+
+          // Is this the bottom platform?
+          const isBottom = (p.y >= levelY(LEVEL_COUNT - 1) - 2);
+
+          if (hitBelow && !hitBelow.assembled) {
+            // Chain reaction: push the one below down too
+            part.y = p.y;
+            part.falling = false;
+            part.fallSpeed = 0;
+            part.level = Math.round((p.y - LEVEL_TOP) / LEVEL_SPACING);
+            part.sections = null;
+            // Release stomped enemies
+            for (const se of part.stomped) {
+              se.dead = true;
+              se.respawnTimer = 300;
+            }
+            part.stomped = [];
+            score += 50;
+            // Trigger chain
+            dropIngredient(hitBelow, null);
+            landed = true;
+            break;
+          } else if (isBottom || !hitBelow) {
+            part.y = p.y;
+            part.falling = false;
+            part.fallSpeed = 0;
+            part.level = Math.round((p.y - LEVEL_TOP) / LEVEL_SPACING);
+            part.sections = null;
+            if (isBottom) part.assembled = true;
+            // Release stomped enemies
+            for (const se of part.stomped) {
+              se.dead = true;
+              se.respawnTimer = 300;
+            }
+            part.stomped = [];
+            score += 50;
+            landed = true;
+            break;
+          }
+        }
+      }
+
+      if (!landed && part.y > H + 50) {
+        // Fell off screen, place at bottom
+        part.y = levelY(LEVEL_COUNT - 1);
+        part.falling = false;
+        part.fallSpeed = 0;
+        part.assembled = true;
+        for (const se of part.stomped) {
+          se.dead = true; se.respawnTimer = 300;
+        }
+        part.stomped = [];
+      }
+    }
+  }
+
+  // --- Enemy AI ---
+  for (const e of enemies) {
+    if (e.dead) {
+      e.respawnTimer--;
+      if (e.respawnTimer <= 0) {
+        e.dead = false;
+        e.y = levelY(0) - 24;
+        e.x = 80 + Math.random() * (W - 160);
+        e.stunTimer = 0;
+      }
+      continue;
+    }
+    if (e.stunTimer > 0) {
+      e.stunTimer--;
+      continue;
+    }
+
+    e.walkFrame++;
+    const eplat = isOnPlatform(e.x, e.y, 24);
+    const eladUp = canClimbUp(e.x, e.y);
+    const eladDown = canClimbDown(e.x, e.y);
+
+    if (e.climbing) {
+      // Move toward player vertically
+      const targetDir = player.y < e.y ? -1 : 1;
+      e.y += targetDir * e.speed * 0.8;
+      // Check if reached a platform
+      const ep2 = isOnPlatform(e.x, e.y, 24);
+      if (ep2) {
+        const distToPlat = Math.abs(e.y + 24 - ep2.y);
+        // Only step off ladder if we've moved significantly or player is on this level
+        const playerOnSameLevel = Math.abs(player.y + PLAYER_H - ep2.y) < 20;
+        if (distToPlat < 4 && (playerOnSameLevel || Math.random() < 0.02)) {
+          e.y = ep2.y - 24;
+          e.climbing = false;
+        }
+      }
+      // Check if still on ladder
+      const stillLad = canClimbUp(e.x, e.y) || canClimbDown(e.x, e.y);
+      if (!stillLad) {
+        e.climbing = false;
+        let bestP = null, bestD = 999;
+        for (const p of layout.platforms) {
+          const d = Math.abs(e.y + 24 - p.y);
+          if (d < bestD && e.x >= p.x - 10 && e.x <= p.x + p.w + 10) {
+            bestD = d; bestP = p;
+          }
+        }
+        if (bestP) e.y = bestP.y - 24;
+      }
+    } else {
+      // Move horizontally toward player
+      const dx = player.x - e.x;
+      const dy = player.y - e.y;
+      if (Math.abs(dx) > 8) {
+        e.dir = dx > 0 ? 1 : -1;
+        e.x += e.dir * e.speed;
+      }
+
+      // Consider climbing
+      if (Math.abs(dy) > 40) {
+        // Try to find a ladder
+        if (dy < 0 && eladUp && Math.random() < 0.05) {
+          e.x = eladUp.x;
+          e.climbing = true;
+        } else if (dy > 0 && eladDown && Math.random() < 0.05) {
+          e.x = eladDown.x;
+          e.climbing = true;
+        }
+      }
+
+      // Clamp to platform
+      if (eplat) {
+        e.y = eplat.y - 24;
+        if (e.x < eplat.x + 10) { e.x = eplat.x + 10; e.dir = 1; }
+        if (e.x > eplat.x + eplat.w - 10) { e.x = eplat.x + eplat.w - 10; e.dir = -1; }
+      } else if (!e.climbing) {
+        // Gravity
+        e.y += 3;
+        const ep2 = isOnPlatform(e.x, e.y, 24);
+        if (ep2) e.y = ep2.y - 24;
+        if (e.y > H + 50) { e.dead = true; e.respawnTimer = 180; }
+      }
+    }
+
+    // Collision with player
+    if (!player.dead) {
+      const cdx = e.x - player.x, cdy = e.y - player.y;
+      if (Math.abs(cdx) < 16 && Math.abs(cdy) < 24) {
+        player.dead = true;
+        player.deathTimer = 0;
+      }
+    }
+  }
+
+  // --- Check Level Complete ---
+  let allDone = true;
+  for (const b of layout.burgers) {
+    for (const part of b.parts) {
+      if (!part.assembled) { allDone = false; break; }
+    }
+    if (!allDone) break;
+  }
+  if (allDone) {
+    levelComplete = true;
+    levelCompleteTimer = 0;
+    score += 1000;
+    peppers = Math.min(peppers + 2, 9);
+  }
+
+  // Restart
+  if (keys['KeyR']) { initGame(); }
+}
+
+function dropIngredient(part, burger) {
+  part.falling = true;
+  part.fallSpeed = 1;
+  part.sections = null;
+  part.startFallY = part.y; // remember where we started so we skip that platform
+}
+
+// --- DRAW ---
+function draw() {
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+
+  if (!layout) return;
+
+  // Draw platforms
+  for (let i = 0; i < layout.platforms.length; i++) {
+    const p = layout.platforms[i];
+    // Bottom platform is the plate area
+    if (i === layout.platforms.length - 1) {
+      ctx.fillStyle = '#553';
+    } else {
+      ctx.fillStyle = '#644';
+    }
+    ctx.fillRect(p.x, p.y, p.w, PLAT_H);
+    // Platform detail lines
+    ctx.fillStyle = '#866';
+    ctx.fillRect(p.x, p.y, p.w, 1);
+  }
+
+  // Draw ladders
+  ctx.strokeStyle = '#88f';
+  ctx.lineWidth = 2;
+  for (const l of layout.ladders) {
+    // Rails
+    ctx.beginPath();
+    ctx.moveTo(l.x - 7, l.y); ctx.lineTo(l.x - 7, l.y + l.h);
+    ctx.moveTo(l.x + 7, l.y); ctx.lineTo(l.x + 7, l.y + l.h);
+    ctx.stroke();
+    // Rungs
+    const rungCount = Math.floor(l.h / 12);
+    for (let r = 0; r < rungCount; r++) {
+      const ry = l.y + r * 12 + 6;
+      ctx.beginPath();
+      ctx.moveTo(l.x - 7, ry); ctx.lineTo(l.x + 7, ry);
+      ctx.stroke();
+    }
+  }
+
+  // Draw plates at bottom for each burger
+  for (const b of layout.burgers) {
+    const pw = INGREDIENT_W * TILE;
+    const plateY = levelY(LEVEL_COUNT - 1) + 2;
+    ctx.fillStyle = '#555';
+    ctx.fillRect(b.plateX - 4, plateY, pw + 8, 6);
+    ctx.fillStyle = '#777';
+    ctx.fillRect(b.plateX - 4, plateY, pw + 8, 2);
+  }
+
+  // Draw ingredients
+  for (const b of layout.burgers) {
+    for (const part of b.parts) {
+      drawIngredient(part);
+    }
+  }
+
+  // Draw enemies
+  for (const e of enemies) {
+    if (e.dead) continue;
+    drawEnemy(e);
+  }
+
+  // Draw player
+  if (!player.dead || (player.deathTimer % 10 < 5)) {
+    drawPlayer();
+  }
+
+  // Pepper spray effect
+  if (pepperActive) {
+    ctx.save();
+    ctx.globalAlpha = 0.4 + Math.random() * 0.2;
+    ctx.fillStyle = '#ff0';
+    const px = player.x + player.dir * 20;
+    for (let i = 0; i < 8; i++) {
+      const sx = px + (Math.random() - 0.5) * PEPPER_RANGE;
+      const sy = player.y + PLAYER_H / 2 + (Math.random() - 0.5) * 30;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 2 + Math.random() * 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // HUD
+  ctx.fillStyle = '#4f4'; ctx.font = '16px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('SCORE: ' + score, 10, 26);
+  ctx.textAlign = 'center';
+  ctx.fillText('LEVEL ' + level, W / 2, 26);
+  ctx.textAlign = 'right';
+  ctx.fillText('LIVES: ' + lives + '  PEPPER: ' + peppers, W - 10, 26);
+
+  // Level complete
+  if (levelComplete) {
+    ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0, 0, W, H);
+    ctx.font = 'bold 36px monospace'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#ff0';
+    ctx.fillText('LEVEL ' + level + ' COMPLETE!', W / 2, H / 2 - 10);
+    ctx.font = '18px monospace'; ctx.fillStyle = '#aaa';
+    ctx.fillText('+1000 BONUS', W / 2, H / 2 + 24);
+  }
+
+  // Death message
+  if (player.dead) {
+    ctx.font = 'bold 28px monospace'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#f55';
+    ctx.fillText('OUCH!', W / 2, H / 2);
+  }
+
+  // Game over
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, W, H);
+    ctx.font = 'bold 48px monospace'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#f55';
+    ctx.fillText('GAME OVER', W / 2, H / 2 - 20);
+    ctx.fillStyle = '#aaa'; ctx.font = '18px monospace';
+    ctx.fillText('R to restart   SCORE: ' + score, W / 2, H / 2 + 24);
+  }
+
+  // Win
+  if (gameWin) {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, W, H);
+    ctx.font = 'bold 40px monospace'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#ff0';
+    ctx.fillText('ALL BURGERS SERVED!', W / 2, H / 2 - 20);
+    ctx.fillStyle = '#aaa'; ctx.font = '18px monospace';
+    ctx.fillText('R to restart   FINAL SCORE: ' + score, W / 2, H / 2 + 24);
+  }
+
+  // Title badge
+  ctx.fillStyle = '#1a1a1a'; ctx.fillRect(8, 8, 260, 28);
+  ctx.fillStyle = '#555'; ctx.font = '13px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('SRV-003 \u00b7 FOOD STACK  [?]', 16, 26);
+}
+
+function drawIngredient(part) {
+  const pw = INGREDIENT_W * TILE;
+  const x = part.x, y = part.y;
+  const h = 10; // ingredient height
+
+  switch (part.type) {
+    case 'topBun':
+      // Rounded brown top bun
+      ctx.fillStyle = '#c84';
+      ctx.beginPath();
+      ctx.ellipse(x + pw / 2, y - 2, pw / 2, 10, 0, Math.PI, 0);
+      ctx.fill();
+      ctx.fillRect(x, y - 2, pw, 6);
+      // Sesame seeds
+      ctx.fillStyle = '#fe8';
+      ctx.fillRect(x + pw * 0.25, y - 8, 4, 3);
+      ctx.fillRect(x + pw * 0.50, y - 10, 4, 3);
+      ctx.fillRect(x + pw * 0.72, y - 8, 4, 3);
+      // Walk progress indicator
+      drawWalkProgress(part, x, y + 6);
+      break;
+    case 'lettuce':
+      ctx.fillStyle = '#4c4';
+      ctx.fillRect(x, y - 4, pw, 8);
+      // Wavy leaf detail
+      ctx.fillStyle = '#6e6';
+      for (let i = 0; i < pw; i += 10) {
+        const ly = y - 4 + Math.sin(i * 0.3) * 2;
+        ctx.fillRect(x + i, ly, 8, 3);
+      }
+      drawWalkProgress(part, x, y + 6);
+      break;
+    case 'patty':
+      ctx.fillStyle = '#731';
+      ctx.fillRect(x, y - 4, pw, 10);
+      ctx.fillStyle = '#942';
+      ctx.fillRect(x + 2, y - 2, pw - 4, 3);
+      drawWalkProgress(part, x, y + 8);
+      break;
+    case 'bottomBun':
+      ctx.fillStyle = '#c84';
+      ctx.fillRect(x, y - 4, pw, 8);
+      ctx.fillStyle = '#a62';
+      ctx.fillRect(x, y + 2, pw, 2);
+      drawWalkProgress(part, x, y + 6);
+      break;
+  }
+
+  // Assembled glow
+  if (part.assembled) {
+    ctx.strokeStyle = 'rgba(255,255,0,0.3)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x - 1, y - 12, pw + 2, 16);
+  }
+}
+
+function drawWalkProgress(part, x, y) {
+  if (!part.sections || part.assembled) return;
+  const pw = INGREDIENT_W * TILE;
+  const sw = pw / 4;
+  for (let i = 0; i < 4; i++) {
+    if (part.sections[i]) {
+      ctx.fillStyle = 'rgba(255,255,0,0.3)';
+      ctx.fillRect(x + i * sw, y, sw, 2);
+    }
+  }
+}
+
+function drawPlayer() {
+  const x = player.x, y = player.y;
+  const bobble = player.climbing ? Math.sin(player.walkFrame * 0.3) * 2 : 0;
+
+  // Body (white chef outfit)
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(x - 8, y + 6 + bobble, 16, 14);
+
+  // Head
+  ctx.fillStyle = '#fca';
+  ctx.fillRect(x - 6, y + bobble, 12, 8);
+
+  // Chef hat
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(x - 7, y - 10 + bobble, 14, 12);
+  ctx.fillRect(x - 5, y - 14 + bobble, 10, 6);
+
+  // Eyes
+  ctx.fillStyle = '#000';
+  ctx.fillRect(x - 3, y + 2 + bobble, 2, 2);
+  ctx.fillRect(x + 2, y + 2 + bobble, 2, 2);
+
+  // Legs
+  const legOff = player.climbing ? 0 : (Math.abs(Math.sin(player.walkFrame * 0.2)) * 3);
+  ctx.fillStyle = '#33a';
+  ctx.fillRect(x - 6, y + 20, 4, 8 + legOff);
+  ctx.fillRect(x + 2, y + 20, 4, 8 - legOff + 3);
+
+  // Arms
+  ctx.fillStyle = '#fff';
+  if (player.climbing) {
+    const armOff = Math.sin(player.walkFrame * 0.3) * 4;
+    ctx.fillRect(x - 12, y + 6 + armOff, 4, 8);
+    ctx.fillRect(x + 8, y + 6 - armOff, 4, 8);
+  } else {
+    ctx.fillRect(x - 12, y + 8, 4, 10);
+    ctx.fillRect(x + 8, y + 8, 4, 10);
+  }
+}
+
+function drawEnemy(e) {
+  const x = e.x, y = e.y;
+  const stunned = e.stunTimer > 0;
+  const bob = Math.sin(e.walkFrame * 0.15) * 2;
+
+  switch (e.type) {
+    case 'hotdog':
+      // Mr. Hot Dog - red/brown sausage body
+      ctx.fillStyle = stunned ? '#666' : '#c44';
+      ctx.fillRect(x - 8, y + 2 + bob, 16, 18);
+      // Bun sides
+      ctx.fillStyle = stunned ? '#555' : '#c84';
+      ctx.fillRect(x - 10, y + 4 + bob, 4, 14);
+      ctx.fillRect(x + 6, y + 4 + bob, 4, 14);
+      // Face
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(x - 5, y + 6 + bob, 3, 3);
+      ctx.fillRect(x + 2, y + 6 + bob, 3, 3);
+      ctx.fillStyle = '#000';
+      ctx.fillRect(x - 4, y + 7 + bob, 2, 2);
+      ctx.fillRect(x + 3, y + 7 + bob, 2, 2);
+      // Legs
+      ctx.fillStyle = stunned ? '#555' : '#c44';
+      ctx.fillRect(x - 6, y + 20, 4, 6);
+      ctx.fillRect(x + 2, y + 20, 4, 6);
+      break;
+
+    case 'pickle':
+      // Mr. Pickle - green
+      ctx.fillStyle = stunned ? '#555' : '#4a4';
+      ctx.fillRect(x - 7, y + 2 + bob, 14, 18);
+      // Bumps
+      ctx.fillStyle = stunned ? '#666' : '#6c6';
+      ctx.fillRect(x - 9, y + 6 + bob, 3, 4);
+      ctx.fillRect(x + 6, y + 10 + bob, 3, 4);
+      ctx.fillRect(x - 9, y + 14 + bob, 3, 4);
+      // Face
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(x - 4, y + 5 + bob, 3, 3);
+      ctx.fillRect(x + 1, y + 5 + bob, 3, 3);
+      ctx.fillStyle = '#000';
+      ctx.fillRect(x - 3, y + 6 + bob, 2, 2);
+      ctx.fillRect(x + 2, y + 6 + bob, 2, 2);
+      // Mouth
+      ctx.fillRect(x - 2, y + 11 + bob, 5, 2);
+      // Legs
+      ctx.fillStyle = stunned ? '#555' : '#4a4';
+      ctx.fillRect(x - 5, y + 20, 4, 6);
+      ctx.fillRect(x + 1, y + 20, 4, 6);
+      break;
+
+    case 'egg':
+      // Mr. Egg - white/yellow oval
+      ctx.fillStyle = stunned ? '#666' : '#ff8';
+      ctx.beginPath();
+      ctx.ellipse(x, y + 10 + bob, 10, 12, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Yolk
+      ctx.fillStyle = stunned ? '#555' : '#fa0';
+      ctx.beginPath();
+      ctx.arc(x, y + 10 + bob, 5, 0, Math.PI * 2);
+      ctx.fill();
+      // Eyes
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(x - 5, y + 4 + bob, 3, 3);
+      ctx.fillRect(x + 2, y + 4 + bob, 3, 3);
+      ctx.fillStyle = '#000';
+      ctx.fillRect(x - 4, y + 5 + bob, 2, 2);
+      ctx.fillRect(x + 3, y + 5 + bob, 2, 2);
+      // Legs
+      ctx.fillStyle = stunned ? '#555' : '#ff8';
+      ctx.fillRect(x - 5, y + 20, 4, 6);
+      ctx.fillRect(x + 1, y + 20, 4, 6);
+      break;
+  }
+
+  // Stun stars
+  if (stunned) {
+    ctx.fillStyle = '#ff0';
+    ctx.font = '10px monospace';
+    const soff = (e.stunTimer % 30) / 30 * Math.PI * 2;
+    ctx.fillText('*', x + Math.cos(soff) * 12 - 3, y - 2 + Math.sin(soff) * 6);
+    ctx.fillText('*', x + Math.cos(soff + 2) * 12 - 3, y - 2 + Math.sin(soff + 2) * 6);
+  }
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

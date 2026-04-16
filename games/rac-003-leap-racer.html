@@ -1,0 +1,936 @@
+<!--
+PROTOTYPE: leap-racer
+SERIES: rac
+NUMBER: 003
+DATE: 2026-03-22
+MECHANIC: top-down driving with jumping over obstacles and water hazards
+ANCESTRY: Bump 'n' Jump (1982, Data East), Spy Hunter (1983, Bally Midway)
+CONTROLS: Arrow keys — steer/accelerate/brake | Space — jump | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 2 (Expert Systems — scripted obstacle patterns)
+AI-INSIGHT: Bump 'n' Jump's dual mechanic of bumping cars off-road AND jumping over water creates a risk-reward decision at speed — a real-time resource allocation problem where the player must choose between offensive and defensive actions under time pressure.
+NOTES: Top-down vertical scroller. Drive forward, bump enemy cars off road.
+       Jump over water sections. Speed affects jump distance.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAC-003 · LEAP RACER</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>RAC-003 · LEAP RACER</h1>
+    <p><span class="tag series">RAC — Racing</span> <span class="tag">Prototype #003</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Drive up the vertically scrolling road. Bump enemy cars off the road edges and jump over water hazards. Speed matters for jumping!</p>
+    <ul>
+      <li><kbd>&#8593;</kbd> — Accelerate</li>
+      <li><kbd>&#8595;</kbd> — Brake</li>
+      <li><kbd>&#8592;</kbd> <kbd>&#8594;</kbd> — Steer left/right</li>
+      <li><kbd>Space</kbd> — Jump (requires speed &gt; 60%)</li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Bump to kill:</strong> Ram enemy cars sideways to push them off the road edges. You score points for each bump kill.</li>
+      <li><strong>Jump distance = speed:</strong> You must be going fast enough to jump. The faster you go, the longer you stay airborne.</li>
+      <li><strong>Watch for warnings:</strong> A flashing "JUMP!" warning appears before water sections. Get up to speed!</li>
+      <li><strong>Road narrows:</strong> Chokepoints force you into tight spaces with enemies. Bump or be bumped.</li>
+      <li><strong>Seasons change:</strong> The scenery shifts through spring, summer, autumn, and winter as you progress.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Bump 'n' Jump (1982, Data East) &rarr; Spy Hunter (1983) &rarr; Road Rash (1991)</p>
+    <p>Bump 'n' Jump (known as Burnin' Rubber in Japan) was Data East's 1982 arcade hit that combined top-down racing with a unique jumping mechanic. The player could leap over water hazards and land on enemy vehicles to destroy them.</p>
+    <p>The game's dual mechanic &mdash; offensive bumping AND defensive jumping &mdash; created a constant tension. You need speed to jump, but speed makes bumping more dangerous. This risk-reward loop was innovative for its era and influenced combat racing games that followed.</p>
+    <p>The seasonal visual changes (the road passing through spring, summer, fall, winter) were an early example of environmental storytelling in racing games, giving the player a sense of journey and progression.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 2 &mdash; Expert Systems (1972&ndash;1980)</p>
+    <p><strong>Contemporary AI:</strong> Rule-based expert systems. Scripted patterns for obstacle placement and enemy behavior.</p>
+    <p><strong>Hidden Intelligence:</strong> The dual mechanic of bumping (offensive) and jumping (defensive) creates a real-time resource allocation problem. Speed is the shared resource: you need it to jump over water, but high speed makes steering and bumping harder. The player must constantly decide whether to invest speed in offense or save it for defense &mdash; a form of dynamic resource allocation under uncertainty.</p>
+    <p><strong>The Convergence:</strong> The procedural road generation with varying width, water placement, and enemy patterns anticipates difficulty curve design. Modern racing AI uses reinforcement learning to calibrate challenge; Bump 'n' Jump achieved this with hand-tuned segment patterns.</p>
+    <p><strong>If AI Had Designed This:</strong> Adaptive road generation that monitors player skill (bump success rate, jump timing accuracy) and adjusts water frequency, road width, and enemy aggression to maintain optimal flow state.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: RAC &mdash; Racing</h3>
+    <p>Bump 'n' Jump adds combat (bumping) and platforming (jumping) to the top-down racer formula. The vertical scrolling perspective emphasizes forward momentum.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Top-down vertical scrolling with bump combat and jump traversal.</strong> Variable-width road. Water hazards require speed-dependent jumping. Enemy cars with different behaviors. Seasonal visual progression.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Bump physics &mdash; does ramming cars off-road feel satisfying and controllable?</li>
+      <li>Jump risk-reward &mdash; does speed-dependent jumping create meaningful decisions?</li>
+      <li>Road variety &mdash; do width changes and water sections create distinct challenges?</li>
+      <li>Seasonal progression &mdash; does the visual change give a sense of journey?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Procedural road segments with variable width. Water hazards with warning signs. Four enemy types with different behaviors. Seasonal palette shifts every 2000 distance units.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+const keys = {};
+window.addEventListener('keydown', e => { if (!infoOpen) keys[e.code] = true; e.preventDefault(); });
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+// --- CONSTANTS ---
+const ROAD_CX = W / 2;
+const MIN_ROAD_W = 160;
+const MAX_ROAD_W = 340;
+const PLAYER_W = 30;
+const PLAYER_H = 44;
+const CAR_W = 28;
+const CAR_H = 40;
+const SEGMENT_H = 4;
+const VISIBLE_SEGS = Math.ceil(H / SEGMENT_H) + 40;
+const JUMP_MIN_SPEED = 3.6; // 60% of max speed 6
+const MAX_SPEED = 6;
+const SEASON_DIST = 2000;
+
+// --- ROAD GENERATION ---
+function seededRand(seed) {
+  let s = seed | 0;
+  if (s <= 0) s = 1;
+  return function() {
+    s = (s * 16807) % 2147483647;
+    return (s - 1) / 2147483646;
+  };
+}
+
+// Road is generated in "chunks" of segments. Each chunk has a target width and center offset.
+function genChunk(idx) {
+  const rng = seededRand(idx * 7919 + 131);
+  const lenRoll = rng();
+  const isWater = rng() < 0.18 && idx > 2; // ~18% chance of water after chunk 2
+  const len = isWater ? (30 + Math.floor(lenRoll * 50)) : (80 + Math.floor(lenRoll * 120)); // water: 30-80 segs, road: 80-200
+  const targetW = isWater ? 0 : (MIN_ROAD_W + rng() * (MAX_ROAD_W - MIN_ROAD_W));
+  const drift = (rng() - 0.5) * 120; // road center drift
+  const hasNarrow = !isWater && rng() < 0.3; // 30% chance of chokepoint
+  const narrowAt = hasNarrow ? 0.3 + rng() * 0.4 : -1;
+  return { len, isWater, targetW, drift, hasNarrow, narrowAt };
+}
+
+// --- STATE ---
+let player, enemies, score, lives, gameOver, distance, speed;
+let scrollY, segments, chunkIdx, chunkSegStart, currentChunk, segInChunk;
+let prevRoadCX, prevRoadW;
+let jumpState, jumpTimer, jumpHeight, jumpMaxTimer;
+let frame, bumpEffects, splashEffects;
+let warningActive, warningDist;
+
+function buildInitialSegments() {
+  segments = [];
+  chunkIdx = 0;
+  chunkSegStart = 0;
+  currentChunk = genChunk(0);
+  segInChunk = 0;
+  prevRoadCX = ROAD_CX;
+  prevRoadW = MAX_ROAD_W;
+  warningActive = false;
+  warningDist = 0;
+  // Pre-generate enough segments to fill screen
+  for (let i = 0; i < VISIBLE_SEGS + 100; i++) {
+    pushSegment();
+  }
+}
+
+function pushSegment() {
+  if (segInChunk >= currentChunk.len) {
+    chunkSegStart += currentChunk.len;
+    chunkIdx++;
+    currentChunk = genChunk(chunkIdx);
+    segInChunk = 0;
+  }
+  const t = segInChunk / currentChunk.len; // 0..1 within chunk
+  let roadW, roadCX;
+  if (currentChunk.isWater) {
+    // Water segment — no road
+    roadW = 0;
+    roadCX = prevRoadCX;
+  } else {
+    // Smooth interpolation of road width
+    const easeT = t < 0.15 ? t / 0.15 : (t > 0.85 ? (1 - t) / 0.15 : 1);
+    const baseW = prevRoadW + (currentChunk.targetW - prevRoadW) * Math.min(1, t * 3);
+    if (currentChunk.hasNarrow) {
+      const narrowDist = Math.abs(t - currentChunk.narrowAt);
+      const narrowFactor = narrowDist < 0.1 ? (1 - narrowDist / 0.1) * 0.5 : 0;
+      roadW = baseW * (1 - narrowFactor);
+    } else {
+      roadW = baseW;
+    }
+    roadW = Math.max(MIN_ROAD_W, Math.min(MAX_ROAD_W, roadW));
+    roadCX = prevRoadCX + (currentChunk.drift - 0) * 0.01;
+    roadCX = Math.max(roadW / 2 + 20, Math.min(W - roadW / 2 - 20, roadCX));
+  }
+  prevRoadCX = roadCX;
+  if (!currentChunk.isWater) prevRoadW = roadW;
+  segments.push({
+    cx: roadCX,
+    w: roadW,
+    water: currentChunk.isWater,
+    idx: chunkSegStart + segInChunk
+  });
+  segInChunk++;
+}
+
+function initGame() {
+  score = 0;
+  lives = 3;
+  gameOver = false;
+  distance = 0;
+  speed = 0;
+  scrollY = 0;
+  frame = 0;
+  jumpState = 'ground'; // 'ground', 'rising', 'falling'
+  jumpTimer = 0;
+  jumpHeight = 0;
+  jumpMaxTimer = 0;
+  bumpEffects = [];
+  splashEffects = [];
+  player = {
+    x: ROAD_CX,
+    y: H - 100,
+    w: PLAYER_W,
+    h: PLAYER_H,
+    vx: 0
+  };
+  enemies = [];
+  buildInitialSegments();
+  // Spawn initial enemies
+  for (let i = 0; i < 5; i++) spawnEnemy(200 + i * 120);
+}
+
+// --- ENEMY TYPES ---
+// 0: Slow drifter (gray), 1: Fast lane-holder (red), 2: Aggressive bumper (orange), 3: Erratic swerver (purple)
+const ENEMY_COLORS = ['#888', '#e33', '#f90', '#a4f'];
+const ENEMY_NAMES = ['slow', 'fast', 'bumper', 'swerve'];
+
+function spawnEnemy(aheadDist) {
+  const segI = Math.floor((scrollY + aheadDist) / SEGMENT_H);
+  if (segI < 0 || segI >= segments.length) return;
+  const seg = segments[Math.min(segI, segments.length - 1)];
+  if (seg.water || seg.w < CAR_W * 2) return;
+  const type = Math.floor(Math.random() * 4);
+  const half = seg.w / 2 - CAR_W;
+  const ex = seg.cx + (Math.random() - 0.5) * half * 1.6;
+  enemies.push({
+    x: ex,
+    y: player.y - aheadDist,
+    type: type,
+    w: CAR_W,
+    h: CAR_H,
+    speed: type === 1 ? 2.5 : (type === 0 ? 0.5 : 1.5),
+    alive: true,
+    swerveTimer: Math.random() * 100,
+    bumping: false
+  });
+}
+
+function getSeason() {
+  const s = Math.floor(distance / SEASON_DIST) % 4;
+  return s;
+}
+
+function getSeasonPalette(season) {
+  switch (season) {
+    case 0: return { grass: '#2a7a2a', road: '#555', stripe: '#ff0', tree: '#1a5a1a', name: 'SPRING' };
+    case 1: return { grass: '#3a8a1a', road: '#666', stripe: '#fff', tree: '#2a6a0a', name: 'SUMMER' };
+    case 2: return { grass: '#8a6a2a', road: '#554', stripe: '#fa0', tree: '#7a4a0a', name: 'AUTUMN' };
+    case 3: return { grass: '#ccd8e0', road: '#778', stripe: '#aaa', tree: '#667', name: 'WINTER' };
+  }
+}
+
+function getSegAtPlayerY(yOff) {
+  const segI = Math.floor((scrollY + (H - (player.y + yOff))) / SEGMENT_H);
+  if (segI < 0) return segments[0];
+  if (segI >= segments.length) return segments[segments.length - 1];
+  return segments[segI];
+}
+
+// --- UPDATE ---
+function update() {
+  if (infoOpen) return;
+  if (gameOver) { if (keys['KeyR']) initGame(); return; }
+  frame++;
+
+  // Acceleration / braking
+  if (keys['ArrowUp']) speed = Math.min(MAX_SPEED, speed + 0.06);
+  else if (keys['ArrowDown']) speed = Math.max(0, speed - 0.1);
+  else speed = Math.max(0, speed - 0.015);
+
+  // Steering
+  const steerPower = jumpState === 'ground' ? 3.5 : 1.2;
+  if (keys['ArrowLeft']) player.vx -= 0.4;
+  if (keys['ArrowRight']) player.vx += 0.4;
+  player.vx *= 0.88;
+  player.x += player.vx * steerPower;
+
+  // Jump
+  if (keys['Space'] && jumpState === 'ground' && speed >= JUMP_MIN_SPEED) {
+    jumpState = 'rising';
+    jumpTimer = 0;
+    jumpMaxTimer = Math.floor(30 + (speed / MAX_SPEED) * 60); // jump duration (half-arc) depends on speed
+    keys['Space'] = false; // consume
+  }
+  if (jumpState === 'rising') {
+    jumpTimer++;
+    jumpHeight = Math.sin((jumpTimer / jumpMaxTimer) * Math.PI * 0.5) * 160;
+    if (jumpTimer >= jumpMaxTimer) {
+      jumpState = 'falling';
+      jumpTimer = 0;
+    }
+  }
+  if (jumpState === 'falling') {
+    jumpTimer++;
+    jumpHeight = Math.cos((jumpTimer / jumpMaxTimer) * Math.PI * 0.5) * 160;
+    if (jumpTimer >= jumpMaxTimer) {
+      jumpHeight = 0;
+      jumpState = 'ground';
+      jumpTimer = 0;
+      // Check landing
+      const landSeg = getSegAtPlayerY(0);
+      if (landSeg.water) {
+        // Landed in water!
+        splashEffects.push({ x: player.x, y: player.y, t: 0 });
+        die();
+        return;
+      }
+      // Check if landed on enemy
+      for (const e of enemies) {
+        if (!e.alive) continue;
+        if (Math.abs(player.x - e.x) < (player.w + e.w) / 2 &&
+            Math.abs(player.y - e.y) < (player.h + e.h) / 2) {
+          e.alive = false;
+          score += 300;
+          bumpEffects.push({ x: e.x, y: e.y, t: 0, text: 'CRUSH! +300' });
+        }
+      }
+      score += 50; // successful jump bonus
+    }
+  }
+
+  // Scroll
+  const scrollAmt = speed;
+  scrollY += scrollAmt;
+  distance += scrollAmt;
+
+  // Ensure we have enough segments ahead
+  while (segments.length < Math.floor(scrollY / SEGMENT_H) + VISIBLE_SEGS + 100) {
+    pushSegment();
+  }
+
+  // Check if player is on road (only when on ground)
+  if (jumpState === 'ground') {
+    const pSeg = getSegAtPlayerY(0);
+    if (pSeg.water) {
+      splashEffects.push({ x: player.x, y: player.y, t: 0 });
+      die();
+      return;
+    }
+    const leftEdge = pSeg.cx - pSeg.w / 2;
+    const rightEdge = pSeg.cx + pSeg.w / 2;
+    if (player.x - player.w / 2 < leftEdge || player.x + player.w / 2 > rightEdge) {
+      die();
+      return;
+    }
+  }
+
+  // Warning for upcoming water
+  warningActive = false;
+  for (let look = 80; look < 250; look += 4) {
+    const segI = Math.floor((scrollY + look) / SEGMENT_H);
+    if (segI >= 0 && segI < segments.length && segments[segI].water) {
+      warningActive = true;
+      warningDist = look;
+      break;
+    }
+  }
+
+  // Enemy update
+  for (const e of enemies) {
+    if (!e.alive) continue;
+    // Scroll enemies down
+    e.y += scrollAmt;
+    // Enemy own movement (drive up relative to scroll)
+    e.y -= e.speed;
+
+    // Behavior by type
+    e.swerveTimer += 0.03;
+    switch (e.type) {
+      case 0: // Slow drifter — gentle sine wave
+        e.x += Math.sin(e.swerveTimer) * 0.5;
+        break;
+      case 1: // Fast — holds lane
+        break;
+      case 2: // Bumper — steers toward player
+        if (Math.abs(e.y - player.y) < 200) {
+          const dx = player.x - e.x;
+          e.x += Math.sign(dx) * 1.2;
+        }
+        break;
+      case 3: // Swerve — erratic
+        e.x += Math.sin(e.swerveTimer * 3) * 2;
+        break;
+    }
+
+    // Keep enemies on road
+    const eSeg = getSegAtScreenY(e.y);
+    if (eSeg && !eSeg.water && eSeg.w > 0) {
+      const eLeft = eSeg.cx - eSeg.w / 2 + CAR_W / 2;
+      const eRight = eSeg.cx + eSeg.w / 2 - CAR_W / 2;
+      e.x = Math.max(eLeft, Math.min(eRight, e.x));
+    }
+
+    // Collision with player (ground only)
+    if (jumpState === 'ground') {
+      const overlapX = (player.w + e.w) / 2 - Math.abs(player.x - e.x);
+      const overlapY = (player.h + e.h) / 2 - Math.abs(player.y - e.y);
+      if (overlapX > 0 && overlapY > 0) {
+        // Determine bump direction
+        const dx = player.x - e.x;
+        if (Math.abs(dx) > 4) {
+          // Side bump — push the one with less momentum
+          const playerForce = Math.abs(player.vx) + speed * 0.3;
+          const enemyForce = 1.5;
+          if (playerForce > enemyForce) {
+            // Player bumps enemy
+            e.x -= Math.sign(dx) * 8;
+            e.alive = false;
+            score += 200;
+            bumpEffects.push({ x: e.x, y: e.y, t: 0, text: 'BUMP! +200' });
+            player.vx += Math.sign(dx) * 0.5;
+          } else {
+            // Enemy bumps player
+            player.vx += Math.sign(dx) * 4;
+            player.x += Math.sign(dx) * 6;
+          }
+        } else {
+          // Rear-end collision — player takes damage if slow
+          if (speed < 2) {
+            die();
+            return;
+          } else {
+            e.y += 5;
+            speed *= 0.7;
+          }
+        }
+      }
+    }
+
+    // Remove off-screen enemies
+    if (e.y > H + 80) e.alive = false;
+  }
+  enemies = enemies.filter(e => e.alive);
+
+  // Spawn new enemies
+  if (frame % 40 === 0 && enemies.length < 8) {
+    spawnEnemy(H + 40 + Math.random() * 100);
+  }
+  if (frame % 70 === 0 && enemies.length < 12) {
+    spawnEnemy(H + 80 + Math.random() * 200);
+  }
+
+  // Update effects
+  bumpEffects = bumpEffects.filter(e => { e.t++; return e.t < 40; });
+  splashEffects = splashEffects.filter(e => { e.t++; return e.t < 30; });
+
+  // Score from distance
+  if (frame % 10 === 0 && speed > 0) score += Math.floor(speed);
+}
+
+function getSegAtScreenY(screenY) {
+  const segI = Math.floor((scrollY + (H - screenY)) / SEGMENT_H);
+  if (segI < 0 || segI >= segments.length) return null;
+  return segments[segI];
+}
+
+function die() {
+  lives--;
+  if (lives <= 0) {
+    gameOver = true;
+    return;
+  }
+  // Reset position but keep distance
+  speed = 0;
+  player.x = ROAD_CX;
+  player.vx = 0;
+  jumpState = 'ground';
+  jumpHeight = 0;
+  jumpTimer = 0;
+  enemies = [];
+  // Advance past any water
+  let safeFound = false;
+  for (let look = 0; look < 400; look += SEGMENT_H) {
+    const segI = Math.floor((scrollY + look) / SEGMENT_H);
+    if (segI >= 0 && segI < segments.length && !segments[segI].water && segments[segI].w > MIN_ROAD_W) {
+      scrollY += look;
+      distance += look;
+      player.x = segments[segI].cx;
+      safeFound = true;
+      break;
+    }
+  }
+  if (!safeFound) {
+    scrollY += 200;
+    distance += 200;
+  }
+  // Respawn some enemies
+  for (let i = 0; i < 3; i++) spawnEnemy(250 + i * 120);
+}
+
+// --- DRAW ---
+function draw() {
+  const season = getSeason();
+  const pal = getSeasonPalette(season);
+
+  // Background (grass)
+  ctx.fillStyle = pal.grass;
+  ctx.fillRect(0, 0, W, H);
+
+  // Draw road segments from bottom to top
+  const baseSegI = Math.floor(scrollY / SEGMENT_H);
+  const subPixelOff = scrollY % SEGMENT_H;
+
+  for (let i = -5; i < Math.ceil(H / SEGMENT_H) + 5; i++) {
+    const segI = baseSegI + i;
+    if (segI < 0 || segI >= segments.length) continue;
+    const seg = segments[segI];
+    const screenY = H - (i * SEGMENT_H - subPixelOff);
+
+    if (seg.water) {
+      // Water
+      const waveOff = Math.sin((segI + frame * 0.05) * 0.3) * 6;
+      ctx.fillStyle = '#2244aa';
+      ctx.fillRect(0, screenY, W, SEGMENT_H + 1);
+      // Water shimmer
+      if (segI % 8 < 4) {
+        ctx.fillStyle = '#3366cc';
+        ctx.fillRect(100 + waveOff, screenY, 50, SEGMENT_H + 1);
+        ctx.fillRect(400 - waveOff, screenY, 60, SEGMENT_H + 1);
+        ctx.fillRect(600 + waveOff, screenY, 40, SEGMENT_H + 1);
+      }
+    } else {
+      // Road surface
+      const left = seg.cx - seg.w / 2;
+      ctx.fillStyle = pal.road;
+      ctx.fillRect(left, screenY, seg.w, SEGMENT_H + 1);
+
+      // Road edge lines
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(left, screenY, 3, SEGMENT_H + 1);
+      ctx.fillRect(left + seg.w - 3, screenY, 3, SEGMENT_H + 1);
+
+      // Center stripe (dashed)
+      if (segI % 16 < 8) {
+        ctx.fillStyle = pal.stripe;
+        ctx.fillRect(seg.cx - 1, screenY, 3, SEGMENT_H + 1);
+      }
+
+      // Shoulder rumble strips
+      if (segI % 12 < 6) {
+        ctx.fillStyle = '#c33';
+        ctx.fillRect(left - 6, screenY, 6, SEGMENT_H + 1);
+        ctx.fillRect(left + seg.w, screenY, 6, SEGMENT_H + 1);
+      }
+    }
+
+    // Scenery objects (trees/rocks on grass)
+    if (segI % 40 === 0 && !seg.water) {
+      const treeLeft = seg.cx - seg.w / 2 - 50;
+      const treeRight = seg.cx + seg.w / 2 + 50;
+      // Left tree
+      drawTree(treeLeft - Math.abs(segI % 80 - 40), screenY - 12, pal, season);
+      // Right tree
+      drawTree(treeRight + Math.abs((segI + 20) % 80 - 40), screenY - 12, pal, season);
+    }
+  }
+
+  // Draw enemies (behind player if jumping)
+  if (jumpState !== 'ground') {
+    drawEnemies();
+  }
+
+  // Draw player shadow when jumping
+  if (jumpState !== 'ground') {
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath();
+    ctx.ellipse(player.x, player.y + 10, player.w * 0.7, 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Draw player car
+  const drawY = player.y - jumpHeight;
+  const carScale = jumpState !== 'ground' ? 1 + jumpHeight * 0.002 : 1;
+  drawPlayerCar(player.x, drawY, carScale);
+
+  // Draw enemies on top if on ground
+  if (jumpState === 'ground') {
+    drawEnemies();
+  }
+
+  // Bump effects
+  for (const e of bumpEffects) {
+    ctx.fillStyle = `rgba(255,200,50,${1 - e.t / 40})`;
+    ctx.font = 'bold 14px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(e.text, e.x, e.y - e.t * 1.5);
+  }
+
+  // Splash effects
+  for (const e of splashEffects) {
+    const r = 10 + e.t * 2;
+    ctx.strokeStyle = `rgba(100,180,255,${1 - e.t / 30})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(e.x, e.y, r, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(e.x, e.y, r * 0.6, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // Water warning
+  if (warningActive && speed < JUMP_MIN_SPEED) {
+    const flash = Math.floor(frame / 8) % 2;
+    if (flash) {
+      ctx.fillStyle = '#f33';
+      ctx.font = 'bold 36px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('!! JUMP !!', W / 2, H / 2 - 60);
+      ctx.fillStyle = '#ff0';
+      ctx.font = '16px monospace';
+      ctx.fillText('SPEED UP TO JUMP!', W / 2, H / 2 - 30);
+    }
+  } else if (warningActive) {
+    const flash = Math.floor(frame / 10) % 2;
+    if (flash) {
+      ctx.fillStyle = '#ff0';
+      ctx.font = 'bold 28px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('JUMP!', W / 2, H / 2 - 60);
+    }
+  }
+
+  // HUD
+  ctx.fillStyle = '#0006';
+  ctx.fillRect(0, 0, W, 44);
+
+  ctx.fillStyle = '#4f4'; ctx.font = '16px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('SCORE: ' + score, 10, 18);
+  ctx.fillText('DIST: ' + Math.floor(distance), 10, 36);
+  ctx.textAlign = 'center';
+  ctx.fillStyle = pal.stripe;
+  ctx.fillText(pal.name, W / 2, 18);
+  // Speed bar
+  const barW = 120, barH = 10;
+  const barX = W / 2 - barW / 2, barY = 26;
+  ctx.fillStyle = '#333';
+  ctx.fillRect(barX, barY, barW, barH);
+  const speedPct = speed / MAX_SPEED;
+  ctx.fillStyle = speedPct >= 0.6 ? '#4f4' : (speedPct >= 0.3 ? '#ff0' : '#f44');
+  ctx.fillRect(barX, barY, barW * speedPct, barH);
+  ctx.strokeStyle = '#888';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(barX, barY, barW, barH);
+  // Jump threshold marker
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(barX + barW * 0.6 - 1, barY - 2, 2, barH + 4);
+
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#4f4'; ctx.font = '16px monospace';
+  ctx.fillText('LIVES: ' + lives, W - 10, 18);
+
+  // Jump indicator
+  if (jumpState !== 'ground') {
+    ctx.fillStyle = '#0ff'; ctx.font = 'bold 14px monospace'; ctx.textAlign = 'right';
+    ctx.fillText('AIRBORNE', W - 10, 36);
+  } else if (speed >= JUMP_MIN_SPEED) {
+    ctx.fillStyle = '#4f4'; ctx.font = '14px monospace'; ctx.textAlign = 'right';
+    ctx.fillText('JUMP READY', W - 10, 36);
+  } else {
+    ctx.fillStyle = '#844'; ctx.font = '14px monospace'; ctx.textAlign = 'right';
+    ctx.fillText('TOO SLOW', W - 10, 36);
+  }
+
+  // Game over
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, W, H);
+    ctx.font = 'bold 48px monospace'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#f55';
+    ctx.fillText('GAME OVER', W / 2, H / 2 - 30);
+    ctx.fillStyle = '#aaa'; ctx.font = '18px monospace';
+    ctx.fillText('SCORE: ' + score + '  DIST: ' + Math.floor(distance), W / 2, H / 2 + 14);
+    ctx.fillText('R to restart', W / 2, H / 2 + 44);
+  }
+
+  // Title badge
+  ctx.fillStyle = '#1a1a1a'; ctx.fillRect(8, 46, 270, 22);
+  ctx.fillStyle = '#555'; ctx.font = '13px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('RAC-003 \u00b7 BUMP \'N\' JUMP  [?]', 16, 62);
+}
+
+function drawPlayerCar(x, y, scale) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(scale, scale);
+  // Body
+  ctx.fillStyle = '#29f';
+  ctx.fillRect(-14, -20, 28, 40);
+  // Windshield
+  ctx.fillStyle = '#5cf';
+  ctx.fillRect(-10, -14, 20, 10);
+  // Roof
+  ctx.fillStyle = '#17d';
+  ctx.fillRect(-10, -4, 20, 14);
+  // Rear
+  ctx.fillStyle = '#06a';
+  ctx.fillRect(-12, 10, 24, 10);
+  // Tires
+  ctx.fillStyle = '#222';
+  ctx.fillRect(-16, -16, 4, 10);
+  ctx.fillRect(12, -16, 4, 10);
+  ctx.fillRect(-16, 8, 4, 10);
+  ctx.fillRect(12, 8, 4, 10);
+  // Headlights
+  ctx.fillStyle = '#ff0';
+  ctx.fillRect(-10, -22, 5, 4);
+  ctx.fillRect(5, -22, 5, 4);
+  // Taillights
+  ctx.fillStyle = '#f00';
+  ctx.fillRect(-10, 18, 5, 3);
+  ctx.fillRect(5, 18, 5, 3);
+  ctx.restore();
+}
+
+function drawEnemyCar(x, y, type) {
+  const color = ENEMY_COLORS[type];
+  ctx.save();
+  ctx.translate(x, y);
+  // Body
+  ctx.fillStyle = color;
+  ctx.fillRect(-13, -18, 26, 36);
+  // Windshield
+  ctx.fillStyle = '#556';
+  ctx.fillRect(-9, -12, 18, 8);
+  // Roof
+  ctx.fillStyle = color;
+  ctx.fillRect(-9, -4, 18, 12);
+  // Tires
+  ctx.fillStyle = '#111';
+  ctx.fillRect(-15, -14, 3, 8);
+  ctx.fillRect(12, -14, 3, 8);
+  ctx.fillRect(-15, 6, 3, 8);
+  ctx.fillRect(12, 6, 3, 8);
+  // Details by type
+  if (type === 2) {
+    // Bumper has a ram bar
+    ctx.fillStyle = '#cc0';
+    ctx.fillRect(-12, -20, 24, 3);
+  }
+  if (type === 3) {
+    // Swerve has racing stripes
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(-2, -18, 4, 36);
+  }
+  ctx.restore();
+}
+
+function drawEnemies() {
+  for (const e of enemies) {
+    if (!e.alive) continue;
+    drawEnemyCar(e.x, e.y, e.type);
+  }
+}
+
+function drawTree(x, y, pal, season) {
+  if (x < -20 || x > W + 20) return;
+  // Trunk
+  ctx.fillStyle = '#543';
+  ctx.fillRect(x - 3, y - 4, 6, 14);
+  // Canopy
+  ctx.fillStyle = pal.tree;
+  if (season === 3) {
+    // Winter — bare branches
+    ctx.strokeStyle = '#667';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x, y - 4);
+    ctx.lineTo(x - 8, y - 14);
+    ctx.moveTo(x, y - 6);
+    ctx.lineTo(x + 7, y - 16);
+    ctx.moveTo(x, y - 2);
+    ctx.lineTo(x - 5, y - 10);
+    ctx.stroke();
+  } else {
+    ctx.beginPath();
+    ctx.arc(x, y - 10, 10, 0, Math.PI * 2);
+    ctx.fill();
+    if (season === 2) {
+      // Autumn — add orange highlights
+      ctx.fillStyle = '#c84';
+      ctx.beginPath();
+      ctx.arc(x + 3, y - 12, 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+initGame();
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

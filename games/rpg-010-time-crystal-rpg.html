@@ -1,0 +1,784 @@
+<!--
+PROTOTYPE: time-crystal-rpg
+SERIES: rpg
+NUMBER: 010
+DATE: 2026-03-24
+MECHANIC: time-split screen — the screen simultaneously shows past (left), present (center), and future (right); actions in the present change past and future in real-time; turn-based combat with time manipulation
+ANCESTRY: Cris Tales (2021, Dreams Uncorporated / SYCK), Chrono Trigger (1995, Square), Paper Mario (2000, Intelligent Systems)
+CONTROLS: Arrow keys / WASD — move | Space — interact | 1/2/3 — combat actions | Z/X — send to past/future | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 7 (Foundation Models — time-split visual storytelling, Colombian cultural design identity)
+AI-INSIGHT: Cris Tales' simultaneous past/present/future display is a spatial visualization of temporal branching — the player sees causality rendered in real-time across three panels. This UI innovation transforms time manipulation from an abstract mechanic into a visceral, visual experience. Colombia's first major international game.
+NOTES: Time-split screen with past (sepia), present (full color), future (blue tint).
+       Turn-based combat with temporal manipulation — send enemies to past or future.
+       Poison + future = accelerated damage. Shield + past = always protected.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RPG-010 · TIME CRYSTAL RPG</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#111;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;font-family:monospace}
+canvas{image-rendering:pixelated}
+#info-panel{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);z-index:100;color:#ddd;overflow-y:auto}
+#info-panel .inner{max-width:700px;margin:30px auto;padding:20px;line-height:1.6}
+#info-panel h1{color:#7bf;font-size:22px;margin-bottom:4px}
+#info-panel h2{color:#f80;font-size:16px;margin:18px 0 6px;border-bottom:1px solid #333;padding-bottom:4px}
+#info-panel h3{color:#4f4;font-size:14px;margin:12px 0 4px}
+#info-panel p,#info-panel li{font-size:13px}
+#info-panel ul{padding-left:18px}
+#info-panel .tag{display:inline-block;background:#333;color:#aaa;padding:2px 8px;border-radius:3px;font-size:11px;margin:2px}
+#info-panel .tag.series{background:#234;color:#7bf}
+#info-panel .close-btn{position:fixed;top:12px;right:20px;color:#888;font-size:28px;cursor:pointer;z-index:101}
+#info-panel .close-btn:hover{color:#fff}
+#info-panel kbd{background:#333;border:1px solid #555;border-radius:3px;padding:1px 6px;font-size:12px;color:#ff0}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="info-panel">
+<span class="close-btn" onclick="toggleInfo()">&times;</span>
+<div class="inner">
+<h1>RPG-010 &middot; CRISTALES</h1>
+<p><span class="tag series">RPG &mdash; Role-Playing Game</span> <span class="tag">Prototype #010</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+<h2>How to Play</h2>
+<p>Experience a time-split world: past, present, and future shown simultaneously across three panels. Explore in the present, then enter turn-based combat with time manipulation.</p>
+<ul>
+<li><kbd>&larr;</kbd><kbd>&rarr;</kbd> or <kbd>A</kbd><kbd>D</kbd> &mdash; Move left/right</li>
+<li><kbd>Space</kbd> &mdash; Interact / Start combat encounter</li>
+<li><kbd>1</kbd> &mdash; Attack (in combat)</li>
+<li><kbd>2</kbd> &mdash; Poison Strike (in combat)</li>
+<li><kbd>3</kbd> &mdash; Shield (in combat)</li>
+<li><kbd>Z</kbd> &mdash; Send enemy to Past (weaken / accelerate effects)</li>
+<li><kbd>X</kbd> &mdash; Send enemy to Future (age / accelerate effects)</li>
+<li><kbd>R</kbd> &mdash; Restart</li>
+<li><kbd>?</kbd> &mdash; This panel</li>
+</ul>
+<h2>History</h2>
+<p>Cris Tales (2021) by Dreams Uncorporated and SYCK, based in Bogot&aacute;, Colombia, became the country's first major internationally released game. Inspired by classic JRPGs like Chrono Trigger and Paper Mario, it introduced a unique time-split visual mechanic where players see past, present, and future simultaneously on screen. The game's art style drew from Colombian architecture, culture, and stained-glass cathedral aesthetics.</p>
+<h2>AI Archaeology</h2>
+<p><strong>Era 7 &mdash; Foundation Models.</strong> The time-split screen is a spatial rendering of temporal causality &mdash; three parallel realities displayed simultaneously so the player perceives cause and effect as a visual relationship rather than a sequential one. Combat time manipulation creates a combinatorial puzzle space: applying status effects then shifting time creates emergent strategies (poison + future = accelerated damage, shield + past = retroactive protection). This transforms turn-based combat from a damage race into a temporal logic puzzle.</p>
+<h2>Classification</h2>
+<p><span class="tag">turn-based-rpg</span> <span class="tag">time-manipulation</span> <span class="tag">split-screen</span> <span class="tag">colombian</span> <span class="tag">jrpg-inspired</span> <span class="tag">temporal-causality</span></p>
+<h2>Prototype Notes</h2>
+<p>Captures the signature time-split display with three simultaneous panels showing past (sepia tones), present (full color), and future (blue tint). The exploration phase demonstrates environmental time differences. Combat features the core temporal manipulation mechanic: attack normally, apply status effects, then shift enemies through time to amplify or transform those effects. Four encounters culminating in a boss fight showcase the system's depth.</p>
+
+<h2>Educational Notice</h2>
+<p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+</div>
+</div>
+<script>
+const C=document.getElementById('c'),X=C.getContext('2d');
+C.width=800;C.height=600;
+let infoOpen=false;
+function toggleInfo(){infoOpen=!infoOpen;document.getElementById('info-panel').style.display=infoOpen?'block':'none'}
+
+// Resize
+function resize(){const s=Math.min(innerWidth/800,innerHeight/600);C.style.width=(800*s)+'px';C.style.height=(600*s)+'px'}
+addEventListener('resize',resize);resize();
+
+// Input
+const keys={};
+addEventListener('keydown',e=>{
+if(e.key==='?'||e.key==='/'){toggleInfo();e.preventDefault();return}
+if(e.key==='Escape'&&infoOpen){toggleInfo();return}
+keys[e.key.toLowerCase()]=true;e.preventDefault();
+});
+addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=false});
+
+// Game state
+const PAST_W=200,PRES_X=200,PRES_W=400,FUT_X=600,FUT_W=200;
+const EXPLORE=0,COMBAT=1,VICTORY=2,GAMEOVER=3;
+
+let state,player,encounters,currentEnc,enemy,combatLog,combatTurn,playerTurn;
+let combatAnim,combatAnimT,shakeT,scrollX,msgTimer,msgText;
+let playerEffects,enemyEffects,bossDefeated;
+
+function hudText(ctx,text,x,y,color,size,align){
+ctx.save();ctx.font=(size||14)+'px monospace';ctx.textAlign=align||'left';
+ctx.fillStyle='#000';ctx.fillText(text,x+1,y+1);
+ctx.fillStyle=color||'#fff';ctx.fillText(text,x,y);ctx.restore();
+}
+
+// Environment elements for each time period
+const buildings=[
+{x:100,w:60,h:80,pastH:50,futH:90,color:'#c84',pastColor:'#a76',futColor:'#556'},
+{x:250,w:50,h:70,pastH:0,futH:85,color:'#8a5',pastColor:'#765',futColor:'#458'},
+{x:420,w:70,h:90,pastH:70,futH:60,color:'#b66',pastColor:'#987',futColor:'#445'},
+{x:580,w:55,h:65,pastH:40,futH:95,color:'#7a8',pastColor:'#876',futColor:'#567'},
+{x:730,w:65,h:75,pastH:55,futH:50,color:'#a87',pastColor:'#876',futColor:'#446'},
+{x:900,w:60,h:85,pastH:60,futH:70,color:'#89a',pastColor:'#778',futColor:'#456'},
+{x:1050,w:50,h:60,pastH:45,futH:80,color:'#a79',pastColor:'#887',futColor:'#568'},
+];
+
+const trees=[
+{x:180,h:50,pastH:20,futH:0},{x:350,h:45,pastH:10,futH:55},
+{x:500,h:55,pastH:30,futH:35},{x:670,h:40,pastH:15,futH:60},
+{x:850,h:50,pastH:25,futH:20},{x:1000,h:35,pastH:0,futH:45},
+];
+
+const encounterZones=[
+{x:300,name:'Goblin Scout',hp:30,maxHp:30,atk:8,pastAtk:4,futAtk:12,color:'#4a4',pastName:'Goblin Child',futName:'Goblin Elder'},
+{x:550,name:'Iron Golem',hp:50,maxHp:50,atk:12,pastAtk:6,futAtk:8,color:'#888',pastName:'Ore Pile',futName:'Rusted Hulk'},
+{x:800,name:'Time Serpent',hp:45,maxHp:45,atk:14,pastAtk:10,futAtk:18,color:'#a4a',pastName:'Serpent Egg',futName:'Time Wyrm'},
+{x:1050,name:'Empress of Time',hp:80,maxHp:80,atk:16,pastAtk:12,futAtk:20,color:'#d44',pastName:'Young Princess',futName:'Withered Crone',boss:true},
+];
+
+function init(){
+state=EXPLORE;
+player={x:100,y:0,hp:100,maxHp:100,atk:20,def:5,dir:1,frame:0,frameT:0};
+scrollX=0;encounters=[false,false,false,false];
+currentEnc=-1;enemy=null;
+combatLog=[];combatTurn=0;playerTurn=true;
+combatAnim=null;combatAnimT=0;shakeT=0;
+msgTimer=0;msgText='';bossDefeated=false;
+playerEffects={poison:0,shield:0,timeSent:0};
+enemyEffects={poison:0,shield:0,timeSent:0};
+}
+init();
+
+// Sepia filter
+function sepiaColor(r,g,b,a){
+const sr=Math.min(255,r*0.393+g*0.769+b*0.189);
+const sg=Math.min(255,r*0.349+g*0.686+b*0.168);
+const sb=Math.min(255,r*0.272+g*0.534+b*0.131);
+return `rgba(${sr|0},${sg|0},${sb|0},${a||1})`;
+}
+
+function drawBuilding(ctx,bx,ground,w,h,color,time){
+ctx.fillStyle=color;
+ctx.fillRect(bx,ground-h,w,h);
+// Windows
+const wc=time==='past'?'#aa8855':time==='future'?'#8af':'#ff8';
+ctx.fillStyle=wc;
+for(let wy=ground-h+10;wy<ground-10;wy+=20){
+for(let wx=bx+8;wx<bx+w-8;wx+=16){
+ctx.fillRect(wx,wy,8,10);
+}}
+// Roof
+ctx.fillStyle=time==='past'?'#654':time==='future'?'#335':'#743';
+ctx.beginPath();ctx.moveTo(bx-5,ground-h);ctx.lineTo(bx+w/2,ground-h-20);
+ctx.lineTo(bx+w+5,ground-h);ctx.fill();
+}
+
+function drawTree(ctx,tx,ground,h,time){
+const trunk=time==='past'?'#654':time==='future'?'#446':'#864';
+const leaves=time==='past'?'#665':time==='future'?'#369':'#4a4';
+if(h<=0)return;
+ctx.fillStyle=trunk;ctx.fillRect(tx-4,ground-h,8,h);
+ctx.fillStyle=leaves;
+ctx.beginPath();ctx.arc(tx,ground-h-10,18,0,Math.PI*2);ctx.fill();
+ctx.beginPath();ctx.arc(tx-10,ground-h,14,0,Math.PI*2);ctx.fill();
+ctx.beginPath();ctx.arc(tx+10,ground-h,14,0,Math.PI*2);ctx.fill();
+}
+
+function drawCharacter(ctx,cx,cy,dir,frame,color){
+// Body
+ctx.fillStyle=color||'#f8f';
+ctx.fillRect(cx-8,cy-28,16,20);
+// Head
+ctx.fillStyle='#fda';
+ctx.fillRect(cx-6,cy-38,12,12);
+// Hair
+ctx.fillStyle=color||'#f8f';
+ctx.fillRect(cx-7,cy-40,14,6);
+// Eyes
+ctx.fillStyle='#000';
+ctx.fillRect(cx+(dir>0?1:-5),cy-35,3,3);
+// Legs
+const lOff=Math.sin(frame*0.15)*4;
+ctx.fillStyle='#446';
+ctx.fillRect(cx-6,cy-8,5,8+lOff);
+ctx.fillRect(cx+1,cy-8,5,8-lOff);
+// Cape
+ctx.fillStyle=color||'#f8f';
+ctx.globalAlpha=0.7;
+ctx.fillRect(cx+(dir>0?-12:-4),cy-26,8,18);
+ctx.globalAlpha=1;
+}
+
+function drawEnemy(ctx,ex,ey,e,time,shake){
+const sx=shake?Math.random()*4-2:0,sy=shake?Math.random()*4-2:0;
+const col=time==='past'?'#aa8':time==='future'?'#88c':e.color;
+const sz=time==='past'?0.7:time==='future'?1.2:1;
+ctx.save();ctx.translate(ex+sx,ey+sy);ctx.scale(sz,sz);
+// Body
+ctx.fillStyle=col;
+ctx.fillRect(-15,-40,30,35);
+// Head
+ctx.fillRect(-10,-55,20,18);
+// Eyes
+ctx.fillStyle=time==='future'?'#f44':'#ff0';
+ctx.fillRect(-6,-50,5,5);ctx.fillRect(3,-50,5,5);
+// Arms
+ctx.fillRect(-22,-35,8,20);ctx.fillRect(14,-35,8,20);
+if(e.boss){
+// Crown
+ctx.fillStyle='#fd0';
+ctx.fillRect(-12,-62,24,8);
+ctx.fillRect(-8,-68,4,8);ctx.fillRect(4,-68,4,8);
+ctx.fillRect(-2,-65,4,5);
+}
+ctx.restore();
+// Time label
+if(time!=='present'){
+const label=time==='past'?e.pastName:e.futName;
+hudText(ctx,label,ex,ey-60,time==='past'?'#da8':'#8af',10,'center');
+}
+}
+
+function drawPanel(ctx,px,pw,time,offy){
+ctx.save();
+ctx.beginPath();ctx.rect(px,0,pw,600);ctx.clip();
+// Sky
+const skyTop=time==='past'?'#876':'(time==="future"?"#234":"#48c")';
+if(time==='past'){
+const g=ctx.createLinearGradient(0,0,0,400);
+g.addColorStop(0,'#987');g.addColorStop(1,'#ba9');ctx.fillStyle=g;
+}else if(time==='future'){
+const g=ctx.createLinearGradient(0,0,0,400);
+g.addColorStop(0,'#236');g.addColorStop(1,'#458');ctx.fillStyle=g;
+}else{
+const g=ctx.createLinearGradient(0,0,0,400);
+g.addColorStop(0,'#48c');g.addColorStop(1,'#8cf');ctx.fillStyle=g;
+}
+ctx.fillRect(px,0,pw,420);
+
+// Ground
+ctx.fillStyle=time==='past'?'#876':time==='future'?'#456':'#5a5';
+ctx.fillRect(px,420,pw,180);
+
+// Path
+ctx.fillStyle=time==='past'?'#765':time==='future'?'#445':'#987';
+ctx.fillRect(px,440,pw,30);
+
+const ground=440;
+const ox=offy;
+
+// Buildings
+for(const b of buildings){
+const bx=b.x-ox+px;
+if(bx+b.w<px||bx>px+pw)continue;
+const h=time==='past'?b.pastH:time==='future'?b.futH:b.h;
+const col=time==='past'?b.pastColor:time==='future'?b.futColor:b.color;
+if(h>0)drawBuilding(ctx,bx,ground,b.w,h,col,time);
+}
+
+// Trees
+for(const t of trees){
+const tx=t.x-ox+px;
+if(tx<px-20||tx>px+pw+20)continue;
+const h=time==='past'?t.pastH:time==='future'?t.futH:t.h;
+drawTree(ctx,tx,ground,h,time);
+}
+
+// Encounter markers
+for(let i=0;i<encounterZones.length;i++){
+if(encounters[i])continue;
+const ez=encounterZones[i];
+const ex=ez.x-ox+px;
+if(ex<px-20||ex>px+pw+20)continue;
+// Crystal marker
+const pulse=Math.sin(Date.now()*0.005)*0.3+0.7;
+ctx.globalAlpha=pulse;
+ctx.fillStyle=time==='past'?'#da8':time==='future'?'#8af':'#f4f';
+ctx.beginPath();
+ctx.moveTo(ex,ground-60);ctx.lineTo(ex-8,ground-45);
+ctx.lineTo(ex,ground-30);ctx.lineTo(ex+8,ground-45);ctx.closePath();ctx.fill();
+ctx.globalAlpha=1;
+if(time==='present'){
+hudText(ctx,'!',ex,ground-65,'#ff0',16,'center');
+}
+}
+
+ctx.restore();
+}
+
+function showMsg(text,dur){msgText=text;msgTimer=dur||120;}
+
+// Combat logic
+function startCombat(idx){
+currentEnc=idx;
+const ez=encounterZones[idx];
+enemy={...ez,hp:ez.maxHp,timeState:'present'};
+enemyEffects={poison:0,shield:0,timeSent:0};
+playerEffects={poison:0,shield:0,timeSent:0};
+state=COMBAT;combatLog=[];playerTurn=true;combatAnim=null;
+combatLog.push('A '+ez.name+' appears!');
+if(ez.boss)combatLog.push('BOSS BATTLE: The Empress of Time!');
+}
+
+function playerAction(action){
+if(!playerTurn||combatAnim)return;
+if(action==='attack'){
+let dmg=player.atk-(enemyEffects.shield>0?5:0);
+if(enemy.timeState==='past')dmg=Math.floor(dmg*1.3);
+if(enemy.timeState==='future')dmg=Math.floor(dmg*0.8);
+dmg=Math.max(1,dmg);
+enemy.hp-=dmg;combatLog.push('You attack for '+dmg+' damage!');
+combatAnim='pAtk';combatAnimT=30;shakeT=10;
+}else if(action==='poison'){
+enemyEffects.poison=3;
+let dmg=Math.floor(player.atk*0.4);
+enemy.hp-=dmg;
+combatLog.push('Poison Strike! '+dmg+' dmg + poison (3 turns)');
+combatAnim='pAtk';combatAnimT=30;shakeT=8;
+}else if(action==='shield'){
+playerEffects.shield=3;
+combatLog.push('You raise a time shield! (3 turns)');
+combatAnim='pShield';combatAnimT=25;
+}else if(action==='past'){
+if(enemy.timeState==='past'){combatLog.push('Already in the past!');return;}
+enemy.timeState='past';
+combatLog.push('Crystal flash! Enemy sent to the PAST!');
+if(enemyEffects.poison>0){
+combatLog.push('Poison reverses time — enemy healed slightly');
+enemy.hp=Math.min(enemy.maxHp,enemy.hp+10);enemyEffects.poison=0;
+}
+if(playerEffects.shield>0){
+combatLog.push('Shield was always there — defense doubled!');
+playerEffects.shield=5;
+}
+combatAnim='timePast';combatAnimT=40;
+}else if(action==='future'){
+if(enemy.timeState==='future'){combatLog.push('Already in the future!');return;}
+enemy.timeState='future';
+combatLog.push('Crystal flash! Enemy sent to the FUTURE!');
+if(enemyEffects.poison>0){
+const accDmg=enemyEffects.poison*12;
+enemy.hp-=accDmg;
+combatLog.push('Poison accelerated! '+accDmg+' damage over compressed time!');
+enemyEffects.poison=0;shakeT=15;
+}
+combatAnim='timeFut';combatAnimT=40;
+}
+if(enemy.hp<=0){
+enemy.hp=0;
+encounters[currentEnc]=true;
+combatLog.push(enemy.name+' defeated!');
+if(enemy.boss)bossDefeated=true;
+setTimeout(()=>{
+state=bossDefeated?VICTORY:EXPLORE;
+if(!bossDefeated)showMsg('Enemy defeated! Onward!',90);
+},1200);
+playerTurn=false;return;
+}
+playerTurn=false;
+setTimeout(enemyTurn,800);
+}
+
+function enemyTurn(){
+if(state!==COMBAT)return;
+// Poison tick
+if(enemyEffects.poison>0){
+const pdmg=5;enemy.hp-=pdmg;enemyEffects.poison--;
+combatLog.push('Poison deals '+pdmg+' to enemy. ('+enemyEffects.poison+' left)');
+if(enemy.hp<=0){
+enemy.hp=0;encounters[currentEnc]=true;
+combatLog.push(enemy.name+' defeated by poison!');
+if(enemy.boss)bossDefeated=true;
+setTimeout(()=>{state=bossDefeated?VICTORY:EXPLORE;
+if(!bossDefeated)showMsg('Enemy defeated! Onward!',90);},800);
+return;
+}
+}
+// Enemy attack
+let eatk=enemy.timeState==='past'?enemy.pastAtk:enemy.timeState==='future'?enemy.futAtk:enemy.atk;
+let dmg=eatk-(playerEffects.shield>0?8:0);
+dmg=Math.max(1,dmg);
+player.hp-=dmg;
+combatLog.push(enemy.name+' attacks for '+dmg+'!');
+combatAnim='eAtk';combatAnimT=30;shakeT=8;
+if(playerEffects.shield>0)playerEffects.shield--;
+if(player.hp<=0){player.hp=0;state=GAMEOVER;}
+else playerTurn=true;
+}
+
+// Update
+function update(){
+if(infoOpen)return;
+if(msgTimer>0)msgTimer--;
+
+if(combatAnimT>0)combatAnimT--;
+if(shakeT>0)shakeT--;
+
+if(state===EXPLORE){
+let moved=false;
+if(keys['arrowright']||keys['d']){player.x+=3;player.dir=1;moved=true;}
+if(keys['arrowleft']||keys['a']){player.x-=3;player.dir=-1;moved=true;}
+player.x=Math.max(50,Math.min(1150,player.x));
+if(moved){player.frameT++;player.frame=player.frameT;}
+else player.frame=0;
+
+// Scroll
+const targetScroll=player.x-400;
+scrollX+=(targetScroll-scrollX)*0.1;
+scrollX=Math.max(0,Math.min(400,scrollX));
+
+// Check encounter proximity
+if(keys[' ']){
+keys[' ']=false;
+for(let i=0;i<encounterZones.length;i++){
+if(encounters[i])continue;
+if(Math.abs(player.x-encounterZones[i].x)<40){
+startCombat(i);break;
+}
+}
+}
+}
+
+if(state===COMBAT&&playerTurn&&!combatAnim){
+if(keys['1']){keys['1']=false;playerAction('attack');}
+if(keys['2']){keys['2']=false;playerAction('poison');}
+if(keys['3']){keys['3']=false;playerAction('shield');}
+if(keys['z']){keys['z']=false;playerAction('past');}
+if(keys['x']){keys['x']=false;playerAction('future');}
+}
+
+if((state===VICTORY||state===GAMEOVER)&&keys['r']){keys['r']=false;init();}
+if(state===EXPLORE&&keys['r']){keys['r']=false;init();}
+}
+
+// Draw
+function draw(){
+X.clearRect(0,0,800,600);
+
+if(state===EXPLORE){
+// Draw three panels
+drawPanel(X,0,PAST_W,'past',scrollX);
+drawPanel(X,PRES_X,PRES_W,'present',scrollX);
+drawPanel(X,FUT_X,FUT_W,'future',scrollX);
+
+// Panel divider lines
+X.strokeStyle='#fff';X.lineWidth=2;X.globalAlpha=0.4;
+X.beginPath();X.moveTo(PAST_W,0);X.lineTo(PAST_W,600);X.stroke();
+X.beginPath();X.moveTo(FUT_X,0);X.lineTo(FUT_X,600);X.stroke();
+X.globalAlpha=1;
+
+// Panel labels
+X.globalAlpha=0.6;
+hudText(X,'PAST',PAST_W/2,30,'#da8',14,'center');
+hudText(X,'PRESENT',PRES_X+PRES_W/2,30,'#fff',14,'center');
+hudText(X,'FUTURE',FUT_X+FUT_W/2,30,'#8af',14,'center');
+X.globalAlpha=1;
+
+// Draw player in present panel only
+const px=PRES_X+(player.x-scrollX);
+if(px>PRES_X-20&&px<FUT_X+20){
+// Past version (younger/smaller)
+X.save();X.beginPath();X.rect(0,0,PAST_W,600);X.clip();
+const pastPx=player.x-scrollX;
+drawCharacter(X,pastPx,440,player.dir,player.frame,'#a86');
+X.restore();
+// Present
+X.save();X.beginPath();X.rect(PRES_X,0,PRES_W,600);X.clip();
+drawCharacter(X,px,440,player.dir,player.frame,'#f4f');
+X.restore();
+// Future version
+X.save();X.beginPath();X.rect(FUT_X,0,FUT_W,600);X.clip();
+const futPx=FUT_X+(player.x-scrollX);
+drawCharacter(X,futPx,440,player.dir,player.frame,'#88d');
+X.restore();
+}
+
+// HUD
+hudText(X,'HP: '+player.hp+'/'+player.maxHp,10,580,'#4f4',13);
+hudText(X,'Press ? for info',650,580,'#888',11);
+
+// Encounter hint
+for(let i=0;i<encounterZones.length;i++){
+if(encounters[i])continue;
+if(Math.abs(player.x-encounterZones[i].x)<50){
+hudText(X,'Press SPACE to engage '+encounterZones[i].name,400,520,'#ff4',13,'center');
+}
+}
+
+// Progress
+const cleared=encounters.filter(e=>e).length;
+hudText(X,'Encounters: '+cleared+'/4',650,20,'#ccc',12);
+
+if(msgTimer>0){
+X.globalAlpha=Math.min(1,msgTimer/30);
+hudText(X,msgText,400,280,'#ff4',18,'center');
+X.globalAlpha=1;
+}
+
+}else if(state===COMBAT){
+drawCombat();
+}else if(state===VICTORY){
+drawVictory();
+}else if(state===GAMEOVER){
+X.fillStyle='#200';X.fillRect(0,0,800,600);
+hudText(X,'GAME OVER',400,250,'#f44',32,'center');
+hudText(X,'The timeline collapses...',400,290,'#a66',16,'center');
+hudText(X,'Press R to restart',400,350,'#888',14,'center');
+}
+}
+
+function drawCombat(){
+const shake=shakeT>0;
+const sx=shake?Math.random()*4-2:0,sy=shake?Math.random()*2-1:0;
+X.save();if(shake)X.translate(sx,sy);
+
+// Three-panel combat background
+// Past panel
+X.fillStyle=enemy.timeState==='past'?'#a96':'#876';
+X.fillRect(0,0,200,400);
+// Present panel
+const presGrad=X.createLinearGradient(200,0,600,0);
+presGrad.addColorStop(0,'#326');presGrad.addColorStop(1,'#436');
+X.fillStyle=presGrad;X.fillRect(200,0,400,400);
+// Future panel
+X.fillStyle=enemy.timeState==='future'?'#46a':'#345';
+X.fillRect(600,0,200,400);
+
+// Ground
+X.fillStyle='#333';X.fillRect(0,350,800,50);
+
+// Panel dividers
+X.strokeStyle='rgba(255,255,255,0.3)';X.lineWidth=2;
+X.beginPath();X.moveTo(200,0);X.lineTo(200,400);X.stroke();
+X.beginPath();X.moveTo(600,0);X.lineTo(600,400);X.stroke();
+
+// Time labels
+hudText(X,'PAST',100,25,'#da8',12,'center');
+hudText(X,'PRESENT',400,25,'#fff',12,'center');
+hudText(X,'FUTURE',700,25,'#8af',12,'center');
+
+// Active time indicator
+if(enemy.timeState==='past'){
+X.fillStyle='rgba(218,168,80,0.15)';X.fillRect(0,0,200,400);
+hudText(X,'[ ACTIVE ]',100,45,'#fd0',11,'center');
+}else if(enemy.timeState==='future'){
+X.fillStyle='rgba(100,150,255,0.15)';X.fillRect(600,0,200,400);
+hudText(X,'[ ACTIVE ]',700,45,'#8cf',11,'center');
+}else{
+hudText(X,'[ ACTIVE ]',400,45,'#ff4',11,'center');
+}
+
+// Player
+const pAnimX=combatAnimT>0&&combatAnim==='pAtk'?20-combatAnimT*0.7:0;
+drawCharacter(X,250+pAnimX,350,1,0,'#f4f');
+hudText(X,'Crisbell',250,370,'#f8f',12,'center');
+
+// Enemy in correct panel
+let eBase=500;
+if(enemy.timeState==='past')eBase=100;
+else if(enemy.timeState==='future')eBase=700;
+const eAnimX=combatAnimT>0&&combatAnim==='eAtk'?-15+combatAnimT*0.5:0;
+drawEnemy(X,eBase+eAnimX,350,enemy,enemy.timeState,shakeT>0&&combatAnim==='pAtk');
+
+// Time crystal animation
+if(combatAnimT>0&&(combatAnim==='timePast'||combatAnim==='timeFut')){
+const t=combatAnimT/40;
+X.globalAlpha=t;
+for(let i=0;i<8;i++){
+const angle=i*Math.PI/4+Date.now()*0.01;
+const r=60*(1-t);
+const cx=eBase+Math.cos(angle)*r;
+const cy=300+Math.sin(angle)*r;
+X.fillStyle=combatAnim==='timePast'?'#fd8':'#8cf';
+X.beginPath();
+X.moveTo(cx,cy-8);X.lineTo(cx-5,cy);X.lineTo(cx,cy+8);X.lineTo(cx+5,cy);
+X.closePath();X.fill();
+}
+X.globalAlpha=1;
+}
+
+// Shield visual
+if(combatAnimT>0&&combatAnim==='pShield'){
+X.globalAlpha=combatAnimT/25;
+X.strokeStyle='#4ff';X.lineWidth=3;
+X.beginPath();X.arc(250,320,35,0,Math.PI*2);X.stroke();
+X.globalAlpha=1;
+}
+if(playerEffects.shield>0){
+X.globalAlpha=0.4;X.strokeStyle='#4ff';X.lineWidth=2;
+X.beginPath();X.arc(250,320,30,0,Math.PI*2);X.stroke();
+X.globalAlpha=1;
+}
+
+// Poison visual on enemy
+if(enemyEffects.poison>0){
+X.globalAlpha=0.5;
+for(let i=0;i<5;i++){
+X.fillStyle='#0f0';
+const bx=eBase-15+Math.random()*30;
+const by=310+Math.random()*30;
+X.fillRect(bx,by,3,3);
+}
+X.globalAlpha=1;
+}
+
+// HP bars
+X.fillStyle='#300';X.fillRect(160,390,180,16);
+X.fillStyle='#0a0';X.fillRect(160,390,180*(player.hp/player.maxHp),16);
+hudText(X,'HP '+player.hp+'/'+player.maxHp,170,403,'#fff',11);
+
+X.fillStyle='#300';X.fillRect(460,390,180,16);
+X.fillStyle='#a00';X.fillRect(460,390,180*(enemy.hp/enemy.maxHp),16);
+hudText(X,enemy.name+' '+enemy.hp+'/'+enemy.maxHp,470,403,'#fff',11);
+
+// Combat log (bottom area)
+X.fillStyle='rgba(0,0,0,0.8)';X.fillRect(0,415,800,185);
+X.strokeStyle='#555';X.lineWidth=1;
+X.beginPath();X.moveTo(0,415);X.lineTo(800,415);X.stroke();
+
+// Show last few log entries
+const logStart=Math.max(0,combatLog.length-5);
+for(let i=logStart;i<combatLog.length;i++){
+const alpha=1-((combatLog.length-1-i)*0.15);
+X.globalAlpha=Math.max(0.3,alpha);
+hudText(X,combatLog[i],20,435+(i-logStart)*18,'#ccc',12);
+}
+X.globalAlpha=1;
+
+// Action menu
+if(playerTurn&&combatAnimT<=0){
+hudText(X,'ACTIONS:',20,555,'#ff0',13);
+hudText(X,'[1] Attack',120,555,'#fff',12);
+hudText(X,'[2] Poison',230,555,'#0f0',12);
+hudText(X,'[3] Shield',340,555,'#4ff',12);
+hudText(X,'[Z] Send Past',460,555,'#da8',12);
+hudText(X,'[X] Send Future',600,555,'#8af',12);
+}else if(!playerTurn&&enemy.hp>0){
+hudText(X,'Enemy turn...',400,555,'#a66',14,'center');
+}
+
+// Effects display
+let ey=440;
+if(enemyEffects.poison>0){hudText(X,'Enemy: POISONED ('+enemyEffects.poison+')',550,ey,'#0f0',11);ey+=16;}
+if(enemyEffects.shield>0){hudText(X,'Enemy: SHIELDED ('+enemyEffects.shield+')',550,ey,'#4ff',11);ey+=16;}
+if(enemy.timeState!=='present'){hudText(X,'Enemy in: '+enemy.timeState.toUpperCase(),550,ey,enemy.timeState==='past'?'#da8':'#8af',11);ey+=16;}
+let py=440;
+if(playerEffects.shield>0){hudText(X,'You: SHIELDED ('+playerEffects.shield+')',300,py,'#4ff',11);py+=16;}
+
+X.restore();
+}
+
+function drawVictory(){
+const t=Date.now()*0.001;
+// Celebratory background
+const g=X.createLinearGradient(0,0,0,600);
+g.addColorStop(0,'#214');g.addColorStop(0.5,'#436');g.addColorStop(1,'#214');
+X.fillStyle=g;X.fillRect(0,0,800,600);
+
+// Floating crystals
+for(let i=0;i<12;i++){
+const cx=100+i*60+Math.sin(t+i)*20;
+const cy=100+Math.cos(t*1.3+i*0.7)*40;
+X.fillStyle=['#f4f','#4ff','#ff4','#8f8'][i%4];
+X.globalAlpha=0.6;
+X.beginPath();
+X.moveTo(cx,cy-12);X.lineTo(cx-7,cy);X.lineTo(cx,cy+12);X.lineTo(cx+7,cy);
+X.closePath();X.fill();
+}
+X.globalAlpha=1;
+
+hudText(X,'VICTORY!',400,200,'#fd4',36,'center');
+hudText(X,'The Empress of Time is defeated!',400,250,'#f8f',18,'center');
+hudText(X,'The timelines converge and peace returns.',400,280,'#aaf',14,'center');
+hudText(X,'Colombia\'s crystal legacy lives on.',400,310,'#8cf',13,'center');
+hudText(X,'Press R to play again',400,380,'#888',14,'center');
+
+// Show three merged panels at bottom
+X.globalAlpha=0.3;
+X.fillStyle='#a86';X.fillRect(0,420,267,180);
+X.fillStyle='#4a6';X.fillRect(267,420,266,180);
+X.fillStyle='#46a';X.fillRect(533,420,267,180);
+X.globalAlpha=0.6;
+hudText(X,'PAST',133,500,'#da8',16,'center');
+hudText(X,'PRESENT',400,500,'#fff',16,'center');
+hudText(X,'FUTURE',667,500,'#8af',16,'center');
+X.globalAlpha=1;
+}
+
+// Main loop
+function loop(){
+update();draw();requestAnimationFrame(loop);
+}
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: twin-stick ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("twin-stick");
+</script>
+</body>
+</html>

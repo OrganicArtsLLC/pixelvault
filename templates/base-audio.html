@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>PROTOTYPE_NAME</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #111; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+canvas { border: 1px solid #333; image-rendering: pixelated; }
+#info { position: absolute; top: 10px; left: 10px; color: #666; font: 14px monospace; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="info">Click to play tone · Hold keys A-G for notes · Space for drum</div>
+<script>
+// ─── METADATA ───────────────────────────────────────
+// @name        PROTOTYPE_NAME
+// @series      SERIES_CODE
+// @number      NNN
+// @date        YYYY-MM-DD
+// @mechanic    audio-reactive
+// @status      prototype
+// @visibility  private
+// @rating      0
+// @tags        audio, sound, music, web-audio
+// @notes       NOTES
+// ────────────────────────────────────────────────────
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+canvas.width = 800;
+canvas.height = 600;
+
+// ─── AUDIO ENGINE ────────────────────────────────────
+
+let audioCtx = null;
+
+function initAudio() {
+    if (audioCtx) return;
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+
+// Play a tone at given frequency for duration
+function playTone(freq, duration = 0.3, type = 'square', volume = 0.15) {
+    initAudio();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    osc.type = type;           // sine, square, sawtooth, triangle
+    osc.frequency.value = freq;
+
+    gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + duration);
+
+    return { osc, gain };
+}
+
+// Play noise burst (percussion / drum hit)
+function playNoise(duration = 0.1, volume = 0.3) {
+    initAudio();
+    const bufferSize = audioCtx.sampleRate * duration;
+    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+    }
+
+    const source = audioCtx.createBufferSource();
+    const gain = audioCtx.createGain();
+    source.buffer = buffer;
+    gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+
+    source.connect(gain);
+    gain.connect(audioCtx.destination);
+    source.start();
+}
+
+// Musical note frequencies (octave 4)
+const NOTES = {
+    'C': 261.63, 'D': 293.66, 'E': 329.63, 'F': 349.23,
+    'G': 392.00, 'A': 440.00, 'B': 493.88
+};
+
+// Pentatonic scale for safe random melodies
+const PENTATONIC = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25];
+
+function randomPentatonic() {
+    return PENTATONIC[Math.floor(Math.random() * PENTATONIC.length)];
+}
+
+// ─── VISUAL FEEDBACK ─────────────────────────────────
+
+const ripples = [];
+
+function addRipple(x, y, color = '#4af') {
+    ripples.push({ x, y, r: 5, maxR: 80, alpha: 1, color });
+}
+
+// ─── GAME STATE ──────────────────────────────────────
+
+const keys = {};
+
+// ─── INPUT ───────────────────────────────────────────
+
+canvas.addEventListener('click', e => {
+    initAudio();
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+    const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+
+    // Map Y position to frequency (top = high, bottom = low)
+    const freq = 800 - (y / canvas.height) * 600 + 100;
+    playTone(freq, 0.4, 'triangle');
+    addRipple(x, y, `hsl(${(freq - 100) / 3}, 80%, 60%)`);
+});
+
+window.addEventListener('keydown', e => {
+    if (keys[e.key]) return;
+    keys[e.key] = true;
+
+    const upper = e.key.toUpperCase();
+    if (NOTES[upper]) {
+        playTone(NOTES[upper], 0.5, 'square');
+        addRipple(
+            canvas.width / 2 + (Math.random() - 0.5) * 200,
+            canvas.height / 2 + (Math.random() - 0.5) * 100,
+            `hsl(${(NOTES[upper] - 200) / 2}, 80%, 60%)`
+        );
+    }
+
+    if (e.key === ' ') {
+        e.preventDefault();
+        playNoise(0.15);
+        addRipple(
+            canvas.width / 2,
+            canvas.height / 2,
+            '#fff'
+        );
+    }
+});
+
+window.addEventListener('keyup', e => { keys[e.key] = false; });
+
+// ─── GAME LOOP ───────────────────────────────────────
+
+function update() {
+    for (const r of ripples) {
+        r.r += 2;
+        r.alpha = 1 - (r.r / r.maxR);
+    }
+    // Remove dead ripples
+    for (let i = ripples.length - 1; i >= 0; i--) {
+        if (ripples[i].alpha <= 0) ripples.splice(i, 1);
+    }
+}
+
+function draw() {
+    // Fade trail
+    ctx.fillStyle = 'rgba(17, 17, 17, 0.1)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Draw ripples
+    for (const r of ripples) {
+        ctx.beginPath();
+        ctx.arc(r.x, r.y, r.r, 0, Math.PI * 2);
+        ctx.strokeStyle = r.color;
+        ctx.globalAlpha = Math.max(0, r.alpha);
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+    }
+
+    // Draw frequency guide lines
+    ctx.strokeStyle = '#222';
+    ctx.lineWidth = 1;
+    for (let y = 0; y < canvas.height; y += 100) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+        const freq = Math.round(800 - (y / canvas.height) * 600 + 100);
+        ctx.fillStyle = '#333';
+        ctx.font = '11px monospace';
+        ctx.fillText(`${freq}Hz`, canvas.width - 55, y - 3);
+    }
+}
+
+function loop() {
+    update();
+    draw();
+    requestAnimationFrame(loop);
+}
+
+loop();
+</script>
+</body>
+</html>

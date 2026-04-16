@@ -1,0 +1,582 @@
+<!--
+PROTOTYPE: flap-duel
+SERIES: fgt
+NUMBER: 001
+DATE: 2026-03-26
+MECHANIC: flap-to-fly — height advantage wins lance combat, gravity always pulls, flap to rise
+ANCESTRY: Joust (1982, Williams Electronics), Balloon Fight (1984, Nintendo)
+CONTROLS: Space — flap (gain height) | Left/Right arrows — move | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Early Neural — enemies patrol with simple state machines, egg mechanic adds depth)
+AI-INSIGHT: Height-wins is elegant because it reduces combat to a single axis of advantage. The flap mechanic creates emergent difficulty curves — mastering momentum IS mastering the game. No health bars needed when physics determines victory.
+NOTES: The first fighting game built on physics rather than hitboxes. Flap-to-fly created a vocabulary that Balloon Fight, Flappy Bird, and countless others would inherit.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FGT-001 · FLAP DUEL</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .content {
+  max-width: 700px; margin: 40px auto; padding: 20px; line-height: 1.7;
+}
+#info-panel h2 { color: #f90; margin-bottom: 10px; }
+#info-panel kbd { background: #333; padding: 2px 8px; border-radius: 3px; color: #fff; }
+#info-panel .close-btn { position: fixed; top: 15px; right: 25px; color: #f90;
+  font-size: 28px; cursor: pointer; z-index: 101; }
+</style>
+</head>
+<body>
+<canvas id="c" width="800" height="600"></canvas>
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="content">
+    <h2>FGT-001 · JOUST</h2>
+    <p><strong>Mechanic:</strong> Flap-to-fly — height advantage wins lance combat</p>
+    <p><strong>Ancestry:</strong> Joust (1982, Williams), Balloon Fight (1984, Nintendo)</p>
+    <p><strong>Controls:</strong></p>
+    <ul>
+      <li><kbd>Space</kbd> / <kbd>Up</kbd> — Flap (gain height)</li>
+      <li><kbd>Left</kbd> / <kbd>Right</kbd> — Move horizontally</li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — Toggle this panel</li>
+    </ul>
+    <p><strong>Rules:</strong> Defeat enemies by being HIGHER than them when you collide.
+    If they're higher, you lose a life. Defeated enemies drop eggs — collect them before
+    they hatch into new enemies. Clear all enemies to advance waves.</p>
+    <p><strong>AI Insight:</strong> Height-wins reduces combat to a single axis of advantage.
+    The flap mechanic creates emergent difficulty — mastering momentum IS the game.
+    No health bars needed when physics determines victory.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+
+// --- INFO PANEL ---
+let infoPanelOpen = false;
+function toggleInfo() {
+  infoPanelOpen = !infoPanelOpen;
+  document.getElementById('info-panel').style.display = infoPanelOpen ? 'block' : 'none';
+}
+
+// --- CONSTANTS ---
+const W = 800, H = 600;
+const GRAVITY = 0.25;
+const FLAP_POWER = -4.5;
+const MAX_FALL = 5;
+const MOVE_SPEED = 3.2;
+const FRICTION = 0.97;
+const WRAP_MARGIN = 30;
+
+// --- PLATFORMS ---
+const platforms = [
+  { x: 0, y: 560, w: 800, h: 40 },        // ground
+  { x: 100, y: 420, w: 200, h: 12 },       // left mid
+  { x: 500, y: 420, w: 200, h: 12 },       // right mid
+  { x: 250, y: 280, w: 300, h: 12 },       // center high
+  { x: 0, y: 180, w: 160, h: 12 },         // top left
+  { x: 640, y: 180, w: 160, h: 12 },       // top right
+];
+
+// --- GAME STATE ---
+let player, enemies, eggs, particles, wave, lives, score, state;
+let keys = {};
+
+function initPlayer() {
+  return {
+    x: 400, y: 500, vx: 0, vy: 0,
+    w: 28, h: 28, facing: 1,
+    flapTimer: 0, invincible: 0,
+  };
+}
+
+function spawnEnemy(type) {
+  const plat = platforms[1 + Math.floor(Math.random() * (platforms.length - 1))];
+  const x = plat.x + Math.random() * plat.w;
+  return {
+    x, y: plat.y - 30, vx: (Math.random() < 0.5 ? -1 : 1) * (1.2 + type * 0.5),
+    vy: 0, w: 26, h: 26, type, // 0=bouncer, 1=hunter, 2=shadow
+    flapCooldown: 0, alive: true, facing: 1,
+    color: type === 0 ? '#e44' : type === 1 ? '#e82' : '#a3f',
+  };
+}
+
+function spawnEgg(x, y) {
+  eggs.push({ x, y, vy: 0, w: 14, h: 14, hatchTimer: 300, onGround: false });
+}
+
+function spawnParticles(x, y, color, count) {
+  for (let i = 0; i < count; i++) {
+    particles.push({
+      x, y,
+      vx: (Math.random() - 0.5) * 6,
+      vy: (Math.random() - 0.5) * 6,
+      life: 20 + Math.random() * 20,
+      color,
+    });
+  }
+}
+
+function initGame() {
+  player = initPlayer();
+  enemies = [];
+  eggs = [];
+  particles = [];
+  wave = 1;
+  lives = 3;
+  score = 0;
+  state = 'title';
+}
+
+function startWave() {
+  enemies = [];
+  eggs = [];
+  const count = Math.min(2 + wave, 8);
+  for (let i = 0; i < count; i++) {
+    const type = i < Math.ceil(count / 2) ? 0 : (wave > 3 ? 2 : 1);
+    enemies.push(spawnEnemy(type));
+  }
+  player.x = 400;
+  player.y = 500;
+  player.vx = 0;
+  player.vy = 0;
+  player.invincible = 60;
+  state = 'play';
+}
+
+// --- PHYSICS ---
+function applyGravity(entity) {
+  entity.vy += GRAVITY;
+  if (entity.vy > MAX_FALL) entity.vy = MAX_FALL;
+}
+
+function collidePlatforms(entity) {
+  for (const p of platforms) {
+    if (entity.vy >= 0 &&
+        entity.x + entity.w > p.x && entity.x < p.x + p.w &&
+        entity.y + entity.h > p.y && entity.y + entity.h < p.y + p.h + entity.vy + 2) {
+      entity.y = p.y - entity.h;
+      entity.vy = 0;
+      return true;
+    }
+  }
+  return false;
+}
+
+function wrapX(entity) {
+  if (entity.x < -WRAP_MARGIN) entity.x = W + WRAP_MARGIN - entity.w;
+  else if (entity.x > W + WRAP_MARGIN) entity.x = -WRAP_MARGIN;
+}
+
+// --- ENEMY AI ---
+function updateEnemy(e) {
+  if (!e.alive) return;
+
+  // Flap behavior
+  e.flapCooldown--;
+  if (e.flapCooldown <= 0) {
+    // Type 0 (bouncer): flap periodically
+    // Type 1 (hunter): flap toward player
+    // Type 2 (shadow): flap aggressively, tracks player
+    if (e.type === 0) {
+      if (Math.random() < 0.03) { e.vy = FLAP_POWER * 0.8; e.flapCooldown = 20; }
+    } else if (e.type === 1) {
+      if (e.y > player.y + 20 || Math.random() < 0.02) {
+        e.vy = FLAP_POWER * 0.85; e.flapCooldown = 15;
+      }
+    } else {
+      if (e.y > player.y - 10 || Math.random() < 0.04) {
+        e.vy = FLAP_POWER * 0.9; e.flapCooldown = 10;
+      }
+      // Shadow tracks player X
+      const dx = player.x - e.x;
+      e.vx += Math.sign(dx) * 0.15;
+      e.vx = Math.max(-3, Math.min(3, e.vx));
+    }
+  }
+
+  // Movement
+  applyGravity(e);
+  e.x += e.vx;
+  e.y += e.vy;
+  e.vx *= FRICTION;
+  collidePlatforms(e);
+  wrapX(e);
+
+  // Bounce off edges for non-shadow
+  if (e.type < 2) {
+    for (const p of platforms) {
+      if (e.y + e.h >= p.y && e.y + e.h <= p.y + p.h + 4 &&
+          e.x + e.w > p.x && e.x < p.x + p.w) {
+        // Walk on platform
+        if ((e.x <= p.x + 2 && e.vx < 0) || (e.x + e.w >= p.x + p.w - 2 && e.vx > 0)) {
+          e.vx = -e.vx;
+        }
+      }
+    }
+  }
+
+  e.facing = e.vx > 0 ? 1 : -1;
+}
+
+// --- COLLISION: JOUST RULE (HEIGHT WINS) ---
+function checkJoustCollision(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x &&
+         a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+// --- UPDATE ---
+function update() {
+  if (infoPanelOpen) return;
+  if (state !== 'play') return;
+
+  // Player input
+  if (keys['ArrowLeft'] || keys['a'] || keys['A']) {
+    player.vx -= 0.6;
+    player.facing = -1;
+  }
+  if (keys['ArrowRight'] || keys['d'] || keys['D']) {
+    player.vx += 0.6;
+    player.facing = 1;
+  }
+
+  // Player physics
+  applyGravity(player);
+  player.x += player.vx;
+  player.y += player.vy;
+  player.vx *= FRICTION;
+  collidePlatforms(player);
+  wrapX(player);
+  player.flapTimer = Math.max(0, player.flapTimer - 1);
+  player.invincible = Math.max(0, player.invincible - 1);
+
+  // Clamp player to screen top
+  if (player.y < 0) { player.y = 0; player.vy = 0; }
+
+  // Enemies
+  for (const e of enemies) {
+    updateEnemy(e);
+
+    // Joust collision
+    if (e.alive && player.invincible <= 0 && checkJoustCollision(player, e)) {
+      const playerBottom = player.y + player.h;
+      const enemyBottom = e.y + e.h;
+
+      if (player.y + player.h * 0.5 < e.y + e.h * 0.5) {
+        // Player is higher — player wins
+        e.alive = false;
+        spawnEgg(e.x, e.y);
+        spawnParticles(e.x + e.w / 2, e.y + e.h / 2, e.color, 12);
+        score += (e.type + 1) * 500;
+        player.vy = FLAP_POWER * 0.6;  // bounce up on kill
+      } else {
+        // Enemy is higher — player loses
+        lives--;
+        spawnParticles(player.x + player.w / 2, player.y + player.h / 2, '#ff0', 15);
+        if (lives <= 0) {
+          state = 'gameover';
+        } else {
+          player.x = 400;
+          player.y = 500;
+          player.vx = 0;
+          player.vy = 0;
+          player.invincible = 90;
+        }
+      }
+    }
+  }
+
+  // Eggs
+  for (let i = eggs.length - 1; i >= 0; i--) {
+    const egg = eggs[i];
+    if (!egg.onGround) {
+      applyGravity(egg);
+      egg.y += egg.vy;
+      if (collidePlatforms(egg)) egg.onGround = true;
+    }
+
+    // Collect egg
+    if (checkJoustCollision(player, egg)) {
+      score += 250;
+      spawnParticles(egg.x + 7, egg.y + 7, '#ff0', 6);
+      eggs.splice(i, 1);
+      continue;
+    }
+
+    // Hatch timer
+    egg.hatchTimer--;
+    if (egg.hatchTimer <= 0) {
+      enemies.push(spawnEnemy(0));
+      enemies[enemies.length - 1].x = egg.x;
+      enemies[enemies.length - 1].y = egg.y - 26;
+      eggs.splice(i, 1);
+    }
+  }
+
+  // Particles
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.1;
+    p.life--;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+
+  // Wave complete
+  if (enemies.filter(e => e.alive).length === 0 && eggs.length === 0) {
+    wave++;
+    score += wave * 1000;
+    startWave();
+  }
+}
+
+// --- DRAW ---
+function drawPlatform(p) {
+  ctx.fillStyle = '#555';
+  ctx.fillRect(p.x, p.y, p.w, p.h);
+  ctx.fillStyle = '#777';
+  ctx.fillRect(p.x, p.y, p.w, 3);
+}
+
+function drawKnight(entity, color, isPlayer) {
+  const cx = entity.x + entity.w / 2;
+  const cy = entity.y + entity.h / 2;
+
+  // Body
+  ctx.fillStyle = color;
+  ctx.fillRect(entity.x + 4, entity.y + 6, entity.w - 8, entity.h - 8);
+
+  // Head/helmet
+  ctx.fillStyle = isPlayer ? '#fff' : color;
+  ctx.fillRect(entity.x + 8, entity.y, 12, 10);
+
+  // Lance
+  ctx.fillStyle = '#ff0';
+  const lanceDir = entity.facing;
+  ctx.fillRect(cx + lanceDir * 10, cy - 2, lanceDir * 16, 4);
+
+  // Wing flap effect
+  if (entity.flapTimer > 0 || (entity.vy < -1)) {
+    ctx.fillStyle = isPlayer ? '#aaf' : '#faa';
+    ctx.fillRect(entity.x + 4, entity.y - 4, entity.w - 8, 6);
+  }
+
+  // Invincibility flash
+  if (isPlayer && entity.invincible > 0 && Math.floor(entity.invincible / 4) % 2) {
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.fillRect(entity.x, entity.y, entity.w, entity.h);
+  }
+}
+
+function drawEgg(egg) {
+  const flash = egg.hatchTimer < 60 && Math.floor(egg.hatchTimer / 6) % 2;
+  ctx.fillStyle = flash ? '#f00' : '#fff';
+  ctx.beginPath();
+  ctx.ellipse(egg.x + 7, egg.y + 7, 7, 9, 0, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function draw() {
+  // Background
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0, 0, W, H);
+
+  // Platforms
+  for (const p of platforms) drawPlatform(p);
+
+  if (state === 'title') {
+    ctx.fillStyle = '#f90';
+    ctx.font = 'bold 48px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('FLAP DUEL', W / 2, 200);
+    ctx.fillStyle = '#aaa';
+    ctx.font = '18px monospace';
+    ctx.fillText('Flap to fly. Height wins combat.', W / 2, 260);
+    ctx.fillText('SPACE to flap  |  LEFT/RIGHT to move', W / 2, 300);
+    ctx.fillText('Press SPACE to start', W / 2, 380);
+    ctx.fillStyle = '#666';
+    ctx.font = '14px monospace';
+    ctx.fillText('FGT-001 · Fighting / Combat Series', W / 2, 560);
+    return;
+  }
+
+  // Eggs
+  for (const egg of eggs) drawEgg(egg);
+
+  // Enemies
+  for (const e of enemies) {
+    if (e.alive) drawKnight(e, e.color, false);
+  }
+
+  // Player
+  drawKnight(player, '#4af', true);
+
+  // Particles
+  for (const p of particles) {
+    ctx.globalAlpha = p.life / 40;
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+  }
+  ctx.globalAlpha = 1;
+
+  // HUD
+  ctx.fillStyle = '#fff';
+  ctx.font = '16px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText(`SCORE: ${score}`, 15, 25);
+  ctx.fillText(`WAVE: ${wave}`, 15, 45);
+  ctx.textAlign = 'right';
+  ctx.fillText(`LIVES: ${'♥'.repeat(lives)}`, W - 15, 25);
+
+  if (state === 'gameover') {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#f44';
+    ctx.font = 'bold 42px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('GAME OVER', W / 2, 260);
+    ctx.fillStyle = '#fff';
+    ctx.font = '20px monospace';
+    ctx.fillText(`Final Score: ${score}  |  Wave: ${wave}`, W / 2, 310);
+    ctx.fillStyle = '#aaa';
+    ctx.font = '16px monospace';
+    ctx.fillText('Press R to restart', W / 2, 370);
+  }
+}
+
+// --- INPUT ---
+document.addEventListener('keydown', e => {
+  keys[e.key] = true;
+  if (e.key === '?') { toggleInfo(); return; }
+  if (e.key === 'r' || e.key === 'R') { initGame(); startWave(); return; }
+  if ((e.key === ' ' || e.key === 'ArrowUp') && state === 'title') { startWave(); return; }
+  if ((e.key === ' ' || e.key === 'ArrowUp') && state === 'play') {
+    player.vy = FLAP_POWER;
+    player.flapTimer = 8;
+    e.preventDefault();
+  }
+});
+document.addEventListener('keyup', e => { keys[e.key] = false; });
+
+// --- GAME LOOP ---
+initGame();
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: joust ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("joust");
+</script>
+</body>
+</html>

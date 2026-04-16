@@ -1,0 +1,961 @@
+<!--
+PROTOTYPE: tile-puzzle
+SERIES: maz
+NUMBER: 012
+DATE: 2026-03-24
+MECHANIC: tile puzzle navigation — collect keys, push blocks, navigate ice and force floors, avoid enemies to reach the exit; 149 levels of elegant puzzle design
+ANCESTRY: Chip's Challenge (1989, Epyx/Chuck Sommerville), Sokoban (1982, Thinking Rabbit), Adventures of Lolo (1989, HAL Laboratory)
+CONTROLS: Arrow keys — move | R — restart level | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Expert Systems — deterministic tile interactions create emergent puzzle complexity from simple rule sets)
+AI-INSIGHT: Each tile type follows a single deterministic rule, yet their combinations produce puzzles requiring planning, sequencing, and spatial reasoning. This compositional complexity from simple rules mirrors expert system design — small rule bases generating rich behavior.
+NOTES: Chuck Sommerville created Chip's Challenge for the Atari Lynx in 1989.
+       The game became iconic through its bundled inclusion with Windows 3.1 Entertainment Pack.
+       149 levels of escalating puzzle design remain a masterclass in tile-based level design.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MAZ-012 · TILE PUZZLE</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>MAZ-012 · TILE PUZZLE</h1>
+    <p><span class="tag series">MAZ — Maze</span> <span class="tag">Prototype #012</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Guide Chip through tile-based puzzle levels. Collect all computer chips to open the exit socket, then reach the exit portal to advance.</p>
+    <ul>
+      <li><kbd>&uarr;</kbd> <kbd>&darr;</kbd> <kbd>&larr;</kbd> <kbd>&rarr;</kbd> — Move Chip one tile at a time</li>
+      <li>Collect colored keys to open matching locked doors</li>
+      <li>Collect all computer chips to open the chip socket (exit gate)</li>
+      <li>Push movable blocks into water to create a path</li>
+      <li>Ice tiles slide you until you hit a wall; force floors push you in their arrow direction</li>
+      <li>Water is deadly without flippers; fire is deadly without fire boots</li>
+      <li>Avoid patrolling enemies — they are lethal on contact</li>
+      <li><kbd>R</kbd> — Restart current level</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+
+    <h2>History</h2>
+    <p>Chip's Challenge was created by Chuck Sommerville for the Atari Lynx in 1989, originally as a showcase for the handheld's capabilities. The game achieved legendary status when Microsoft bundled it with the Windows Entertainment Pack in 1992, introducing millions of PC users to its 149 levels of escalating puzzle complexity. Each level teaches a new concept through play, building from simple key-and-door puzzles to devious multi-step challenges involving ice slides, force floors, and enemy choreography. The game inspired a devoted community that continues to create custom levels decades later.</p>
+
+    <h2>AI Archaeology</h2>
+    <h3>AI Era 3 — Expert Systems</h3>
+    <p>Chip's Challenge exemplifies how deterministic tile interaction rules — each tile type has exactly one behavior — combine to create emergent puzzle complexity. This compositional approach mirrors expert system design, where small, clear rule bases generate rich, sometimes surprising behavior. Solving levels optimally requires the kind of forward planning and constraint satisfaction that early AI research explored extensively.</p>
+
+    <h2>Classification</h2>
+    <p><span class="tag series">Series: MAZ (Maze)</span> <span class="tag">Tile Puzzle</span> <span class="tag">Key Collection</span> <span class="tag">Block Pushing</span> <span class="tag">Ice Physics</span> <span class="tag">Force Floors</span></p>
+
+    <h2>Prototype Notes</h2>
+    <p>Six hand-crafted levels introduce tile types progressively: keys and doors, computer chips, dirt paths, ice slides, force floors, water and blocks, fire and boots, and patrolling enemies. Each level is designed to teach a concept before combining them. The viewport scrolls to follow Chip through maps larger than the screen. Grid-based movement with one tile per keypress preserves the original's deliberate, puzzle-focused feel.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+var C = document.getElementById('c'), X = C.getContext('2d');
+C.width = 800; C.height = 600;
+
+var infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+function hudText(ctx, text, x, y, size, color, align) {
+  ctx.save();
+  ctx.font = size + 'px monospace';
+  ctx.fillStyle = color || '#fff';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+// --- TILE TYPES ---
+var T = {
+  FLOOR: 0, WALL: 1, ICE: 2, WATER: 3, FIRE: 4, DIRT: 5,
+  KEY_R: 10, KEY_B: 11, KEY_G: 12, KEY_Y: 13,
+  DOOR_R: 14, DOOR_B: 15, DOOR_G: 16, DOOR_Y: 17,
+  CHIP: 20, SOCKET: 21, EXIT: 22,
+  BLOCK: 30,
+  FORCE_U: 40, FORCE_D: 41, FORCE_L: 42, FORCE_R: 43,
+  FLIPPERS: 50, FIREBOOTS: 51,
+  ENEMY: 60
+};
+
+var TILE = 32;
+var VW = 21, VH = 17; // viewport tiles (slightly wider than 800/32)
+var vpX = 0, vpY = 0;
+
+// Colors for tiles
+var TCOL = {};
+TCOL[T.FLOOR] = '#222';
+TCOL[T.WALL] = '#666';
+TCOL[T.ICE] = '#adf';
+TCOL[T.WATER] = '#26e';
+TCOL[T.FIRE] = '#f42';
+TCOL[T.DIRT] = '#863';
+TCOL[T.KEY_R] = '#f44';
+TCOL[T.KEY_B] = '#48f';
+TCOL[T.KEY_G] = '#4d4';
+TCOL[T.KEY_Y] = '#fd0';
+TCOL[T.DOOR_R] = '#a22';
+TCOL[T.DOOR_B] = '#239';
+TCOL[T.DOOR_G] = '#282';
+TCOL[T.DOOR_Y] = '#a80';
+TCOL[T.CHIP] = '#0ff';
+TCOL[T.SOCKET] = '#088';
+TCOL[T.EXIT] = '#ff0';
+TCOL[T.BLOCK] = '#985';
+TCOL[T.FORCE_U] = '#535';
+TCOL[T.FORCE_D] = '#535';
+TCOL[T.FORCE_L] = '#535';
+TCOL[T.FORCE_R] = '#535';
+TCOL[T.FLIPPERS] = '#28c';
+TCOL[T.FIREBOOTS] = '#c52';
+
+// --- LEVELS ---
+// Each level: {w, h, map (flat array), chips, time, enemies: [{x,y,dx,dy}], start: {x,y}, hint}
+var LEVELS = [];
+
+function makeMap(w, h, fill) {
+  var a = [];
+  for (var i = 0; i < w * h; i++) a[i] = fill || T.FLOOR;
+  return a;
+}
+
+function setTile(m, w, x, y, t) { m[y * w + x] = t; }
+function getTile(m, w, x, y) { return m[y * w + x]; }
+
+// Surround with walls
+function addWalls(m, w, h) {
+  for (var x = 0; x < w; x++) { setTile(m, w, x, 0, T.WALL); setTile(m, w, x, h-1, T.WALL); }
+  for (var y = 0; y < h; y++) { setTile(m, w, 0, y, T.WALL); setTile(m, w, w-1, y, T.WALL); }
+}
+
+// Level 1: Keys and Doors
+(function() {
+  var w = 15, h = 13, m = makeMap(w, h);
+  addWalls(m, w, h);
+  // Inner walls creating rooms
+  for (var y = 1; y < 6; y++) setTile(m, w, 7, y, T.WALL);
+  for (var x = 1; x < 7; x++) setTile(m, w, x, 6, T.WALL);
+  for (var y = 7; y < 12; y++) setTile(m, w, 7, y, T.WALL);
+  // Doors
+  setTile(m, w, 7, 3, T.DOOR_R);
+  setTile(m, w, 4, 6, T.DOOR_B);
+  setTile(m, w, 7, 9, T.DOOR_Y);
+  // Keys
+  setTile(m, w, 3, 3, T.KEY_R);
+  setTile(m, w, 10, 2, T.KEY_B);
+  setTile(m, w, 10, 10, T.KEY_Y);
+  // Chips
+  setTile(m, w, 2, 9, T.CHIP);
+  setTile(m, w, 5, 2, T.CHIP);
+  setTile(m, w, 11, 5, T.CHIP);
+  setTile(m, w, 12, 11, T.CHIP);
+  // Socket and exit
+  setTile(m, w, 12, 1, T.SOCKET);
+  setTile(m, w, 13, 1, T.EXIT);
+  LEVELS.push({w:w, h:h, map:m, chips:4, time:120, enemies:[], start:{x:1,y:1}, hint:'Collect keys to open matching doors. Gather all chips to open the socket.'});
+})();
+
+// Level 2: Dirt paths and more keys
+(function() {
+  var w = 17, h = 13, m = makeMap(w, h);
+  addWalls(m, w, h);
+  // Dirt maze
+  for (var y = 1; y < 12; y++) for (var x = 1; x < 16; x++) setTile(m, w, x, y, T.WALL);
+  // Carve paths through dirt
+  var path = [[1,1],[2,1],[3,1],[4,1],[4,2],[4,3],[3,3],[2,3],[1,3],[1,4],[1,5],[2,5],[3,5],[4,5],[5,5],
+    [5,4],[5,3],[5,2],[5,1],[6,1],[7,1],[7,2],[7,3],[7,4],[7,5],[7,6],[7,7],[6,7],[5,7],[4,7],[3,7],[2,7],[1,7],
+    [1,8],[1,9],[2,9],[3,9],[4,9],[5,9],[6,9],[7,9],[8,9],[8,8],[8,7],[8,5],[8,4],[8,3],[8,2],[8,1],
+    [9,1],[10,1],[10,2],[10,3],[9,3],[9,4],[9,5],[10,5],[11,5],[11,4],[11,3],[11,2],[11,1],[12,1],[13,1],
+    [13,2],[13,3],[12,3],[12,4],[12,5],[13,5],[14,5],[15,5],[15,4],[15,3],[15,2],[15,1],[14,1],
+    [9,7],[10,7],[11,7],[12,7],[13,7],[14,7],[15,7],[15,8],[15,9],[14,9],[13,9],[12,9],[11,9],[10,9],
+    [9,9],[9,10],[9,11],[10,11],[11,11],[12,11],[13,11],[14,11],[15,11],[15,10],
+    [1,10],[1,11],[2,11],[3,11],[4,11],[5,11],[6,11],[7,11],[8,11],[8,10]];
+  for (var i = 0; i < path.length; i++) setTile(m, w, path[i][0], path[i][1], T.DIRT);
+  // Keys and doors
+  setTile(m, w, 1, 5, T.KEY_G);
+  setTile(m, w, 8, 7, T.DOOR_G);
+  setTile(m, w, 15, 1, T.KEY_R);
+  setTile(m, w, 9, 10, T.DOOR_R);
+  // Chips
+  setTile(m, w, 4, 1, T.CHIP);
+  setTile(m, w, 1, 7, T.CHIP);
+  setTile(m, w, 11, 1, T.CHIP);
+  setTile(m, w, 15, 9, T.CHIP);
+  setTile(m, w, 6, 11, T.CHIP);
+  // Socket and exit
+  setTile(m, w, 14, 11, T.SOCKET);
+  setTile(m, w, 15, 11, T.EXIT);
+  LEVELS.push({w:w, h:h, map:m, chips:5, time:150, enemies:[], start:{x:1,y:1}, hint:'Dig through dirt to find your way. Dirt becomes floor once walked on.'});
+})();
+
+// Level 3: Ice slides
+(function() {
+  var w = 17, h = 15, m = makeMap(w, h);
+  addWalls(m, w, h);
+  // Ice rink in center
+  for (var y = 3; y < 12; y++) for (var x = 3; x < 14; x++) setTile(m, w, x, y, T.ICE);
+  // Floor edges around ice
+  setTile(m, w, 1, 1, T.FLOOR); setTile(m, w, 2, 1, T.FLOOR);
+  // Walls within ice to stop sliding
+  setTile(m, w, 6, 5, T.WALL); setTile(m, w, 10, 5, T.WALL);
+  setTile(m, w, 6, 9, T.WALL); setTile(m, w, 10, 9, T.WALL);
+  setTile(m, w, 8, 7, T.WALL);
+  // Chips placed at stopping points
+  setTile(m, w, 5, 5, T.CHIP); setTile(m, w, 11, 5, T.CHIP);
+  setTile(m, w, 5, 9, T.CHIP); setTile(m, w, 11, 9, T.CHIP);
+  setTile(m, w, 7, 7, T.CHIP); setTile(m, w, 9, 7, T.CHIP);
+  // Key to exit
+  setTile(m, w, 3, 3, T.KEY_B);
+  setTile(m, w, 15, 13, T.DOOR_B);
+  // Socket and exit
+  setTile(m, w, 14, 13, T.SOCKET);
+  setTile(m, w, 15, 12, T.EXIT);
+  // Approach paths
+  setTile(m, w, 1, 2, T.FLOOR); setTile(m, w, 2, 2, T.FLOOR); setTile(m, w, 2, 3, T.FLOOR);
+  setTile(m, w, 14, 12, T.FLOOR); setTile(m, w, 15, 12, T.EXIT);
+  setTile(m, w, 14, 11, T.FLOOR); setTile(m, w, 15, 11, T.FLOOR);
+  setTile(m, w, 15, 12, T.EXIT); setTile(m, w, 15, 13, T.DOOR_B);
+  setTile(m, w, 14, 13, T.SOCKET);
+  LEVELS.push({w:w, h:h, map:m, chips:6, time:120, enemies:[], start:{x:1,y:1}, hint:'Ice makes you slide until you hit something solid. Plan your path!'});
+})();
+
+// Level 4: Force floors
+(function() {
+  var w = 19, h = 15, m = makeMap(w, h);
+  addWalls(m, w, h);
+  // Force floor corridors
+  for (var x = 3; x < 8; x++) setTile(m, w, x, 3, T.FORCE_R);
+  setTile(m, w, 8, 3, T.FLOOR);
+  for (var y = 3; y < 8; y++) setTile(m, w, 8, y, T.FORCE_D);
+  setTile(m, w, 8, 8, T.FLOOR);
+  for (var x = 4; x < 8; x++) setTile(m, w, x, 8, T.FORCE_L);
+  setTile(m, w, 3, 8, T.FLOOR);
+  for (var y = 5; y < 8; y++) setTile(m, w, 3, y, T.FORCE_U);
+  setTile(m, w, 3, 4, T.FLOOR);
+  // Second section
+  for (var x = 11; x < 17; x++) setTile(m, w, x, 2, T.FORCE_R);
+  setTile(m, w, 17, 2, T.FLOOR);
+  for (var y = 2; y < 7; y++) setTile(m, w, 17, y, T.FORCE_D);
+  setTile(m, w, 17, 7, T.FLOOR);
+  for (var x = 12; x < 17; x++) setTile(m, w, x, 7, T.FORCE_L);
+  setTile(m, w, 11, 7, T.FLOOR);
+  // Walls separating sections
+  for (var y = 1; y < 10; y++) setTile(m, w, 10, y, T.WALL);
+  setTile(m, w, 10, 5, T.DOOR_R);
+  // Keys and chips
+  setTile(m, w, 5, 5, T.KEY_R);
+  setTile(m, w, 6, 3, T.CHIP);
+  setTile(m, w, 8, 6, T.CHIP);
+  setTile(m, w, 5, 8, T.CHIP);
+  setTile(m, w, 14, 2, T.CHIP);
+  setTile(m, w, 17, 5, T.CHIP);
+  setTile(m, w, 14, 7, T.CHIP);
+  // Bottom area with exit
+  for (var x = 1; x < 18; x++) setTile(m, w, x, 10, T.WALL);
+  setTile(m, w, 9, 10, T.FLOOR);
+  setTile(m, w, 16, 12, T.SOCKET);
+  setTile(m, w, 17, 12, T.EXIT);
+  LEVELS.push({w:w, h:h, map:m, chips:6, time:150, enemies:[], start:{x:1,y:1}, hint:'Force floors push you in their arrow direction. Use walls to stop.'});
+})();
+
+// Level 5: Water, blocks, fire, and boots
+(function() {
+  var w = 19, h = 15, m = makeMap(w, h);
+  addWalls(m, w, h);
+  // Water area (left)
+  for (var y = 2; y < 7; y++) for (var x = 2; x < 7; x++) setTile(m, w, x, y, T.WATER);
+  // Blocks to push into water
+  setTile(m, w, 1, 2, T.BLOCK); setTile(m, w, 1, 3, T.BLOCK); setTile(m, w, 1, 4, T.BLOCK);
+  setTile(m, w, 1, 5, T.BLOCK); setTile(m, w, 1, 6, T.BLOCK);
+  // Fire area (right)
+  for (var y = 2; y < 7; y++) for (var x = 12; x < 17; x++) setTile(m, w, x, y, T.FIRE);
+  setTile(m, w, 14, 4, T.FIREBOOTS);
+  // Wall between sections
+  for (var y = 1; y < 8; y++) setTile(m, w, 9, y, T.WALL);
+  setTile(m, w, 9, 4, T.DOOR_G);
+  // Flippers in water area (reachable via blocks)
+  setTile(m, w, 4, 4, T.FLIPPERS);
+  // Key on island in water
+  setTile(m, w, 5, 3, T.KEY_G);
+  // Chips
+  setTile(m, w, 3, 2, T.CHIP); setTile(m, w, 6, 6, T.CHIP);
+  setTile(m, w, 13, 2, T.CHIP); setTile(m, w, 16, 6, T.CHIP);
+  setTile(m, w, 9, 10, T.CHIP);
+  // Bottom area
+  for (var x = 1; x < 18; x++) setTile(m, w, x, 8, T.WALL);
+  setTile(m, w, 5, 8, T.FLOOR); setTile(m, w, 14, 8, T.FLOOR);
+  setTile(m, w, 16, 12, T.SOCKET);
+  setTile(m, w, 17, 13, T.EXIT);
+  LEVELS.push({w:w, h:h, map:m, chips:5, time:180, enemies:[], start:{x:1,y:1}, hint:'Push blocks into water to make a path. Find boots to survive fire.'});
+})();
+
+// Level 6: Enemies and everything combined
+(function() {
+  var w = 21, h = 17, m = makeMap(w, h);
+  addWalls(m, w, h);
+  // Rooms
+  for (var y = 1; y < 8; y++) setTile(m, w, 10, y, T.WALL);
+  for (var x = 1; x < 20; x++) setTile(m, w, x, 8, T.WALL);
+  for (var y = 9; y < 16; y++) setTile(m, w, 10, y, T.WALL);
+  // Doors between rooms
+  setTile(m, w, 10, 4, T.DOOR_R);
+  setTile(m, w, 5, 8, T.DOOR_B);
+  setTile(m, w, 15, 8, T.DOOR_Y);
+  setTile(m, w, 10, 12, T.DOOR_G);
+  // Keys placed in different rooms
+  setTile(m, w, 3, 2, T.KEY_R);
+  setTile(m, w, 15, 3, T.KEY_B);
+  setTile(m, w, 3, 12, T.KEY_Y);
+  setTile(m, w, 17, 14, T.KEY_G);
+  // Ice section (top-right room)
+  for (var y = 2; y < 7; y++) for (var x = 12; x < 19; x++) setTile(m, w, x, y, T.ICE);
+  setTile(m, w, 15, 4, T.WALL); setTile(m, w, 17, 2, T.WALL);
+  setTile(m, w, 15, 3, T.KEY_B);
+  // Force floor section (bottom-left)
+  for (var x = 2; x < 9; x++) setTile(m, w, x, 11, T.FORCE_R);
+  setTile(m, w, 9, 11, T.FLOOR);
+  for (var y = 11; y < 15; y++) setTile(m, w, 9, y, T.FORCE_D);
+  setTile(m, w, 9, 15, T.FLOOR);
+  // Water with block
+  setTile(m, w, 5, 14, T.WATER); setTile(m, w, 6, 14, T.WATER); setTile(m, w, 7, 14, T.WATER);
+  setTile(m, w, 4, 14, T.BLOCK); setTile(m, w, 4, 13, T.BLOCK);
+  // Chips
+  setTile(m, w, 2, 5, T.CHIP); setTile(m, w, 8, 2, T.CHIP);
+  setTile(m, w, 14, 6, T.CHIP); setTile(m, w, 18, 3, T.CHIP);
+  setTile(m, w, 2, 10, T.CHIP); setTile(m, w, 6, 14, T.CHIP);
+  setTile(m, w, 14, 14, T.CHIP); setTile(m, w, 18, 10, T.CHIP);
+  // Socket and exit
+  setTile(m, w, 18, 15, T.SOCKET);
+  setTile(m, w, 19, 15, T.EXIT);
+  // Enemies
+  var enemies = [
+    {x:5, y:5, dx:1, dy:0},
+    {x:16, y:11, dx:0, dy:1},
+    {x:13, y:14, dx:-1, dy:0}
+  ];
+  LEVELS.push({w:w, h:h, map:m, chips:8, time:240, enemies:enemies, start:{x:1,y:1}, hint:'Watch the enemies! Everything you have learned is needed here.'});
+})();
+
+// --- GAME STATE ---
+var level = 0;
+var map, mapW, mapH, px, py, keys, chips, chipsNeeded, hasFlippers, hasFireboots;
+var enemies, timer, timerStart, gameState, moveQueue;
+var hintTimer, hintMsg;
+var sliding, slideDx, slideDy; // for ice/force floor
+
+function loadLevel(n) {
+  var L = LEVELS[n];
+  mapW = L.w; mapH = L.h;
+  map = L.map.slice();
+  px = L.start.x; py = L.start.y;
+  keys = {r:0, b:0, g:0, y:0};
+  chips = 0; chipsNeeded = L.chips;
+  hasFlippers = false; hasFireboots = false;
+  enemies = [];
+  for (var i = 0; i < L.enemies.length; i++) {
+    var e = L.enemies[i];
+    enemies.push({x:e.x, y:e.y, dx:e.dx, dy:e.dy});
+  }
+  timer = L.time;
+  timerStart = Date.now();
+  gameState = 'play';
+  moveQueue = [];
+  hintTimer = 180;
+  hintMsg = L.hint;
+  sliding = false; slideDx = 0; slideDy = 0;
+}
+
+loadLevel(0);
+
+// --- INPUT ---
+var keysDown = {};
+document.addEventListener('keydown', function(e) {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+  if (infoOpen) return;
+  if (e.key === 'r' || e.key === 'R') { loadLevel(level); e.preventDefault(); return; }
+  if (gameState === 'win' || gameState === 'dead') {
+    if (e.key === 'Enter' || e.key === ' ') {
+      if (gameState === 'win') { level++; if (level >= LEVELS.length) level = 0; }
+      loadLevel(level);
+      e.preventDefault();
+      return;
+    }
+  }
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].indexOf(e.key) >= 0) {
+    e.preventDefault();
+    if (gameState !== 'play') return;
+    var dx = 0, dy = 0;
+    if (e.key === 'ArrowUp') dy = -1;
+    if (e.key === 'ArrowDown') dy = 1;
+    if (e.key === 'ArrowLeft') dx = -1;
+    if (e.key === 'ArrowRight') dx = 1;
+    moveQueue.push({dx:dx, dy:dy});
+  }
+});
+
+// --- MOVEMENT LOGIC ---
+function tileAt(x, y) {
+  if (x < 0 || y < 0 || x >= mapW || y >= mapH) return T.WALL;
+  return map[y * mapW + x];
+}
+
+function setMap(x, y, t) { map[y * mapW + x] = t; }
+
+function canEnter(x, y) {
+  var t = tileAt(x, y);
+  if (t === T.WALL) return false;
+  if (t === T.DOOR_R && keys.r <= 0) return false;
+  if (t === T.DOOR_B && keys.b <= 0) return false;
+  if (t === T.DOOR_G && keys.g <= 0) return false;
+  if (t === T.DOOR_Y && keys.y <= 0) return false;
+  if (t === T.SOCKET && chips < chipsNeeded) return false;
+  if (t === T.BLOCK) return false; // handled separately
+  if (t === T.WATER && !hasFlippers) return false; // deadly
+  if (t === T.FIRE && !hasFireboots) return false; // deadly
+  return true;
+}
+
+function tryMove(dx, dy) {
+  var nx = px + dx, ny = py + dy;
+  var t = tileAt(nx, ny);
+
+  // Block pushing
+  if (t === T.BLOCK) {
+    var bx = nx + dx, by = ny + dy;
+    var bt = tileAt(bx, by);
+    if (bt === T.FLOOR || bt === T.WATER) {
+      if (bt === T.WATER) {
+        setMap(bx, by, T.FLOOR); // block fills water
+      } else {
+        setMap(bx, by, T.BLOCK);
+      }
+      setMap(nx, ny, T.FLOOR);
+      // Now move player
+    } else {
+      return false; // can't push block
+    }
+  }
+
+  if (!canEnter(nx, ny) && tileAt(nx, ny) !== T.FLOOR) {
+    // Re-check after block push might have changed things
+    if (tileAt(nx, ny) !== T.FLOOR) return false;
+  }
+
+  t = tileAt(nx, ny);
+
+  // Collect items
+  if (t === T.KEY_R) { keys.r++; setMap(nx, ny, T.FLOOR); }
+  else if (t === T.KEY_B) { keys.b++; setMap(nx, ny, T.FLOOR); }
+  else if (t === T.KEY_G) { keys.g++; setMap(nx, ny, T.FLOOR); }
+  else if (t === T.KEY_Y) { keys.y++; setMap(nx, ny, T.FLOOR); }
+  else if (t === T.CHIP) { chips++; setMap(nx, ny, T.FLOOR); }
+  else if (t === T.FLIPPERS) { hasFlippers = true; setMap(nx, ny, T.FLOOR); }
+  else if (t === T.FIREBOOTS) { hasFireboots = true; setMap(nx, ny, T.FLOOR); }
+  else if (t === T.DOOR_R) { keys.r--; setMap(nx, ny, T.FLOOR); }
+  else if (t === T.DOOR_B) { keys.b--; setMap(nx, ny, T.FLOOR); }
+  else if (t === T.DOOR_G) { keys.g--; setMap(nx, ny, T.FLOOR); }
+  else if (t === T.DOOR_Y) { keys.y--; setMap(nx, ny, T.FLOOR); }
+  else if (t === T.SOCKET) { setMap(nx, ny, T.FLOOR); }
+  else if (t === T.DIRT) { setMap(nx, ny, T.FLOOR); }
+  else if (t === T.EXIT) { gameState = 'win'; }
+  else if (t === T.WATER && hasFlippers) { /* ok, walk on water */ }
+  else if (t === T.FIRE && hasFireboots) { /* ok, walk on fire */ }
+
+  px = nx; py = ny;
+
+  // Check ice/force floor
+  t = tileAt(px, py);
+  if (t === T.ICE) {
+    sliding = true; slideDx = dx; slideDy = dy;
+  } else if (t === T.FORCE_U) {
+    sliding = true; slideDx = 0; slideDy = -1;
+  } else if (t === T.FORCE_D) {
+    sliding = true; slideDx = 0; slideDy = 1;
+  } else if (t === T.FORCE_L) {
+    sliding = true; slideDx = -1; slideDy = 0;
+  } else if (t === T.FORCE_R) {
+    sliding = true; slideDx = 1; slideDy = 0;
+  } else {
+    sliding = false;
+  }
+
+  return true;
+}
+
+// --- ENEMY LOGIC ---
+var enemyTick = 0;
+function updateEnemies() {
+  enemyTick++;
+  if (enemyTick < 15) return;
+  enemyTick = 0;
+  for (var i = 0; i < enemies.length; i++) {
+    var e = enemies[i];
+    var nx = e.x + e.dx, ny = e.y + e.dy;
+    var t = tileAt(nx, ny);
+    if (t === T.FLOOR || t === T.DIRT) {
+      e.x = nx; e.y = ny;
+    } else {
+      // Reverse direction
+      e.dx = -e.dx; e.dy = -e.dy;
+    }
+    // Check collision with player
+    if (e.x === px && e.y === py) {
+      gameState = 'dead';
+    }
+  }
+}
+
+// --- SLIDE TIMER ---
+var slideTick = 0;
+
+// --- UPDATE ---
+function update() {
+  if (infoOpen) return;
+  if (gameState !== 'play') return;
+
+  // Timer
+  var elapsed = (Date.now() - timerStart) / 1000;
+  var remaining = Math.max(0, timer - elapsed);
+  if (remaining <= 0) { gameState = 'dead'; return; }
+
+  // Hint timer
+  if (hintTimer > 0) hintTimer--;
+
+  // Sliding
+  if (sliding) {
+    slideTick++;
+    if (slideTick >= 8) {
+      slideTick = 0;
+      var nx = px + slideDx, ny = py + slideDy;
+      var t = tileAt(nx, ny);
+      // Can we continue sliding?
+      if (t === T.WALL || t === T.BLOCK || (t === T.SOCKET && chips < chipsNeeded) ||
+          t === T.DOOR_R || t === T.DOOR_B || t === T.DOOR_G || t === T.DOOR_Y) {
+        sliding = false;
+        // On ice, just stop. On force floor, also stop.
+      } else {
+        tryMove(slideDx, slideDy);
+      }
+    }
+  }
+
+  // Process move queue (only when not sliding)
+  if (!sliding && moveQueue.length > 0) {
+    var m = moveQueue.shift();
+    tryMove(m.dx, m.dy);
+    moveQueue = []; // clear queue after a move
+  }
+
+  // Enemies
+  updateEnemies();
+
+  // Check enemy collision
+  for (var i = 0; i < enemies.length; i++) {
+    if (enemies[i].x === px && enemies[i].y === py) {
+      gameState = 'dead';
+    }
+  }
+}
+
+// --- DRAWING ---
+function drawTile(x, y, t, sx, sy) {
+  var dx = (x - vpX) * TILE, dy = (y - vpY) * TILE + 40; // 40px HUD offset
+  if (dx < -TILE || dy < -TILE || dx > 800 || dy > 600) return;
+
+  X.fillStyle = TCOL[t] || '#222';
+  X.fillRect(dx, dy, TILE, TILE);
+
+  // Tile decorations
+  if (t === T.WALL) {
+    X.strokeStyle = '#888';
+    X.strokeRect(dx + 1, dy + 1, TILE - 2, TILE - 2);
+    X.fillStyle = '#555';
+    X.fillRect(dx + 4, dy + 4, 10, 10);
+    X.fillRect(dx + 18, dy + 18, 10, 10);
+  } else if (t >= T.KEY_R && t <= T.KEY_Y) {
+    // Key shape
+    X.fillStyle = '#fff';
+    X.beginPath();
+    X.arc(dx + 16, dy + 12, 6, 0, Math.PI * 2);
+    X.fill();
+    X.fillRect(dx + 13, dy + 16, 6, 12);
+    X.fillRect(dx + 11, dy + 24, 4, 3);
+    X.fillStyle = TCOL[t];
+    X.beginPath();
+    X.arc(dx + 16, dy + 12, 4, 0, Math.PI * 2);
+    X.fill();
+  } else if (t >= T.DOOR_R && t <= T.DOOR_Y) {
+    // Door with keyhole
+    X.strokeStyle = '#fff';
+    X.lineWidth = 2;
+    X.strokeRect(dx + 3, dy + 2, TILE - 6, TILE - 4);
+    X.fillStyle = '#000';
+    X.beginPath();
+    X.arc(dx + 16, dy + 14, 4, 0, Math.PI * 2);
+    X.fill();
+    X.fillRect(dx + 14, dy + 17, 4, 8);
+    X.lineWidth = 1;
+  } else if (t === T.CHIP) {
+    // Computer chip
+    X.fillStyle = '#0a4';
+    X.fillRect(dx + 6, dy + 6, 20, 20);
+    X.fillStyle = '#0ff';
+    X.fillRect(dx + 10, dy + 10, 12, 12);
+    X.fillStyle = '#fff';
+    X.fillRect(dx + 14, dy + 14, 4, 4);
+    // Pins
+    X.fillStyle = '#888';
+    for (var p = 0; p < 3; p++) {
+      X.fillRect(dx + 9 + p * 5, dy + 2, 2, 5);
+      X.fillRect(dx + 9 + p * 5, dy + 25, 2, 5);
+      X.fillRect(dx + 2, dy + 9 + p * 5, 5, 2);
+      X.fillRect(dx + 25, dy + 9 + p * 5, 5, 2);
+    }
+  } else if (t === T.SOCKET) {
+    X.fillStyle = '#055';
+    X.fillRect(dx + 2, dy + 2, 28, 28);
+    X.strokeStyle = '#0ff';
+    X.lineWidth = 2;
+    X.strokeRect(dx + 6, dy + 6, 20, 20);
+    X.fillStyle = '#0ff';
+    X.font = '14px monospace';
+    X.textAlign = 'center';
+    X.fillText('IC', dx + 16, dy + 21);
+    X.lineWidth = 1;
+  } else if (t === T.EXIT) {
+    X.fillStyle = '#ff0';
+    X.fillRect(dx + 2, dy + 2, 28, 28);
+    X.fillStyle = '#000';
+    X.font = 'bold 11px monospace';
+    X.textAlign = 'center';
+    X.fillText('EXIT', dx + 16, dy + 20);
+  } else if (t === T.BLOCK) {
+    X.strokeStyle = '#ba7';
+    X.strokeRect(dx + 2, dy + 2, 28, 28);
+    X.fillStyle = '#765';
+    X.fillRect(dx + 5, dy + 5, 22, 22);
+    X.strokeStyle = '#a97';
+    X.beginPath();
+    X.moveTo(dx + 5, dy + 5); X.lineTo(dx + 27, dy + 27);
+    X.moveTo(dx + 27, dy + 5); X.lineTo(dx + 5, dy + 27);
+    X.stroke();
+  } else if (t === T.ICE) {
+    X.fillStyle = '#cef';
+    X.globalAlpha = 0.3;
+    X.fillRect(dx + 4, dy + 8, 8, 3);
+    X.fillRect(dx + 18, dy + 20, 10, 2);
+    X.fillRect(dx + 8, dy + 24, 6, 2);
+    X.globalAlpha = 1;
+  } else if (t >= T.FORCE_U && t <= T.FORCE_R) {
+    // Arrow
+    X.fillStyle = '#a6a';
+    X.font = '20px monospace';
+    X.textAlign = 'center';
+    var arrows = {};
+    arrows[T.FORCE_U] = '\u2191';
+    arrows[T.FORCE_D] = '\u2193';
+    arrows[T.FORCE_L] = '\u2190';
+    arrows[T.FORCE_R] = '\u2192';
+    X.fillText(arrows[t], dx + 16, dy + 24);
+  } else if (t === T.DIRT) {
+    X.fillStyle = '#654';
+    X.fillRect(dx + 2, dy + 6, 4, 4);
+    X.fillRect(dx + 14, dy + 2, 5, 3);
+    X.fillRect(dx + 24, dy + 14, 4, 5);
+    X.fillRect(dx + 8, dy + 22, 6, 4);
+    X.fillRect(dx + 20, dy + 26, 3, 3);
+  } else if (t === T.WATER) {
+    var wt = Date.now() / 300;
+    X.fillStyle = '#15b';
+    for (var wy = 0; wy < 3; wy++) {
+      for (var wx = 0; wx < TILE; wx += 2) {
+        var woff = Math.sin(wx * 0.3 + wt + wy * 2) * 2;
+        X.fillRect(dx + wx, dy + 8 + wy * 10 + woff, 2, 2);
+      }
+    }
+  } else if (t === T.FIRE) {
+    var ft = Date.now() / 200;
+    for (var fi = 0; fi < 5; fi++) {
+      var fx = 4 + fi * 6;
+      var fh = 8 + Math.sin(ft + fi * 1.5) * 6;
+      X.fillStyle = fi % 2 === 0 ? '#fa0' : '#f60';
+      X.fillRect(dx + fx, dy + 28 - fh, 4, fh);
+    }
+  } else if (t === T.FLIPPERS) {
+    X.fillStyle = '#28c';
+    X.fillRect(dx + 4, dy + 4, 24, 24);
+    X.fillStyle = '#5cf';
+    X.fillRect(dx + 8, dy + 10, 7, 14);
+    X.fillRect(dx + 17, dy + 10, 7, 14);
+  } else if (t === T.FIREBOOTS) {
+    X.fillStyle = '#c52';
+    X.fillRect(dx + 4, dy + 4, 24, 24);
+    X.fillStyle = '#f84';
+    X.fillRect(dx + 8, dy + 8, 7, 18);
+    X.fillRect(dx + 17, dy + 8, 7, 18);
+  }
+}
+
+function drawPlayer(x, y) {
+  var dx = (x - vpX) * TILE, dy = (y - vpY) * TILE + 40;
+  // Body
+  X.fillStyle = '#4af';
+  X.fillRect(dx + 8, dy + 4, 16, 24);
+  // Head
+  X.fillStyle = '#fda';
+  X.beginPath();
+  X.arc(dx + 16, dy + 8, 7, 0, Math.PI * 2);
+  X.fill();
+  // Eyes
+  X.fillStyle = '#000';
+  X.fillRect(dx + 12, dy + 6, 3, 3);
+  X.fillRect(dx + 18, dy + 6, 3, 3);
+  // Hair
+  X.fillStyle = '#a52';
+  X.fillRect(dx + 9, dy + 1, 14, 4);
+}
+
+function drawEnemy(ex, ey) {
+  var dx = (ex - vpX) * TILE, dy = (ey - vpY) * TILE + 40;
+  X.fillStyle = '#f22';
+  X.fillRect(dx + 4, dy + 4, 24, 24);
+  X.fillStyle = '#fff';
+  X.fillRect(dx + 9, dy + 10, 5, 5);
+  X.fillRect(dx + 18, dy + 10, 5, 5);
+  X.fillStyle = '#000';
+  X.fillRect(dx + 10, dy + 11, 3, 3);
+  X.fillRect(dx + 19, dy + 11, 3, 3);
+  // Spikes
+  X.fillStyle = '#f22';
+  X.beginPath();
+  X.moveTo(dx + 4, dy + 4); X.lineTo(dx + 8, dy - 2); X.lineTo(dx + 12, dy + 4);
+  X.moveTo(dx + 14, dy + 4); X.lineTo(dx + 16, dy - 4); X.lineTo(dx + 18, dy + 4);
+  X.moveTo(dx + 20, dy + 4); X.lineTo(dx + 24, dy - 2); X.lineTo(dx + 28, dy + 4);
+  X.fill();
+}
+
+function draw() {
+  X.fillStyle = '#111';
+  X.fillRect(0, 0, 800, 600);
+
+  // Update viewport to center on player
+  vpX = Math.max(0, Math.min(px - Math.floor(VW / 2), mapW - VW));
+  vpY = Math.max(0, Math.min(py - Math.floor(VH / 2), mapH - VH));
+  if (mapW <= VW) vpX = 0;
+  if (mapH <= VH) vpY = 0;
+
+  // Draw tiles
+  var x0 = Math.max(0, vpX), x1 = Math.min(mapW, vpX + VW + 1);
+  var y0 = Math.max(0, vpY), y1 = Math.min(mapH, vpY + VH + 1);
+  for (var y = y0; y < y1; y++) {
+    for (var x = x0; x < x1; x++) {
+      drawTile(x, y, tileAt(x, y));
+    }
+  }
+
+  // Draw enemies
+  for (var i = 0; i < enemies.length; i++) {
+    drawEnemy(enemies[i].x, enemies[i].y);
+  }
+
+  // Draw player
+  if (gameState !== 'dead') drawPlayer(px, py);
+
+  // --- HUD ---
+  X.fillStyle = '#1a1a2e';
+  X.fillRect(0, 0, 800, 38);
+  X.fillStyle = '#334';
+  X.fillRect(0, 38, 800, 2);
+
+  hudText(X, 'LEVEL ' + (level + 1) + '/' + LEVELS.length, 10, 6, 13, '#7bf');
+
+  // Timer
+  var elapsed = (Date.now() - timerStart) / 1000;
+  var remaining = Math.max(0, Math.ceil(timer - elapsed));
+  var tCol = remaining < 30 ? '#f44' : remaining < 60 ? '#fa0' : '#4f4';
+  hudText(X, 'TIME: ' + remaining, 10, 22, 11, tCol);
+
+  // Chips
+  var chipsLeft = Math.max(0, chipsNeeded - chips);
+  hudText(X, 'CHIPS: ' + chipsLeft, 160, 6, 13, chipsLeft === 0 ? '#4f4' : '#0ff');
+
+  // Keys
+  var kx = 300;
+  if (keys.r > 0) { X.fillStyle = '#f44'; X.fillRect(kx, 8, 14, 20); X.fillStyle='#fff'; X.font='10px monospace'; X.fillText(keys.r+'',kx+4,20); kx += 20; }
+  if (keys.b > 0) { X.fillStyle = '#48f'; X.fillRect(kx, 8, 14, 20); X.fillStyle='#fff'; X.font='10px monospace'; X.fillText(keys.b+'',kx+4,20); kx += 20; }
+  if (keys.g > 0) { X.fillStyle = '#4d4'; X.fillRect(kx, 8, 14, 20); X.fillStyle='#fff'; X.font='10px monospace'; X.fillText(keys.g+'',kx+4,20); kx += 20; }
+  if (keys.y > 0) { X.fillStyle = '#fd0'; X.fillRect(kx, 8, 14, 20); X.fillStyle='#000'; X.font='10px monospace'; X.fillText(keys.y+'',kx+4,20); kx += 20; }
+
+  // Boots
+  if (hasFlippers) { hudText(X, '[FLIP]', kx + 10, 10, 11, '#5cf'); kx += 55; }
+  if (hasFireboots) { hudText(X, '[FIRE]', kx + 10, 10, 11, '#f84'); }
+
+  // Controls hint
+  hudText(X, 'R:restart  ?:info', 620, 10, 11, '#555');
+
+  // Level hint
+  if (hintTimer > 0 && hintMsg) {
+    var hAlpha = hintTimer < 60 ? hintTimer / 60 : 1;
+    X.globalAlpha = hAlpha * 0.9;
+    X.fillStyle = '#000';
+    X.fillRect(50, 560, 700, 30);
+    X.globalAlpha = hAlpha;
+    hudText(X, hintMsg, 400, 567, 12, '#ff0', 'center');
+    X.globalAlpha = 1;
+  }
+
+  // Game over / win overlays
+  if (gameState === 'dead') {
+    X.fillStyle = 'rgba(0,0,0,0.7)';
+    X.fillRect(0, 0, 800, 600);
+    hudText(X, 'CHIP CRASHED!', 400, 250, 32, '#f44', 'center');
+    hudText(X, 'Press ENTER to retry', 400, 300, 16, '#aaa', 'center');
+  } else if (gameState === 'win') {
+    X.fillStyle = 'rgba(0,0,0,0.7)';
+    X.fillRect(0, 0, 800, 600);
+    if (level < LEVELS.length - 1) {
+      hudText(X, 'LEVEL COMPLETE!', 400, 250, 32, '#4f4', 'center');
+      hudText(X, 'Press ENTER for next level', 400, 300, 16, '#aaa', 'center');
+    } else {
+      hudText(X, 'ALL LEVELS COMPLETE!', 400, 230, 32, '#ff0', 'center');
+      hudText(X, 'Congratulations, Chip!', 400, 275, 18, '#4f4', 'center');
+      hudText(X, 'Press ENTER to play again', 400, 310, 16, '#aaa', 'center');
+    }
+  }
+}
+
+// --- RESIZE ---
+function resize() {
+  var s = Math.min(window.innerWidth / 800, window.innerHeight / 600);
+  C.style.width = (800 * s) + 'px';
+  C.style.height = (600 * s) + 'px';
+}
+window.addEventListener('resize', resize);
+resize();
+
+// --- MAIN LOOP ---
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

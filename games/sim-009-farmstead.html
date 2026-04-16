@@ -1,0 +1,657 @@
+<!--
+PROTOTYPE: farmstead
+SERIES: sim
+NUMBER: 009
+DATE: 2026-03-23
+MECHANIC: farming cycle — till soil, plant seeds, water crops, harvest produce, sell for profit, and expand your farm through seasonal cycles
+ANCESTRY: Harvest Moon (1996), FarmVille (2009), Stardew Valley (2016)
+CONTROLS: Arrow keys or WASD — move | 1-4 — select tool (hoe/seeds/water/harvest) | E — sell at market | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 6 (Deep Learning — optimization loops, reinforcement learning)
+AI-INSIGHT: Farming games encode a multi-objective optimization problem: maximize profit while managing time, energy, crop rotation, and seasonal constraints. The satisfying loop of invest→wait→harvest→reinvest mirrors the explore-exploit tradeoff in reinforcement learning. Stardew Valley proved that this loop, combined with social simulation, creates one of gaming's most compelling retention mechanisms.
+NOTES: Harvest Moon (1996) by Yasuhiro Wada created the farming sim genre. Stardew Valley (2016) by one developer (ConcernedApe) became a cultural phenomenon. The core loop — plant, tend, harvest, sell, upgrade — is a perfect economic feedback loop.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SIM-009 · FARMSTEAD</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #1a1a0e; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SIM-009 · FARMSTEAD</h1>
+    <p><span class="tag series">SIM — Simulation</span> <span class="tag">Prototype #009</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Run a small farm: till soil, plant seeds, water crops, harvest produce, and sell at market. Manage your energy and gold to expand.</p>
+    <ul>
+      <li><kbd>Arrow keys</kbd> / <kbd>WASD</kbd> — Move your farmer</li>
+      <li><kbd>1</kbd> — Hoe: till grass into farmable soil (costs 5 energy)</li>
+      <li><kbd>2</kbd> — Seeds: plant on tilled soil (costs 3 energy + seed price)</li>
+      <li><kbd>3</kbd> — Watering Can: water planted crops (costs 2 energy)</li>
+      <li><kbd>4</kbd> — Harvest: collect ready crops (costs 2 energy)</li>
+      <li><kbd>Space</kbd> — Use selected tool on current tile</li>
+      <li><kbd>E</kbd> — Sell all harvested crops at market</li>
+      <li><kbd>Q/Tab</kbd> — Cycle seed type when seed tool is active</li>
+      <li><kbd>N</kbd> — Sleep / advance to next day (restores energy)</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Crops</h3>
+    <ul>
+      <li><strong>Turnip</strong> — Seed: 5g, Sell: 15g, Grows in 3 days. Fast starter crop.</li>
+      <li><strong>Potato</strong> — Seed: 10g, Sell: 30g, Grows in 5 days. Reliable income.</li>
+      <li><strong>Tomato</strong> — Seed: 20g, Sell: 55g, Grows in 7 days. Good profit margin.</li>
+      <li><strong>Corn</strong> — Seed: 35g, Sell: 100g, Grows in 10 days. Premium investment.</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li>Watered crops grow twice as fast — water daily for best results.</li>
+      <li>You start with 100 energy per day. Sleep to restore it.</li>
+      <li>Start with turnips for quick cash, then invest in premium crops.</li>
+      <li>Walk to the market stall (top-right) and press E to sell.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Harvest Moon</strong> (1996) was created by Yasuhiro Wada at Pack-in-Video (later Victor Interactive Software) for SNES, inventing the farming simulation genre and proving that the mundane rhythms of agricultural life could be deeply compelling as gameplay. Wada combined farming with social simulation and time management in a way no game had attempted before.</p>
+    <p><strong>FarmVille</strong> (2009) by Mark Pincus at Zynga distilled the farming loop into a social/mobile format, becoming one of the most-played games ever made on Facebook, though criticized for exploitative monetization patterns.</p>
+    <p><strong>Stardew Valley</strong> (2016) by Eric "ConcernedApe" Barone, a solo developer who built the entire game over four years, became a cultural phenomenon selling over 30 million copies. It proved that one person could create a game rivaling major studio output, and revitalized the farming sim genre.</p>
+
+    <h2>AI Archaeology</h2>
+    <p>The farming cycle is a multi-objective optimization problem. The player must balance competing resources (time, energy, gold, land) while navigating seasonal constraints. This mirrors the explore-exploit tradeoff in reinforcement learning: should you plant safe turnips or invest in risky corn?</p>
+    <p>The invest→wait→harvest→reinvest loop creates a compounding returns structure identical to financial optimization. The "just one more day" pull of farming games comes from this exponential growth curve — the same mathematical structure that makes compound interest so powerful.</p>
+    <p><strong>AI Era 6 — Deep Learning.</strong> Modern farming game AI could use neural networks to predict optimal crop rotations, dynamic pricing models, and personalized difficulty curves that keep each player in their flow state.</p>
+
+    <h2>Classification</h2>
+    <p><span class="tag series">SIM — Simulation</span> <span class="tag">Resource Management</span> <span class="tag">Farming</span> <span class="tag">Economic Loop</span> <span class="tag">Time Management</span></p>
+
+    <h2>Prototype Notes</h2>
+    <p>This prototype captures the core plant-tend-harvest-sell loop in a minimal top-down format. The 12×8 grid provides enough space for meaningful farm layout decisions. Energy and day cycles create the pacing that makes farming sims compelling — you can never do everything in one day, forcing prioritization.</p>
+    <p>Intentionally omitted: seasons with crop restrictions, animal husbandry, NPC relationships, crafting, fishing, mining. Each of these could be a prototype extension.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+const C = document.getElementById('c');
+const X = C.getContext('2d');
+C.width = 800; C.height = 600;
+
+// ── State ──
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// Crop definitions: name, seedCost, sellPrice, growDays, colors per stage
+const CROPS = [
+  { name: 'Turnip',  seedCost: 5,  sell: 15,  growDays: 3,  colors: ['#8B7355','#7CCD7C','#90EE90','#E8E8E8'] },
+  { name: 'Potato',  seedCost: 10, sell: 30,  growDays: 5,  colors: ['#8B7355','#6B8E23','#9ACD32','#DAA520'] },
+  { name: 'Tomato',  seedCost: 20, sell: 55,  growDays: 7,  colors: ['#8B7355','#228B22','#32CD32','#FF4444'] },
+  { name: 'Corn',    seedCost: 35, sell: 100, growDays: 10, colors: ['#8B7355','#556B2F','#6B8E23','#FFD700'] }
+];
+
+const TOOLS = ['Hoe','Seeds','Water','Harvest'];
+const TOOL_COST = [5, 3, 2, 2]; // energy cost
+
+// Grid: 12 cols x 8 rows
+const COLS = 12, ROWS = 8;
+const TILE = 48;
+const FARM_X = 32, FARM_Y = 80;
+
+// Tile states
+const T_GRASS = 0, T_TILLED = 1, T_PLANTED = 2, T_WATERED = 3;
+
+// Each tile: { state, cropType, growProgress, growDays, watered }
+let grid = [];
+let player = { x: 5, y: 3, gold: 50, energy: 100, maxEnergy: 100, tool: 0, seedType: 0 };
+let inventory = [0, 0, 0, 0]; // harvested crops count
+let day = 1;
+let season = 0; // 0=Spring,1=Summer,2=Autumn,3=Winter
+const SEASONS = ['Spring','Summer','Autumn','Winter'];
+const SEASON_COLORS = ['#2d5a1e','#3a6b2a','#5a4a1e','#4a5a6a'];
+let message = '';
+let msgTimer = 0;
+let moveTimer = 0;
+
+function initGrid() {
+  grid = [];
+  for (let r = 0; r < ROWS; r++) {
+    grid[r] = [];
+    for (let c = 0; c < COLS; c++) {
+      grid[r][c] = { state: T_GRASS, cropType: -1, growProgress: 0, growDays: 0, watered: false };
+    }
+  }
+}
+initGrid();
+
+function showMsg(m) { message = m; msgTimer = 120; }
+
+// ── Input ──
+const keys = {};
+document.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { e.preventDefault(); toggleInfo(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); return; }
+  if (infoOpen) return;
+  keys[e.key.toLowerCase()] = true;
+  if (e.key === '1') player.tool = 0;
+  if (e.key === '2') player.tool = 1;
+  if (e.key === '3') player.tool = 2;
+  if (e.key === '4') player.tool = 3;
+  if (e.key === 'q' || e.key === 'Tab') {
+    e.preventDefault();
+    if (player.tool === 1) player.seedType = (player.seedType + 1) % 4;
+  }
+  if (e.key === ' ') { e.preventDefault(); useTool(); }
+  if (e.key === 'e' || e.key === 'E') sellCrops();
+  if (e.key === 'n' || e.key === 'N') nextDay();
+});
+document.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+
+function useTool() {
+  const t = grid[player.y]?.[player.x];
+  if (!t) return;
+  const cost = TOOL_COST[player.tool];
+  if (player.energy < cost) { showMsg('Not enough energy! Press N to sleep.'); return; }
+
+  switch (player.tool) {
+    case 0: // Hoe
+      if (t.state === T_GRASS) {
+        t.state = T_TILLED;
+        player.energy -= cost;
+        showMsg('Tilled the soil.');
+      } else { showMsg('Already tilled!'); }
+      break;
+    case 1: // Seeds
+      if (t.state === T_TILLED) {
+        const crop = CROPS[player.seedType];
+        if (player.gold < crop.seedCost) { showMsg('Not enough gold for ' + crop.name + ' seeds!'); return; }
+        t.state = T_PLANTED;
+        t.cropType = player.seedType;
+        t.growProgress = 0;
+        t.growDays = crop.growDays;
+        t.watered = false;
+        player.gold -= crop.seedCost;
+        player.energy -= cost;
+        showMsg('Planted ' + crop.name + ' seeds. (-' + crop.seedCost + 'g)');
+      } else { showMsg('Need tilled soil to plant!'); }
+      break;
+    case 2: // Water
+      if (t.state === T_PLANTED || t.state === T_WATERED) {
+        if (t.watered) { showMsg('Already watered today!'); return; }
+        t.watered = true;
+        t.state = T_WATERED;
+        player.energy -= cost;
+        showMsg('Watered the crop.');
+      } else { showMsg('Nothing to water here!'); }
+      break;
+    case 3: // Harvest
+      if ((t.state === T_PLANTED || t.state === T_WATERED) && t.growProgress >= t.growDays) {
+        inventory[t.cropType]++;
+        const crop = CROPS[t.cropType];
+        player.energy -= cost;
+        showMsg('Harvested ' + crop.name + '!');
+        t.state = T_TILLED;
+        t.cropType = -1;
+        t.growProgress = 0;
+        t.watered = false;
+      } else if (t.state === T_PLANTED || t.state === T_WATERED) {
+        showMsg('Not ready yet! (' + Math.floor(t.growProgress) + '/' + t.growDays + ' days)');
+      } else { showMsg('Nothing to harvest here!'); }
+      break;
+  }
+}
+
+function sellCrops() {
+  let total = 0;
+  let count = 0;
+  for (let i = 0; i < 4; i++) {
+    if (inventory[i] > 0) {
+      total += inventory[i] * CROPS[i].sell;
+      count += inventory[i];
+      inventory[i] = 0;
+    }
+  }
+  if (count > 0) {
+    player.gold += total;
+    showMsg('Sold ' + count + ' crops for ' + total + 'g!');
+  } else {
+    showMsg('No crops to sell! Harvest some first.');
+  }
+}
+
+function nextDay() {
+  day++;
+  if (day % 28 === 1 && day > 1) season = (season + 1) % 4;
+  player.energy = player.maxEnergy;
+
+  // Grow crops
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const t = grid[r][c];
+      if (t.state === T_PLANTED || t.state === T_WATERED) {
+        t.growProgress += t.watered ? 1 : 0.5;
+        t.watered = false;
+        t.state = T_PLANTED;
+      }
+    }
+  }
+  showMsg('Day ' + day + ' — ' + SEASONS[season] + '. Energy restored!');
+}
+
+function getGrowthStage(tile) {
+  if (tile.cropType < 0) return 0;
+  const ratio = tile.growProgress / tile.growDays;
+  if (ratio >= 1) return 3;
+  if (ratio >= 0.6) return 2;
+  if (ratio >= 0.2) return 1;
+  return 0;
+}
+
+// ── Update ──
+function update() {
+  if (infoOpen) return;
+
+  moveTimer--;
+  if (moveTimer <= 0) {
+    let dx = 0, dy = 0;
+    if (keys['arrowleft'] || keys['a']) dx = -1;
+    if (keys['arrowright'] || keys['d']) dx = 1;
+    if (keys['arrowup'] || keys['w']) dy = -1;
+    if (keys['arrowdown'] || keys['s']) dy = 1;
+    if (dx !== 0 || dy !== 0) {
+      const nx = player.x + dx, ny = player.y + dy;
+      if (nx >= 0 && nx < COLS && ny >= 0 && ny < ROWS) {
+        player.x = nx; player.y = ny;
+      }
+      moveTimer = 8;
+    }
+  }
+
+  if (msgTimer > 0) msgTimer--;
+}
+
+// ── Drawing helpers ──
+function drawTile(c, r) {
+  const x = FARM_X + c * TILE, y = FARM_Y + r * TILE;
+  const t = grid[r][c];
+
+  // Base tile
+  if (t.state === T_GRASS) {
+    X.fillStyle = SEASON_COLORS[season];
+    X.fillRect(x, y, TILE, TILE);
+    // Grass detail
+    X.fillStyle = '#3a7a2a';
+    for (let i = 0; i < 3; i++) {
+      const gx = x + 8 + ((c * 7 + r * 13 + i * 17) % 30);
+      const gy = y + 10 + ((r * 11 + c * 5 + i * 23) % 28);
+      X.fillRect(gx, gy, 2, 6);
+    }
+  } else {
+    // Tilled/planted soil
+    X.fillStyle = '#6B4226';
+    X.fillRect(x, y, TILE, TILE);
+    // Soil furrows
+    X.fillStyle = '#5a3520';
+    for (let i = 0; i < 4; i++) {
+      X.fillRect(x + 2, y + 6 + i * 12, TILE - 4, 2);
+    }
+    if (t.watered) {
+      X.fillStyle = 'rgba(60,100,180,0.25)';
+      X.fillRect(x, y, TILE, TILE);
+    }
+  }
+
+  // Crop
+  if ((t.state === T_PLANTED || t.state === T_WATERED) && t.cropType >= 0) {
+    const stage = getGrowthStage(t);
+    const crop = CROPS[t.cropType];
+    const cx = x + TILE / 2, cy = y + TILE / 2;
+
+    if (stage === 0) {
+      // Seed — small dot
+      X.fillStyle = crop.colors[0];
+      X.fillRect(cx - 2, cy + 6, 4, 4);
+    } else if (stage === 1) {
+      // Sprout — small green shoot
+      X.fillStyle = '#228B22';
+      X.fillRect(cx - 1, cy - 2, 2, 12);
+      X.fillStyle = crop.colors[1];
+      X.fillRect(cx - 4, cy - 4, 4, 4);
+      X.fillRect(cx + 1, cy - 2, 4, 4);
+    } else if (stage === 2) {
+      // Growing — taller plant
+      X.fillStyle = '#2E8B2E';
+      X.fillRect(cx - 1, cy - 8, 3, 18);
+      X.fillStyle = crop.colors[2];
+      X.fillRect(cx - 6, cy - 10, 6, 6);
+      X.fillRect(cx + 1, cy - 8, 6, 6);
+      X.fillRect(cx - 4, cy - 4, 4, 4);
+    } else {
+      // Ready — full plant with produce color, pulsing
+      const pulse = Math.sin(Date.now() / 300) * 2;
+      X.fillStyle = '#1a6b1a';
+      X.fillRect(cx - 2, cy - 10, 4, 20);
+      X.fillStyle = crop.colors[2];
+      X.fillRect(cx - 8, cy - 12, 7, 7);
+      X.fillRect(cx + 2, cy - 10, 7, 7);
+      X.fillRect(cx - 5, cy - 5, 5, 5);
+      X.fillRect(cx + 1, cy - 3, 5, 5);
+      // Produce
+      X.fillStyle = crop.colors[3];
+      X.beginPath();
+      X.arc(cx - 4, cy - 14 + pulse, 5, 0, Math.PI * 2);
+      X.fill();
+      X.beginPath();
+      X.arc(cx + 5, cy - 10 + pulse, 4, 0, Math.PI * 2);
+      X.fill();
+    }
+  }
+
+  // Grid lines
+  X.strokeStyle = 'rgba(0,0,0,0.15)';
+  X.strokeRect(x, y, TILE, TILE);
+}
+
+function drawPlayer() {
+  const x = FARM_X + player.x * TILE + TILE / 2;
+  const y = FARM_Y + player.y * TILE + TILE / 2;
+
+  // Shadow
+  X.fillStyle = 'rgba(0,0,0,0.3)';
+  X.beginPath();
+  X.ellipse(x, y + 16, 10, 4, 0, 0, Math.PI * 2);
+  X.fill();
+
+  // Body
+  X.fillStyle = '#4488DD';
+  X.fillRect(x - 6, y - 4, 12, 16);
+
+  // Head
+  X.fillStyle = '#FFD4A0';
+  X.fillRect(x - 5, y - 14, 10, 12);
+
+  // Hat
+  X.fillStyle = '#C8A862';
+  X.fillRect(x - 8, y - 18, 16, 4);
+  X.fillRect(x - 5, y - 22, 10, 5);
+
+  // Eyes
+  X.fillStyle = '#333';
+  X.fillRect(x - 3, y - 10, 2, 2);
+  X.fillRect(x + 2, y - 10, 2, 2);
+
+  // Tool indicator
+  const toolColors = ['#8B4513','#FFD700','#4488FF','#FF6633'];
+  X.fillStyle = toolColors[player.tool];
+  X.fillRect(x + 8, y - 8, 4, 14);
+}
+
+function drawHUD() {
+  // Top bar background
+  X.fillStyle = 'rgba(0,0,0,0.7)';
+  X.fillRect(0, 0, 800, 70);
+
+  // Title
+  X.fillStyle = '#C8A862';
+  X.font = 'bold 18px monospace';
+  X.fillText('FARMSTEAD', 16, 24);
+
+  // Day / Season
+  X.fillStyle = '#AAD4AA';
+  X.font = '14px monospace';
+  X.fillText('Day ' + day + '  ' + SEASONS[season], 16, 48);
+
+  // Gold
+  X.fillStyle = '#FFD700';
+  X.fillText('Gold: ' + player.gold + 'g', 200, 24);
+
+  // Energy bar
+  X.fillStyle = '#888';
+  X.fillText('Energy:', 200, 48);
+  const barX = 280, barW = 100;
+  X.fillStyle = '#333';
+  X.fillRect(barX, 38, barW, 12);
+  const energyRatio = player.energy / player.maxEnergy;
+  X.fillStyle = energyRatio > 0.5 ? '#4CAF50' : energyRatio > 0.2 ? '#FF9800' : '#F44336';
+  X.fillRect(barX, 38, barW * energyRatio, 12);
+  X.fillStyle = '#fff';
+  X.font = '10px monospace';
+  X.fillText(player.energy + '/' + player.maxEnergy, barX + 30, 48);
+
+  // Tool
+  X.font = '14px monospace';
+  const toolNames = ['Hoe','Seeds','Water','Harvest'];
+  X.fillStyle = '#FFF';
+  X.fillText('Tool: ', 420, 24);
+  for (let i = 0; i < 4; i++) {
+    X.fillStyle = player.tool === i ? '#FFD700' : '#666';
+    X.fillText('[' + (i + 1) + ']' + toolNames[i], 420 + i * 90, 48);
+  }
+
+  // Seed type (when seed tool active)
+  if (player.tool === 1) {
+    X.fillStyle = '#AFA';
+    X.font = '12px monospace';
+    X.fillText('Seed: ' + CROPS[player.seedType].name + ' (' + CROPS[player.seedType].seedCost + 'g) [Q to change]', 420, 64);
+  }
+
+  // Inventory (right side)
+  X.fillStyle = '#DDD';
+  X.font = '12px monospace';
+  X.fillText('Inventory:', 680, 18);
+  for (let i = 0; i < 4; i++) {
+    const crop = CROPS[i];
+    X.fillStyle = inventory[i] > 0 ? crop.colors[3] : '#555';
+    X.fillText(crop.name[0] + ':' + inventory[i], 680 + (i % 2) * 50, 34 + Math.floor(i / 2) * 16);
+  }
+
+  // Controls hint
+  X.fillStyle = '#666';
+  X.font = '11px monospace';
+  X.fillText('Space=Use  E=Sell  N=Sleep  ?=Info', 16, 64);
+
+  // Bottom bar — tile info
+  const t = grid[player.y]?.[player.x];
+  if (t) {
+    X.fillStyle = 'rgba(0,0,0,0.6)';
+    X.fillRect(0, 570, 800, 30);
+    X.fillStyle = '#CCC';
+    X.font = '12px monospace';
+    const stateNames = ['Grass','Tilled Soil','Planted','Watered'];
+    let info = 'Tile [' + player.x + ',' + player.y + ']: ' + stateNames[t.state];
+    if (t.cropType >= 0) {
+      const stage = getGrowthStage(t);
+      const stageNames = ['Seed','Sprout','Growing','Ready!'];
+      info += ' — ' + CROPS[t.cropType].name + ' (' + stageNames[stage] + ' ' + Math.floor(t.growProgress) + '/' + t.growDays + 'd)';
+    }
+    X.fillText(info, 16, 588);
+  }
+
+  // Message
+  if (msgTimer > 0 && message) {
+    const alpha = Math.min(1, msgTimer / 30);
+    X.fillStyle = 'rgba(0,0,0,' + (0.7 * alpha) + ')';
+    X.fillRect(200, 260, 400, 40);
+    X.strokeStyle = 'rgba(200,168,98,' + alpha + ')';
+    X.strokeRect(200, 260, 400, 40);
+    X.fillStyle = 'rgba(255,255,255,' + alpha + ')';
+    X.font = '14px monospace';
+    X.textAlign = 'center';
+    X.fillText(message, 400, 285);
+    X.textAlign = 'left';
+  }
+}
+
+function drawMarket() {
+  // Market stall in the right margin
+  const mx = FARM_X + COLS * TILE + 16, my = FARM_Y + 10;
+  X.fillStyle = '#8B4513';
+  X.fillRect(mx, my, 80, 60);
+  X.fillStyle = '#CD853F';
+  X.fillRect(mx, my, 80, 12);
+  X.fillStyle = '#FFD700';
+  X.font = 'bold 11px monospace';
+  X.fillText('MARKET', mx + 12, my + 10);
+  X.fillStyle = '#DDD';
+  X.font = '10px monospace';
+  X.fillText('Press E', mx + 16, my + 35);
+  X.fillText('to sell', mx + 16, my + 48);
+
+  // Price list below market
+  X.fillStyle = '#AAA';
+  X.font = '10px monospace';
+  for (let i = 0; i < 4; i++) {
+    X.fillStyle = CROPS[i].colors[3];
+    X.fillText(CROPS[i].name[0] + ': ' + CROPS[i].sell + 'g', mx + 4, my + 80 + i * 14);
+  }
+}
+
+// ── Main loop ──
+function draw() {
+  // Background
+  X.fillStyle = '#1a2a0e';
+  X.fillRect(0, 0, 800, 600);
+
+  // Farm background
+  X.fillStyle = SEASON_COLORS[season];
+  X.fillRect(FARM_X - 4, FARM_Y - 4, COLS * TILE + 8, ROWS * TILE + 8);
+
+  // Tiles
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      drawTile(c, r);
+    }
+  }
+
+  // Highlight current tile
+  const hx = FARM_X + player.x * TILE, hy = FARM_Y + player.y * TILE;
+  X.strokeStyle = '#FFD700';
+  X.lineWidth = 2;
+  X.strokeRect(hx + 1, hy + 1, TILE - 2, TILE - 2);
+  X.lineWidth = 1;
+
+  drawPlayer();
+  drawMarket();
+  drawHUD();
+}
+
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: twin-stick ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("twin-stick");
+</script>
+</body>
+</html>

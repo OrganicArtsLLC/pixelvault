@@ -1,0 +1,781 @@
+<!--
+PROTOTYPE: turnbased-rpg
+SERIES: sim
+NUMBER: 023
+DATE: 2026-03-24
+MECHANIC: hex-grid SRPG — move units on hex tiles, attack adjacent enemies, turn-based tactical combat with terrain bonuses; Korea's first original RPG
+ANCESTRY: Astonishia Story (1994, Sonnori) — Korea's first RPG developer
+CONTROLS: Mouse — select unit, click hex to move/attack | Enter — end turn | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Expert Systems — rule-based tactical AI with terrain evaluation and threat assessment)
+AI-INSIGHT: Hex grids create six-directional adjacency versus four for square grids, expanding tactical possibility space. The AI evaluates terrain bonuses and threat zones using heuristic rules — an expert system approach that mirrors how human players learn tactical principles through experience.
+NOTES: Korea's first SRPG, Sonnori's founding game. Hex grid for richer positioning.
+       Educational reconstruction of the tactical hex-grid combat system.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SIM-023 · TURNBASED RPG</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: crosshair; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SIM-023 · TURNBASED RPG</h1>
+    <p><span class="tag series">SIM — Simulation</span> <span class="tag">Prototype #023</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Command your party of three heroes across hex-grid battlefields in turn-based tactical combat. Move units, exploit terrain, and defeat all enemies to advance through four battle scenarios.</p>
+    <ul>
+      <li><kbd>Click</kbd> a friendly unit (blue) to select it</li>
+      <li><kbd>Click</kbd> a highlighted hex to move the selected unit</li>
+      <li><kbd>Click</kbd> an enemy (red highlight) in range to attack</li>
+      <li><kbd>Enter</kbd> — End your turn</li>
+      <li><kbd>R</kbd> — Restart current scenario</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Units</h3>
+    <ul>
+      <li><strong>Knight (&#9876;)</strong> — Melee, 3 move, high HP. Your frontline tank.</li>
+      <li><strong>Mage (&#9733;)</strong> — Ranged 2 hex, 2 move, AoE splash to adjacent hexes. Glass cannon.</li>
+      <li><strong>Archer (&#8593;)</strong> — Ranged 3 hex, 3 move, steady damage. Flexible positioning.</li>
+    </ul>
+    <h3>Terrain</h3>
+    <ul>
+      <li><strong>Plains</strong> (green) — Normal movement, no bonus.</li>
+      <li><strong>Forest</strong> (dark green) — +2 defense bonus. Good for holding positions.</li>
+      <li><strong>Hills</strong> (brown) — +1 attack range for ranged units.</li>
+      <li><strong>Water</strong> (blue) — Impassable. Plan routes around it.</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li>Position your Knight in forests to absorb damage with the defense bonus.</li>
+      <li>Place ranged units on hills for extended reach.</li>
+      <li>Hex grids mean six neighbors — watch for flanking from unexpected angles.</li>
+      <li>Focus fire on one enemy at a time to reduce incoming damage quickly.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Astonishia Story (1994, Sonnori) — Korea&rsquo;s first original RPG</p>
+    <p>Astonishia Story (어스토니시아 스토리) was released in 1994 by Sonnori, making it Korea&rsquo;s first domestically developed RPG. At a time when Korean gamers played almost exclusively Japanese RPGs, Sonnori&rsquo;s Lee Kwang-jin and his small team created a hex-grid SRPG that proved Korean developers could build world-class role-playing games.</p>
+    <p>The game featured hex-based tactical combat, a rarity even among Japanese SRPGs of the era, which gave it a distinctive tactical feel. Its success launched Sonnori as Korea&rsquo;s first real RPG studio and helped establish a Korean RPG tradition that eventually led to games like The War of Genesis and Magna Carta.</p>
+    <p>The hex grid was a deliberate design choice — six-directional movement creates more nuanced positioning than the four-directional square grids used by Fire Emblem and Shining Force, the dominant SRPGs of that period.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 3 — Expert Systems (1980-1990)</p>
+    <p>The tactical AI in Astonishia Story used rule-based expert system approaches: evaluate terrain bonuses, assess threat levels, prioritize weakened targets, and maintain formation coherence. These heuristic rules encode tactical knowledge that human players develop through experience.</p>
+    <p>Hex grids expand the AI&rsquo;s decision space significantly — each unit has six possible movement directions instead of four, and the staggered rows create asymmetric distance relationships that make pathfinding and threat evaluation more complex. This computational challenge is what makes hex-grid tactics games feel deeper and less predictable.</p>
+
+    <h2>Classification</h2>
+    <p><strong>Genre:</strong> Strategy RPG / Hex-Grid Tactics</p>
+    <p><strong>Core Mechanic:</strong> Hex-grid movement with terrain bonuses and ranged/melee unit types</p>
+    <p><strong>Input:</strong> Mouse (point and click)</p>
+    <p><strong>Complexity:</strong> Medium — simple unit types but hex geometry creates deep tactical options</p>
+
+    <h2>Prototype Notes</h2>
+    <p>This prototype recreates the core hex-grid tactical combat of Astonishia Story across four escalating battle scenarios. The hex grid is the star — it creates six-directional adjacency that makes flanking, positioning, and terrain exploitation fundamentally richer than square-grid tactics. Three unit types (Knight/Mage/Archer) interact with four terrain types to create meaningful tactical decisions despite the small roster. The Korean SRPG tradition started here — Sonnori proved that Korean developers could create compelling RPGs, opening a door that an entire industry walked through.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to Sonnori or any rights holders of Astonishia Story. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+const C = document.getElementById('c');
+const X = C.getContext('2d');
+C.width = 800; C.height = 600;
+
+// ── Info Panel ──
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// ── Hex Grid Constants ──
+const COLS = 12, ROWS = 8;
+const HEX_W = 58;
+const HEX_H = 50;
+const HEX_R = HEX_W / 2;
+const GRID_X = 30, GRID_Y = 60;
+
+// Terrain types
+const T_PLAIN = 0, T_FOREST = 1, T_HILL = 2, T_WATER = 3;
+const TERRAIN_DEF = [0, 2, 0, 0];
+const TERRAIN_RANGE = [0, 0, 1, 0];
+const TERRAIN_COLORS = ['#3a6b35', '#1a4a1a', '#8b7355', '#2a5a8b'];
+const TERRAIN_NAMES = ['Plains', 'Forest', 'Hills', 'Water'];
+const TERRAIN_PASSABLE = [true, true, true, false];
+
+// Unit types
+const U_KNIGHT = 0, U_MAGE = 1, U_ARCHER = 2;
+const UNIT_DEFS = [
+  { name: 'Knight', sym: '\u2694', move: 3, atk: 5, hp: 12, range: 1, color: '#fff' },
+  { name: 'Mage',   sym: '\u2733', move: 2, atk: 7, hp: 6,  range: 2, color: '#c8f' },
+  { name: 'Archer', sym: '\u2191', move: 3, atk: 3, hp: 8,  range: 3, color: '#ff8' }
+];
+
+// ── Hex Math ──
+function hexToPixel(col, row) {
+  const x = GRID_X + col * HEX_W * 0.75 + HEX_R;
+  const y = GRID_Y + row * HEX_H + (col % 2 === 1 ? HEX_H / 2 : 0) + HEX_H / 2;
+  return { x, y };
+}
+
+function pixelToHex(px, py) {
+  let best = -1, bestD = 1e9;
+  for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < ROWS; r++) {
+      const p = hexToPixel(c, r);
+      const d = (px - p.x) ** 2 + (py - p.y) ** 2;
+      if (d < bestD) { bestD = d; best = r * COLS + c; }
+    }
+  }
+  return bestD < (HEX_R * HEX_R * 1.2) ? { col: best % COLS, row: Math.floor(best / COLS) } : null;
+}
+
+function hexNeighbors(col, row) {
+  const even = col % 2 === 0;
+  const dirs = even
+    ? [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[0,1]]
+    : [[-1,0],[0,-1],[1,0],[-1,1],[1,1],[0,1]];
+  const result = [];
+  for (const [dc, dr] of dirs) {
+    const nc = col + dc, nr = row + dr;
+    if (nc >= 0 && nc < COLS && nr >= 0 && nr < ROWS) result.push({ col: nc, row: nr });
+  }
+  return result;
+}
+
+function hexDist(c1, r1, c2, r2) {
+  // Convert offset to cube coordinates
+  function toCube(col, row) {
+    const x = col;
+    const z = row - (col - (col & 1)) / 2;
+    const y = -x - z;
+    return { x, y, z };
+  }
+  const a = toCube(c1, r1), b = toCube(c2, r2);
+  return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y), Math.abs(a.z - b.z));
+}
+
+// ── BFS for movement ──
+function getReachable(unit, terrain, units) {
+  const start = { col: unit.col, row: unit.row };
+  const visited = new Map();
+  const key = (c, r) => r * COLS + c;
+  visited.set(key(start.col, start.row), 0);
+  const queue = [{ col: start.col, row: start.row, cost: 0 }];
+  while (queue.length > 0) {
+    const cur = queue.shift();
+    const neighbors = hexNeighbors(cur.col, cur.row);
+    for (const n of neighbors) {
+      if (!TERRAIN_PASSABLE[terrain[n.row][n.col]]) continue;
+      const occupied = units.find(u => u.hp > 0 && u.col === n.col && u.row === n.row);
+      if (occupied) continue;
+      const moveCost = terrain[n.row][n.col] === T_FOREST ? 2 : 1;
+      const newCost = cur.cost + moveCost;
+      const k = key(n.col, n.row);
+      if (newCost <= unit.move && (!visited.has(k) || visited.get(k) > newCost)) {
+        visited.set(k, newCost);
+        queue.push({ col: n.col, row: n.row, cost: newCost });
+      }
+    }
+  }
+  visited.delete(key(start.col, start.row));
+  return visited;
+}
+
+function getAttackTargets(unit, enemies, terrain) {
+  const range = unit.range + (terrain[unit.row][unit.col] === T_HILL ? TERRAIN_RANGE[T_HILL] : 0);
+  const targets = [];
+  for (const e of enemies) {
+    if (e.hp <= 0) continue;
+    const d = hexDist(unit.col, unit.row, e.col, e.row);
+    if (d >= 1 && d <= range) targets.push(e);
+  }
+  return targets;
+}
+
+// ── Scenarios ──
+function makeScenario(idx) {
+  const terrain = [];
+  for (let r = 0; r < ROWS; r++) {
+    terrain[r] = [];
+    for (let c = 0; c < COLS; c++) terrain[r][c] = T_PLAIN;
+  }
+
+  let playerUnits = [], enemyUnits = [];
+  const storyTexts = [
+    "The Holy Knights depart on their sacred mission. Sir Lloyd leads his companions into the borderlands where bandits threaten the trade routes.",
+    "Deep in the Thornwood, the party discovers an enemy encampment. The forest provides cover, but the enemy knows this terrain well.",
+    "The mountain pass is held by a fortified garrison. Hills give the defenders a deadly advantage — approach with caution.",
+    "The final confrontation at the river crossing. Enemy forces hold the bridge and the high ground. Victory here ends the campaign."
+  ];
+
+  if (idx === 0) {
+    // Scenario 1: Open plains with some forests
+    terrain[2][3] = T_FOREST; terrain[3][4] = T_FOREST;
+    terrain[4][7] = T_FOREST; terrain[5][8] = T_FOREST;
+    terrain[1][6] = T_HILL;
+    playerUnits = [
+      { type: U_KNIGHT, col: 1, row: 3, team: 0 },
+      { type: U_MAGE,   col: 0, row: 4, team: 0 },
+      { type: U_ARCHER, col: 1, row: 5, team: 0 }
+    ];
+    enemyUnits = [
+      { type: U_KNIGHT, col: 9, row: 2, team: 1 },
+      { type: U_ARCHER, col: 10, row: 4, team: 1 },
+      { type: U_KNIGHT, col: 9, row: 5, team: 1 }
+    ];
+  } else if (idx === 1) {
+    // Scenario 2: Forest-heavy
+    for (let r = 1; r < 7; r++) for (let c = 3; c < 9; c++) {
+      if (Math.random() < 0.4) terrain[r][c] = T_FOREST;
+    }
+    terrain[0][5] = T_HILL; terrain[7][6] = T_HILL;
+    playerUnits = [
+      { type: U_KNIGHT, col: 0, row: 2, team: 0 },
+      { type: U_MAGE,   col: 1, row: 3, team: 0 },
+      { type: U_ARCHER, col: 0, row: 5, team: 0 }
+    ];
+    enemyUnits = [
+      { type: U_KNIGHT, col: 10, row: 1, team: 1 },
+      { type: U_MAGE,   col: 11, row: 3, team: 1 },
+      { type: U_ARCHER, col: 10, row: 5, team: 1 },
+      { type: U_KNIGHT, col: 9,  row: 6, team: 1 }
+    ];
+  } else if (idx === 2) {
+    // Scenario 3: Hills and water
+    terrain[3][5] = T_WATER; terrain[3][6] = T_WATER; terrain[4][5] = T_WATER;
+    terrain[4][6] = T_WATER; terrain[2][6] = T_WATER;
+    terrain[1][3] = T_HILL; terrain[2][8] = T_HILL; terrain[5][9] = T_HILL;
+    terrain[6][3] = T_HILL; terrain[1][9] = T_HILL;
+    terrain[5][2] = T_FOREST; terrain[6][7] = T_FOREST;
+    playerUnits = [
+      { type: U_KNIGHT, col: 1, row: 2, team: 0 },
+      { type: U_MAGE,   col: 0, row: 4, team: 0 },
+      { type: U_ARCHER, col: 2, row: 6, team: 0 }
+    ];
+    enemyUnits = [
+      { type: U_KNIGHT, col: 10, row: 1, team: 1 },
+      { type: U_MAGE,   col: 11, row: 3, team: 1 },
+      { type: U_ARCHER, col: 10, row: 5, team: 1 },
+      { type: U_KNIGHT, col: 9,  row: 7, team: 1 }
+    ];
+  } else {
+    // Scenario 4: River crossing
+    for (let r = 0; r < ROWS; r++) terrain[r][5] = T_WATER;
+    terrain[3][5] = T_PLAIN; terrain[4][5] = T_PLAIN; // bridge
+    terrain[2][3] = T_FOREST; terrain[5][3] = T_FOREST;
+    terrain[1][7] = T_HILL; terrain[2][8] = T_HILL; terrain[5][8] = T_HILL;
+    terrain[6][7] = T_HILL;
+    terrain[3][9] = T_FOREST; terrain[4][10] = T_FOREST;
+    playerUnits = [
+      { type: U_KNIGHT, col: 1, row: 3, team: 0 },
+      { type: U_MAGE,   col: 2, row: 2, team: 0 },
+      { type: U_ARCHER, col: 2, row: 5, team: 0 }
+    ];
+    enemyUnits = [
+      { type: U_KNIGHT, col: 7, row: 3, team: 1 },
+      { type: U_ARCHER, col: 8, row: 1, team: 1 },
+      { type: U_MAGE,   col: 9, row: 5, team: 1 },
+      { type: U_KNIGHT, col: 10, row: 4, team: 1 },
+      { type: U_ARCHER, col: 11, row: 6, team: 1 }
+    ];
+  }
+
+  // Initialize unit stats
+  const allUnits = [...playerUnits, ...enemyUnits].map(u => {
+    const def = UNIT_DEFS[u.type];
+    return { ...u, name: def.name, sym: def.sym, hp: def.hp, maxHp: def.hp,
+             atk: def.atk, move: def.move, range: def.range, acted: false };
+  });
+
+  return { terrain, units: allUnits, story: storyTexts[idx] };
+}
+
+// ── Game State ──
+let scenario = 0;
+let state = {}; // terrain, units
+let phase = 'player'; // player, enemy, victory, defeat, story
+let selected = null; // index into state.units
+let reachable = null; // Map of reachable hexes
+let attackTargets = []; // enemy indices
+let hoverHex = null;
+let storyTimer = 0;
+let animMsg = '';
+let animTimer = 0;
+let turnCount = 0;
+
+function initScenario() {
+  const s = makeScenario(scenario);
+  state = s;
+  phase = 'player';
+  selected = null;
+  reachable = null;
+  attackTargets = [];
+  hoverHex = null;
+  turnCount = 1;
+  animMsg = 'Battle ' + (scenario + 1) + ' — ' + ['Border Patrol', 'Thornwood', 'Mountain Pass', 'River Crossing'][scenario];
+  animTimer = 120;
+  // Reset acted
+  for (const u of state.units) u.acted = false;
+}
+
+initScenario();
+
+// ── Drawing ──
+function drawHex(cx, cy, r, fill, stroke) {
+  X.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const angle = Math.PI / 180 * (60 * i - 30);
+    const hx = cx + r * Math.cos(angle);
+    const hy = cy + r * Math.sin(angle);
+    if (i === 0) X.moveTo(hx, hy); else X.lineTo(hx, hy);
+  }
+  X.closePath();
+  if (fill) { X.fillStyle = fill; X.fill(); }
+  if (stroke) { X.strokeStyle = stroke; X.lineWidth = 1; X.stroke(); }
+}
+
+function hudText(text, x, y, size, color, align) {
+  X.font = size + 'px monospace';
+  X.textAlign = align || 'left';
+  X.textBaseline = 'middle';
+  X.fillStyle = '#000';
+  X.fillText(text, x + 1, y + 1);
+  X.fillStyle = color || '#fff';
+  X.fillText(text, x, y);
+}
+
+function draw() {
+  X.fillStyle = '#1a1a2e';
+  X.fillRect(0, 0, 800, 600);
+
+  // Title bar
+  hudText('SIM-023 · TURNBASED RPG', 10, 16, 14, '#7bf', 'left');
+  hudText('Battle ' + (scenario + 1) + '/4   Turn ' + turnCount, 400, 16, 12, '#aaa', 'center');
+  hudText('[?] Info', 750, 16, 11, '#666', 'center');
+
+  // Draw terrain
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const p = hexToPixel(c, r);
+      const t = state.terrain[r][c];
+      drawHex(p.x, p.y, HEX_R - 2, TERRAIN_COLORS[t], '#222');
+
+      // Water waves
+      if (t === T_WATER) {
+        X.fillStyle = '#3a7abf';
+        X.font = '10px monospace';
+        X.textAlign = 'center';
+        X.fillText('~', p.x, p.y + 2);
+      }
+    }
+  }
+
+  // Draw reachable hexes
+  if (reachable && selected !== null) {
+    for (const [k] of reachable) {
+      const rc = k % COLS, rr = Math.floor(k / COLS);
+      const p = hexToPixel(rc, rr);
+      drawHex(p.x, p.y, HEX_R - 4, 'rgba(100,200,255,0.25)', '#4af');
+    }
+  }
+
+  // Draw attack target hexes
+  for (const ti of attackTargets) {
+    const e = state.units[ti];
+    if (e.hp <= 0) continue;
+    const p = hexToPixel(e.col, e.row);
+    drawHex(p.x, p.y, HEX_R - 4, 'rgba(255,80,80,0.3)', '#f44');
+  }
+
+  // Draw units
+  for (let i = 0; i < state.units.length; i++) {
+    const u = state.units[i];
+    if (u.hp <= 0) continue;
+    const p = hexToPixel(u.col, u.row);
+    const teamColor = u.team === 0 ? '#4af' : '#f44';
+    const bgColor = u.team === 0 ? '#1a3a6a' : '#6a1a1a';
+
+    // Unit circle
+    X.beginPath();
+    X.arc(p.x, p.y, 14, 0, Math.PI * 2);
+    X.fillStyle = bgColor;
+    X.fill();
+    X.strokeStyle = i === selected ? '#ff0' : teamColor;
+    X.lineWidth = i === selected ? 3 : 2;
+    X.stroke();
+
+    // Unit symbol
+    X.font = '16px monospace';
+    X.textAlign = 'center';
+    X.textBaseline = 'middle';
+    X.fillStyle = u.acted ? '#888' : UNIT_DEFS[u.type].color;
+    X.fillText(u.sym, p.x, p.y);
+
+    // HP bar
+    const bw = 22, bh = 3;
+    X.fillStyle = '#300';
+    X.fillRect(p.x - bw / 2, p.y + 16, bw, bh);
+    X.fillStyle = u.hp > u.maxHp * 0.3 ? '#0c0' : '#f00';
+    X.fillRect(p.x - bw / 2, p.y + 16, bw * (u.hp / u.maxHp), bh);
+  }
+
+  // Hover info
+  if (hoverHex && phase === 'player') {
+    const t = state.terrain[hoverHex.row][hoverHex.col];
+    const unit = state.units.find(u => u.hp > 0 && u.col === hoverHex.col && u.row === hoverHex.row);
+    let info = TERRAIN_NAMES[t];
+    if (t === T_FOREST) info += ' (+2 DEF)';
+    if (t === T_HILL) info += ' (+1 Range)';
+    if (unit) info += ' | ' + unit.name + ' HP:' + unit.hp + '/' + unit.maxHp + ' ATK:' + unit.atk;
+    hudText(info, 400, 580, 11, '#ccc', 'center');
+  }
+
+  // Phase indicator
+  const phaseText = phase === 'player' ? 'YOUR TURN — Select unit or [Enter] end turn'
+    : phase === 'enemy' ? 'ENEMY TURN...'
+    : phase === 'victory' ? 'VICTORY! Click to continue...'
+    : phase === 'defeat' ? 'DEFEAT — Press R to retry'
+    : '';
+  if (phaseText) hudText(phaseText, 400, 44, 12, phase === 'victory' ? '#ff0' : phase === 'defeat' ? '#f44' : '#8f8', 'center');
+
+  // Selected unit info
+  if (selected !== null && phase === 'player') {
+    const u = state.units[selected];
+    hudText(u.name + ' | HP:' + u.hp + '/' + u.maxHp + ' ATK:' + u.atk + ' MOV:' + u.move + ' RNG:' + u.range, 400, 560, 11, '#ff8', 'center');
+  }
+
+  // Anim message
+  if (animTimer > 0) {
+    X.fillStyle = 'rgba(0,0,0,0.7)';
+    X.fillRect(200, 260, 400, 50);
+    X.strokeStyle = '#f80';
+    X.lineWidth = 2;
+    X.strokeRect(200, 260, 400, 50);
+    hudText(animMsg, 400, 285, 14, '#ff0', 'center');
+  }
+
+  // Story phase
+  if (phase === 'story') {
+    X.fillStyle = 'rgba(0,0,0,0.85)';
+    X.fillRect(50, 150, 700, 300);
+    X.strokeStyle = '#f80';
+    X.lineWidth = 2;
+    X.strokeRect(50, 150, 700, 300);
+    hudText('BATTLE ' + scenario + ' COMPLETE', 400, 190, 16, '#ff0', 'center');
+
+    // Word wrap story
+    const words = state.story.split(' ');
+    let line = '', ly = 240;
+    X.font = '13px monospace';
+    for (const w of words) {
+      const test = line + w + ' ';
+      if (X.measureText(test).width > 600) {
+        hudText(line.trim(), 400, ly, 13, '#ddd', 'center');
+        line = w + ' '; ly += 22;
+      } else line = test;
+    }
+    if (line.trim()) hudText(line.trim(), 400, ly, 13, '#ddd', 'center');
+
+    hudText('Click to continue...', 400, 410, 12, '#888', 'center');
+  }
+}
+
+// ── Game Logic ──
+function playerSelect(col, row) {
+  if (phase !== 'player') return;
+
+  // Check if clicking a reachable hex (move)
+  if (selected !== null && reachable) {
+    const k = row * COLS + col;
+    if (reachable.has(k)) {
+      const u = state.units[selected];
+      u.col = col; u.row = row;
+      // After moving, check attack targets
+      const enemies = state.units.filter((e, i) => e.team === 1 && e.hp > 0);
+      attackTargets = [];
+      for (let i = 0; i < state.units.length; i++) {
+        if (state.units[i].team === 1 && state.units[i].hp > 0) {
+          const targets = getAttackTargets(u, [state.units[i]], state.terrain);
+          if (targets.length > 0) attackTargets.push(i);
+        }
+      }
+      reachable = null;
+      if (attackTargets.length === 0) {
+        u.acted = true;
+        selected = null;
+      }
+      return;
+    }
+  }
+
+  // Check if clicking an attack target
+  if (selected !== null && attackTargets.length > 0) {
+    const targetIdx = attackTargets.find(i => {
+      const e = state.units[i];
+      return e.col === col && e.row === row;
+    });
+    if (targetIdx !== undefined) {
+      doAttack(state.units[selected], state.units[targetIdx]);
+      state.units[selected].acted = true;
+      selected = null;
+      reachable = null;
+      attackTargets = [];
+      checkWinLose();
+      return;
+    }
+  }
+
+  // Select a player unit
+  const idx = state.units.findIndex(u => u.team === 0 && u.hp > 0 && !u.acted && u.col === col && u.row === row);
+  if (idx >= 0) {
+    selected = idx;
+    reachable = getReachable(state.units[idx], state.terrain, state.units);
+    // Also show attack targets from current position
+    attackTargets = [];
+    for (let i = 0; i < state.units.length; i++) {
+      if (state.units[i].team === 1 && state.units[i].hp > 0) {
+        const targets = getAttackTargets(state.units[idx], [state.units[i]], state.terrain);
+        if (targets.length > 0) attackTargets.push(i);
+      }
+    }
+  } else {
+    selected = null;
+    reachable = null;
+    attackTargets = [];
+  }
+}
+
+function doAttack(attacker, defender) {
+  const terrainDef = TERRAIN_DEF[state.terrain[defender.row][defender.col]];
+  let dmg = Math.max(1, attacker.atk - terrainDef + Math.floor(Math.random() * 3) - 1);
+  defender.hp -= dmg;
+  animMsg = attacker.name + ' hits ' + defender.name + ' for ' + dmg + ' damage!';
+  animTimer = 60;
+
+  // Mage AoE: splash 1 damage to enemies adjacent to target
+  if (attacker.type === U_MAGE) {
+    const adj = hexNeighbors(defender.col, defender.row);
+    for (const n of adj) {
+      const splash = state.units.find(u => u.hp > 0 && u.team !== attacker.team && u.col === n.col && u.row === n.row);
+      if (splash) {
+        splash.hp -= 1;
+        if (splash.hp <= 0) splash.hp = 0;
+      }
+    }
+  }
+
+  if (defender.hp <= 0) {
+    defender.hp = 0;
+    animMsg += ' DEFEATED!';
+  }
+
+  // Counter-attack for melee
+  if (defender.hp > 0 && hexDist(attacker.col, attacker.row, defender.col, defender.row) <= defender.range) {
+    const ctrDmg = Math.max(1, Math.floor(defender.atk * 0.6) - TERRAIN_DEF[state.terrain[attacker.row][attacker.col]]);
+    attacker.hp -= ctrDmg;
+    if (attacker.hp <= 0) attacker.hp = 0;
+  }
+}
+
+function checkWinLose() {
+  const enemyAlive = state.units.filter(u => u.team === 1 && u.hp > 0).length;
+  const playerAlive = state.units.filter(u => u.team === 0 && u.hp > 0).length;
+  if (enemyAlive === 0) {
+    if (scenario < 3) {
+      phase = 'story';
+    } else {
+      phase = 'victory';
+      animMsg = 'Campaign Complete! The Korean SRPG tradition begins.';
+      animTimer = 300;
+    }
+  } else if (playerAlive === 0) {
+    phase = 'defeat';
+  }
+}
+
+function endPlayerTurn() {
+  if (phase !== 'player') return;
+  selected = null; reachable = null; attackTargets = [];
+  // Reset acted flags
+  for (const u of state.units) if (u.team === 0) u.acted = false;
+  phase = 'enemy';
+  setTimeout(doEnemyTurn, 400);
+}
+
+// ── Enemy AI ──
+function doEnemyTurn() {
+  const enemies = state.units.filter(u => u.team === 1 && u.hp > 0);
+  const players = state.units.filter(u => u.team === 0 && u.hp > 0);
+  if (enemies.length === 0 || players.length === 0) {
+    phase = 'player'; turnCount++;
+    return;
+  }
+
+  let actionIdx = 0;
+  function nextAction() {
+    if (actionIdx >= enemies.length) {
+      phase = 'player';
+      turnCount++;
+      for (const u of state.units) if (u.team === 1) u.acted = false;
+      return;
+    }
+    const e = enemies[actionIdx];
+    actionIdx++;
+    if (e.hp <= 0) { nextAction(); return; }
+
+    // Find closest player unit
+    let bestTarget = null, bestDist = 999;
+    for (const p of players) {
+      if (p.hp <= 0) continue;
+      const d = hexDist(e.col, e.row, p.col, p.row);
+      // Prefer low HP targets
+      const score = d - (1 - p.hp / p.maxHp) * 2;
+      if (score < bestDist) { bestDist = score; bestTarget = p; }
+    }
+
+    if (!bestTarget) { nextAction(); return; }
+
+    // Try to attack from current position
+    const targets = getAttackTargets(e, players, state.terrain);
+    if (targets.length > 0) {
+      // Attack weakest in range
+      targets.sort((a, b) => a.hp - b.hp);
+      doAttack(e, targets[0]);
+      e.acted = true;
+      checkWinLose();
+      if (phase !== 'enemy') return;
+      setTimeout(nextAction, 300);
+      return;
+    }
+
+    // Move toward target
+    const reach = getReachable(e, state.terrain, state.units);
+    let bestHex = null, bestScore = 999;
+    for (const [k] of reach) {
+      const hc = k % COLS, hr = Math.floor(k / COLS);
+      const d = hexDist(hc, hr, bestTarget.col, bestTarget.row);
+      // Prefer forest for defense
+      const tBonus = state.terrain[hr][hc] === T_FOREST ? -0.5 : 0;
+      const score = d + tBonus;
+      if (score < bestScore) { bestScore = score; bestHex = { col: hc, row: hr }; }
+    }
+
+    if (bestHex) {
+      e.col = bestHex.col; e.row = bestHex.row;
+      // Try attack after moving
+      const newTargets = getAttackTargets(e, players, state.terrain);
+      if (newTargets.length > 0) {
+        newTargets.sort((a, b) => a.hp - b.hp);
+        doAttack(e, newTargets[0]);
+        checkWinLose();
+        if (phase !== 'enemy') return;
+      }
+    }
+    e.acted = true;
+    setTimeout(nextAction, 300);
+  }
+  nextAction();
+}
+
+// ── Input ──
+C.addEventListener('click', function(ev) {
+  const rect = C.getBoundingClientRect();
+  const scaleX = 800 / rect.width, scaleY = 600 / rect.height;
+  const mx = (ev.clientX - rect.left) * scaleX;
+  const my = (ev.clientY - rect.top) * scaleY;
+
+  if (phase === 'story') {
+    scenario++;
+    initScenario();
+    return;
+  }
+  if (phase === 'victory') {
+    scenario = 0;
+    initScenario();
+    return;
+  }
+
+  const hex = pixelToHex(mx, my);
+  if (hex) playerSelect(hex.col, hex.row);
+});
+
+C.addEventListener('mousemove', function(ev) {
+  const rect = C.getBoundingClientRect();
+  const scaleX = 800 / rect.width, scaleY = 600 / rect.height;
+  const mx = (ev.clientX - rect.left) * scaleX;
+  const my = (ev.clientY - rect.top) * scaleY;
+  hoverHex = pixelToHex(mx, my);
+});
+
+document.addEventListener('keydown', function(ev) {
+  if (ev.key === '?' || ev.key === '/') { toggleInfo(); return; }
+  if (ev.key === 'Escape' && infoOpen) { toggleInfo(); return; }
+  if (infoOpen) return;
+  if (ev.key === 'Enter') endPlayerTurn();
+  if (ev.key === 'r' || ev.key === 'R') initScenario();
+});
+
+// ── Resize ──
+function resize() {
+  const s = Math.min(window.innerWidth / 800, window.innerHeight / 600);
+  C.style.width = (800 * s) + 'px';
+  C.style.height = (600 * s) + 'px';
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ── Game Loop ──
+function update() {
+  if (infoOpen) return;
+  if (animTimer > 0) animTimer--;
+
+  // Auto-end turn if all player units acted
+  if (phase === 'player') {
+    const canAct = state.units.filter(u => u.team === 0 && u.hp > 0 && !u.acted);
+    if (canAct.length === 0 && animTimer <= 0) endPlayerTurn();
+  }
+}
+
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Pre-commit hook — OA LLC standard secret scanning
+# Install: git config core.hooksPath .githooks && chmod +x .githooks/pre-commit
+set -euo pipefail
+
+STAGED=$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null || true)
+
+# Block credential file types
+if echo "$STAGED" | grep -qiE '(^|/)\.env(\.[a-zA-Z0-9]+)?$|\.pem$|\.key$|id_rsa$|id_ed25519$|credentials\.json$'; then
+  echo "ERROR: Attempted to commit a credential or secret file."
+  echo "Remove from staging: git reset HEAD <file>"
+  exit 1
+fi
+
+# Scan staged diff for credential patterns
+DIFF_OUTPUT=$(git diff --cached -U0 2>/dev/null || true)
+if [ -n "$DIFF_OUTPUT" ]; then
+  if echo "$DIFF_OUTPUT" | grep -v '^---\|^+++\|^@@\|^-' | grep -qiE \
+    'api[_-]?key[[:space:]]*[:=][[:space:]]*[a-zA-Z0-9_\-]{20,}|sk-[a-zA-Z0-9]{32,}|ghp_[a-zA-Z0-9]{36}|AKIA[0-9A-Z]{16}|password[[:space:]]*[:=][[:space:]]*[a-zA-Z0-9@#$%^&*!]{8,}'; then
+    echo "ERROR: Possible credential pattern detected in staged changes."
+    echo "Review diff: git diff --cached"
+    echo "If false positive: git commit --no-verify (document justification)"
+    exit 1
+  fi
+fi
+
+echo "✓ Pre-commit checks passed."
+exit 0

@@ -1,0 +1,595 @@
+<!--
+PROTOTYPE: typeracer
+SERIES: sim
+NUMBER: 013
+DATE: 2026-03-24
+MECHANIC: motor speed measurement — type displayed text as fast and accurately as possible; WPM and accuracy scoring
+ANCESTRY: Mavis Beacon Teaches Typing (1987), TypeRacer (2008), ZType (2011), Monkeytype (2020)
+CONTROLS: Type displayed text | Enter — start/next passage | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 1-7 (Search & Symbols → Generative-Agentic — human-computer interaction, motor learning, input bandwidth)
+AI-INSIGHT: Touch typing is the most practiced motor skill in computing. WPM measures the bandwidth of human text output — typically 40-80 WPM for proficient typists, 150+ for champions. This bandwidth constraint fundamentally shapes how humans interact with AI systems. The game measures the bottleneck in human-computer communication.
+NOTES: Mavis Beacon (1987) made typing practice into a game. TypeRacer (2008) added competitive multiplayer. Monkeytype (2020) became the modern standard. The typing test is simultaneously a game, a skill assessment, and a measurement of human-computer interface throughput.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SIM-013 · TYPE RACE</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: default; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SIM-013 · TYPE RACE</h1>
+    <p><span class="tag series">SIM — Simulation</span> <span class="tag">Prototype #013</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Type the displayed passage as fast and accurately as you can. Your speed (WPM) and accuracy are measured in real time.</p>
+    <ul>
+      <li>Start typing to begin the timer</li>
+      <li>Correct characters turn <strong style="color:#4f4">green</strong></li>
+      <li>Wrong characters flash <strong style="color:#f44">red</strong> — press <kbd>Backspace</kbd> to fix</li>
+      <li><kbd>Enter</kbd> — start next passage after finishing</li>
+      <li><kbd>R</kbd> — restart current passage</li>
+      <li><kbd>?</kbd> — toggle this info panel</li>
+    </ul>
+
+    <h2>Scoring</h2>
+    <ul>
+      <li><strong>WPM</strong> — Words per minute (1 word = 5 characters)</li>
+      <li><strong>Accuracy</strong> — Correct keystrokes out of total keystrokes</li>
+      <li>Ratings: Beginner (&lt;30), Intermediate (30-59), Fast (60-89), Expert (90-119), Champion (120+)</li>
+    </ul>
+
+    <h2>History</h2>
+    <p>Typing games trace back to Mavis Beacon Teaches Typing (1987), which gamified touch-typing education. TypeRacer (2008) turned it into a competitive multiplayer race. ZType (2011) merged typing with shoot-em-ups. Monkeytype (2020) became the modern minimalist standard for speed testing. The typing test remains the most universal measure of human text-input bandwidth.</p>
+
+    <h2>AI Archaeology</h2>
+    <p>Touch typing is the most practiced motor skill in computing. The average proficient typist manages 40-80 WPM — roughly 4-8 characters per second. Champions exceed 150 WPM. This bandwidth constraint is the fundamental bottleneck in human-computer communication. As AI systems generate text orders of magnitude faster than humans can type, the asymmetry between input and output bandwidth reshapes interaction design.</p>
+
+    <h2>Classification</h2>
+    <p><span class="tag">Motor Speed</span> <span class="tag">Accuracy</span> <span class="tag">Input Bandwidth</span> <span class="tag">Skill Measurement</span></p>
+
+    <h2>Prototype Notes</h2>
+    <p>Single-file Canvas typing test. Passages drawn from public domain literature, pangrams, and original text. Real-time WPM and accuracy tracking. No external dependencies.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This is a non-commercial educational prototype exploring the history and mechanics of typing speed games. Created for research and preservation purposes. All passage texts are public domain or original.</p>
+  </div>
+</div>
+
+<script>
+// --- Info Panel ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// --- Canvas Setup ---
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = 800, H = 600;
+canvas.width = W;
+canvas.height = H;
+
+function resize() {
+  const s = Math.min(innerWidth / W, innerHeight / H);
+  canvas.style.width = (W * s) + 'px';
+  canvas.style.height = (H * s) + 'px';
+}
+resize();
+window.addEventListener('resize', resize);
+
+// --- HUD Text Helper ---
+function hudText(text, x, y, size, color, align) {
+  ctx.save();
+  ctx.font = size + 'px "SF Mono","Cascadia Code","Consolas",monospace';
+  ctx.fillStyle = color || '#fff';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+// --- Passages ---
+const passages = [
+  "The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquor jugs.",
+  "It was the best of times, it was the worst of times, it was the age of wisdom, it was the age of foolishness.",
+  "To be or not to be, that is the question. Whether it is nobler in the mind to suffer the slings and arrows of outrageous fortune.",
+  "All happy families are alike; each unhappy family is unhappy in its own way. Everything was in confusion in the house.",
+  "In the beginning the Universe was created. This has made a lot of people very angry and been widely regarded as a bad move.",
+  "A wizard is never late, nor is he early. He arrives precisely when he means to. All we have to decide is what to do with the time that is given us.",
+  "How vexingly quick daft zebras jump. The five boxing wizards jump quickly at dawn.",
+  "Call me Ishmael. Some years ago, having little or no money in my purse, and nothing particular to interest me on shore, I thought I would sail about a little.",
+  "It is a truth universally acknowledged, that a single man in possession of a good fortune, must be in want of a wife.",
+  "The only way to do great work is to love what you do. If you have not found it yet, keep looking. Do not settle.",
+  "Space is big. Really big. You just will not believe how vastly, hugely, mind-bogglingly big it is.",
+  "We hold these truths to be self-evident, that all men are created equal, that they are endowed with certain unalienable rights.",
+  "Somewhere, something incredible is waiting to be known. The cosmos is within us. We are made of star stuff. We are a way for the universe to know itself."
+];
+
+// --- Game State ---
+const STATE_READY = 0, STATE_TYPING = 1, STATE_DONE = 2;
+let state, passageIdx, passage, cursor, typed, startTime, endTime;
+let totalKeystrokes, correctKeystrokes;
+let wpm, accuracy, errorFlash, errorFlashTime;
+let blinkTimer;
+let passagesCompleted;
+let bestWpm;
+
+function initGame() {
+  state = STATE_READY;
+  passageIdx = Math.floor(Math.random() * passages.length);
+  passage = passages[passageIdx];
+  cursor = 0;
+  typed = [];
+  startTime = 0;
+  endTime = 0;
+  totalKeystrokes = 0;
+  correctKeystrokes = 0;
+  wpm = 0;
+  accuracy = 100;
+  errorFlash = -1;
+  errorFlashTime = 0;
+  blinkTimer = 0;
+  if (passagesCompleted === undefined) passagesCompleted = 0;
+  if (bestWpm === undefined) bestWpm = 0;
+}
+initGame();
+
+function nextPassage() {
+  let next;
+  do { next = Math.floor(Math.random() * passages.length); } while (next === passageIdx && passages.length > 1);
+  passageIdx = next;
+  passage = passages[passageIdx];
+  state = STATE_READY;
+  cursor = 0;
+  typed = [];
+  startTime = 0;
+  endTime = 0;
+  totalKeystrokes = 0;
+  correctKeystrokes = 0;
+  wpm = 0;
+  accuracy = 100;
+  errorFlash = -1;
+  errorFlashTime = 0;
+  blinkTimer = 0;
+}
+
+function getRating(w) {
+  if (w >= 120) return { label: 'CHAMPION', color: '#f0f' };
+  if (w >= 90) return { label: 'EXPERT', color: '#ff0' };
+  if (w >= 60) return { label: 'FAST', color: '#4f4' };
+  if (w >= 30) return { label: 'INTERMEDIATE', color: '#7bf' };
+  return { label: 'BEGINNER', color: '#888' };
+}
+
+// --- Word Wrapping ---
+function wrapText(text, maxWidth, fontSize) {
+  ctx.font = fontSize + 'px "SF Mono","Cascadia Code","Consolas",monospace';
+  const lines = [];
+  let line = '';
+  let lineChars = [];
+  let charIndex = 0;
+  const charWidth = ctx.measureText('M').width;
+  const charsPerLine = Math.floor(maxWidth / charWidth);
+
+  for (let i = 0; i < text.length; i++) {
+    line += text[i];
+    if (line.length >= charsPerLine && text[i] === ' ') {
+      lines.push({ text: line, startIdx: charIndex });
+      charIndex += line.length;
+      line = '';
+    }
+  }
+  if (line.length > 0) {
+    lines.push({ text: line, startIdx: charIndex });
+  }
+  return { lines, charWidth };
+}
+
+// --- Input ---
+document.addEventListener('keydown', function(e) {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
+    e.preventDefault();
+    toggleInfo();
+    return;
+  }
+  if (e.key === 'Escape' && infoOpen) {
+    toggleInfo();
+    return;
+  }
+  if (infoOpen) return;
+
+  if (e.key === 'r' || e.key === 'R') {
+    if (!e.ctrlKey && !e.metaKey) {
+      e.preventDefault();
+      initGame();
+      return;
+    }
+  }
+
+  if (state === STATE_DONE) {
+    if (e.key === 'Enter') {
+      nextPassage();
+    }
+    return;
+  }
+
+  // Typing input
+  if (e.key === 'Backspace') {
+    e.preventDefault();
+    if (cursor > 0) {
+      cursor--;
+      typed.pop();
+    }
+    return;
+  }
+
+  // Only accept printable characters
+  if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    e.preventDefault();
+
+    if (state === STATE_READY) {
+      state = STATE_TYPING;
+      startTime = performance.now();
+    }
+
+    totalKeystrokes++;
+
+    if (e.key === passage[cursor]) {
+      // Correct
+      correctKeystrokes++;
+      typed.push({ char: e.key, correct: true });
+      cursor++;
+
+      if (cursor >= passage.length) {
+        // Done!
+        state = STATE_DONE;
+        endTime = performance.now();
+        const elapsed = (endTime - startTime) / 60000; // minutes
+        wpm = Math.round((passage.length / 5) / elapsed);
+        accuracy = Math.round((correctKeystrokes / totalKeystrokes) * 100);
+        passagesCompleted++;
+        if (wpm > bestWpm) bestWpm = wpm;
+      }
+    } else {
+      // Wrong
+      typed.push({ char: e.key, correct: false });
+      errorFlash = cursor;
+      errorFlashTime = performance.now();
+      // Don't advance cursor on error
+    }
+  }
+});
+
+// --- Update ---
+function update(dt) {
+  if (infoOpen) return;
+  blinkTimer += dt;
+  if (blinkTimer > 1.0) blinkTimer -= 1.0;
+
+  if (state === STATE_TYPING) {
+    const elapsed = (performance.now() - startTime) / 60000;
+    if (elapsed > 0.01) {
+      const correctChars = typed.filter(t => t.correct).length;
+      wpm = Math.round((correctChars / 5) / elapsed);
+    }
+    if (totalKeystrokes > 0) {
+      accuracy = Math.round((correctKeystrokes / totalKeystrokes) * 100);
+    }
+  }
+
+  // Fade error flash
+  if (errorFlash >= 0 && performance.now() - errorFlashTime > 300) {
+    errorFlash = -1;
+  }
+}
+
+// --- Draw ---
+function draw() {
+  ctx.fillStyle = '#0a0a0f';
+  ctx.fillRect(0, 0, W, H);
+
+  // Title
+  hudText('TYPE RACE', W / 2, 20, 24, '#7bf', 'center');
+  hudText('SIM-013', W / 2, 48, 12, '#555', 'center');
+
+  if (state === STATE_READY) {
+    // Ready screen
+    hudText('Type the passage below as fast as you can', W / 2, 90, 14, '#888', 'center');
+    hudText('Start typing to begin the timer', W / 2, 110, 12, '#555', 'center');
+    drawPassage(140);
+    drawStats(520);
+    hudText('Press ? for info', W / 2, 570, 11, '#444', 'center');
+  } else if (state === STATE_TYPING) {
+    drawPassage(140);
+    drawProgressBar(100);
+    drawStats(520);
+  } else if (state === STATE_DONE) {
+    drawResults();
+  }
+}
+
+function drawPassage(startY) {
+  const fontSize = 20;
+  const padding = 60;
+  const maxWidth = W - padding * 2;
+  const { lines, charWidth } = wrapText(passage, maxWidth, fontSize);
+  const lineHeight = 32;
+
+  let globalIdx = 0;
+
+  for (let l = 0; l < lines.length; l++) {
+    const line = lines[l];
+    const y = startY + l * lineHeight;
+
+    for (let c = 0; c < line.text.length; c++) {
+      const ch = line.text[c];
+      const x = padding + c * charWidth;
+      const idx = line.startIdx + c;
+
+      if (idx < cursor) {
+        // Already typed correctly
+        const t = typed[idx];
+        if (t && t.correct) {
+          ctx.fillStyle = '#4f4';
+        } else {
+          ctx.fillStyle = '#f44';
+        }
+      } else if (idx === cursor) {
+        // Current position
+        if (errorFlash === idx) {
+          ctx.fillStyle = '#f44';
+          // Draw red background
+          ctx.fillRect(x - 1, y - 2, charWidth + 1, lineHeight - 4);
+          ctx.fillStyle = '#fff';
+        } else {
+          // Cursor blink
+          if (blinkTimer < 0.5) {
+            ctx.fillStyle = '#1a1a3a';
+            ctx.fillRect(x - 1, y - 2, charWidth + 1, lineHeight - 4);
+            ctx.fillStyle = '#fff';
+          } else {
+            ctx.fillStyle = '#7bf';
+          }
+          // Draw underline cursor
+          ctx.fillStyle = '#7bf';
+          ctx.fillRect(x, y + fontSize + 2, charWidth, 2);
+          ctx.fillStyle = '#fff';
+        }
+      } else {
+        // Not yet reached
+        ctx.fillStyle = '#556';
+      }
+
+      ctx.font = fontSize + 'px "SF Mono","Cascadia Code","Consolas",monospace';
+      ctx.textBaseline = 'top';
+      ctx.textAlign = 'left';
+      ctx.fillText(ch, x, y);
+    }
+  }
+}
+
+function drawProgressBar(y) {
+  const barX = 60, barW = W - 120, barH = 8;
+  const progress = passage.length > 0 ? cursor / passage.length : 0;
+
+  // Background
+  ctx.fillStyle = '#1a1a2a';
+  ctx.fillRect(barX, y, barW, barH);
+
+  // Fill
+  const grd = ctx.createLinearGradient(barX, 0, barX + barW * progress, 0);
+  grd.addColorStop(0, '#2a6');
+  grd.addColorStop(1, '#4f4');
+  ctx.fillStyle = grd;
+  ctx.fillRect(barX, y, barW * progress, barH);
+
+  // Border
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(barX, y, barW, barH);
+
+  // Percentage
+  hudText(Math.round(progress * 100) + '%', barX + barW + 10, y - 2, 11, '#888', 'left');
+}
+
+function drawStats(y) {
+  // WPM
+  hudText('WPM', 150, y, 12, '#888', 'center');
+  hudText('' + wpm, 150, y + 16, 28, '#7bf', 'center');
+
+  // Accuracy
+  hudText('ACCURACY', 400, y, 12, '#888', 'center');
+  const accColor = accuracy >= 95 ? '#4f4' : accuracy >= 80 ? '#ff0' : '#f44';
+  hudText(accuracy + '%', 400, y + 16, 28, accColor, 'center');
+
+  // Time
+  let timeStr = '0.0s';
+  if (state === STATE_TYPING && startTime > 0) {
+    const elapsed = (performance.now() - startTime) / 1000;
+    timeStr = elapsed.toFixed(1) + 's';
+  } else if (state === STATE_DONE && endTime > 0) {
+    const elapsed = (endTime - startTime) / 1000;
+    timeStr = elapsed.toFixed(1) + 's';
+  }
+  hudText('TIME', 650, y, 12, '#888', 'center');
+  hudText(timeStr, 650, y + 16, 28, '#fff', 'center');
+}
+
+function drawResults() {
+  const elapsed = (endTime - startTime) / 1000;
+  const rating = getRating(wpm);
+
+  // Results box
+  ctx.fillStyle = '#111122';
+  ctx.strokeStyle = '#334';
+  ctx.lineWidth = 2;
+  const bx = 150, by = 100, bw = 500, bh = 380;
+  ctx.fillRect(bx, by, bw, bh);
+  ctx.strokeRect(bx, by, bw, bh);
+
+  hudText('RESULTS', W / 2, by + 20, 22, '#7bf', 'center');
+
+  // Divider
+  ctx.strokeStyle = '#334';
+  ctx.beginPath();
+  ctx.moveTo(bx + 40, by + 55);
+  ctx.lineTo(bx + bw - 40, by + 55);
+  ctx.stroke();
+
+  // Rating
+  hudText(rating.label, W / 2, by + 70, 32, rating.color, 'center');
+
+  // Stats
+  const col1 = W / 2 - 100, col2 = W / 2 + 100;
+
+  hudText('Speed', col1, by + 130, 14, '#888', 'center');
+  hudText(wpm + ' WPM', col1, by + 150, 26, '#7bf', 'center');
+
+  hudText('Accuracy', col2, by + 130, 14, '#888', 'center');
+  const accColor = accuracy >= 95 ? '#4f4' : accuracy >= 80 ? '#ff0' : '#f44';
+  hudText(accuracy + '%', col2, by + 150, 26, accColor, 'center');
+
+  hudText('Time', col1, by + 200, 14, '#888', 'center');
+  hudText(elapsed.toFixed(1) + 's', col1, by + 220, 26, '#fff', 'center');
+
+  hudText('Characters', col2, by + 200, 14, '#888', 'center');
+  hudText('' + passage.length, col2, by + 220, 26, '#fff', 'center');
+
+  hudText('Keystrokes', col1, by + 270, 14, '#888', 'center');
+  hudText('' + totalKeystrokes, col1, by + 290, 20, '#aaa', 'center');
+
+  hudText('Correct', col2, by + 270, 14, '#888', 'center');
+  hudText('' + correctKeystrokes, col2, by + 290, 20, '#4f4', 'center');
+
+  // Session stats
+  ctx.strokeStyle = '#334';
+  ctx.beginPath();
+  ctx.moveTo(bx + 40, by + 325);
+  ctx.lineTo(bx + bw - 40, by + 325);
+  ctx.stroke();
+
+  hudText('Session: ' + passagesCompleted + ' passages | Best: ' + bestWpm + ' WPM', W / 2, by + 340, 12, '#666', 'center');
+
+  hudText('Press ENTER for next passage', W / 2, by + 365, 13, '#555', 'center');
+}
+
+// --- Game Loop ---
+let lastTime = 0;
+function loop(t) {
+  const dt = Math.min((t - lastTime) / 1000, 0.1);
+  lastTime = t;
+  update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

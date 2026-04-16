@@ -1,0 +1,900 @@
+<!--
+PROTOTYPE: paradroid
+SERIES: hyb
+NUMBER: 007
+DATE: 2026-03-24
+MECHANIC: body possession — you're the weakest droid; take over stronger droids by winning a circuit-board hacking minigame
+ANCESTRY: Paradroid (1985, Andrew Braybrook/Hewson), Paradroid 90 (1990, Graftgold)
+CONTROLS: Arrow keys — move | Space — bump into droid to hack / activate node in hack mode | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — AI opponents with circuit-board decision making)
+AI-INSIGHT: Paradroid's hacking minigame is a real-time resource allocation problem — both sides compete to claim nodes in a circuit graph. The AI must balance offensive activation with defensive blocking, a microcosm of adversarial planning that prefigures modern competitive AI agents.
+NOTES: The genre hybrid merges top-down exploration with puzzle-combat for possession.
+       Body decay creates constant pressure to find new hosts.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HYB-007 · PARADROID</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #0a0a12; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>HYB-007 · PARADROID</h1>
+    <p><span class="tag series">HYB — Hybrid</span> <span class="tag">Prototype #007</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <h3>Exploration Phase</h3>
+    <p>You control a droid navigating through a ship deck. Your droid number appears on screen &mdash; lower means weaker.</p>
+    <ul>
+      <li><kbd>Arrow keys</kbd> &mdash; Move your droid through the ship</li>
+      <li><kbd>Space</kbd> &mdash; Bump into an enemy droid to initiate hacking</li>
+      <li>Your droid fires automatically when enemies are in line of sight</li>
+      <li>Possessed droids decay over time &mdash; your number slowly decreases</li>
+    </ul>
+    <h3>Hacking Minigame</h3>
+    <p>When you touch an enemy droid, you enter a circuit-board hacking duel.</p>
+    <ul>
+      <li>A circuit board appears with nodes connected by wires</li>
+      <li>You control the <strong>left side</strong> (green), the enemy controls the <strong>right side</strong> (red)</li>
+      <li><kbd>Up/Down</kbd> &mdash; Select an input node on your side</li>
+      <li><kbd>Space</kbd> &mdash; Send a pulse from your selected node</li>
+      <li>Pulses travel along wires and claim neutral or enemy nodes</li>
+      <li>When time runs out, whoever controls more nodes wins</li>
+    </ul>
+    <h3>Strategy</h3>
+    <ul>
+      <li>Start as droid 001 &mdash; you must hack to survive</li>
+      <li>Higher-numbered droids are harder to hack (more enemy nodes)</li>
+      <li>A possessed body gives you its weapons and armor rating</li>
+      <li>Bodies decay &mdash; plan your next possession before you weaken</li>
+      <li>Clear all hostile droids from the deck to win</li>
+    </ul>
+    <p><kbd>R</kbd> &mdash; Restart &nbsp; <kbd>?</kbd> &mdash; Toggle this panel</p>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Paradroid (1985, Andrew Braybrook/Hewson) &rarr; Paradroid 90 (1990, Graftgold)</p>
+    <p>Paradroid was created by Andrew Braybrook and published by Hewson Consultants in 1985 for the Commodore 64. It was revolutionary in its asymmetry &mdash; you play as the weakest entity in the game world, surviving only through cunning and the ability to parasitize stronger hosts.</p>
+    <p>The circuit-board hacking minigame was a stroke of genius: it turned every encounter into a tense puzzle rather than a twitch reflex test. Higher-numbered droids were exponentially harder to hack, creating a natural difficulty curve as players grew more ambitious in their targets.</p>
+    <p>The body-possession mechanic influenced games from Messiah (2000) to Geist (2005) to Carrion (2020). The core fantasy &mdash; being weak but clever, turning the enemy's strength against them &mdash; remains uniquely compelling.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 3 &mdash; Knowledge Explosion</p>
+    <p><strong>Adversarial Resource Allocation:</strong> The hacking minigame is a real-time competitive resource-claiming problem. Both player and AI must decide which nodes to activate, when to push offensively, and when to defend claimed territory. This mirrors modern multi-agent resource competition scenarios.</p>
+    <p><strong>Body as Resource:</strong> The droid body is a depreciating asset &mdash; it decays over time, forcing constant re-evaluation of risk vs. reward. This temporal pressure on asset management prefigures modern AI systems that must reason about resource degradation and replacement timing.</p>
+    <p><strong>If AI Had Designed This:</strong> It might have made the circuit topology adapt to player skill &mdash; stronger players would face more complex circuits, while struggling players would see simpler ones. Modern adaptive difficulty systems use exactly this kind of performance-responsive challenge scaling.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: HYB &mdash; Hybrid</h3>
+    <p>Games combining two or more distinct gameplay systems. Paradroid fuses top-down exploration/combat with a puzzle-based possession mechanic.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Body possession through circuit-board hacking.</strong> Exploration and combat provide context; the hacking minigame is where possession is won or lost. Every encounter is a calculated gamble.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Asymmetric power &mdash; does starting weak create compelling tension?</li>
+      <li>Hacking depth &mdash; is the circuit minigame strategically interesting?</li>
+      <li>Body decay &mdash; does depreciation create urgency without frustration?</li>
+      <li>Risk calibration &mdash; do players learn to pick appropriate targets?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. The ship deck is procedurally generated with rooms and corridors. Enemy droids patrol in tiers (100s, 200s, up to 900s) with increasing difficulty. The hacking minigame uses a node graph with pulses that propagate along connections. AI opponents in the hack activate nodes at intervals proportional to their droid class. Body decay reduces your droid number by 1 every few seconds.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.fillStyle = color || '#fff';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(text, Math.round(x), Math.round(y));
+  ctx.restore();
+}
+
+// ── Canvas setup ──
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(innerWidth / W, innerHeight / H);
+  canvas.style.width = (W * s) + 'px';
+  canvas.style.height = (H * s) + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+// ── Input ──
+const keys = {};
+window.addEventListener('keydown', e => { keys[e.key] = true; });
+window.addEventListener('keyup', e => { keys[e.key] = false; });
+
+// ── Constants ──
+const TILE = 32;
+const MAP_W = 25, MAP_H = 18; // 800/32=25, 576/32=18
+const DECAY_INTERVAL = 5000; // ms between decay ticks
+const HACK_DURATION = 6000; // ms for hacking minigame
+
+// ── Map generation ──
+// 0=wall, 1=floor, 2=door
+let map = [];
+let droids = [];
+let player = {};
+let bullets = [];
+let state = 'play'; // play, hack, win, lose
+let hackState = null;
+let lastDecay = 0;
+let hackTimer = 0;
+let messageText = '';
+let messageTimer = 0;
+
+function generateMap() {
+  map = [];
+  for (let y = 0; y < MAP_H; y++) {
+    map[y] = [];
+    for (let x = 0; x < MAP_W; x++) map[y][x] = 0;
+  }
+  // Create rooms
+  const rooms = [];
+  for (let i = 0; i < 8; i++) {
+    const rw = 3 + Math.floor(Math.random() * 4);
+    const rh = 3 + Math.floor(Math.random() * 3);
+    const rx = 1 + Math.floor(Math.random() * (MAP_W - rw - 2));
+    const ry = 1 + Math.floor(Math.random() * (MAP_H - rh - 2));
+    rooms.push({ x: rx, y: ry, w: rw, h: rh });
+    for (let dy = 0; dy < rh; dy++)
+      for (let dx = 0; dx < rw; dx++)
+        map[ry + dy][rx + dx] = 1;
+  }
+  // Connect rooms with corridors
+  for (let i = 0; i < rooms.length - 1; i++) {
+    const a = rooms[i], b = rooms[i + 1];
+    const ax = Math.floor(a.x + a.w / 2), ay = Math.floor(a.y + a.h / 2);
+    const bx = Math.floor(b.x + b.w / 2), by = Math.floor(b.y + b.h / 2);
+    let cx = ax, cy = ay;
+    while (cx !== bx) { map[cy][cx] = 1; cx += cx < bx ? 1 : -1; }
+    while (cy !== by) { map[cy][cx] = 1; cy += cy < by ? 1 : -1; }
+    map[cy][cx] = 1;
+  }
+  // Connect last to first for loop
+  const la = rooms[rooms.length - 1], fb = rooms[0];
+  let lx = Math.floor(la.x + la.w / 2), ly = Math.floor(la.y + la.h / 2);
+  const fx = Math.floor(fb.x + fb.w / 2), fy = Math.floor(fb.y + fb.h / 2);
+  while (lx !== fx) { map[ly][lx] = 1; lx += lx < fx ? 1 : -1; }
+  while (ly !== fy) { map[ly][lx] = 1; ly += ly < fy ? 1 : -1; }
+  return rooms;
+}
+
+function initGame() {
+  const rooms = generateMap();
+  // Place player in first room
+  const pr = rooms[0];
+  player = {
+    x: (pr.x + Math.floor(pr.w / 2)) * TILE + TILE / 2,
+    y: (pr.y + Math.floor(pr.h / 2)) * TILE + TILE / 2,
+    num: 1, maxNum: 1, r: 10,
+    dx: 0, dy: 1, // facing direction
+    shootCooldown: 0,
+    speed: 2.5
+  };
+  // Place enemy droids
+  droids = [];
+  const tiers = [1, 1, 2, 2, 3, 3, 4, 5, 6, 7, 8, 9];
+  for (let i = 0; i < tiers.length; i++) {
+    const ri = (i + 1) % rooms.length;
+    const room = rooms[ri];
+    const num = tiers[i] * 100 + Math.floor(Math.random() * 99);
+    droids.push({
+      x: (room.x + 1 + Math.floor(Math.random() * (room.w - 2))) * TILE + TILE / 2,
+      y: (room.y + 1 + Math.floor(Math.random() * (room.h - 2))) * TILE + TILE / 2,
+      num: num, r: 10 + Math.min(num / 100, 6),
+      dx: 0, dy: 0, moveTimer: 0,
+      shootCooldown: 0, hp: Math.ceil(num / 100),
+      speed: 1 + Math.min(num / 300, 2)
+    });
+  }
+  bullets = [];
+  state = 'play';
+  hackState = null;
+  lastDecay = performance.now();
+  messageText = '';
+  messageTimer = 0;
+}
+
+function tileAt(px, py) {
+  const tx = Math.floor(px / TILE), ty = Math.floor(py / TILE);
+  if (tx < 0 || tx >= MAP_W || ty < 0 || ty >= MAP_H) return 0;
+  return map[ty][tx];
+}
+
+function canMove(x, y, r) {
+  return tileAt(x - r + 2, y - r + 2) && tileAt(x + r - 2, y - r + 2) &&
+         tileAt(x - r + 2, y + r - 2) && tileAt(x + r - 2, y + r - 2);
+}
+
+// ── Hacking minigame ──
+function startHack(enemy) {
+  state = 'hack';
+  hackTimer = HACK_DURATION;
+  const enemyTier = Math.ceil(enemy.num / 100);
+  const playerTier = Math.max(1, Math.ceil(player.num / 100));
+  // Build circuit board
+  const nodeCount = 8 + Math.floor(Math.random() * 5); // 8-12 nodes
+  const nodes = [];
+  const cols = 5;
+  const rowSpacing = 60;
+  const colSpacing = 90;
+  const startX = W / 2 - (cols - 1) * colSpacing / 2;
+  const startY = 140;
+  for (let i = 0; i < nodeCount; i++) {
+    const col = Math.floor(i * cols / nodeCount);
+    const row = i % Math.ceil(nodeCount / cols);
+    nodes.push({
+      x: startX + col * colSpacing + (Math.random() - 0.5) * 30,
+      y: startY + row * rowSpacing + (Math.random() - 0.5) * 20,
+      owner: 0, // 0=neutral, 1=player, 2=enemy
+      pulseTimer: 0
+    });
+  }
+  // Assign initial ownership based on tiers
+  const playerNodes = Math.max(1, Math.floor(nodeCount * playerTier / (playerTier + enemyTier)));
+  const enemyNodes = Math.max(1, Math.floor(nodeCount * enemyTier / (playerTier + enemyTier)));
+  // Left nodes to player, right nodes to enemy
+  const sorted = nodes.slice().sort((a, b) => a.x - b.x);
+  for (let i = 0; i < Math.min(playerNodes, sorted.length); i++) sorted[i].owner = 1;
+  for (let i = 0; i < Math.min(enemyNodes, sorted.length); i++) sorted[sorted.length - 1 - i].owner = 2;
+  // Create connections
+  const conns = [];
+  for (let i = 0; i < nodes.length; i++) {
+    // Connect to 1-3 nearest neighbors
+    const dists = [];
+    for (let j = 0; j < nodes.length; j++) {
+      if (i === j) continue;
+      const dx = nodes[i].x - nodes[j].x, dy = nodes[i].y - nodes[j].y;
+      dists.push({ j, d: Math.sqrt(dx * dx + dy * dy) });
+    }
+    dists.sort((a, b) => a.d - b.d);
+    const connCount = 1 + Math.floor(Math.random() * 2);
+    for (let k = 0; k < connCount && k < dists.length; k++) {
+      const pair = [Math.min(i, dists[k].j), Math.max(i, dists[k].j)];
+      if (!conns.find(c => c[0] === pair[0] && c[1] === pair[1])) {
+        conns.push(pair);
+      }
+    }
+  }
+  // Player input selection
+  const playerOwnedIdx = [];
+  const enemyOwnedIdx = [];
+  nodes.forEach((n, i) => { if (n.owner === 1) playerOwnedIdx.push(i); if (n.owner === 2) enemyOwnedIdx.push(i); });
+
+  hackState = {
+    nodes, conns, enemy,
+    selectedNode: playerOwnedIdx.length > 0 ? playerOwnedIdx[0] : 0,
+    pulses: [], // { from, to, progress, owner }
+    aiTimer: 0,
+    aiInterval: Math.max(400, 1200 - enemyTier * 80),
+    playerOwnedIdx, enemyOwnedIdx
+  };
+}
+
+function updateHack(dt) {
+  const hs = hackState;
+  if (!hs) return;
+  hackTimer -= dt;
+  if (hackTimer <= 0) {
+    endHack();
+    return;
+  }
+  // Update pulses
+  for (let i = hs.pulses.length - 1; i >= 0; i--) {
+    const p = hs.pulses[i];
+    p.progress += dt / 600;
+    if (p.progress >= 1) {
+      const target = hs.nodes[p.to];
+      if (target.owner !== p.owner) {
+        target.owner = p.owner;
+        target.pulseTimer = 300;
+      }
+      hs.pulses.splice(i, 1);
+    }
+  }
+  // Recalculate owned indices
+  hs.playerOwnedIdx = [];
+  hs.enemyOwnedIdx = [];
+  hs.nodes.forEach((n, i) => { if (n.owner === 1) hs.playerOwnedIdx.push(i); if (n.owner === 2) hs.enemyOwnedIdx.push(i); });
+  // AI sends pulses
+  hs.aiTimer -= dt;
+  if (hs.aiTimer <= 0 && hs.enemyOwnedIdx.length > 0) {
+    hs.aiTimer = hs.aiInterval;
+    const fromIdx = hs.enemyOwnedIdx[Math.floor(Math.random() * hs.enemyOwnedIdx.length)];
+    // Find connected non-enemy node
+    const targets = [];
+    for (const c of hs.conns) {
+      if (c[0] === fromIdx && hs.nodes[c[1]].owner !== 2) targets.push(c[1]);
+      if (c[1] === fromIdx && hs.nodes[c[0]].owner !== 2) targets.push(c[0]);
+    }
+    if (targets.length > 0) {
+      const toIdx = targets[Math.floor(Math.random() * targets.length)];
+      hs.pulses.push({ from: fromIdx, to: toIdx, progress: 0, owner: 2 });
+    }
+  }
+  // Update pulse timers on nodes
+  hs.nodes.forEach(n => { if (n.pulseTimer > 0) n.pulseTimer -= dt; });
+}
+
+function sendPlayerPulse() {
+  const hs = hackState;
+  if (!hs) return;
+  const fromIdx = hs.selectedNode;
+  if (hs.nodes[fromIdx].owner !== 1) return;
+  // Find connected non-player node
+  const targets = [];
+  for (const c of hs.conns) {
+    if (c[0] === fromIdx && hs.nodes[c[1]].owner !== 1) targets.push(c[1]);
+    if (c[1] === fromIdx && hs.nodes[c[0]].owner !== 1) targets.push(c[0]);
+  }
+  if (targets.length > 0) {
+    const toIdx = targets[Math.floor(Math.random() * targets.length)];
+    hs.pulses.push({ from: fromIdx, to: toIdx, progress: 0, owner: 1 });
+  }
+}
+
+function endHack() {
+  const hs = hackState;
+  let playerCount = 0, enemyCount = 0;
+  hs.nodes.forEach(n => { if (n.owner === 1) playerCount++; if (n.owner === 2) enemyCount++; });
+  if (playerCount > enemyCount) {
+    // Win — possess the droid
+    player.num = hs.enemy.num;
+    player.maxNum = hs.enemy.num;
+    player.speed = 2.5 + Math.min(hs.enemy.num / 300, 2);
+    const idx = droids.indexOf(hs.enemy);
+    if (idx >= 0) droids.splice(idx, 1);
+    lastDecay = performance.now();
+    messageText = 'TRANSFER COMPLETE — ' + hs.enemy.num;
+    messageTimer = 2000;
+    if (droids.length === 0) { state = 'win'; return; }
+  } else {
+    // Lose — destroyed
+    messageText = 'TRANSFER FAILED — DROID DESTROYED';
+    messageTimer = 2000;
+    state = 'lose';
+    hackState = null;
+    return;
+  }
+  state = 'play';
+  hackState = null;
+}
+
+// ── Player input for hack selection ──
+let hackInputCooldown = 0;
+
+function handleHackInput(dt) {
+  hackInputCooldown -= dt;
+  if (hackInputCooldown > 0) return;
+  const hs = hackState;
+  if (!hs) return;
+  if (keys['ArrowUp'] || keys['ArrowLeft']) {
+    // Find prev player-owned node
+    const cur = hs.playerOwnedIdx.indexOf(hs.selectedNode);
+    if (hs.playerOwnedIdx.length > 0) {
+      const next = cur <= 0 ? hs.playerOwnedIdx.length - 1 : cur - 1;
+      hs.selectedNode = hs.playerOwnedIdx[next];
+    }
+    hackInputCooldown = 150;
+  }
+  if (keys['ArrowDown'] || keys['ArrowRight']) {
+    const cur = hs.playerOwnedIdx.indexOf(hs.selectedNode);
+    if (hs.playerOwnedIdx.length > 0) {
+      const next = cur >= hs.playerOwnedIdx.length - 1 ? 0 : cur + 1;
+      hs.selectedNode = hs.playerOwnedIdx[next];
+    }
+    hackInputCooldown = 150;
+  }
+  if (keys[' ']) {
+    sendPlayerPulse();
+    hackInputCooldown = 250;
+  }
+}
+
+// ── Shooting ──
+function shoot(fromX, fromY, dirX, dirY, owner) {
+  const len = Math.sqrt(dirX * dirX + dirY * dirY);
+  if (len === 0) return;
+  bullets.push({
+    x: fromX, y: fromY,
+    vx: (dirX / len) * 5, vy: (dirY / len) * 5,
+    owner, life: 800
+  });
+}
+
+// ── Update ──
+let lastTime = performance.now();
+let spaceWasDown = false;
+
+function update(now) {
+  if (infoOpen) return;
+  const dt = Math.min(now - lastTime, 50);
+  lastTime = now;
+
+  if (state === 'hack') {
+    handleHackInput(dt);
+    updateHack(dt);
+    return;
+  }
+
+  if (state === 'win' || state === 'lose') {
+    if (keys['r'] || keys['R']) initGame();
+    return;
+  }
+
+  // Message timer
+  if (messageTimer > 0) messageTimer -= dt;
+
+  // Player movement
+  let pmx = 0, pmy = 0;
+  if (keys['ArrowUp']) pmy = -1;
+  if (keys['ArrowDown']) pmy = 1;
+  if (keys['ArrowLeft']) pmx = -1;
+  if (keys['ArrowRight']) pmx = 1;
+  if (pmx || pmy) {
+    player.dx = pmx; player.dy = pmy;
+    const len = Math.sqrt(pmx * pmx + pmy * pmy);
+    const nx = player.x + (pmx / len) * player.speed;
+    const ny = player.y + (pmy / len) * player.speed;
+    if (canMove(nx, player.y, player.r)) player.x = nx;
+    if (canMove(player.x, ny, player.r)) player.y = ny;
+  }
+
+  // Player auto-shoot
+  player.shootCooldown -= dt;
+  if (player.shootCooldown <= 0 && player.num > 1) {
+    // Find nearest enemy in facing direction
+    let nearest = null, nd = Infinity;
+    for (const d of droids) {
+      const ddx = d.x - player.x, ddy = d.y - player.y;
+      const dist = Math.sqrt(ddx * ddx + ddy * ddy);
+      if (dist < 200 && dist < nd) {
+        // Check rough line of sight
+        const dot = (ddx * player.dx + ddy * player.dy);
+        if (dot > 0) { nearest = d; nd = dist; }
+      }
+    }
+    if (nearest) {
+      shoot(player.x, player.y, nearest.x - player.x, nearest.y - player.y, 'player');
+      player.shootCooldown = Math.max(200, 800 - player.num);
+    }
+  }
+
+  // Space to hack — check collision with droids
+  const spaceDown = keys[' '];
+  if (spaceDown && !spaceWasDown) {
+    for (const d of droids) {
+      const ddx = d.x - player.x, ddy = d.y - player.y;
+      if (Math.sqrt(ddx * ddx + ddy * ddy) < player.r + d.r + 8) {
+        startHack(d);
+        break;
+      }
+    }
+  }
+  spaceWasDown = spaceDown;
+
+  // Decay
+  if (player.num > 1 && now - lastDecay > DECAY_INTERVAL) {
+    lastDecay = now;
+    player.num = Math.max(1, player.num - Math.ceil(player.maxNum * 0.03));
+    if (player.num <= 1) {
+      player.speed = 2.5;
+    }
+  }
+
+  // Enemy AI
+  for (const d of droids) {
+    d.moveTimer -= dt;
+    if (d.moveTimer <= 0) {
+      d.moveTimer = 500 + Math.random() * 1000;
+      // Move toward player if close, else wander
+      const ddx = player.x - d.x, ddy = player.y - d.y;
+      const dist = Math.sqrt(ddx * ddx + ddy * ddy);
+      if (dist < 180) {
+        d.dx = ddx / dist; d.dy = ddy / dist;
+      } else {
+        const angle = Math.random() * Math.PI * 2;
+        d.dx = Math.cos(angle); d.dy = Math.sin(angle);
+      }
+    }
+    const nx = d.x + d.dx * d.speed;
+    const ny = d.y + d.dy * d.speed;
+    if (canMove(nx, d.y, d.r)) d.x = nx;
+    if (canMove(d.x, ny, d.r)) d.y = ny;
+
+    // Enemy shooting
+    d.shootCooldown -= dt;
+    if (d.shootCooldown <= 0) {
+      const ddx = player.x - d.x, ddy = player.y - d.y;
+      const dist = Math.sqrt(ddx * ddx + ddy * ddy);
+      if (dist < 180) {
+        shoot(d.x, d.y, ddx, ddy, 'enemy');
+        d.shootCooldown = Math.max(300, 1500 - d.num);
+      }
+    }
+  }
+
+  // Update bullets
+  for (let i = bullets.length - 1; i >= 0; i--) {
+    const b = bullets[i];
+    b.x += b.vx; b.y += b.vy;
+    b.life -= dt;
+    if (b.life <= 0 || !tileAt(b.x, b.y)) { bullets.splice(i, 1); continue; }
+    // Hit detection
+    if (b.owner === 'player') {
+      for (let j = droids.length - 1; j >= 0; j--) {
+        const d = droids[j];
+        const ddx = b.x - d.x, ddy = b.y - d.y;
+        if (ddx * ddx + ddy * ddy < d.r * d.r) {
+          d.hp--;
+          bullets.splice(i, 1);
+          if (d.hp <= 0) {
+            droids.splice(j, 1);
+            messageText = 'DROID ' + d.num + ' DESTROYED';
+            messageTimer = 1500;
+            if (droids.length === 0) state = 'win';
+          }
+          break;
+        }
+      }
+    } else {
+      const ddx = b.x - player.x, ddy = b.y - player.y;
+      if (ddx * ddx + ddy * ddy < player.r * player.r) {
+        bullets.splice(i, 1);
+        player.num = Math.max(1, player.num - 10);
+        if (player.num <= 1) player.speed = 2.5;
+      }
+    }
+  }
+
+  if (keys['r'] || keys['R']) initGame();
+}
+
+// ── Draw ──
+function draw() {
+  ctx.fillStyle = '#0a0a12';
+  ctx.fillRect(0, 0, W, H);
+
+  if (state === 'hack') {
+    drawHack();
+    return;
+  }
+
+  // Camera offset — center on player
+  const camX = Math.max(0, Math.min(player.x - W / 2, MAP_W * TILE - W));
+  const camY = Math.max(0, Math.min(player.y - H / 2, MAP_H * TILE - H));
+
+  // Draw map
+  const sx = Math.floor(camX / TILE), sy = Math.floor(camY / TILE);
+  const ex = Math.min(sx + Math.ceil(W / TILE) + 1, MAP_W);
+  const ey = Math.min(sy + Math.ceil(H / TILE) + 1, MAP_H);
+  for (let ty = sy; ty < ey; ty++) {
+    for (let tx = sx; tx < ex; tx++) {
+      const px = tx * TILE - camX, py = ty * TILE - camY;
+      if (map[ty][tx] === 1) {
+        ctx.fillStyle = '#1a1a2e';
+        ctx.fillRect(px, py, TILE, TILE);
+        // Floor detail
+        ctx.fillStyle = '#161628';
+        ctx.fillRect(px + 1, py + 1, TILE - 2, TILE - 2);
+      } else {
+        ctx.fillStyle = '#0d0d1a';
+        ctx.fillRect(px, py, TILE, TILE);
+        // Wall highlights
+        ctx.fillStyle = '#222240';
+        ctx.fillRect(px, py, TILE, 2);
+        ctx.fillRect(px, py, 2, TILE);
+      }
+    }
+  }
+
+  // Draw bullets
+  for (const b of bullets) {
+    const bx = b.x - camX, by = b.y - camY;
+    ctx.fillStyle = b.owner === 'player' ? '#4f4' : '#f44';
+    ctx.beginPath(); ctx.arc(bx, by, 3, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // Draw enemy droids
+  for (const d of droids) {
+    const dx = d.x - camX, dy = d.y - camY;
+    if (dx < -30 || dx > W + 30 || dy < -30 || dy > H + 30) continue;
+    // Body
+    const tier = Math.ceil(d.num / 100);
+    const colors = ['#444', '#666', '#888', '#a64', '#a44', '#c44', '#c24', '#e22', '#f00'];
+    ctx.fillStyle = colors[Math.min(tier - 1, colors.length - 1)];
+    ctx.beginPath(); ctx.arc(dx, dy, d.r, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#fff3';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    // Number
+    hudText(String(d.num), dx, dy - 5, '#fff', 10, 'center');
+  }
+
+  // Draw player
+  const px = player.x - camX, py = player.y - camY;
+  const decayPct = player.maxNum > 1 ? player.num / player.maxNum : 1;
+  const pColor = player.num <= 1 ? '#2a6' :
+    `rgb(${Math.floor(40 + 180 * decayPct)}, ${Math.floor(200 * decayPct)}, ${Math.floor(100 + 100 * decayPct)})`;
+  ctx.fillStyle = pColor;
+  ctx.beginPath(); ctx.arc(px, py, player.r, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#4f4';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  // Player number
+  hudText(String(player.num).padStart(3, '0'), px, py - 6, '#fff', 11, 'center');
+  // Facing indicator
+  ctx.fillStyle = '#4f4';
+  ctx.beginPath();
+  ctx.arc(px + player.dx * (player.r + 3), py + player.dy * (player.r + 3), 3, 0, Math.PI * 2);
+  ctx.fill();
+
+  // HUD
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(0, 0, W, 28);
+  hudText('DROID: ' + String(player.num).padStart(3, '0'), 10, 6, '#4f4', 14);
+  if (player.maxNum > 1) {
+    const decay = Math.floor(decayPct * 100);
+    hudText('INTEGRITY: ' + decay + '%', 180, 6, decayPct > 0.5 ? '#4f4' : decayPct > 0.25 ? '#ff0' : '#f44', 14);
+  }
+  hudText('HOSTILES: ' + droids.length, 420, 6, '#f80', 14);
+  hudText('[?] INFO  [R] RESTART', 580, 6, '#888', 12);
+
+  // Minimap
+  const mmW = 120, mmH = 86;
+  const mmX = W - mmW - 8, mmY = H - mmH - 8;
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(mmX - 2, mmY - 2, mmW + 4, mmH + 4);
+  const mmSx = mmW / (MAP_W * TILE), mmSy = mmH / (MAP_H * TILE);
+  for (let ty = 0; ty < MAP_H; ty++) {
+    for (let tx = 0; tx < MAP_W; tx++) {
+      if (map[ty][tx] === 1) {
+        ctx.fillStyle = '#222240';
+        ctx.fillRect(mmX + tx * (mmW / MAP_W), mmY + ty * (mmH / MAP_H),
+          mmW / MAP_W + 0.5, mmH / MAP_H + 0.5);
+      }
+    }
+  }
+  // Player on minimap
+  ctx.fillStyle = '#4f4';
+  ctx.fillRect(mmX + player.x * mmSx - 1, mmY + player.y * mmSy - 1, 3, 3);
+  // Enemies on minimap
+  for (const d of droids) {
+    ctx.fillStyle = '#f44';
+    ctx.fillRect(mmX + d.x * mmSx - 1, mmY + d.y * mmSy - 1, 2, 2);
+  }
+
+  // Message
+  if (messageTimer > 0) {
+    hudText(messageText, W / 2, H / 2 + 100, '#ff0', 16, 'center');
+  }
+
+  // Win/Lose
+  if (state === 'win') {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, H / 2 - 50, W, 100);
+    hudText('DECK CLEARED — ALL HOSTILES NEUTRALIZED', W / 2, H / 2 - 20, '#4f4', 20, 'center');
+    hudText('Press R to restart', W / 2, H / 2 + 15, '#888', 14, 'center');
+  }
+  if (state === 'lose') {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, H / 2 - 50, W, 100);
+    hudText('DROID DESTROYED — TRANSFER FAILED', W / 2, H / 2 - 20, '#f44', 20, 'center');
+    hudText('Press R to restart', W / 2, H / 2 + 15, '#888', 14, 'center');
+  }
+}
+
+function drawHack() {
+  const hs = hackState;
+  if (!hs) return;
+
+  // Background
+  ctx.fillStyle = '#050510';
+  ctx.fillRect(0, 0, W, H);
+
+  // Title
+  hudText('CIRCUIT TRANSFER PROTOCOL', W / 2, 20, '#7bf', 18, 'center');
+  hudText('YOUR DROID: ' + String(player.num).padStart(3, '0'), 120, 50, '#4f4', 14, 'center');
+  hudText('TARGET: ' + String(hs.enemy.num).padStart(3, '0'), W - 120, 50, '#f44', 14, 'center');
+
+  // Timer bar
+  const timerPct = hackTimer / HACK_DURATION;
+  ctx.fillStyle = '#222';
+  ctx.fillRect(W / 2 - 150, 80, 300, 12);
+  ctx.fillStyle = timerPct > 0.3 ? '#7bf' : '#f44';
+  ctx.fillRect(W / 2 - 150, 80, 300 * timerPct, 12);
+  hudText(Math.ceil(hackTimer / 1000) + 's', W / 2, 78, '#fff', 12, 'center');
+
+  // Draw connections
+  ctx.lineWidth = 2;
+  for (const c of hs.conns) {
+    const a = hs.nodes[c[0]], b = hs.nodes[c[1]];
+    ctx.strokeStyle = '#333';
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+  }
+
+  // Draw pulses
+  for (const p of hs.pulses) {
+    const a = hs.nodes[p.from], b = hs.nodes[p.to];
+    const px = a.x + (b.x - a.x) * p.progress;
+    const py = a.y + (b.y - a.y) * p.progress;
+    ctx.fillStyle = p.owner === 1 ? '#4f4' : '#f44';
+    ctx.beginPath(); ctx.arc(px, py, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = p.owner === 1 ? '#8f8' : '#f88';
+    ctx.beginPath(); ctx.arc(px, py, 3, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // Draw nodes
+  for (let i = 0; i < hs.nodes.length; i++) {
+    const n = hs.nodes[i];
+    const r = 14;
+    // Glow on pulse
+    if (n.pulseTimer > 0) {
+      ctx.fillStyle = n.owner === 1 ? 'rgba(0,255,0,0.2)' : n.owner === 2 ? 'rgba(255,0,0,0.2)' : 'rgba(255,255,255,0.1)';
+      ctx.beginPath(); ctx.arc(n.x, n.y, r + 8, 0, Math.PI * 2); ctx.fill();
+    }
+    // Node body
+    ctx.fillStyle = n.owner === 1 ? '#2a6' : n.owner === 2 ? '#a22' : '#444';
+    ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = n.owner === 1 ? '#4f4' : n.owner === 2 ? '#f44' : '#666';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // Selection ring
+    if (i === hs.selectedNode && n.owner === 1) {
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(n.x, n.y, r + 5, 0, Math.PI * 2); ctx.stroke();
+    }
+  }
+
+  // Score
+  let pc = 0, ec = 0, nc = 0;
+  hs.nodes.forEach(n => { if (n.owner === 1) pc++; else if (n.owner === 2) ec++; else nc++; });
+  hudText('YOUR NODES: ' + pc, 60, H - 60, '#4f4', 16);
+  hudText('NEUTRAL: ' + nc, W / 2, H - 60, '#888', 16, 'center');
+  hudText('ENEMY NODES: ' + ec, W - 60, H - 60, '#f44', 16, 'right');
+
+  // Instructions
+  hudText('[UP/DOWN] Select Node   [SPACE] Send Pulse', W / 2, H - 30, '#555', 12, 'center');
+}
+
+// ── Main loop ──
+initGame();
+
+function loop(now) {
+  update(now);
+  draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

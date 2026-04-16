@@ -1,0 +1,663 @@
+<!--
+PROTOTYPE: cursor10
+SERIES: puz
+NUMBER: 023
+DATE: 2026-03-24
+MECHANIC: time-clone cooperation — you have 10 cursors with a time limit; each cursor's clicks are recorded and replay as ghosts; cooperate with your past selves to solve puzzles
+ANCESTRY: Cursor*10 (2008, Yoshio Ishii / Nekogames), Braid (2008, Jonathan Blow), The Misadventures of P.B. Winterbottom (2010)
+CONTROLS: Mouse — move and click | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 5 (Deep Learning — temporal replay systems, cooperative AI through self-play)
+AI-INSIGHT: Cursor*10 elegantly demonstrates self-cooperation through temporal replay — a concept that parallels multi-agent reinforcement learning where past policies become teammates. Each ghost cursor is essentially a frozen policy that the current agent must cooperate with, creating an emergent coordination problem.
+NOTES: Time-clone puzzle distilled to cursor cooperation across floors.
+       Past actions become teammates — elegant temporal recursion.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PUZ-023 · CURSOR*10</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: none; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>PUZ-023 · CURSOR*10</h1>
+    <p><span class="tag series">PUZ — Puzzle</span> <span class="tag">Prototype #023</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>You have 10 cursors, each with a 15-second timer. Move and click to interact with buttons and staircases across 8 floors. When your timer runs out, the next cursor begins — but your previous cursor replays as a ghost!</p>
+    <ul>
+      <li><strong>Click</strong> buttons to activate doors, platforms, and switches</li>
+      <li><strong>Click</strong> the staircase to advance to the next floor</li>
+      <li>Ghost cursors replay your past movements and clicks automatically</li>
+      <li>Some buttons require a ghost to hold them while you proceed</li>
+      <li>Later floors need multiple ghosts cooperating simultaneously</li>
+      <li><kbd>R</kbd> — Restart the entire game</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+
+    <h2>History</h2>
+    <p>Cursor*10 was created by Yoshio Ishii of Nekogames in 2008, a Japanese Flash game developer known for minimalist browser games. The concept of cooperating with recordings of your past self was revolutionary — you literally become your own teammate. The game went viral and spawned a sequel (Cursor*10 2nd Session) and influenced time-manipulation mechanics in games like Braid and The Misadventures of P.B. Winterbottom.</p>
+
+    <h2>AI Archaeology</h2>
+    <h3>Temporal Self-Play</h3>
+    <p>Each ghost cursor is a frozen replay of a past "policy" — the sequence of decisions you made. This mirrors multi-agent self-play in reinforcement learning, where an agent trains by cooperating with copies of its past self. The challenge is that you must anticipate what your future selves will need while also leveraging what your past selves provide.</p>
+    <h3>Emergent Coordination</h3>
+    <p>No explicit communication exists between cursors. Coordination emerges from understanding the puzzle structure and planning across temporal instances. This is analogous to implicit coordination in multi-agent systems where agents must infer teammates' intentions from shared environmental context.</p>
+
+    <h2>Classification</h2>
+    <p><span class="tag">time-clone</span> <span class="tag">self-cooperation</span> <span class="tag">puzzle</span> <span class="tag">temporal replay</span> <span class="tag">multi-agent</span></p>
+
+    <h2>Prototype Notes</h2>
+    <p>8 floors with escalating cooperation requirements. Ghost cursors shown as translucent colored arrows. Timer-based urgency creates tension between exploration and efficiency. The core insight: your past mistakes become your future tools.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This is an educational prototype created for study and preservation purposes. Cursor*10 was created by Yoshio Ishii (Nekogames, 2008). All trademarks belong to their respective owners. This prototype is not affiliated with or endorsed by the original creators.</p>
+  </div>
+</div>
+
+<script>
+// --- Info Panel ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+  document.getElementById('c').style.cursor = infoOpen ? 'default' : 'none';
+}
+
+// --- Canvas Setup ---
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+
+function resize() {
+  const s = Math.min(innerWidth / W, innerHeight / H);
+  canvas.style.width = (W * s) + 'px';
+  canvas.style.height = (H * s) + 'px';
+}
+resize();
+addEventListener('resize', resize);
+
+// --- HUD Text ---
+function hudText(text, x, y, size, color, align) {
+  ctx.save();
+  ctx.font = size + 'px monospace';
+  ctx.fillStyle = color || '#fff';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+// --- Mouse ---
+let mx = 400, my = 300, clicked = false;
+function getMousePos(e) {
+  const r = canvas.getBoundingClientRect();
+  mx = (e.clientX - r.left) * (W / r.width);
+  my = (e.clientY - r.top) * (H / r.height);
+}
+canvas.addEventListener('mousemove', getMousePos);
+canvas.addEventListener('mousedown', function(e) { getMousePos(e); clicked = true; });
+
+// --- Ghost Colors ---
+const GHOST_COLORS = [
+  '#ff6666','#66ff66','#6666ff','#ffff66','#ff66ff',
+  '#66ffff','#ff9933','#33ff99','#9933ff','#ff3399'
+];
+
+// --- Floor Definitions ---
+// Each floor has: buttons, doors, platforms, staircase
+// Button types: 'toggle' (click to toggle), 'hold' (must be held by ghost)
+function makeFloors() {
+  return [
+    // Floor 0: Tutorial — just click the staircase
+    {
+      buttons: [],
+      doors: [],
+      platforms: [],
+      stair: { x: 650, y: 400, w: 80, h: 80, open: true },
+      hint: 'Click the staircase to go up!'
+    },
+    // Floor 1: Single button opens door to staircase
+    {
+      buttons: [{ x: 200, y: 350, w: 60, h: 40, id: 0, type: 'toggle', on: false }],
+      doors: [{ x: 550, y: 350, w: 20, h: 120, reqBtn: [0], open: false }],
+      platforms: [],
+      stair: { x: 650, y: 400, w: 80, h: 80, open: false, reqDoor: [0] },
+      hint: 'Click the button to open the door.'
+    },
+    // Floor 2: Hold button — need ghost to hold while you go through
+    {
+      buttons: [{ x: 150, y: 350, w: 60, h: 40, id: 0, type: 'hold', on: false, holder: -1 }],
+      doors: [{ x: 450, y: 300, w: 20, h: 160, reqBtn: [0], open: false }],
+      platforms: [],
+      stair: { x: 650, y: 400, w: 80, h: 80, open: false, reqDoor: [0] },
+      hint: 'Hold the button! A ghost must hold it while you reach the stair.'
+    },
+    // Floor 3: Two buttons must be held simultaneously
+    {
+      buttons: [
+        { x: 100, y: 300, w: 60, h: 40, id: 0, type: 'hold', on: false, holder: -1 },
+        { x: 300, y: 450, w: 60, h: 40, id: 1, type: 'hold', on: false, holder: -1 }
+      ],
+      doors: [{ x: 520, y: 280, w: 20, h: 180, reqBtn: [0, 1], open: false }],
+      platforms: [],
+      stair: { x: 650, y: 380, w: 80, h: 80, open: false, reqDoor: [0] },
+      hint: 'Two buttons must be held at once — you need two ghosts!'
+    },
+    // Floor 4: Moving platform activated by hold button
+    {
+      buttons: [{ x: 150, y: 420, w: 60, h: 40, id: 0, type: 'hold', on: false, holder: -1 }],
+      doors: [],
+      platforms: [{ x: 350, y: 400, w: 80, h: 20, id: 0, reqBtn: [0], active: false, baseX: 350, targetX: 600, t: 0 }],
+      stair: { x: 650, y: 300, w: 80, h: 80, open: false, reqPlatform: 0 },
+      hint: 'Hold the button to move the platform. Ride it with a future cursor!'
+    },
+    // Floor 5: Three hold buttons
+    {
+      buttons: [
+        { x: 80, y: 280, w: 60, h: 40, id: 0, type: 'hold', on: false, holder: -1 },
+        { x: 250, y: 450, w: 60, h: 40, id: 1, type: 'hold', on: false, holder: -1 },
+        { x: 420, y: 280, w: 60, h: 40, id: 2, type: 'hold', on: false, holder: -1 }
+      ],
+      doors: [{ x: 570, y: 260, w: 20, h: 200, reqBtn: [0, 1, 2], open: false }],
+      platforms: [],
+      stair: { x: 660, y: 360, w: 80, h: 80, open: false, reqDoor: [0] },
+      hint: 'Three buttons! You need three ghosts holding them all.'
+    },
+    // Floor 6: Toggle sequence + hold
+    {
+      buttons: [
+        { x: 120, y: 350, w: 60, h: 40, id: 0, type: 'toggle', on: false },
+        { x: 320, y: 250, w: 60, h: 40, id: 1, type: 'hold', on: false, holder: -1 },
+        { x: 500, y: 450, w: 60, h: 40, id: 2, type: 'toggle', on: false }
+      ],
+      doors: [
+        { x: 250, y: 220, w: 20, h: 160, reqBtn: [0], open: false },
+        { x: 600, y: 300, w: 20, h: 160, reqBtn: [1, 2], open: false }
+      ],
+      platforms: [],
+      stair: { x: 660, y: 380, w: 80, h: 80, open: false, reqDoor: [1] },
+      hint: 'Toggle the first button, have a ghost hold the second, toggle the third!'
+    },
+    // Floor 7: Grand finale — 4 hold buttons
+    {
+      buttons: [
+        { x: 80, y: 250, w: 60, h: 40, id: 0, type: 'hold', on: false, holder: -1 },
+        { x: 200, y: 450, w: 60, h: 40, id: 1, type: 'hold', on: false, holder: -1 },
+        { x: 380, y: 250, w: 60, h: 40, id: 2, type: 'hold', on: false, holder: -1 },
+        { x: 500, y: 450, w: 60, h: 40, id: 3, type: 'hold', on: false, holder: -1 }
+      ],
+      doors: [{ x: 610, y: 240, w: 20, h: 220, reqBtn: [0, 1, 2, 3], open: false }],
+      platforms: [],
+      stair: { x: 680, y: 360, w: 80, h: 80, open: false, reqDoor: [0] },
+      hint: 'The final challenge! Four ghosts must hold four buttons simultaneously!'
+    }
+  ];
+}
+
+// --- Game State ---
+const TOTAL_CURSORS = 10;
+const CURSOR_TIME = 15; // seconds per cursor
+const RECORD_RATE = 60; // frames per second for recording
+
+let cursorNum, currentFloor, timeLeft, ghostRecordings, floors;
+let gameOver, gameWon, frameCount;
+// Current recording
+let currentRecording; // { frames: [{x,y,click}], floor: number, startFrame }
+
+function initGame() {
+  cursorNum = 0;
+  currentFloor = 0;
+  timeLeft = CURSOR_TIME;
+  ghostRecordings = [];
+  floors = makeFloors();
+  gameOver = false;
+  gameWon = false;
+  frameCount = 0;
+  currentRecording = { frames: [], startFrame: 0 };
+  startCursor();
+}
+
+function startCursor() {
+  timeLeft = CURSOR_TIME;
+  currentRecording = { frames: [], startFrame: frameCount, startFloor: currentFloor };
+}
+
+function nextCursor() {
+  // Save recording
+  ghostRecordings.push({
+    frames: currentRecording.frames.slice(),
+    startFrame: currentRecording.startFrame,
+    startFloor: currentRecording.startFloor,
+    color: GHOST_COLORS[cursorNum % GHOST_COLORS.length]
+  });
+  cursorNum++;
+  if (cursorNum >= TOTAL_CURSORS) {
+    gameOver = true;
+    return;
+  }
+  // Reset floors to initial state
+  floors = makeFloors();
+  // Keep currentFloor where we are
+  startCursor();
+}
+
+function pointInRect(px, py, r) {
+  return px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h;
+}
+
+// --- Update ---
+function update(dt) {
+  if (infoOpen) return;
+  if (gameOver || gameWon) return;
+
+  frameCount++;
+
+  // Record current frame
+  currentRecording.frames.push({ x: mx, y: my, click: clicked, floor: currentFloor });
+
+  // Timer
+  timeLeft -= dt;
+  if (timeLeft <= 0) {
+    nextCursor();
+    clicked = false;
+    return;
+  }
+
+  const floor = floors[currentFloor];
+
+  // Reset hold buttons each frame (they need continuous holding)
+  for (const btn of floor.buttons) {
+    if (btn.type === 'hold') {
+      btn.on = false;
+      btn.holder = -1;
+    }
+  }
+
+  // Process ghost replays for current floor
+  for (let g = 0; g < ghostRecordings.length; g++) {
+    const ghost = ghostRecordings[g];
+    const relFrame = frameCount - ghost.startFrame;
+    if (relFrame < 0 || relFrame >= ghost.frames.length) continue;
+    const gf = ghost.frames[relFrame];
+    if (gf.floor !== currentFloor) continue;
+
+    // Ghost clicking/holding buttons
+    for (const btn of floor.buttons) {
+      if (pointInRect(gf.x, gf.y, btn)) {
+        if (btn.type === 'hold') {
+          btn.on = true;
+          btn.holder = g;
+        } else if (btn.type === 'toggle' && gf.click) {
+          btn.on = !btn.on;
+        }
+      }
+    }
+  }
+
+  // Player clicking buttons
+  if (clicked) {
+    for (const btn of floor.buttons) {
+      if (pointInRect(mx, my, btn)) {
+        if (btn.type === 'toggle') {
+          btn.on = !btn.on;
+        } else if (btn.type === 'hold') {
+          btn.on = true;
+          btn.holder = 99;
+        }
+      }
+    }
+  }
+
+  // Hold buttons: also check if player is hovering (holding)
+  for (const btn of floor.buttons) {
+    if (btn.type === 'hold' && pointInRect(mx, my, btn)) {
+      btn.on = true;
+      btn.holder = 99;
+    }
+  }
+
+  // Update doors
+  for (const door of floor.doors) {
+    door.open = door.reqBtn.every(id => {
+      const b = floor.buttons.find(b => b.id === id);
+      return b && b.on;
+    });
+  }
+
+  // Update platforms
+  for (const plat of floor.platforms) {
+    plat.active = plat.reqBtn.every(id => {
+      const b = floor.buttons.find(b => b.id === id);
+      return b && b.on;
+    });
+    if (plat.active) {
+      plat.t = Math.min(1, plat.t + dt * 0.8);
+    } else {
+      plat.t = Math.max(0, plat.t - dt * 0.8);
+    }
+    plat.x = plat.baseX + (plat.targetX - plat.baseX) * plat.t;
+  }
+
+  // Check staircase accessibility
+  let stairOpen = true;
+  if (floor.stair.reqDoor !== undefined) {
+    stairOpen = floor.stair.reqDoor.every(di => floor.doors[di] && floor.doors[di].open);
+  }
+  if (floor.stair.reqPlatform !== undefined) {
+    const plat = floor.platforms[floor.stair.reqPlatform];
+    stairOpen = plat && plat.t > 0.9;
+  }
+  if (floor.stair.open) stairOpen = true;
+  floor.stair._accessible = stairOpen;
+
+  // Click staircase
+  if (clicked && stairOpen && pointInRect(mx, my, floor.stair)) {
+    currentFloor++;
+    if (currentFloor >= floors.length) {
+      gameWon = true;
+    }
+  }
+
+  clicked = false;
+}
+
+// --- Draw ---
+function draw() {
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0, 0, W, H);
+
+  if (gameWon) {
+    drawWinScreen();
+    return;
+  }
+
+  if (gameOver) {
+    drawGameOver();
+    return;
+  }
+
+  const floor = floors[currentFloor];
+
+  // Floor background
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fillRect(40, 80, 720, 460);
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(40, 80, 720, 460);
+
+  // Floor number
+  hudText('FLOOR ' + (currentFloor + 1) + ' / ' + floors.length, 50, 90, 14, '#888');
+
+  // Hint
+  if (floor.hint) {
+    hudText(floor.hint, 400, 545, 12, '#666', 'center');
+  }
+
+  // Draw doors
+  for (const door of floor.doors) {
+    if (door.open) {
+      ctx.fillStyle = 'rgba(0,200,0,0.2)';
+      ctx.fillRect(door.x - 5, door.y, door.w + 10, door.h);
+      ctx.strokeStyle = '#0a0';
+      ctx.setLineDash([4, 4]);
+      ctx.strokeRect(door.x, door.y, door.w, door.h);
+      ctx.setLineDash([]);
+    } else {
+      ctx.fillStyle = '#a33';
+      ctx.fillRect(door.x, door.y, door.w, door.h);
+      ctx.strokeStyle = '#f44';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(door.x, door.y, door.w, door.h);
+      // Lock icon
+      hudText('X', door.x + 3, door.y + door.h / 2 - 8, 14, '#fff');
+    }
+  }
+
+  // Draw platforms
+  for (const plat of floor.platforms) {
+    ctx.fillStyle = plat.active ? '#4a4' : '#666';
+    ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+    ctx.strokeStyle = plat.active ? '#6f6' : '#888';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(plat.x, plat.y, plat.w, plat.h);
+    // Rail line
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(plat.baseX + plat.w / 2, plat.y + plat.h + 5);
+    ctx.lineTo(plat.targetX + plat.w / 2, plat.y + plat.h + 5);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Draw buttons
+  for (const btn of floor.buttons) {
+    const on = btn.on;
+    ctx.fillStyle = on ? '#3a3' : '#633';
+    ctx.fillRect(btn.x, btn.y, btn.w, btn.h);
+    ctx.strokeStyle = on ? '#6f6' : '#f66';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(btn.x, btn.y, btn.w, btn.h);
+
+    const label = btn.type === 'hold' ? 'HOLD' : 'CLICK';
+    hudText(label, btn.x + btn.w / 2, btn.y + 12, 11, on ? '#fff' : '#faa', 'center');
+
+    if (on && btn.holder >= 0 && btn.holder < ghostRecordings.length) {
+      ctx.fillStyle = ghostRecordings[btn.holder].color;
+      ctx.globalAlpha = 0.5;
+      ctx.fillRect(btn.x, btn.y - 4, btn.w, 4);
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  // Draw staircase
+  const stair = floor.stair;
+  const accessible = stair._accessible;
+  ctx.fillStyle = accessible ? '#2a4a2a' : '#2a2a2a';
+  ctx.fillRect(stair.x, stair.y, stair.w, stair.h);
+  ctx.strokeStyle = accessible ? '#4f4' : '#555';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(stair.x, stair.y, stair.w, stair.h);
+  // Stair steps
+  for (let i = 0; i < 4; i++) {
+    const sy = stair.y + stair.h - (i + 1) * (stair.h / 4);
+    const sx = stair.x + i * (stair.w / 4);
+    ctx.fillStyle = accessible ? '#3a6a3a' : '#3a3a3a';
+    ctx.fillRect(sx, sy, stair.w - i * (stair.w / 4), stair.h / 4);
+    ctx.strokeStyle = accessible ? '#4f4' : '#555';
+    ctx.strokeRect(sx, sy, stair.w - i * (stair.w / 4), stair.h / 4);
+  }
+  hudText(accessible ? 'GO UP' : 'LOCKED', stair.x + stair.w / 2, stair.y + stair.h / 2 - 6, 10, accessible ? '#4f4' : '#f44', 'center');
+
+  // Draw ghost cursors
+  for (let g = 0; g < ghostRecordings.length; g++) {
+    const ghost = ghostRecordings[g];
+    const relFrame = frameCount - ghost.startFrame;
+    if (relFrame < 0 || relFrame >= ghost.frames.length) continue;
+    const gf = ghost.frames[relFrame];
+    if (gf.floor !== currentFloor) continue;
+    drawCursorArrow(gf.x, gf.y, ghost.color, 0.4, g + 1);
+  }
+
+  // Draw player cursor
+  drawCursorArrow(mx, my, '#fff', 1, cursorNum + 1);
+
+  // HUD
+  drawHUD();
+}
+
+function drawCursorArrow(x, y, color, alpha, num) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+
+  // Arrow shape
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.lineTo(x, y + 20);
+  ctx.lineTo(x + 5, y + 16);
+  ctx.lineTo(x + 9, y + 24);
+  ctx.lineTo(x + 13, y + 22);
+  ctx.lineTo(x + 9, y + 14);
+  ctx.lineTo(x + 14, y + 12);
+  ctx.closePath();
+
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Number label
+  ctx.globalAlpha = Math.min(1, alpha + 0.3);
+  ctx.font = '9px monospace';
+  ctx.fillStyle = color;
+  ctx.textAlign = 'center';
+  ctx.fillText('#' + num, x + 7, y - 4);
+
+  ctx.restore();
+}
+
+function drawHUD() {
+  // Top bar background
+  ctx.fillStyle = 'rgba(0,0,0,0.8)';
+  ctx.fillRect(0, 0, W, 40);
+
+  // Cursor counter
+  hudText('CURSOR', 20, 6, 10, '#888');
+  for (let i = 0; i < TOTAL_CURSORS; i++) {
+    const cx = 90 + i * 28;
+    if (i < cursorNum) {
+      ctx.fillStyle = GHOST_COLORS[i % GHOST_COLORS.length];
+      ctx.globalAlpha = 0.4;
+      ctx.fillRect(cx, 6, 22, 22);
+      ctx.globalAlpha = 1;
+    } else if (i === cursorNum) {
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(cx, 6, 22, 22);
+      ctx.strokeStyle = '#ff0';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(cx, 6, 22, 22);
+      hudText('' + (i + 1), cx + 11, 9, 12, '#000', 'center');
+    } else {
+      ctx.strokeStyle = '#444';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(cx, 6, 22, 22);
+      hudText('' + (i + 1), cx + 11, 9, 12, '#444', 'center');
+    }
+  }
+
+  // Timer
+  const timerColor = timeLeft < 3 ? '#f44' : timeLeft < 5 ? '#fa0' : '#4f4';
+  hudText('TIME', 440, 6, 10, '#888');
+  hudText(timeLeft.toFixed(1) + 's', 440, 18, 14, timerColor);
+
+  // Floor
+  hudText('FLOOR ' + (currentFloor + 1) + '/' + floors.length, 560, 6, 10, '#888');
+
+  // Ghost count
+  hudText('GHOSTS: ' + ghostRecordings.length, 680, 6, 10, '#888');
+
+  // Controls hint
+  hudText('? = Info  R = Restart', 560, 22, 10, '#444');
+
+  // Timer bar
+  const barW = 300;
+  const barX = 440;
+  ctx.fillStyle = '#222';
+  ctx.fillRect(barX, 34, barW, 4);
+  ctx.fillStyle = timerColor;
+  ctx.fillRect(barX, 34, barW * (timeLeft / CURSOR_TIME), 4);
+}
+
+function drawWinScreen() {
+  ctx.fillStyle = '#0a1a0a';
+  ctx.fillRect(0, 0, W, H);
+
+  hudText('CONGRATULATIONS!', W / 2, 180, 32, '#4f4', 'center');
+  hudText('You cleared all ' + floors.length + ' floors!', W / 2, 230, 18, '#8f8', 'center');
+  hudText('Cursors used: ' + (cursorNum + 1) + ' / ' + TOTAL_CURSORS, W / 2, 270, 16, '#aaa', 'center');
+  hudText('Ghosts created: ' + ghostRecordings.length, W / 2, 300, 16, '#aaa', 'center');
+
+  // Rating
+  let stars = cursorNum < 5 ? 5 : cursorNum < 7 ? 4 : cursorNum < 9 ? 3 : 2;
+  let starStr = '';
+  for (let i = 0; i < 5; i++) starStr += i < stars ? '\u2605' : '\u2606';
+  hudText(starStr, W / 2, 340, 28, '#ff0', 'center');
+
+  hudText('Press R to play again', W / 2, 420, 14, '#666', 'center');
+}
+
+function drawGameOver() {
+  ctx.fillStyle = '#1a0a0a';
+  ctx.fillRect(0, 0, W, H);
+
+  hudText('GAME OVER', W / 2, 200, 36, '#f44', 'center');
+  hudText('All 10 cursors used!', W / 2, 250, 18, '#faa', 'center');
+  hudText('Reached floor ' + (currentFloor + 1) + ' / ' + floors.length, W / 2, 290, 16, '#aaa', 'center');
+  hudText('Press R to try again', W / 2, 380, 14, '#666', 'center');
+}
+
+// --- Input ---
+addEventListener('keydown', function(e) {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
+    e.preventDefault();
+    toggleInfo();
+    return;
+  }
+  if (e.key === 'Escape' && infoOpen) {
+    toggleInfo();
+    return;
+  }
+  if (e.key === 'r' || e.key === 'R') {
+    initGame();
+    return;
+  }
+});
+
+// --- Game Loop ---
+let lastTime = 0;
+function loop(ts) {
+  const dt = Math.min((ts - lastTime) / 1000, 0.05);
+  lastTime = ts;
+  update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+initGame();
+requestAnimationFrame(function(ts) { lastTime = ts; loop(ts); });
+</script>
+</body>
+</html>

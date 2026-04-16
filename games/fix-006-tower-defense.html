@@ -1,0 +1,1167 @@
+<!--
+PROTOTYPE: tower-defense
+SERIES: fix
+NUMBER: 006
+DATE: 2026-03-23
+MECHANIC: fixed-spot tower defense with four tower types, upgrades, and controllable hero
+ANCESTRY: Kingdom Rush (2011, Ironhide), WarCraft III custom maps (2003), Plants vs. Zombies (2009, PopCap)
+CONTROLS: Mouse — place/upgrade towers, move hero | Space — next wave | 1-4 — select tower type | H — hero ability | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 5 (Deep Learning — unit composition as multi-objective optimization)
+AI-INSIGHT: Kingdom Rush added the hero unit to tower defense, giving the player one mobile piece on an otherwise static board. This single controllable agent amid automated defenses mirrors the human-in-the-loop paradigm in AI systems — most decisions are automated, but critical interventions require human judgment.
+NOTES: Tower defense with the addition of a controllable hero creates a dual-attention
+       challenge: macro tower management and micro hero positioning.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FIX-006 · TOWER DEFENSE</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: default; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto; cursor: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>FIX-006 · TOWER DEFENSE</h1>
+    <p><span class="tag series">FIX — Fixed Shooter</span> <span class="tag">Prototype #006</span> <span class="tag">★★★★☆</span></p>
+
+    <h2>How to Play</h2>
+    <p>Defend the kingdom by building towers on fixed spots along the path. Enemies march from the top-left toward your base at the bottom-right. Lose lives when enemies reach the end.</p>
+    <ul>
+      <li><kbd>Click</kbd> empty build spot — open tower menu</li>
+      <li><kbd>1</kbd>-<kbd>4</kbd> — quick-select tower type</li>
+      <li><kbd>Click</kbd> existing tower — upgrade menu</li>
+      <li><kbd>Click</kbd> on path — move hero</li>
+      <li><kbd>H</kbd> or click hero — hero special ability (area attack)</li>
+      <li><kbd>Space</kbd> — send next wave</li>
+      <li><kbd>R</kbd> — restart</li>
+      <li><kbd>?</kbd> — toggle this info panel</li>
+    </ul>
+
+    <h2>Towers</h2>
+    <ul>
+      <li><strong>Archer (70g)</strong> — Fast attack, long range, low damage</li>
+      <li><strong>Barracks (70g)</strong> — Spawns 3 soldiers that block enemies on path</li>
+      <li><strong>Mage (100g)</strong> — Magic damage, effective vs armored</li>
+      <li><strong>Bombard (125g)</strong> — Slow, area damage, devastating vs groups</li>
+    </ul>
+    <p>Each tower can be upgraded 3 times for increased stats.</p>
+
+    <h2>Enemies</h2>
+    <ul>
+      <li><strong>Soldier</strong> — Basic infantry</li>
+      <li><strong>Armored</strong> — Resistant to physical damage</li>
+      <li><strong>Dark Mage</strong> — Fast, takes magic damage normally</li>
+      <li><strong>Troll</strong> — Tanky boss unit</li>
+      <li><strong>Wolf Rider</strong> — Very fast</li>
+    </ul>
+
+    <h2>History</h2>
+    <p>Kingdom Rush (2011) by Ironhide Game Studio perfected the tower defense formula by adding a controllable hero unit and melee barracks that physically block enemies on the path. The game drew from WarCraft III custom maps that invented the genre, adding polish and the critical innovation of giving the player one direct-control unit amid automated defenses.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>ERA 5 — Deep Learning.</strong> Tower defense is a multi-objective optimization problem: maximize damage output while managing gold economy and spatial coverage. The hero unit introduces a human-in-the-loop element — most of the defense is automated, but the player's micro-decisions with the hero can turn critical moments. This mirrors modern AI systems where automated processes handle routine work while humans intervene at decision points.</p>
+
+    <h2>Classification</h2>
+    <p><span class="tag">Tower Defense</span> <span class="tag">Strategy</span> <span class="tag">Fixed Position</span> <span class="tag">Hero Unit</span> <span class="tag">Resource Management</span></p>
+
+    <h2>Prototype Notes</h2>
+    <p>Barracks soldiers blocking enemies is the core tactical innovation — it transforms tower defense from pure placement optimization into a game about creating chokepoints and buying time. The hero adds micro-level decision-making on top of macro tower strategy.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+canvas.width = 800; canvas.height = 600;
+
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// Path waypoints
+const PATH = [
+  {x:0,y:80},{x:120,y:80},{x:120,y:200},{x:300,y:200},{x:300,y:120},
+  {x:500,y:120},{x:500,y:280},{x:350,y:280},{x:350,y:400},
+  {x:550,y:400},{x:550,y:500},{x:700,y:500},{x:800,y:500}
+];
+
+// Build spots near path
+const BUILD_SPOTS = [
+  {x:60,y:140},{x:180,y:140},{x:200,y:260},{x:360,y:160},
+  {x:440,y:60},{x:560,y:200},{x:420,y:340},{x:280,y:340},
+  {x:460,y:460},{x:640,y:440},{x:620,y:560}
+];
+
+const TOWER_TYPES = {
+  archer: {name:'Archer',cost:70,range:140,damage:8,rate:30,color:'#0f0',desc:'Fast/Long Range'},
+  barracks: {name:'Barracks',cost:70,range:80,damage:0,rate:0,color:'#fa0',desc:'Spawns Soldiers'},
+  mage: {name:'Mage',cost:100,range:120,damage:15,rate:50,color:'#b4f',desc:'Magic Damage'},
+  bombard: {name:'Bombard',cost:125,range:110,damage:30,rate:80,color:'#f44',desc:'Area Damage'}
+};
+
+const UPGRADE_MULT = [1, 1.4, 1.9, 2.5];
+const UPGRADE_COST = [0, 50, 80, 120];
+
+const ENEMY_TYPES = {
+  soldier: {hp:60,speed:1.2,armor:0,gold:10,color:'#c44',name:'Soldier',r:8},
+  armored: {hp:120,speed:0.8,armor:5,gold:20,color:'#888',name:'Armored',r:10},
+  darkmage: {hp:45,speed:1.8,armor:0,gold:15,color:'#a0f',name:'Dark Mage',r:7},
+  troll:   {hp:400,speed:0.6,armor:3,gold:50,color:'#4a4',name:'Troll',r:14},
+  wolf:    {hp:50,speed:2.5,armor:0,gold:12,color:'#a80',name:'Wolf Rider',r:9}
+};
+
+const WAVES = [
+  [{type:'soldier',count:6,interval:40}],
+  [{type:'soldier',count:8,interval:35},{type:'armored',count:2,interval:50}],
+  [{type:'soldier',count:5,interval:30},{type:'wolf',count:4,interval:30}],
+  [{type:'armored',count:5,interval:40},{type:'darkmage',count:3,interval:35}],
+  [{type:'soldier',count:8,interval:25},{type:'armored',count:4,interval:35},{type:'wolf',count:3,interval:25}],
+  [{type:'darkmage',count:5,interval:30},{type:'armored',count:5,interval:35}],
+  [{type:'wolf',count:6,interval:20},{type:'soldier',count:6,interval:25},{type:'darkmage',count:3,interval:30}],
+  [{type:'troll',count:1,interval:1},{type:'armored',count:6,interval:30},{type:'soldier',count:8,interval:20}],
+  [{type:'darkmage',count:6,interval:25},{type:'wolf',count:6,interval:20},{type:'armored',count:4,interval:30}],
+  [{type:'troll',count:2,interval:80},{type:'armored',count:8,interval:25},{type:'wolf',count:5,interval:20},{type:'darkmage',count:4,interval:25}]
+];
+
+let state;
+function initState() {
+  state = {
+    lives: 20, gold: 200, wave: 0, waveActive: false, waveTimer: 0,
+    spawnQueues: [], enemies: [], towers: [], projectiles: [],
+    barracksUnits: [], selectedSpot: -1, selectedTower: -1,
+    hero: {x:400,y:450,hp:150,maxHp:150,damage:20,range:50,target:null,
+           cooldown:0,attackCD:0,attackRate:25,specialCD:0,specialMax:300,
+           targetX:400,targetY:450,speed:2.5,r:12,alive:true,respawn:0},
+    gameOver: false, won: false, frame: 0, stars: 0,
+    floatingTexts: [], quickSelect: null
+  };
+}
+initState();
+
+function dist(a,b) { return Math.hypot(a.x-b.x,a.y-b.y); }
+
+function pointOnPath(t) {
+  // t is 0..1 along entire path
+  let totalLen = 0;
+  let segs = [];
+  for (let i = 1; i < PATH.length; i++) {
+    let d = dist(PATH[i-1], PATH[i]);
+    segs.push({len:d, i:i-1});
+    totalLen += d;
+  }
+  let target = t * totalLen;
+  let acc = 0;
+  for (let s of segs) {
+    if (acc + s.len >= target) {
+      let frac = (target - acc) / s.len;
+      let a = PATH[s.i], b = PATH[s.i+1];
+      return {x: a.x + (b.x-a.x)*frac, y: a.y + (b.y-a.y)*frac};
+    }
+    acc += s.len;
+  }
+  return {x:PATH[PATH.length-1].x, y:PATH[PATH.length-1].y};
+}
+
+function pathTotalLength() {
+  let total = 0;
+  for (let i = 1; i < PATH.length; i++) total += dist(PATH[i-1], PATH[i]);
+  return total;
+}
+const PATH_LEN = pathTotalLength();
+
+function closestPathPoint(px, py) {
+  let best = Infinity, bx = px, by = py, bt = 0;
+  let acc = 0;
+  for (let i = 1; i < PATH.length; i++) {
+    let ax = PATH[i-1].x, ay = PATH[i-1].y;
+    let bxx = PATH[i].x, byy = PATH[i].y;
+    let dx = bxx-ax, dy = byy-ay;
+    let segLen = Math.hypot(dx,dy);
+    let t = Math.max(0, Math.min(1, ((px-ax)*dx+(py-ay)*dy)/(segLen*segLen)));
+    let cx = ax+t*dx, cy = ay+t*dy;
+    let d = Math.hypot(px-cx,py-cy);
+    if (d < best) { best = d; bx = cx; by = cy; bt = (acc + t*segLen)/PATH_LEN; }
+    acc += segLen;
+  }
+  return {x:bx, y:by, t:bt, dist:best};
+}
+
+function startWave() {
+  if (state.waveActive || state.wave >= WAVES.length || state.gameOver) return;
+  state.waveActive = true;
+  let waveDef = WAVES[state.wave];
+  state.spawnQueues = waveDef.map(g => ({type:g.type, remaining:g.count, interval:g.interval, timer:0}));
+  state.wave++;
+}
+
+function spawnEnemy(type) {
+  let et = ENEMY_TYPES[type];
+  let e = {
+    x:PATH[0].x, y:PATH[0].y, hp:et.hp, maxHp:et.hp, speed:et.speed,
+    armor:et.armor, gold:et.gold, color:et.color, name:et.name, r:et.r,
+    type:type, t:0, blocked:false, blockTimer:0, dead:false
+  };
+  state.enemies.push(e);
+}
+
+function addFloatingText(x, y, text, color) {
+  state.floatingTexts.push({x:x, y:y, text:text, color:color||'#ff0', life:40});
+}
+
+function buildTower(spotIdx, type) {
+  let tt = TOWER_TYPES[type];
+  if (state.gold < tt.cost) return;
+  state.gold -= tt.cost;
+  let spot = BUILD_SPOTS[spotIdx];
+  let tower = {
+    x:spot.x, y:spot.y, type:type, level:0, cooldown:0, spotIdx:spotIdx,
+    range:tt.range, damage:tt.damage, rate:tt.rate, color:tt.color
+  };
+  state.towers.push(tower);
+  if (type === 'barracks') spawnBarracksUnits(tower);
+}
+
+function spawnBarracksUnits(tower) {
+  // Find nearest path point for rally
+  let cp = closestPathPoint(tower.x, tower.y);
+  for (let i = 0; i < 3; i++) {
+    let angle = (i/3)*Math.PI*2;
+    state.barracksUnits.push({
+      x: cp.x + Math.cos(angle)*15, y: cp.y + Math.sin(angle)*15,
+      hp: 30*(1+tower.level*0.4), maxHp: 30*(1+tower.level*0.4),
+      damage: 5*(1+tower.level*0.3), rallyX: cp.x+Math.cos(angle)*15,
+      rallyY: cp.y+Math.sin(angle)*15, target: null, tower: tower,
+      attackCD: 0, attackRate: 30, alive: true, respawnTimer: 0, speed: 1.5
+    });
+  }
+}
+
+function upgradeTower(towerIdx) {
+  let t = state.towers[towerIdx];
+  if (t.level >= 3) return;
+  let cost = UPGRADE_COST[t.level+1];
+  if (state.gold < cost) return;
+  state.gold -= cost;
+  t.level++;
+  let tt = TOWER_TYPES[t.type];
+  t.range = tt.range * (1 + t.level*0.15);
+  t.damage = tt.damage * UPGRADE_MULT[t.level];
+  t.rate = Math.max(15, tt.rate - t.level*4);
+  // Refresh barracks units
+  if (t.type === 'barracks') {
+    state.barracksUnits = state.barracksUnits.filter(u => u.tower !== t);
+    spawnBarracksUnits(t);
+  }
+  addFloatingText(t.x, t.y-20, 'UPGRADED!', '#0f0');
+}
+
+function sellTower(towerIdx) {
+  let t = state.towers[towerIdx];
+  let tt = TOWER_TYPES[t.type];
+  let totalInvested = tt.cost;
+  for (let i = 1; i <= t.level; i++) totalInvested += UPGRADE_COST[i];
+  state.gold += Math.floor(totalInvested * 0.6);
+  if (t.type === 'barracks') {
+    state.barracksUnits = state.barracksUnits.filter(u => u.tower !== t);
+  }
+  state.towers.splice(towerIdx, 1);
+  state.selectedTower = -1;
+}
+
+function update() {
+  if (infoOpen) return;
+  if (state.gameOver) return;
+  state.frame++;
+  let S = state;
+
+  // Spawn enemies
+  if (S.waveActive) {
+    let allDone = true;
+    for (let q of S.spawnQueues) {
+      if (q.remaining > 0) {
+        allDone = false;
+        q.timer--;
+        if (q.timer <= 0) {
+          spawnEnemy(q.type);
+          q.remaining--;
+          q.timer = q.interval;
+        }
+      }
+    }
+    if (allDone && S.enemies.length === 0) {
+      S.waveActive = false;
+      if (S.wave >= WAVES.length) {
+        S.won = true; S.gameOver = true;
+        S.stars = S.lives >= 18 ? 3 : S.lives >= 10 ? 2 : 1;
+      }
+    }
+  }
+
+  // Move enemies
+  for (let e of S.enemies) {
+    if (e.dead) continue;
+    if (e.blocked) {
+      e.blockTimer--;
+      if (e.blockTimer <= 0) e.blocked = false;
+      continue;
+    }
+    e.t += (e.speed / PATH_LEN);
+    if (e.t >= 1) {
+      e.dead = true;
+      S.lives--;
+      if (S.lives <= 0) { S.gameOver = true; S.won = false; }
+    } else {
+      let p = pointOnPath(e.t);
+      e.x = p.x; e.y = p.y;
+    }
+  }
+
+  // Tower attacks
+  for (let t of S.towers) {
+    if (t.type === 'barracks') continue; // barracks handled via units
+    if (t.cooldown > 0) { t.cooldown--; continue; }
+    let best = null, bestD = t.range;
+    for (let e of S.enemies) {
+      if (e.dead) continue;
+      let d = dist(t, e);
+      if (d < bestD) { bestD = d; best = e; }
+    }
+    if (best) {
+      t.cooldown = t.rate;
+      let dmg = t.damage * UPGRADE_MULT[t.level];
+      if (t.type === 'bombard') {
+        // Area damage
+        S.projectiles.push({x:t.x,y:t.y,tx:best.x,ty:best.y,speed:4,type:'bomb',
+          damage:dmg,color:'#f44',r:3,aoe:40});
+      } else if (t.type === 'mage') {
+        S.projectiles.push({x:t.x,y:t.y,tx:best.x,ty:best.y,speed:5,type:'magic',
+          damage:dmg,color:'#b4f',r:3,target:best});
+      } else {
+        S.projectiles.push({x:t.x,y:t.y,tx:best.x,ty:best.y,speed:7,type:'arrow',
+          damage:dmg,color:'#0f0',r:2,target:best});
+      }
+    }
+  }
+
+  // Projectiles
+  for (let i = S.projectiles.length - 1; i >= 0; i--) {
+    let p = S.projectiles[i];
+    let dx = p.tx - p.x, dy = p.ty - p.y;
+    let d = Math.hypot(dx, dy);
+    if (d < p.speed + 3) {
+      if (p.type === 'bomb' && p.aoe) {
+        for (let e of S.enemies) {
+          if (!e.dead && dist(p, e) < p.aoe) {
+            let finalDmg = Math.max(1, p.damage - e.armor);
+            e.hp -= finalDmg;
+            if (e.hp <= 0) { e.dead = true; S.gold += e.gold; addFloatingText(e.x,e.y-10,'+'+e.gold+'g','#ff0'); }
+          }
+        }
+      } else if (p.target && !p.target.dead) {
+        let armor = p.type === 'magic' ? 0 : p.target.armor;
+        let finalDmg = Math.max(1, p.damage - armor);
+        p.target.hp -= finalDmg;
+        if (p.target.hp <= 0) { p.target.dead = true; S.gold += p.target.gold; addFloatingText(p.target.x,p.target.y-10,'+'+p.target.gold+'g','#ff0'); }
+      }
+      S.projectiles.splice(i, 1);
+    } else {
+      p.x += (dx/d) * p.speed;
+      p.y += (dy/d) * p.speed;
+    }
+  }
+
+  // Barracks units
+  for (let u of S.barracksUnits) {
+    if (!u.alive) {
+      u.respawnTimer--;
+      if (u.respawnTimer <= 0) {
+        u.alive = true;
+        u.hp = u.maxHp;
+        u.x = u.tower.x; u.y = u.tower.y;
+        u.target = null;
+      }
+      continue;
+    }
+    // Find target
+    if (!u.target || u.target.dead) {
+      u.target = null;
+      let bestD = 80;
+      for (let e of S.enemies) {
+        if (e.dead) continue;
+        let d = dist(u, e);
+        if (d < bestD) { bestD = d; u.target = e; }
+      }
+    }
+    if (u.target && !u.target.dead) {
+      let d = dist(u, u.target);
+      if (d > 15) {
+        let dx = u.target.x - u.x, dy = u.target.y - u.y;
+        u.x += (dx/d)*u.speed; u.y += (dy/d)*u.speed;
+      } else {
+        // Block enemy
+        u.target.blocked = true;
+        u.target.blockTimer = 5;
+        // Attack
+        if (u.attackCD <= 0) {
+          let dmg = Math.max(1, u.damage - u.target.armor);
+          u.target.hp -= dmg;
+          u.attackCD = u.attackRate;
+          if (u.target.hp <= 0) { u.target.dead = true; S.gold += u.target.gold; addFloatingText(u.target.x,u.target.y-10,'+'+u.target.gold+'g','#ff0'); u.target = null; }
+        }
+      }
+    } else {
+      // Return to rally
+      let d = dist(u, {x:u.rallyX,y:u.rallyY});
+      if (d > 3) {
+        let dx = u.rallyX-u.x, dy = u.rallyY-u.y;
+        u.x += (dx/d)*u.speed; u.y += (dy/d)*u.speed;
+      }
+    }
+    if (u.attackCD > 0) u.attackCD--;
+    // Take damage from enemies near
+    for (let e of S.enemies) {
+      if (e.dead) continue;
+      if (dist(u, e) < 15) {
+        u.hp -= 0.15;
+        if (u.hp <= 0) { u.alive = false; u.respawnTimer = 180; u.target = null;
+          e.blocked = false; break; }
+      }
+    }
+  }
+
+  // Hero
+  let H = S.hero;
+  if (H.alive) {
+    // Move toward target
+    let d = dist(H, {x:H.targetX, y:H.targetY});
+    if (d > 3) {
+      let dx = H.targetX-H.x, dy = H.targetY-H.y;
+      H.x += (dx/d)*H.speed; H.y += (dy/d)*H.speed;
+    }
+    // Find target
+    if (!H.target || H.target.dead) {
+      H.target = null;
+      let bestD = H.range;
+      for (let e of S.enemies) {
+        if (e.dead) continue;
+        let dd = dist(H, e);
+        if (dd < bestD) { bestD = dd; H.target = e; }
+      }
+    }
+    // Attack
+    if (H.target && !H.target.dead && dist(H, H.target) < H.range) {
+      if (H.attackCD <= 0) {
+        let dmg = Math.max(1, H.damage - H.target.armor);
+        H.target.hp -= dmg;
+        H.attackCD = H.attackRate;
+        H.target.blocked = true;
+        H.target.blockTimer = 5;
+        if (H.target.hp <= 0) { H.target.dead = true; S.gold += H.target.gold; addFloatingText(H.target.x,H.target.y-10,'+'+H.target.gold+'g','#ff0'); }
+      }
+    }
+    if (H.attackCD > 0) H.attackCD--;
+    if (H.specialCD > 0) H.specialCD--;
+
+    // Take damage
+    for (let e of S.enemies) {
+      if (e.dead) continue;
+      if (dist(H, e) < 20) {
+        H.hp -= 0.2;
+        if (H.hp <= 0) {
+          H.alive = false; H.respawn = 300;
+          addFloatingText(H.x, H.y-15, 'HERO DOWN!', '#f44');
+        }
+      }
+    }
+  } else {
+    H.respawn--;
+    if (H.respawn <= 0) {
+      H.alive = true; H.hp = H.maxHp;
+      H.x = 400; H.y = 450; H.targetX = 400; H.targetY = 450;
+      addFloatingText(H.x, H.y-15, 'HERO REVIVED!', '#0f0');
+    }
+  }
+
+  // Hero special ability
+  if (H.cooldown > 0) H.cooldown--;
+
+  // Floating texts
+  for (let i = S.floatingTexts.length-1; i >= 0; i--) {
+    S.floatingTexts[i].y -= 0.5;
+    S.floatingTexts[i].life--;
+    if (S.floatingTexts[i].life <= 0) S.floatingTexts.splice(i,1);
+  }
+
+  // Clean dead enemies
+  S.enemies = S.enemies.filter(e => !e.dead);
+}
+
+function heroSpecial() {
+  let H = state.hero;
+  if (!H.alive || H.specialCD > 0) return;
+  H.specialCD = H.specialMax;
+  // Area attack around hero
+  let count = 0;
+  for (let e of state.enemies) {
+    if (!e.dead && dist(H, e) < 80) {
+      e.hp -= 40;
+      count++;
+      if (e.hp <= 0) { e.dead = true; state.gold += e.gold; addFloatingText(e.x,e.y-10,'+'+e.gold+'g','#ff0'); }
+    }
+  }
+  addFloatingText(H.x, H.y-20, 'HERO STRIKE!', '#ff0');
+  // Visual effect stored on hero
+  H.cooldown = 15;
+}
+
+function drawPath() {
+  ctx.strokeStyle = '#654';
+  ctx.lineWidth = 28;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(PATH[0].x, PATH[0].y);
+  for (let i = 1; i < PATH.length; i++) ctx.lineTo(PATH[i].x, PATH[i].y);
+  ctx.stroke();
+  ctx.strokeStyle = '#876';
+  ctx.lineWidth = 22;
+  ctx.beginPath();
+  ctx.moveTo(PATH[0].x, PATH[0].y);
+  for (let i = 1; i < PATH.length; i++) ctx.lineTo(PATH[i].x, PATH[i].y);
+  ctx.stroke();
+}
+
+function drawBuildSpots() {
+  for (let i = 0; i < BUILD_SPOTS.length; i++) {
+    let s = BUILD_SPOTS[i];
+    let hasTower = state.towers.some(t => t.spotIdx === i);
+    if (!hasTower) {
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, 18, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(100,200,100,0.15)';
+      ctx.fill();
+      ctx.strokeStyle = '#4a4';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4,4]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+}
+
+function drawTowers() {
+  for (let i = 0; i < state.towers.length; i++) {
+    let t = state.towers[i];
+    let tt = TOWER_TYPES[t.type];
+    let sz = 14 + t.level*2;
+
+    if (t.type === 'archer') {
+      ctx.fillStyle = '#253';
+      ctx.fillRect(t.x-sz/2, t.y-sz/2, sz, sz);
+      ctx.fillStyle = t.color;
+      ctx.fillRect(t.x-sz/2+2, t.y-sz/2+2, sz-4, sz-4);
+      // Turret
+      for (let l = 0; l <= t.level; l++) {
+        ctx.fillStyle = '#0a0';
+        ctx.fillRect(t.x-1+l*3-t.level*1.5, t.y-sz/2-4, 3, 6);
+      }
+    } else if (t.type === 'barracks') {
+      ctx.fillStyle = '#530';
+      ctx.fillRect(t.x-sz/2, t.y-sz/2, sz, sz);
+      ctx.fillStyle = t.color;
+      ctx.fillRect(t.x-sz/2+2, t.y-sz/2+2, sz-4, sz-4);
+      // Flag
+      ctx.fillStyle = '#f00';
+      ctx.fillRect(t.x, t.y-sz/2-8, 8, 6);
+      ctx.fillStyle = '#840';
+      ctx.fillRect(t.x, t.y-sz/2-8, 1, 12);
+    } else if (t.type === 'mage') {
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, sz/2, 0, Math.PI*2);
+      ctx.fillStyle = '#214';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, sz/2-2, 0, Math.PI*2);
+      ctx.fillStyle = t.color;
+      ctx.fill();
+      // Glow
+      ctx.beginPath();
+      ctx.arc(t.x, t.y-sz/2-3, 3+t.level, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(180,80,255,${0.5+0.15*Math.sin(state.frame*0.1)})`;
+      ctx.fill();
+    } else if (t.type === 'bombard') {
+      ctx.fillStyle = '#411';
+      ctx.fillRect(t.x-sz/2, t.y-sz/2, sz, sz);
+      ctx.fillStyle = t.color;
+      ctx.fillRect(t.x-sz/2+2, t.y-sz/2+2, sz-4, sz-4);
+      // Cannon barrel
+      ctx.fillStyle = '#822';
+      ctx.fillRect(t.x-3, t.y-sz/2-6-t.level*2, 6, 8+t.level*2);
+    }
+
+    // Level indicators
+    for (let l = 0; l < t.level; l++) {
+      ctx.fillStyle = '#ff0';
+      ctx.beginPath();
+      ctx.arc(t.x - (t.level-1)*4 + l*8, t.y+sz/2+5, 2, 0, Math.PI*2);
+      ctx.fill();
+    }
+
+    // Selection ring
+    if (i === state.selectedTower) {
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, t.range, 0, Math.PI*2);
+      ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, sz/2+4, 0, Math.PI*2);
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  }
+}
+
+function drawEnemies() {
+  for (let e of state.enemies) {
+    if (e.dead) continue;
+    ctx.beginPath();
+    ctx.arc(e.x, e.y, e.r, 0, Math.PI*2);
+    ctx.fillStyle = e.color;
+    ctx.fill();
+    if (e.type === 'armored') {
+      ctx.strokeStyle = '#bbb';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+    if (e.type === 'wolf') {
+      // ears
+      ctx.fillStyle = '#a80';
+      ctx.beginPath(); ctx.moveTo(e.x-5,e.y-8); ctx.lineTo(e.x-2,e.y-14); ctx.lineTo(e.x+1,e.y-8); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(e.x+1,e.y-8); ctx.lineTo(e.x+4,e.y-14); ctx.lineTo(e.x+7,e.y-8); ctx.fill();
+    }
+    if (e.type === 'troll') {
+      ctx.fillStyle = '#2a2';
+      ctx.fillRect(e.x-3, e.y-16, 6, 4);
+    }
+    if (e.type === 'darkmage') {
+      ctx.beginPath();
+      ctx.arc(e.x, e.y, e.r+3, 0, Math.PI*2);
+      ctx.strokeStyle = `rgba(160,0,255,${0.4+0.3*Math.sin(state.frame*0.15)})`;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+    // HP bar
+    if (e.hp < e.maxHp) {
+      let bw = e.r*2;
+      ctx.fillStyle = '#400';
+      ctx.fillRect(e.x-bw/2, e.y-e.r-6, bw, 3);
+      ctx.fillStyle = '#0f0';
+      ctx.fillRect(e.x-bw/2, e.y-e.r-6, bw*(e.hp/e.maxHp), 3);
+    }
+    // Blocked indicator
+    if (e.blocked) {
+      ctx.fillStyle = 'rgba(255,0,0,0.3)';
+      ctx.beginPath();
+      ctx.arc(e.x, e.y, e.r+2, 0, Math.PI*2);
+      ctx.fill();
+    }
+  }
+}
+
+function drawBarracksUnits() {
+  for (let u of state.barracksUnits) {
+    if (!u.alive) continue;
+    ctx.beginPath();
+    ctx.arc(u.x, u.y, 5, 0, Math.PI*2);
+    ctx.fillStyle = '#fa0';
+    ctx.fill();
+    ctx.strokeStyle = '#840';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    // sword
+    ctx.strokeStyle = '#ddd';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(u.x+3, u.y-3);
+    ctx.lineTo(u.x+7, u.y-7);
+    ctx.stroke();
+  }
+}
+
+function drawHero() {
+  let H = state.hero;
+  if (!H.alive) return;
+  // Special effect
+  if (H.cooldown > 0) {
+    ctx.beginPath();
+    ctx.arc(H.x, H.y, 80*(1-H.cooldown/15), 0, Math.PI*2);
+    ctx.strokeStyle = `rgba(255,255,0,${H.cooldown/15})`;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+  }
+  // Body
+  ctx.beginPath();
+  ctx.arc(H.x, H.y, H.r, 0, Math.PI*2);
+  ctx.fillStyle = '#48f';
+  ctx.fill();
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  // Crown
+  ctx.fillStyle = '#ff0';
+  ctx.beginPath();
+  ctx.moveTo(H.x-6, H.y-H.r+2);
+  ctx.lineTo(H.x-4, H.y-H.r-6);
+  ctx.lineTo(H.x, H.y-H.r-2);
+  ctx.lineTo(H.x+4, H.y-H.r-6);
+  ctx.lineTo(H.x+6, H.y-H.r+2);
+  ctx.fill();
+  // HP bar
+  let bw = 24;
+  ctx.fillStyle = '#400';
+  ctx.fillRect(H.x-bw/2, H.y-H.r-10, bw, 3);
+  ctx.fillStyle = '#0f0';
+  ctx.fillRect(H.x-bw/2, H.y-H.r-10, bw*(H.hp/H.maxHp), 3);
+  // Special cooldown indicator
+  if (H.specialCD > 0) {
+    ctx.fillStyle = 'rgba(255,255,0,0.3)';
+    ctx.fillRect(H.x-bw/2, H.y+H.r+3, bw, 3);
+    ctx.fillStyle = '#ff0';
+    ctx.fillRect(H.x-bw/2, H.y+H.r+3, bw*(1-H.specialCD/H.specialMax), 3);
+  }
+}
+
+function drawProjectiles() {
+  for (let p of state.projectiles) {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+    ctx.fillStyle = p.color;
+    ctx.fill();
+    if (p.type === 'bomb') {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r+2, 0, Math.PI*2);
+      ctx.strokeStyle = '#f80';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+  }
+}
+
+function drawUI() {
+  let S = state;
+  // Top bar
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(0, 0, 800, 30);
+  ctx.font = '14px monospace';
+  ctx.fillStyle = '#ff0';
+  ctx.fillText('Gold: ' + S.gold, 10, 20);
+  ctx.fillStyle = '#f44';
+  ctx.fillText('Lives: ' + S.lives, 130, 20);
+  ctx.fillStyle = '#aaf';
+  ctx.fillText('Wave: ' + S.wave + '/' + WAVES.length, 250, 20);
+  if (!S.waveActive && S.wave < WAVES.length && !S.gameOver) {
+    ctx.fillStyle = '#0f0';
+    ctx.fillText('[SPACE] Next Wave', 400, 20);
+  }
+  ctx.fillStyle = '#888';
+  ctx.fillText('[?] Info', 720, 20);
+
+  // Hero status
+  if (!S.hero.alive) {
+    ctx.fillStyle = '#f88';
+    ctx.fillText('Hero respawning: ' + Math.ceil(S.hero.respawn/60) + 's', 560, 20);
+  } else if (S.hero.specialCD <= 0) {
+    ctx.fillStyle = '#ff0';
+    ctx.fillText('[H] Hero Ability', 560, 20);
+  }
+
+  // Quick select indicator
+  if (S.quickSelect) {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, 570, 800, 30);
+    ctx.font = '13px monospace';
+    ctx.fillStyle = '#fff';
+    let tt = TOWER_TYPES[S.quickSelect];
+    ctx.fillText('Selected: ' + tt.name + ' (' + tt.cost + 'g) — Click build spot to place', 10, 588);
+  }
+
+  // Tower build/upgrade menu
+  if (S.selectedSpot >= 0) {
+    drawBuildMenu(S.selectedSpot);
+  }
+  if (S.selectedTower >= 0) {
+    drawUpgradeMenu(S.selectedTower);
+  }
+
+  // Floating texts
+  for (let ft of S.floatingTexts) {
+    ctx.globalAlpha = ft.life / 40;
+    ctx.font = '12px monospace';
+    ctx.fillStyle = ft.color;
+    ctx.fillText(ft.text, ft.x-15, ft.y);
+    ctx.globalAlpha = 1;
+  }
+
+  // Game over
+  if (S.gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, 200, 800, 200);
+    ctx.font = '36px monospace';
+    ctx.textAlign = 'center';
+    if (S.won) {
+      ctx.fillStyle = '#ff0';
+      ctx.fillText('VICTORY!', 400, 270);
+      ctx.font = '24px monospace';
+      let starStr = '';
+      for (let i = 0; i < 3; i++) starStr += i < S.stars ? '\u2605' : '\u2606';
+      ctx.fillText(starStr, 400, 310);
+    } else {
+      ctx.fillStyle = '#f44';
+      ctx.fillText('DEFEAT', 400, 280);
+    }
+    ctx.font = '16px monospace';
+    ctx.fillStyle = '#aaa';
+    ctx.fillText('Press R to restart', 400, 360);
+    ctx.textAlign = 'left';
+  }
+
+  // Start screen hint
+  if (S.wave === 0 && !S.waveActive) {
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(250, 250, 300, 80);
+    ctx.font = '16px monospace';
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    ctx.fillText('Build towers, then press', 400, 275);
+    ctx.fillText('SPACE to start!', 400, 295);
+    ctx.font = '12px monospace';
+    ctx.fillStyle = '#888';
+    ctx.fillText('[1] Archer  [2] Barracks', 400, 315);
+    ctx.fillText('[3] Mage    [4] Bombard', 400, 330);
+    ctx.textAlign = 'left';
+  }
+}
+
+function drawBuildMenu(spotIdx) {
+  let s = BUILD_SPOTS[spotIdx];
+  let mx = Math.min(s.x + 25, 620), my = Math.max(s.y - 80, 35);
+  ctx.fillStyle = 'rgba(0,0,0,0.9)';
+  ctx.strokeStyle = '#666';
+  ctx.lineWidth = 1;
+  let menuW = 170, menuH = 120;
+  ctx.fillRect(mx, my, menuW, menuH);
+  ctx.strokeRect(mx, my, menuW, menuH);
+  ctx.font = '11px monospace';
+  ctx.fillStyle = '#fff';
+  ctx.fillText('BUILD TOWER:', mx+5, my+14);
+  let types = ['archer','barracks','mage','bombard'];
+  let keys = ['1','2','3','4'];
+  for (let i = 0; i < 4; i++) {
+    let tt = TOWER_TYPES[types[i]];
+    let yy = my + 22 + i*24;
+    let canAfford = state.gold >= tt.cost;
+    ctx.fillStyle = canAfford ? '#222' : '#111';
+    ctx.fillRect(mx+3, yy, menuW-6, 20);
+    ctx.fillStyle = canAfford ? tt.color : '#555';
+    ctx.fillText('['+keys[i]+'] '+tt.name, mx+8, yy+14);
+    ctx.fillStyle = canAfford ? '#ff0' : '#533';
+    ctx.fillText(tt.cost+'g', mx+120, yy+14);
+  }
+}
+
+function drawUpgradeMenu(towerIdx) {
+  let t = state.towers[towerIdx];
+  let mx = Math.min(t.x + 25, 600), my = Math.max(t.y - 60, 35);
+  ctx.fillStyle = 'rgba(0,0,0,0.9)';
+  ctx.strokeStyle = '#666';
+  ctx.lineWidth = 1;
+  let menuW = 180, menuH = 75;
+  ctx.fillRect(mx, my, menuW, menuH);
+  ctx.strokeRect(mx, my, menuW, menuH);
+  ctx.font = '11px monospace';
+  let tt = TOWER_TYPES[t.type];
+  ctx.fillStyle = tt.color;
+  ctx.fillText(tt.name + ' Lv.' + (t.level+1), mx+5, my+14);
+  if (t.level < 3) {
+    let cost = UPGRADE_COST[t.level+1];
+    let canAfford = state.gold >= cost;
+    ctx.fillStyle = canAfford ? '#282' : '#111';
+    ctx.fillRect(mx+3, my+20, menuW-6, 20);
+    ctx.fillStyle = canAfford ? '#0f0' : '#555';
+    ctx.fillText('[U] Upgrade — '+cost+'g', mx+8, my+34);
+  } else {
+    ctx.fillStyle = '#888';
+    ctx.fillText('MAX LEVEL', mx+8, my+34);
+  }
+  ctx.fillStyle = '#422';
+  ctx.fillRect(mx+3, my+44, menuW-6, 20);
+  ctx.fillStyle = '#f88';
+  ctx.fillText('[S] Sell (60%)', mx+8, my+58);
+}
+
+function draw() {
+  ctx.fillStyle = '#1a2a1a';
+  ctx.fillRect(0, 0, 800, 600);
+
+  // Grass texture hints
+  for (let i = 0; i < 40; i++) {
+    let gx = (i*127+33) % 800, gy = (i*211+77) % 600;
+    ctx.fillStyle = 'rgba(30,60,30,0.5)';
+    ctx.fillRect(gx, gy, 3, 3);
+  }
+
+  // Entry/exit markers
+  ctx.fillStyle = '#f44';
+  ctx.font = '12px monospace';
+  ctx.fillText('START', 2, 72);
+  ctx.fillStyle = '#4f4';
+  ctx.fillText('BASE', 750, 495);
+
+  drawPath();
+  drawBuildSpots();
+  drawTowers();
+  drawEnemies();
+  drawBarracksUnits();
+  drawProjectiles();
+  drawHero();
+  drawUI();
+}
+
+// Input handling
+let mouseX = 0, mouseY = 0;
+canvas.addEventListener('mousemove', e => {
+  let r = canvas.getBoundingClientRect();
+  mouseX = (e.clientX - r.left) * (800 / r.width);
+  mouseY = (e.clientY - r.top) * (600 / r.height);
+});
+
+canvas.addEventListener('click', e => {
+  if (infoOpen || state.gameOver) return;
+  let r = canvas.getBoundingClientRect();
+  let cx = (e.clientX - r.left) * (800 / r.width);
+  let cy = (e.clientY - r.top) * (600 / r.height);
+  let S = state;
+
+  // Check if clicking on existing tower
+  for (let i = 0; i < S.towers.length; i++) {
+    if (dist({x:cx,y:cy}, S.towers[i]) < 20) {
+      S.selectedTower = (S.selectedTower === i) ? -1 : i;
+      S.selectedSpot = -1;
+      return;
+    }
+  }
+
+  // Check if clicking on build spot
+  for (let i = 0; i < BUILD_SPOTS.length; i++) {
+    let spot = BUILD_SPOTS[i];
+    if (dist({x:cx,y:cy}, spot) < 22) {
+      let hasTower = S.towers.some(t => t.spotIdx === i);
+      if (!hasTower) {
+        if (S.quickSelect) {
+          buildTower(i, S.quickSelect);
+          S.quickSelect = null;
+          S.selectedSpot = -1;
+        } else {
+          S.selectedSpot = (S.selectedSpot === i) ? -1 : i;
+        }
+        S.selectedTower = -1;
+        return;
+      }
+    }
+  }
+
+  // Check if clicking on hero
+  if (S.hero.alive && dist({x:cx,y:cy}, S.hero) < S.hero.r + 5) {
+    heroSpecial();
+    return;
+  }
+
+  // Click on path/map = move hero
+  let cp = closestPathPoint(cx, cy);
+  if (cp.dist < 60) {
+    S.hero.targetX = cp.x;
+    S.hero.targetY = cp.y;
+  }
+
+  S.selectedSpot = -1;
+  S.selectedTower = -1;
+});
+
+window.addEventListener('keydown', e => {
+  let key = e.key.toLowerCase();
+
+  if (key === '?') { toggleInfo(); return; }
+  if (key === 'escape') {
+    if (infoOpen) { toggleInfo(); return; }
+    state.selectedSpot = -1;
+    state.selectedTower = -1;
+    state.quickSelect = null;
+    return;
+  }
+  if (infoOpen) return;
+
+  if (key === ' ') { e.preventDefault(); startWave(); return; }
+  if (key === 'r') { initState(); return; }
+  if (key === 'h') { heroSpecial(); return; }
+
+  // Tower quick select
+  if (key === '1') { state.quickSelect = 'archer'; state.selectedSpot = -1; state.selectedTower = -1; }
+  if (key === '2') { state.quickSelect = 'barracks'; state.selectedSpot = -1; state.selectedTower = -1; }
+  if (key === '3') { state.quickSelect = 'mage'; state.selectedSpot = -1; state.selectedTower = -1; }
+  if (key === '4') { state.quickSelect = 'bombard'; state.selectedSpot = -1; state.selectedTower = -1; }
+
+  // Build from menu
+  if (state.selectedSpot >= 0) {
+    let types = ['archer','barracks','mage','bombard'];
+    let idx = ['1','2','3','4'].indexOf(key);
+    if (idx >= 0) {
+      buildTower(state.selectedSpot, types[idx]);
+      state.selectedSpot = -1;
+    }
+  }
+
+  // Upgrade/sell from menu
+  if (state.selectedTower >= 0) {
+    if (key === 'u') { upgradeTower(state.selectedTower); }
+    if (key === 's') { sellTower(state.selectedTower); }
+  }
+});
+
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

@@ -1,0 +1,760 @@
+<!--
+PROTOTYPE: laberinto
+SERIES: maz
+NUMBER: 013
+DATE: 2026-03-24
+MECHANIC: knowledge maze — navigate mazes while answering trivia questions; correct answers open paths; wrong answers spawn obstacles
+ANCESTRY: Laberinto del Saber (Cuban educational games, 1990s), Carmen Sandiego (1985, Broderbund), Maze Craze (1977, Atari)
+CONTROLS: Arrow keys — move | 1-4 — answer questions | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Expert Systems — rule-based knowledge testing, adaptive difficulty through maze generation)
+AI-INSIGHT: The knowledge-as-key mechanic transforms trivia into spatial navigation. Each question becomes a lock — correct answers literally open paths forward. This maps knowledge representation onto physical space, a principle used in early expert systems where decision trees guided users through branching problem spaces.
+NOTES: Cuban educational game developers pioneered the fusion of maze navigation
+       with knowledge testing. The spatial consequence of answers — opening or
+       blocking paths — gives trivia physical stakes beyond abstract scoring.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MAZ-013 · LABERINTO DEL SABER</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>MAZ-013 · LABERINTO DEL SABER</h1>
+    <p><span class="tag series">MAZ — Maze</span> <span class="tag">Prototype #013</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Navigate the maze to reach the exit. At knowledge gates, answer trivia questions to open the path forward.</p>
+    <ul>
+      <li><kbd>Arrow keys</kbd> — Move through the maze</li>
+      <li><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd> — Select answer (A, B, C, D)</li>
+      <li>Correct answers open the gate ahead</li>
+      <li>Wrong answers block the gate and spawn a hazard behind you</li>
+      <li>Reach the green exit to complete each maze</li>
+      <li>6 mazes with increasing complexity</li>
+      <li>Score = time remaining + correct answers bonus</li>
+      <li><kbd>R</kbd> — Restart current maze</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+
+    <h2>History</h2>
+    <p>Cuban educational software developers in the 1990s created games that merged learning with play under resource constraints. The Laberinto del Saber concept — where knowledge literally opens doors — emerged from a tradition of educational maze games stretching back to early microcomputer software. The idea that correct answers physically transform the game space gives trivia genuine spatial stakes, turning abstract knowledge into a navigational tool.</p>
+
+    <h2>AI Archaeology</h2>
+    <h3>AI Era 3 — Expert Systems</h3>
+    <p>The knowledge-as-key mechanic maps naturally onto expert system architectures. Each trivia gate functions as a decision node in a rule-based system — the player's knowledge determines which paths through the problem space remain accessible. Early educational software used similar branching logic to adapt difficulty, a precursor to modern adaptive learning systems.</p>
+
+    <h2>Classification</h2>
+    <p><span class="tag series">Series: MAZ (Maze)</span> <span class="tag">Educational</span> <span class="tag">Trivia</span> <span class="tag">Knowledge Gates</span> <span class="tag">Cuban Heritage</span></p>
+
+    <h2>Prototype Notes</h2>
+    <p>Six procedurally-defined mazes with increasing complexity. Twenty-four trivia questions spanning science, geography, history, and math. The knowledge gate mechanic physically transforms the maze — correct answers dissolve walls, wrong answers erect them. Hazards spawned by wrong answers create backtracking pressure, making each question a genuine risk-reward decision. Timer per maze rewards both speed and accuracy.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+var C = document.getElementById('c'), X = C.getContext('2d');
+C.width = 800; C.height = 600;
+
+var infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// --- Constants ---
+var W = 800, H = 600, TILE = 25;
+var COLS = 32, ROWS = 24;
+var PS = 2.5; // player speed
+
+// --- Trivia Questions ---
+var QUESTIONS = [
+  {q:"What planet is closest to the Sun?", a:["Mercury","Venus","Mars","Jupiter"], c:0},
+  {q:"What is the boiling point of water in Celsius?", a:["90","100","110","120"], c:1},
+  {q:"Which continent has the most countries?", a:["Asia","Europe","Africa","South America"], c:2},
+  {q:"What is 7 x 8?", a:["54","48","56","64"], c:2},
+  {q:"What gas do plants absorb from the air?", a:["Oxygen","Nitrogen","CO2","Helium"], c:2},
+  {q:"In what year did World War II end?", a:["1943","1944","1945","1946"], c:2},
+  {q:"What is the largest ocean on Earth?", a:["Atlantic","Indian","Arctic","Pacific"], c:3},
+  {q:"What is the chemical symbol for gold?", a:["Go","Gd","Au","Ag"], c:2},
+  {q:"How many bones are in the adult human body?", a:["186","206","226","256"], c:1},
+  {q:"What is the capital of Brazil?", a:["Rio de Janeiro","Sao Paulo","Brasilia","Salvador"], c:2},
+  {q:"What is the square root of 144?", a:["10","11","12","14"], c:2},
+  {q:"Which element has the atomic number 1?", a:["Helium","Hydrogen","Lithium","Carbon"], c:1},
+  {q:"What is the longest river in the world?", a:["Amazon","Mississippi","Yangtze","Nile"], c:3},
+  {q:"How many sides does a hexagon have?", a:["5","6","7","8"], c:1},
+  {q:"What year did humans first land on the Moon?", a:["1967","1968","1969","1970"], c:2},
+  {q:"What is the speed of light (approx km/s)?", a:["200,000","300,000","400,000","500,000"], c:1},
+  {q:"Which country has the largest population?", a:["USA","India","China","Indonesia"], c:1},
+  {q:"What is H2O commonly known as?", a:["Salt","Water","Acid","Alcohol"], c:1},
+  {q:"Who wrote Romeo and Juliet?", a:["Dickens","Shakespeare","Twain","Austen"], c:1},
+  {q:"What is the tallest mountain on Earth?", a:["K2","Kangchenjunga","Everest","Lhotse"], c:2},
+  {q:"How many degrees in a triangle?", a:["90","180","270","360"], c:1},
+  {q:"What is the smallest prime number?", a:["0","1","2","3"], c:2},
+  {q:"Which organ pumps blood in the body?", a:["Brain","Lungs","Heart","Liver"], c:2},
+  {q:"What force keeps us on the ground?", a:["Magnetism","Friction","Gravity","Inertia"], c:2}
+];
+
+// Shuffle questions per playthrough
+function shuffleArr(arr) {
+  for (var i = arr.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+  }
+}
+
+// --- Maze Definitions ---
+// 0=path, 1=wall, 2=gate(question), 3=exit, 4=hazard(spawned), 5=blocked gate
+// Each maze: {grid: 2D array, start: {r,c}, gates: [{r,c,qi}...]}
+var MAZE_TEMPLATES = [];
+
+function makeMaze(level) {
+  // Generate mazes with increasing complexity
+  var g = [];
+  var r, c;
+  for (r = 0; r < ROWS; r++) {
+    g[r] = [];
+    for (c = 0; c < COLS; c++) {
+      g[r][c] = 1; // all walls
+    }
+  }
+
+  // Carve paths using a simple recursive backtracker on odd cells
+  var visited = [];
+  for (r = 0; r < ROWS; r++) { visited[r] = []; for (c = 0; c < COLS; c++) visited[r][c] = false; }
+
+  var stack = [];
+  var sr = 1, sc = 1;
+  g[sr][sc] = 0; visited[sr][sc] = true;
+  stack.push({r:sr, c:sc});
+
+  var dirs = [[0,2],[0,-2],[2,0],[-2,0]];
+
+  while (stack.length > 0) {
+    var cur = stack[stack.length - 1];
+    var neighbors = [];
+    for (var d = 0; d < 4; d++) {
+      var nr = cur.r + dirs[d][0], nc = cur.c + dirs[d][1];
+      if (nr > 0 && nr < ROWS - 1 && nc > 0 && nc < COLS - 1 && !visited[nr][nc]) {
+        neighbors.push({r:nr, c:nc, wr: cur.r + dirs[d][0]/2, wc: cur.c + dirs[d][1]/2});
+      }
+    }
+    if (neighbors.length === 0) {
+      stack.pop();
+    } else {
+      var ni = Math.floor(Math.random() * neighbors.length);
+      var next = neighbors[ni];
+      g[next.wr][next.wc] = 0;
+      g[next.r][next.c] = 0;
+      visited[next.r][next.c] = true;
+      stack.push({r:next.r, c:next.c});
+    }
+  }
+
+  // Widen some corridors for easier navigation (more for early levels)
+  var widenPasses = Math.max(0, 4 - level);
+  for (var wp = 0; wp < widenPasses; wp++) {
+    for (r = 2; r < ROWS - 2; r++) {
+      for (c = 2; c < COLS - 2; c++) {
+        if (g[r][c] === 1 && Math.random() < 0.12) {
+          var adjPath = 0;
+          if (g[r-1][c] === 0) adjPath++;
+          if (g[r+1][c] === 0) adjPath++;
+          if (g[r][c-1] === 0) adjPath++;
+          if (g[r][c+1] === 0) adjPath++;
+          if (adjPath >= 2) g[r][c] = 0;
+        }
+      }
+    }
+  }
+
+  // Place start and exit
+  g[1][1] = 0;
+  // Exit at bottom-right area
+  var er = ROWS - 2, ec = COLS - 2;
+  g[er][ec] = 3;
+  // Ensure exit is reachable — carve path to it
+  if (g[er][ec-1] === 1 && g[er-1][ec] === 1) {
+    g[er][ec-1] = 0;
+  }
+
+  // Place gates (knowledge checkpoints) along the path
+  var numGates = 2 + level; // 2 to 7 gates
+  var gates = [];
+  var candidates = [];
+  // Find path cells that are bottlenecks (exactly 2 path neighbors in a line)
+  for (r = 2; r < ROWS - 3; r++) {
+    for (c = 2; c < COLS - 3; c++) {
+      if (g[r][c] === 0) {
+        var hn = (g[r][c-1] === 0 ? 1 : 0) + (g[r][c+1] === 0 ? 1 : 0);
+        var vn = (g[r-1][c] === 0 ? 1 : 0) + (g[r+1][c] === 0 ? 1 : 0);
+        if ((hn === 2 && vn === 0) || (vn === 2 && hn === 0)) {
+          // Corridor cell — good gate candidate
+          var dist = Math.abs(r - 1) + Math.abs(c - 1);
+          if (dist > 4) candidates.push({r:r, c:c, dist:dist});
+        }
+      }
+    }
+  }
+
+  // Sort by distance from start and pick evenly spaced gates
+  candidates.sort(function(a, b) { return a.dist - b.dist; });
+  var step = Math.max(1, Math.floor(candidates.length / (numGates + 1)));
+  for (var gi = 0; gi < numGates && gi * step + step < candidates.length; gi++) {
+    var gc = candidates[gi * step + step];
+    if (gc) {
+      g[gc.r][gc.c] = 2;
+      gates.push({r: gc.r, c: gc.c});
+    }
+  }
+
+  return {grid: g, start: {r: 1, c: 1}, gates: gates};
+}
+
+// --- Game State ---
+var level = 0;
+var maze, player, questionActive, currentQuestion, questionIdx;
+var score, correctCount, wrongCount, timeLeft, maxTime;
+var hazards, gameState, totalScore;
+var usedQuestions;
+var keys = {};
+var flashTimer = 0, flashColor = '';
+
+function initGame() {
+  level = 0;
+  totalScore = 0;
+  correctCount = 0;
+  wrongCount = 0;
+  usedQuestions = [];
+  shuffleArr(QUESTIONS);
+  questionIdx = 0;
+  gameState = 'play'; // play, question, levelComplete, win, gameover
+  initLevel();
+}
+
+function initLevel() {
+  maze = makeMaze(level);
+  player = {
+    x: maze.start.c * TILE + TILE / 2,
+    y: maze.start.r * TILE + TILE / 2,
+    r: TILE * 0.35
+  };
+  questionActive = false;
+  currentQuestion = null;
+  hazards = [];
+  maxTime = (90 - level * 8) * 60; // frames (90s down to 50s)
+  if (maxTime < 50 * 60) maxTime = 50 * 60;
+  timeLeft = maxTime;
+  gameState = 'play';
+  flashTimer = 0;
+}
+
+function getNextQuestion() {
+  if (questionIdx >= QUESTIONS.length) {
+    shuffleArr(QUESTIONS);
+    questionIdx = 0;
+  }
+  return QUESTIONS[questionIdx++];
+}
+
+function getTileAt(px, py) {
+  var c = Math.floor(px / TILE);
+  var r = Math.floor(py / TILE);
+  if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return 1;
+  return maze.grid[r][c];
+}
+
+function canMove(nx, ny, pr) {
+  // Check corners of bounding box
+  var margin = pr * 0.8;
+  var tiles = [
+    getTileAt(nx - margin, ny - margin),
+    getTileAt(nx + margin, ny - margin),
+    getTileAt(nx - margin, ny + margin),
+    getTileAt(nx + margin, ny + margin)
+  ];
+  for (var i = 0; i < tiles.length; i++) {
+    if (tiles[i] === 1 || tiles[i] === 5) return false;
+  }
+  return true;
+}
+
+function update() {
+  if (infoOpen) return;
+
+  if (gameState === 'levelComplete') {
+    return;
+  }
+  if (gameState === 'win' || gameState === 'gameover') {
+    return;
+  }
+
+  if (gameState === 'question') {
+    // Waiting for answer input
+    return;
+  }
+
+  // Timer
+  timeLeft--;
+  if (timeLeft <= 0) {
+    gameState = 'gameover';
+    return;
+  }
+
+  // Flash timer
+  if (flashTimer > 0) flashTimer--;
+
+  // Player movement
+  var dx = 0, dy = 0;
+  if (keys[37] || keys[65]) dx = -PS;
+  if (keys[39] || keys[68]) dx = PS;
+  if (keys[38] || keys[87]) dy = -PS;
+  if (keys[40] || keys[83]) dy = PS;
+
+  // Normalize diagonal
+  if (dx !== 0 && dy !== 0) {
+    dx *= 0.707; dy *= 0.707;
+  }
+
+  var nx = player.x + dx;
+  var ny = player.y + dy;
+
+  if (dx !== 0 && canMove(nx, player.y, player.r)) player.x = nx;
+  if (dy !== 0 && canMove(player.x, ny, player.r)) player.y = ny;
+
+  // Check tile under player
+  var pc = Math.floor(player.x / TILE);
+  var pr = Math.floor(player.y / TILE);
+  if (pr >= 0 && pr < ROWS && pc >= 0 && pc < COLS) {
+    var tile = maze.grid[pr][pc];
+
+    // Gate — trigger question
+    if (tile === 2) {
+      questionActive = true;
+      currentQuestion = getNextQuestion();
+      currentQuestion._gateR = pr;
+      currentQuestion._gateC = pc;
+      gameState = 'question';
+    }
+
+    // Exit
+    if (tile === 3) {
+      var timeBonus = Math.floor(timeLeft / 60) * 10;
+      var levelScore = timeBonus + correctCount * 50;
+      totalScore += levelScore;
+      gameState = 'levelComplete';
+      setTimeout(function() {
+        level++;
+        if (level >= 6) {
+          gameState = 'win';
+        } else {
+          initLevel();
+        }
+      }, 2000);
+    }
+
+    // Hazard collision
+    if (tile === 4) {
+      // Push player back
+      player.x -= dx * 3;
+      player.y -= dy * 3;
+      flashTimer = 15;
+      flashColor = '#f44';
+      timeLeft -= 180; // lose 3 seconds
+    }
+  }
+}
+
+function answerQuestion(choice) {
+  if (gameState !== 'question' || !currentQuestion) return;
+  var gr = currentQuestion._gateR, gc = currentQuestion._gateC;
+
+  if (choice === currentQuestion.c) {
+    // Correct — open the gate
+    maze.grid[gr][gc] = 0;
+    correctCount++;
+    score += 50;
+    flashTimer = 20;
+    flashColor = '#4f4';
+  } else {
+    // Wrong — block the gate and spawn hazard
+    maze.grid[gr][gc] = 5; // blocked
+    wrongCount++;
+    flashTimer = 20;
+    flashColor = '#f44';
+
+    // Spawn hazard behind player (on the path cell player came from)
+    var hCandidates = [];
+    var dirs = [[-1,0],[1,0],[0,-1],[0,1]];
+    for (var d = 0; d < 4; d++) {
+      var hr = gr + dirs[d][0], hc = gc + dirs[d][1];
+      if (hr > 0 && hr < ROWS-1 && hc > 0 && hc < COLS-1 && maze.grid[hr][hc] === 0) {
+        hCandidates.push({r:hr, c:hc});
+      }
+    }
+    if (hCandidates.length > 0) {
+      var haz = hCandidates[Math.floor(Math.random() * hCandidates.length)];
+      maze.grid[haz.r][haz.c] = 4;
+    }
+
+    // Push player back
+    player.x = player.x < gc * TILE + TILE/2 ? player.x - TILE : player.x + TILE;
+    player.y = player.y < gr * TILE + TILE/2 ? player.y - TILE : player.y + TILE;
+    // Clamp
+    player.x = Math.max(TILE, Math.min(player.x, (COLS-1)*TILE));
+    player.y = Math.max(TILE, Math.min(player.y, (ROWS-1)*TILE));
+  }
+
+  questionActive = false;
+  currentQuestion = null;
+  gameState = 'play';
+}
+
+function hudText(ctx, text, x, y, size, color, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.fillStyle = color || '#fff';
+  ctx.textAlign = align || 'left';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+function draw() {
+  X.fillStyle = '#0a0a1a';
+  X.fillRect(0, 0, W, H);
+
+  // Draw maze
+  for (var r = 0; r < ROWS; r++) {
+    for (var c = 0; c < COLS; c++) {
+      var tile = maze.grid[r][c];
+      var tx = c * TILE, ty = r * TILE;
+
+      if (tile === 1) {
+        // Wall
+        X.fillStyle = '#1a2a4a';
+        X.fillRect(tx, ty, TILE, TILE);
+        X.fillStyle = '#243660';
+        X.fillRect(tx + 1, ty + 1, TILE - 2, TILE - 2);
+      } else if (tile === 0) {
+        // Path
+        X.fillStyle = '#0d0d20';
+        X.fillRect(tx, ty, TILE, TILE);
+      } else if (tile === 2) {
+        // Gate (question mark)
+        X.fillStyle = '#0d0d20';
+        X.fillRect(tx, ty, TILE, TILE);
+        X.fillStyle = '#ff0';
+        X.fillRect(tx + 2, ty + 2, TILE - 4, TILE - 4);
+        X.fillStyle = '#000';
+        X.font = '16px monospace';
+        X.textAlign = 'center';
+        X.fillText('?', tx + TILE/2, ty + TILE/2 + 5);
+      } else if (tile === 3) {
+        // Exit
+        X.fillStyle = '#0d0d20';
+        X.fillRect(tx, ty, TILE, TILE);
+        X.fillStyle = '#0f0';
+        X.fillRect(tx + 2, ty + 2, TILE - 4, TILE - 4);
+        X.fillStyle = '#000';
+        X.font = '12px monospace';
+        X.textAlign = 'center';
+        X.fillText('EXIT', tx + TILE/2, ty + TILE/2 + 4);
+      } else if (tile === 4) {
+        // Hazard
+        X.fillStyle = '#0d0d20';
+        X.fillRect(tx, ty, TILE, TILE);
+        X.fillStyle = '#f44';
+        X.beginPath();
+        X.moveTo(tx + TILE/2, ty + 3);
+        X.lineTo(tx + TILE - 3, ty + TILE - 3);
+        X.lineTo(tx + 3, ty + TILE - 3);
+        X.closePath();
+        X.fill();
+        X.fillStyle = '#fff';
+        X.font = '11px monospace';
+        X.textAlign = 'center';
+        X.fillText('!', tx + TILE/2, ty + TILE - 7);
+      } else if (tile === 5) {
+        // Blocked gate
+        X.fillStyle = '#4a1a1a';
+        X.fillRect(tx, ty, TILE, TILE);
+        X.fillStyle = '#811';
+        X.fillRect(tx + 1, ty + 1, TILE - 2, TILE - 2);
+        X.strokeStyle = '#f44';
+        X.lineWidth = 2;
+        X.beginPath();
+        X.moveTo(tx + 4, ty + 4);
+        X.lineTo(tx + TILE - 4, ty + TILE - 4);
+        X.moveTo(tx + TILE - 4, ty + 4);
+        X.lineTo(tx + 4, ty + TILE - 4);
+        X.stroke();
+      }
+    }
+  }
+
+  // Draw player
+  X.fillStyle = flashTimer > 0 ? flashColor : '#4af';
+  X.beginPath();
+  X.arc(player.x, player.y, player.r, 0, Math.PI * 2);
+  X.fill();
+  X.fillStyle = '#fff';
+  X.beginPath();
+  X.arc(player.x, player.y, player.r * 0.5, 0, Math.PI * 2);
+  X.fill();
+
+  // HUD
+  var sec = Math.ceil(timeLeft / 60);
+  var timeColor = sec <= 15 ? '#f44' : sec <= 30 ? '#fa0' : '#fff';
+  hudText(X, 'MAZE ' + (level + 1) + '/6', 10, 18, 14, '#7bf', 'left');
+  hudText(X, 'TIME: ' + sec + 's', W/2, 18, 14, timeColor, 'center');
+  hudText(X, 'SCORE: ' + totalScore, W - 10, 18, 14, '#ff0', 'right');
+
+  // Flash overlay
+  if (flashTimer > 0) {
+    X.fillStyle = flashColor === '#4f4' ? 'rgba(0,255,0,0.08)' : 'rgba(255,0,0,0.08)';
+    X.fillRect(0, 0, W, H);
+  }
+
+  // Question overlay
+  if (gameState === 'question' && currentQuestion) {
+    X.fillStyle = 'rgba(0,0,0,0.85)';
+    X.fillRect(100, 150, 600, 300);
+    X.strokeStyle = '#ff0';
+    X.lineWidth = 2;
+    X.strokeRect(100, 150, 600, 300);
+
+    hudText(X, 'KNOWLEDGE GATE', W/2, 185, 18, '#ff0', 'center');
+    // Word wrap the question
+    var qText = currentQuestion.q;
+    hudText(X, qText, W/2, 220, 16, '#fff', 'center');
+
+    var labels = ['A','B','C','D'];
+    for (var i = 0; i < 4; i++) {
+      var ay = 260 + i * 40;
+      X.fillStyle = '#1a2a4a';
+      X.fillRect(180, ay - 15, 440, 32);
+      X.strokeStyle = '#4af';
+      X.lineWidth = 1;
+      X.strokeRect(180, ay - 15, 440, 32);
+      hudText(X, '[' + (i+1) + '] ' + labels[i] + '. ' + currentQuestion.a[i], 200, ay + 5, 14, '#ddd', 'left');
+    }
+
+    hudText(X, 'Press 1-4 to answer', W/2, 435, 12, '#888', 'center');
+  }
+
+  // Level complete overlay
+  if (gameState === 'levelComplete') {
+    X.fillStyle = 'rgba(0,0,0,0.8)';
+    X.fillRect(200, 220, 400, 160);
+    X.strokeStyle = '#4f4';
+    X.lineWidth = 2;
+    X.strokeRect(200, 220, 400, 160);
+    hudText(X, 'MAZE COMPLETE!', W/2, 265, 22, '#4f4', 'center');
+    var tb = Math.floor(timeLeft / 60) * 10;
+    hudText(X, 'Time Bonus: +' + tb, W/2, 300, 14, '#fff', 'center');
+    hudText(X, 'Correct: ' + correctCount + '  Wrong: ' + wrongCount, W/2, 325, 14, '#aaa', 'center');
+    if (level < 5) {
+      hudText(X, 'Next maze loading...', W/2, 360, 13, '#888', 'center');
+    }
+  }
+
+  // Win overlay
+  if (gameState === 'win') {
+    X.fillStyle = 'rgba(0,0,0,0.85)';
+    X.fillRect(150, 160, 500, 280);
+    X.strokeStyle = '#ff0';
+    X.lineWidth = 3;
+    X.strokeRect(150, 160, 500, 280);
+    hudText(X, 'LABERINTO DEL SABER', W/2, 210, 24, '#ff0', 'center');
+    hudText(X, 'ALL 6 MAZES COMPLETE!', W/2, 245, 18, '#4f4', 'center');
+    hudText(X, 'Final Score: ' + totalScore, W/2, 285, 20, '#fff', 'center');
+    hudText(X, 'Correct Answers: ' + correctCount, W/2, 315, 14, '#4f4', 'center');
+    hudText(X, 'Wrong Answers: ' + wrongCount, W/2, 340, 14, '#f44', 'center');
+    hudText(X, 'Press R to play again', W/2, 385, 14, '#888', 'center');
+    hudText(X, 'El saber es la llave.', W/2, 415, 13, '#ff0', 'center');
+  }
+
+  // Game over overlay
+  if (gameState === 'gameover') {
+    X.fillStyle = 'rgba(0,0,0,0.85)';
+    X.fillRect(200, 200, 400, 200);
+    X.strokeStyle = '#f44';
+    X.lineWidth = 2;
+    X.strokeRect(200, 200, 400, 200);
+    hudText(X, 'TIME EXPIRED', W/2, 250, 22, '#f44', 'center');
+    hudText(X, 'Maze ' + (level + 1) + ' — Score: ' + totalScore, W/2, 285, 16, '#fff', 'center');
+    hudText(X, 'Correct: ' + correctCount + '  Wrong: ' + wrongCount, W/2, 315, 14, '#aaa', 'center');
+    hudText(X, 'Press R to try again', W/2, 360, 14, '#888', 'center');
+  }
+}
+
+// --- Input ---
+document.addEventListener('keydown', function(e) {
+  keys[e.keyCode] = true;
+
+  if (e.keyCode === 191 || e.key === '?') { // ?
+    toggleInfo();
+    e.preventDefault();
+    return;
+  }
+  if (e.keyCode === 27) { // Escape
+    if (infoOpen) { toggleInfo(); e.preventDefault(); return; }
+  }
+  if (e.keyCode === 82) { // R
+    if (gameState === 'win' || gameState === 'gameover') {
+      initGame();
+    } else {
+      initLevel();
+    }
+    return;
+  }
+
+  // Answer keys 1-4
+  if (gameState === 'question') {
+    if (e.keyCode >= 49 && e.keyCode <= 52) {
+      answerQuestion(e.keyCode - 49);
+    }
+    // numpad
+    if (e.keyCode >= 97 && e.keyCode <= 100) {
+      answerQuestion(e.keyCode - 97);
+    }
+  }
+
+  // Prevent scrolling
+  if ([37,38,39,40,32].indexOf(e.keyCode) !== -1) e.preventDefault();
+});
+
+document.addEventListener('keyup', function(e) {
+  keys[e.keyCode] = false;
+});
+
+// --- Resize ---
+function resize() {
+  var s = Math.min(window.innerWidth / W, window.innerHeight / H);
+  C.style.width = (W * s) + 'px';
+  C.style.height = (H * s) + 'px';
+}
+window.addEventListener('resize', resize);
+resize();
+
+// --- Loop ---
+initGame();
+
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

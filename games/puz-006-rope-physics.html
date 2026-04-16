@@ -1,0 +1,1060 @@
+<!--
+PROTOTYPE: rope-physics
+SERIES: puz
+NUMBER: 006
+DATE: 2026-03-23
+MECHANIC: cut ropes to swing object into target using gravity and physics
+ANCESTRY: Cut the Rope (2010, ZeptoLab), The Incredible Machine (1993, Sierra), World of Goo (2008, 2D Boy)
+CONTROLS: Mouse — click and drag to cut ropes | R — restart level | N — next level | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 5 (Deep Learning — physics simulation as puzzle constraint)
+AI-INSIGHT: Cut the Rope proved that touch-native physics puzzles could achieve the depth of desktop games. Its rope simulation reduced complex physics to a single intuitive verb — cutting — making Newtonian mechanics accessible to anyone who can swipe a finger.
+NOTES: Rope physics puzzle with multiple solution paths per level.
+       Stars reward creative solutions beyond the minimum.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PUZ-006 · ROPE PHYSICS</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>PUZ-006 · ROPE PHYSICS</h1>
+    <p><span class="tag series">PUZ — Puzzle</span> <span class="tag">Prototype #006</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Cut ropes by clicking and dragging across them to release the candy. Guide it into the monster's mouth to complete each level!</p>
+    <ul>
+      <li><kbd>Mouse drag</kbd> — Cut ropes (click and drag across a rope)</li>
+      <li><kbd>R</kbd> — Restart current level</li>
+      <li><kbd>N</kbd> — Next level (after completing current)</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Stars:</strong> Swing the candy through stars before feeding the monster for bonus points. Each level has 3 stars.</li>
+      <li><strong>Air cushions:</strong> Green fans blow the candy sideways. Time your cuts to ride the wind.</li>
+      <li><strong>Bubbles:</strong> Blue bubbles float the candy upward. Tap the bubble to pop it and release.</li>
+      <li><strong>Multiple ropes:</strong> Later levels have multiple ropes. The order you cut them matters!</li>
+      <li><strong>Momentum:</strong> Let the candy swing to build momentum before cutting.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Cut the Rope (2010, ZeptoLab) &rarr; The Incredible Machine (1993, Sierra) &rarr; World of Goo (2008, 2D Boy)</p>
+    <p>Cut the Rope was created by Russian brothers Semyon and Efim Voskresenskiy under their studio ZeptoLab in 2010. It became one of the first mega-hits of the touchscreen era, demonstrating that physics puzzles designed natively for touch could rival the depth and satisfaction of traditional desktop games.</p>
+    <p>The game distilled complex rope physics into a single intuitive gesture: the swipe to cut. Its character Om Nom became one of mobile gaming's most recognizable mascots. The design lineage traces back through World of Goo's structural physics puzzles and The Incredible Machine's Rube Goldberg contraptions.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 5 — Deep Learning (2012-present)</p>
+    <p><strong>Contemporary AI:</strong> Physics simulation engines, neural network approaches to physical reasoning. DeepMind's work on learning physics from observation.</p>
+    <p>Cut the Rope's puzzle design is essentially a constrained physics optimization problem. Each level asks: given these anchor points, rope lengths, and environmental forces, what sequence of cuts delivers the payload to the target? This maps directly to trajectory optimization problems in robotics and the physical reasoning benchmarks that challenge modern AI systems. The game proved that humans solve these intuitively through mental simulation — the same capability that remains surprisingly difficult for AI.</p>
+
+    <h2>Classification</h2>
+    <p><strong>Primary:</strong> Physics Puzzle</p>
+    <p><strong>Secondary:</strong> Rope Simulation, Trajectory Planning</p>
+    <p><strong>Input:</strong> Mouse (cut gesture)</p>
+    <p><strong>Perspective:</strong> Side-view 2D</p>
+
+    <h2>Prototype Notes</h2>
+    <p>This prototype implements verlet integration for rope physics with 10 levels of progressive difficulty. Elements include multiple ropes, air cushions, and bubbles. The rope cutting uses line-segment intersection for precise detection. Each level is hand-designed with 3 collectible stars rewarding creative solutions beyond the minimum path.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+var canvas = document.getElementById('c');
+var ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+canvas.width = 800;
+canvas.height = 600;
+
+var infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// ============ PHYSICS CONSTANTS ============
+var GRAVITY = 0.25;
+var DAMPING = 0.99;
+var ROPE_SEGMENTS = 12;
+var CONSTRAINT_ITERS = 8;
+
+// ============ GAME STATE ============
+var currentLevel = 0;
+var score = 0;
+var totalStars = 0;
+var levelComplete = false;
+var levelFailed = false;
+var candy = null;
+var ropes = [];
+var stars = [];
+var starsCollected = [];
+var monster = null;
+var airCushions = [];
+var bubbles = [];
+var activeBubble = null; // bubble carrying the candy
+var particles = [];
+var cutTrail = [];
+var mouseDown = false;
+var mouseX = 0, mouseY = 0;
+var prevMouseX = 0, prevMouseY = 0;
+var levelTimer = 0;
+var message = '';
+var messageTimer = 0;
+var levelStars = 0;
+
+// ============ VERLET POINT ============
+function VPoint(x, y, pinned) {
+  return { x: x, y: y, ox: x, oy: y, pinned: !!pinned };
+}
+
+// ============ ROPE ============
+function createRope(ax, ay, bx, by, segments, pinnedStart) {
+  var pts = [];
+  for (var i = 0; i <= segments; i++) {
+    var t = i / segments;
+    var px = ax + (bx - ax) * t;
+    var py = ay + (by - ay) * t;
+    pts.push(VPoint(px, py, i === 0 && pinnedStart));
+  }
+  var segLen = Math.sqrt((bx - ax) * (bx - ax) + (by - ay) * (by - ay)) / segments;
+  return { points: pts, segLen: segLen, cut: false, cutIndex: -1 };
+}
+
+// ============ LEVELS ============
+var levels = [
+  // Level 1: single rope, straight down
+  function() {
+    candy = { x: 400, y: 120, vx: 0, vy: 0, r: 18 };
+    monster = { x: 400, y: 520, r: 35 };
+    ropes = [createRope(400, 40, candy.x, candy.y, ROPE_SEGMENTS, true)];
+    stars = [{ x: 400, y: 320, r: 14, collected: false }];
+    airCushions = [];
+    bubbles = [];
+  },
+  // Level 2: two ropes, v-shape
+  function() {
+    candy = { x: 400, y: 200, vx: 0, vy: 0, r: 18 };
+    monster = { x: 400, y: 520, r: 35 };
+    ropes = [
+      createRope(250, 40, candy.x, candy.y, ROPE_SEGMENTS, true),
+      createRope(550, 40, candy.x, candy.y, ROPE_SEGMENTS, true)
+    ];
+    stars = [
+      { x: 300, y: 350, r: 14, collected: false },
+      { x: 500, y: 350, r: 14, collected: false },
+      { x: 400, y: 420, r: 14, collected: false }
+    ];
+    airCushions = [];
+    bubbles = [];
+  },
+  // Level 3: offset monster, need to swing
+  function() {
+    candy = { x: 400, y: 130, vx: 0, vy: 0, r: 18 };
+    monster = { x: 620, y: 520, r: 35 };
+    ropes = [createRope(400, 40, candy.x, candy.y, ROPE_SEGMENTS, true)];
+    stars = [
+      { x: 500, y: 250, r: 14, collected: false },
+      { x: 600, y: 350, r: 14, collected: false },
+      { x: 620, y: 450, r: 14, collected: false }
+    ];
+    airCushions = [];
+    bubbles = [];
+  },
+  // Level 4: two ropes, cut order matters
+  function() {
+    candy = { x: 350, y: 180, vx: 0, vy: 0, r: 18 };
+    monster = { x: 600, y: 520, r: 35 };
+    ropes = [
+      createRope(200, 60, candy.x, candy.y, ROPE_SEGMENTS, true),
+      createRope(500, 60, candy.x, candy.y, ROPE_SEGMENTS, true)
+    ];
+    stars = [
+      { x: 250, y: 350, r: 14, collected: false },
+      { x: 450, y: 300, r: 14, collected: false },
+      { x: 600, y: 420, r: 14, collected: false }
+    ];
+    airCushions = [];
+    bubbles = [];
+  },
+  // Level 5: air cushion introduction
+  function() {
+    candy = { x: 200, y: 130, vx: 0, vy: 0, r: 18 };
+    monster = { x: 600, y: 520, r: 35 };
+    ropes = [createRope(200, 40, candy.x, candy.y, ROPE_SEGMENTS, true)];
+    stars = [
+      { x: 400, y: 200, r: 14, collected: false },
+      { x: 550, y: 300, r: 14, collected: false },
+      { x: 600, y: 430, r: 14, collected: false }
+    ];
+    airCushions = [{ x: 350, y: 420, dir: 1, strength: 0.35, w: 50, h: 60 }];
+    bubbles = [];
+  },
+  // Level 6: bubble introduction
+  function() {
+    candy = { x: 400, y: 400, vx: 0, vy: 0, r: 18 };
+    monster = { x: 400, y: 80, r: 35 };
+    ropes = [createRope(400, 300, candy.x, candy.y, 8, true)];
+    stars = [
+      { x: 300, y: 250, r: 14, collected: false },
+      { x: 500, y: 250, r: 14, collected: false },
+      { x: 400, y: 150, r: 14, collected: false }
+    ];
+    airCushions = [];
+    bubbles = [{ x: 350, y: 450, r: 22, active: true }];
+  },
+  // Level 7: multi-rope with air cushion
+  function() {
+    candy = { x: 300, y: 200, vx: 0, vy: 0, r: 18 };
+    monster = { x: 650, y: 500, r: 35 };
+    ropes = [
+      createRope(150, 50, candy.x, candy.y, ROPE_SEGMENTS, true),
+      createRope(450, 80, candy.x, candy.y, ROPE_SEGMENTS, true)
+    ];
+    stars = [
+      { x: 200, y: 350, r: 14, collected: false },
+      { x: 500, y: 300, r: 14, collected: false },
+      { x: 650, y: 400, r: 14, collected: false }
+    ];
+    airCushions = [{ x: 500, y: 480, dir: 1, strength: 0.3, w: 50, h: 60 }];
+    bubbles = [];
+  },
+  // Level 8: bubble + rope combo
+  function() {
+    candy = { x: 400, y: 350, vx: 0, vy: 0, r: 18 };
+    monster = { x: 150, y: 100, r: 35 };
+    ropes = [
+      createRope(500, 250, candy.x, candy.y, ROPE_SEGMENTS, true),
+      createRope(300, 250, candy.x, candy.y, ROPE_SEGMENTS, true)
+    ];
+    stars = [
+      { x: 400, y: 200, r: 14, collected: false },
+      { x: 250, y: 150, r: 14, collected: false },
+      { x: 150, y: 200, r: 14, collected: false }
+    ];
+    airCushions = [];
+    bubbles = [{ x: 200, y: 400, r: 22, active: true }];
+  },
+  // Level 9: three ropes, tricky routing
+  function() {
+    candy = { x: 400, y: 220, vx: 0, vy: 0, r: 18 };
+    monster = { x: 100, y: 520, r: 35 };
+    ropes = [
+      createRope(250, 40, candy.x, candy.y, ROPE_SEGMENTS, true),
+      createRope(400, 40, candy.x, candy.y, ROPE_SEGMENTS, true),
+      createRope(550, 40, candy.x, candy.y, ROPE_SEGMENTS, true)
+    ];
+    stars = [
+      { x: 500, y: 350, r: 14, collected: false },
+      { x: 300, y: 400, r: 14, collected: false },
+      { x: 100, y: 420, r: 14, collected: false }
+    ];
+    airCushions = [{ x: 80, y: 350, dir: 0, strength: 0, w: 50, h: 60 }];
+    bubbles = [];
+  },
+  // Level 10: grand finale — everything
+  function() {
+    candy = { x: 200, y: 150, vx: 0, vy: 0, r: 18 };
+    monster = { x: 650, y: 150, r: 35 };
+    ropes = [
+      createRope(100, 40, candy.x, candy.y, ROPE_SEGMENTS, true),
+      createRope(350, 60, candy.x, candy.y, ROPE_SEGMENTS, true)
+    ];
+    stars = [
+      { x: 200, y: 350, r: 14, collected: false },
+      { x: 450, y: 250, r: 14, collected: false },
+      { x: 650, y: 250, r: 14, collected: false }
+    ];
+    airCushions = [{ x: 400, y: 480, dir: 1, strength: 0.35, w: 50, h: 60 }];
+    bubbles = [{ x: 550, y: 420, r: 22, active: true }];
+  }
+];
+
+function loadLevel(idx) {
+  if (idx >= levels.length) idx = 0;
+  currentLevel = idx;
+  levelComplete = false;
+  levelFailed = false;
+  activeBubble = null;
+  particles = [];
+  cutTrail = [];
+  levelStars = 0;
+  starsCollected = [];
+  levels[idx]();
+  // Attach candy to last point of each rope
+  for (var i = 0; i < ropes.length; i++) {
+    var last = ropes[i].points[ropes[i].points.length - 1];
+    last.x = candy.x;
+    last.y = candy.y;
+    last.ox = candy.x;
+    last.oy = candy.y;
+  }
+  levelTimer = 0;
+}
+
+// ============ PHYSICS ============
+function updateRopes() {
+  for (var r = 0; r < ropes.length; r++) {
+    var rope = ropes[r];
+    if (rope.cut && rope.cutIndex <= 0) continue;
+    var pts = rope.points;
+    var endIdx = rope.cut ? rope.cutIndex : pts.length;
+    // Verlet integration
+    for (var i = 0; i < endIdx; i++) {
+      var p = pts[i];
+      if (p.pinned) continue;
+      var vx = (p.x - p.ox) * DAMPING;
+      var vy = (p.y - p.oy) * DAMPING;
+      p.ox = p.x;
+      p.oy = p.y;
+      p.x += vx;
+      p.y += vy + GRAVITY;
+    }
+    // Constraints
+    for (var iter = 0; iter < CONSTRAINT_ITERS; iter++) {
+      for (var i = 0; i < endIdx - 1; i++) {
+        var a = pts[i];
+        var b = pts[i + 1];
+        var dx = b.x - a.x;
+        var dy = b.y - a.y;
+        var dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 0.001) dist = 0.001;
+        var diff = (dist - rope.segLen) / dist * 0.5;
+        var ox = dx * diff;
+        var oy = dy * diff;
+        if (!a.pinned) { a.x += ox; a.y += oy; }
+        if (!b.pinned) { b.x -= ox; b.y -= oy; }
+      }
+    }
+  }
+}
+
+function updateCandy() {
+  if (levelComplete || levelFailed) return;
+
+  // If candy is in a bubble
+  if (activeBubble) {
+    candy.vy -= 0.15; // float up
+    candy.vy *= 0.96;
+    candy.vx *= 0.98;
+    candy.x += candy.vx;
+    candy.y += candy.vy;
+    activeBubble.x = candy.x;
+    activeBubble.y = candy.y;
+    // Pop bubble if clicked near it or hits top
+    if (candy.y < 10) {
+      popBubble();
+    }
+    checkStarCollision();
+    checkMonsterCollision();
+    return;
+  }
+
+  // Check if attached to any active rope
+  var attached = false;
+  var ax = 0, ay = 0, count = 0;
+  for (var r = 0; r < ropes.length; r++) {
+    var rope = ropes[r];
+    if (rope.cut) continue;
+    attached = true;
+    var last = rope.points[rope.points.length - 1];
+    ax += last.x;
+    ay += last.y;
+    count++;
+  }
+
+  if (attached && count > 0) {
+    candy.x = ax / count;
+    candy.y = ay / count;
+    candy.vx = candy.x - (candy.ox || candy.x);
+    candy.vy = candy.y - (candy.oy || candy.y);
+    candy.ox = candy.x;
+    candy.oy = candy.y;
+    // Sync all attached rope endpoints to averaged position
+    for (var r = 0; r < ropes.length; r++) {
+      if (ropes[r].cut) continue;
+      var last = ropes[r].points[ropes[r].points.length - 1];
+      last.x = candy.x;
+      last.y = candy.y;
+    }
+  } else {
+    // Free-falling candy
+    // Air cushion forces
+    for (var a = 0; a < airCushions.length; a++) {
+      var ac = airCushions[a];
+      if (Math.abs(candy.x - ac.x) < ac.w + candy.r &&
+          Math.abs(candy.y - ac.y) < ac.h + 80) {
+        if (candy.y > ac.y - ac.h - 40 && candy.y < ac.y + 20) {
+          candy.vx += ac.dir * ac.strength;
+          candy.vy -= 0.12;
+        }
+      }
+    }
+
+    candy.vy += GRAVITY;
+    candy.vx *= 0.995;
+    candy.x += candy.vx;
+    candy.y += candy.vy;
+
+    // Check bubble collision
+    for (var b = 0; b < bubbles.length; b++) {
+      var bub = bubbles[b];
+      if (!bub.active) continue;
+      var dx = candy.x - bub.x;
+      var dy = candy.y - bub.y;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < candy.r + bub.r) {
+        activeBubble = bub;
+        candy.vx *= 0.3;
+        candy.vy = -0.5;
+        bub.x = candy.x;
+        bub.y = candy.y;
+        break;
+      }
+    }
+  }
+
+  checkStarCollision();
+  checkMonsterCollision();
+
+  // Out of bounds?
+  if (candy.y > 650 || candy.x < -50 || candy.x > 850) {
+    levelFailed = true;
+    message = 'MISSED! Press R to retry';
+    messageTimer = 999;
+  }
+}
+
+function checkStarCollision() {
+  for (var s = 0; s < stars.length; s++) {
+    if (stars[s].collected) continue;
+    var dx = candy.x - stars[s].x;
+    var dy = candy.y - stars[s].y;
+    if (Math.sqrt(dx * dx + dy * dy) < candy.r + stars[s].r) {
+      stars[s].collected = true;
+      levelStars++;
+      score += 100;
+      spawnParticles(stars[s].x, stars[s].y, '#ff0', 8);
+    }
+  }
+}
+
+function checkMonsterCollision() {
+  var dx = candy.x - monster.x;
+  var dy = candy.y - monster.y;
+  if (Math.sqrt(dx * dx + dy * dy) < candy.r + monster.r) {
+    levelComplete = true;
+    totalStars += levelStars;
+    score += 500;
+    spawnParticles(monster.x, monster.y - 10, '#4f4', 15);
+    message = 'YUM! Stars: ' + levelStars + '/3';
+    messageTimer = 180;
+  }
+}
+
+function popBubble() {
+  if (activeBubble) {
+    spawnParticles(activeBubble.x, activeBubble.y, '#4cf', 10);
+    activeBubble.active = false;
+    activeBubble = null;
+    candy.vy = 0.5;
+  }
+}
+
+// ============ CUTTING ============
+function segIntersect(ax, ay, bx, by, cx, cy, dx, dy) {
+  var det = (bx - ax) * (dy - cy) - (by - ay) * (dx - cx);
+  if (Math.abs(det) < 0.0001) return false;
+  var t = ((cx - ax) * (dy - cy) - (cy - ay) * (dx - cx)) / det;
+  var u = ((cx - ax) * (by - ay) - (cy - ay) * (bx - ax)) / det;
+  return t >= 0 && t <= 1 && u >= 0 && u <= 1;
+}
+
+function tryCut(x1, y1, x2, y2) {
+  for (var r = 0; r < ropes.length; r++) {
+    var rope = ropes[r];
+    if (rope.cut) continue;
+    var pts = rope.points;
+    for (var i = 0; i < pts.length - 1; i++) {
+      if (segIntersect(x1, y1, x2, y2, pts[i].x, pts[i].y, pts[i + 1].x, pts[i + 1].y)) {
+        rope.cut = true;
+        rope.cutIndex = i + 1;
+        // Give candy velocity from rope motion
+        var last = pts[pts.length - 1];
+        candy.vx = (last.x - (last.ox || last.x)) * 1.2;
+        candy.vy = (last.y - (last.oy || last.y)) * 1.2;
+        candy.ox = candy.x;
+        candy.oy = candy.y;
+        spawnParticles((pts[i].x + pts[i + 1].x) / 2, (pts[i].y + pts[i + 1].y) / 2, '#f84', 6);
+        return;
+      }
+    }
+  }
+}
+
+// ============ PARTICLES ============
+function spawnParticles(x, y, color, count) {
+  for (var i = 0; i < count; i++) {
+    var angle = Math.random() * Math.PI * 2;
+    var speed = 1 + Math.random() * 3;
+    particles.push({
+      x: x, y: y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed - 1,
+      life: 30 + Math.random() * 20,
+      color: color,
+      r: 2 + Math.random() * 3
+    });
+  }
+}
+
+function updateParticles() {
+  for (var i = particles.length - 1; i >= 0; i--) {
+    var p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.08;
+    p.life--;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+}
+
+// ============ DRAWING ============
+function drawBG() {
+  // Gradient background
+  var grd = ctx.createLinearGradient(0, 0, 0, 600);
+  grd.addColorStop(0, '#1a2a3a');
+  grd.addColorStop(1, '#0a1520');
+  ctx.fillStyle = grd;
+  ctx.fillRect(0, 0, 800, 600);
+
+  // Subtle grid
+  ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+  ctx.lineWidth = 1;
+  for (var x = 0; x < 800; x += 40) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 600); ctx.stroke();
+  }
+  for (var y = 0; y < 600; y += 40) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(800, y); ctx.stroke();
+  }
+}
+
+function drawRopes() {
+  for (var r = 0; r < ropes.length; r++) {
+    var rope = ropes[r];
+    var pts = rope.points;
+    var endIdx = rope.cut ? rope.cutIndex : pts.length;
+    if (endIdx <= 1) continue;
+
+    // Rope shadow
+    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x + 2, pts[0].y + 2);
+    for (var i = 1; i < endIdx; i++) {
+      ctx.lineTo(pts[i].x + 2, pts[i].y + 2);
+    }
+    ctx.stroke();
+
+    // Main rope
+    ctx.strokeStyle = '#c85';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (var i = 1; i < endIdx; i++) {
+      ctx.lineTo(pts[i].x, pts[i].y);
+    }
+    ctx.stroke();
+
+    // Rope highlight
+    ctx.strokeStyle = 'rgba(255,200,150,0.3)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x - 1, pts[0].y - 1);
+    for (var i = 1; i < endIdx; i++) {
+      ctx.lineTo(pts[i].x - 1, pts[i].y - 1);
+    }
+    ctx.stroke();
+
+    // Anchor point
+    if (pts[0].pinned) {
+      ctx.fillStyle = '#888';
+      ctx.beginPath();
+      ctx.arc(pts[0].x, pts[0].y, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#aaa';
+      ctx.beginPath();
+      ctx.arc(pts[0].x, pts[0].y, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+function drawCandy() {
+  var cx = candy.x, cy = candy.y, r = candy.r;
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath();
+  ctx.arc(cx + 3, cy + 3, r, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Main body
+  ctx.fillStyle = '#e44';
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Stripes
+  ctx.strokeStyle = '#f88';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r * 0.6, -0.5, 0.8);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(cx, cy, r * 0.6, 1.8, 3.1);
+  ctx.stroke();
+
+  // Shine
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  ctx.beginPath();
+  ctx.arc(cx - 5, cy - 5, r * 0.35, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Wrapper tips
+  ctx.fillStyle = '#c33';
+  ctx.beginPath();
+  ctx.moveTo(cx - r, cy - 2);
+  ctx.lineTo(cx - r - 10, cy - 8);
+  ctx.lineTo(cx - r - 8, cy + 4);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(cx + r, cy - 2);
+  ctx.lineTo(cx + r + 10, cy - 8);
+  ctx.lineTo(cx + r + 8, cy + 4);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawMonster() {
+  var mx = monster.x, my = monster.y, mr = monster.r;
+  var mouthOpen = levelComplete ? 0.1 : (0.4 + Math.sin(levelTimer * 0.05) * 0.1);
+
+  // Body
+  ctx.fillStyle = '#3a3';
+  ctx.beginPath();
+  ctx.arc(mx, my, mr, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Darker belly
+  ctx.fillStyle = '#2a2';
+  ctx.beginPath();
+  ctx.arc(mx, my + 5, mr * 0.7, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Eyes
+  var eyeOff = 10;
+  // Look at candy
+  var lookX = candy.x - mx;
+  var lookY = candy.y - my;
+  var lookD = Math.sqrt(lookX * lookX + lookY * lookY) || 1;
+  var pupilOff = 3;
+
+  for (var side = -1; side <= 1; side += 2) {
+    // Eye white
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(mx + side * eyeOff, my - 12, 9, 0, Math.PI * 2);
+    ctx.fill();
+    // Pupil - follows candy
+    ctx.fillStyle = '#111';
+    ctx.beginPath();
+    ctx.arc(mx + side * eyeOff + (lookX / lookD) * pupilOff,
+            my - 12 + (lookY / lookD) * pupilOff, 4, 0, Math.PI * 2);
+    ctx.fill();
+    // Eye shine
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(mx + side * eyeOff - 2, my - 14, 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Mouth
+  ctx.fillStyle = '#200';
+  ctx.beginPath();
+  ctx.arc(mx, my + 8, mr * mouthOpen * 1.2, 0, Math.PI);
+  ctx.fill();
+
+  // Tongue if mouth open
+  if (mouthOpen > 0.3) {
+    ctx.fillStyle = '#c44';
+    ctx.beginPath();
+    ctx.ellipse(mx, my + 12 + mouthOpen * 10, 6, 4 + mouthOpen * 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Teeth
+  if (mouthOpen > 0.2) {
+    ctx.fillStyle = '#fff';
+    var tw = 5;
+    for (var t = -2; t <= 2; t++) {
+      ctx.fillRect(mx + t * tw - 2, my + 5, 4, 4);
+    }
+  }
+
+  // If level complete, happy expression
+  if (levelComplete) {
+    ctx.fillStyle = 'rgba(255,255,100,0.3)';
+    ctx.beginPath();
+    ctx.arc(mx, my, mr + 5 + Math.sin(levelTimer * 0.1) * 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawStars() {
+  for (var s = 0; s < stars.length; s++) {
+    if (stars[s].collected) continue;
+    var sx = stars[s].x, sy = stars[s].y, sr = stars[s].r;
+    var pulse = 1 + Math.sin(levelTimer * 0.08 + s) * 0.1;
+
+    // Glow
+    ctx.fillStyle = 'rgba(255,255,0,0.15)';
+    ctx.beginPath();
+    ctx.arc(sx, sy, sr * 2 * pulse, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Star shape
+    ctx.fillStyle = '#ff0';
+    ctx.beginPath();
+    for (var i = 0; i < 5; i++) {
+      var angle = -Math.PI / 2 + (i * Math.PI * 2 / 5);
+      var ix = sx + Math.cos(angle) * sr * pulse;
+      var iy = sy + Math.sin(angle) * sr * pulse;
+      if (i === 0) ctx.moveTo(ix, iy); else ctx.lineTo(ix, iy);
+      angle += Math.PI * 2 / 10;
+      ix = sx + Math.cos(angle) * sr * 0.4 * pulse;
+      iy = sy + Math.sin(angle) * sr * 0.4 * pulse;
+      ctx.lineTo(ix, iy);
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    // Center
+    ctx.fillStyle = '#ffa';
+    ctx.beginPath();
+    ctx.arc(sx, sy, sr * 0.3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawAirCushions() {
+  for (var a = 0; a < airCushions.length; a++) {
+    var ac = airCushions[a];
+    var x = ac.x, y = ac.y, w = ac.w, h = ac.h;
+
+    // Base
+    ctx.fillStyle = '#2a5';
+    ctx.fillRect(x - w / 2, y - h / 2, w, h);
+    ctx.strokeStyle = '#3b7';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x - w / 2, y - h / 2, w, h);
+
+    // Fan blades (animated)
+    ctx.fillStyle = '#4c8';
+    var spin = levelTimer * 0.15;
+    for (var b = 0; b < 3; b++) {
+      var ba = spin + b * Math.PI * 2 / 3;
+      ctx.beginPath();
+      ctx.ellipse(x, y, 12, 4, ba, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Wind particles
+    if (ac.strength > 0) {
+      ctx.fillStyle = 'rgba(100,255,150,0.3)';
+      for (var p = 0; p < 3; p++) {
+        var py = y - h / 2 - 15 - ((levelTimer * 2 + p * 25) % 80);
+        var px = x + ac.dir * ((levelTimer + p * 20) % 40 - 20);
+        ctx.beginPath();
+        ctx.arc(px + ac.dir * 10, py, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // Direction arrow
+    ctx.fillStyle = '#6ea';
+    ctx.font = '16px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(ac.dir > 0 ? '\u2192' : '\u2190', x, y - h / 2 - 5);
+  }
+}
+
+function drawBubbles() {
+  for (var b = 0; b < bubbles.length; b++) {
+    var bub = bubbles[b];
+    if (!bub.active) continue;
+    var bx = bub.x, by = bub.y, br = bub.r;
+
+    // Outer glow
+    ctx.fillStyle = 'rgba(80,200,255,0.1)';
+    ctx.beginPath();
+    ctx.arc(bx, by, br * 1.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Bubble
+    ctx.strokeStyle = 'rgba(100,200,255,0.6)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(bx, by, br, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.fillStyle = 'rgba(100,200,255,0.1)';
+    ctx.beginPath();
+    ctx.arc(bx, by, br, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Shine
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.beginPath();
+    ctx.arc(bx - br * 0.3, by - br * 0.3, br * 0.25, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Active bubble around candy
+  if (activeBubble) {
+    var abr = candy.r + 10;
+    ctx.strokeStyle = 'rgba(100,200,255,0.5)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(candy.x, candy.y, abr, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(100,200,255,0.08)';
+    ctx.beginPath();
+    ctx.arc(candy.x, candy.y, abr, 0, Math.PI * 2);
+    ctx.fill();
+    // Shine
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.beginPath();
+    ctx.arc(candy.x - abr * 0.3, candy.y - abr * 0.3, abr * 0.2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawParticles() {
+  for (var i = 0; i < particles.length; i++) {
+    var p = particles[i];
+    var alpha = p.life / 50;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r * (p.life / 50), 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawCutTrail() {
+  if (cutTrail.length < 2) return;
+  ctx.strokeStyle = 'rgba(255,255,100,0.6)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(cutTrail[0].x, cutTrail[0].y);
+  for (var i = 1; i < cutTrail.length; i++) {
+    ctx.lineTo(cutTrail[i].x, cutTrail[i].y);
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function drawHUD() {
+  ctx.fillStyle = '#fff';
+  ctx.font = '14px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('Level: ' + (currentLevel + 1) + '/' + levels.length, 10, 22);
+  ctx.fillText('Score: ' + score, 10, 40);
+  ctx.textAlign = 'right';
+  ctx.fillText('Total Stars: ' + totalStars, 790, 22);
+  ctx.fillText('[?] Info  [R] Restart  [N] Next', 790, 40);
+
+  // Level stars display
+  ctx.textAlign = 'center';
+  for (var s = 0; s < 3; s++) {
+    var sx = 370 + s * 25;
+    ctx.fillStyle = s < levelStars ? '#ff0' : '#444';
+    ctx.font = '18px monospace';
+    ctx.fillText('\u2605', sx, 25);
+  }
+
+  // Message
+  if (messageTimer > 0) {
+    ctx.fillStyle = levelComplete ? '#4f4' : '#f44';
+    ctx.font = 'bold 24px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(message, 400, 300);
+    if (levelComplete) {
+      ctx.fillStyle = '#aaa';
+      ctx.font = '14px monospace';
+      ctx.fillText('Press N for next level', 400, 330);
+    }
+  }
+}
+
+function drawTitle() {
+  ctx.fillStyle = 'rgba(255,255,255,0.06)';
+  ctx.font = 'bold 60px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('CUT THE ROPE', 400, 560);
+}
+
+// ============ INPUT ============
+canvas.addEventListener('mousedown', function(e) {
+  if (infoOpen) return;
+  var rect = canvas.getBoundingClientRect();
+  var scaleX = 800 / rect.width;
+  var scaleY = 600 / rect.height;
+  mouseX = (e.clientX - rect.left) * scaleX;
+  mouseY = (e.clientY - rect.top) * scaleY;
+  prevMouseX = mouseX;
+  prevMouseY = mouseY;
+  mouseDown = true;
+  cutTrail = [{ x: mouseX, y: mouseY }];
+
+  // Pop bubble on click
+  if (activeBubble) {
+    var dx = mouseX - candy.x;
+    var dy = mouseY - candy.y;
+    if (Math.sqrt(dx * dx + dy * dy) < candy.r + 15) {
+      popBubble();
+    }
+  }
+});
+
+canvas.addEventListener('mousemove', function(e) {
+  if (!mouseDown) return;
+  var rect = canvas.getBoundingClientRect();
+  var scaleX = 800 / rect.width;
+  var scaleY = 600 / rect.height;
+  prevMouseX = mouseX;
+  prevMouseY = mouseY;
+  mouseX = (e.clientX - rect.left) * scaleX;
+  mouseY = (e.clientY - rect.top) * scaleY;
+  cutTrail.push({ x: mouseX, y: mouseY });
+  if (cutTrail.length > 20) cutTrail.shift();
+  tryCut(prevMouseX, prevMouseY, mouseX, mouseY);
+});
+
+canvas.addEventListener('mouseup', function() {
+  mouseDown = false;
+  cutTrail = [];
+});
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === '?' || e.key === '/') {
+    toggleInfo();
+    e.preventDefault();
+    return;
+  }
+  if (e.key === 'Escape' && infoOpen) {
+    toggleInfo();
+    e.preventDefault();
+    return;
+  }
+  if (infoOpen) return;
+  if (e.key === 'r' || e.key === 'R') {
+    loadLevel(currentLevel);
+  }
+  if ((e.key === 'n' || e.key === 'N') && levelComplete) {
+    loadLevel((currentLevel + 1) % levels.length);
+  }
+});
+
+// ============ MAIN LOOP ============
+function update() {
+  if (infoOpen) return;
+  levelTimer++;
+  if (!levelComplete && !levelFailed) {
+    updateRopes();
+    updateCandy();
+  }
+  updateParticles();
+  if (messageTimer > 0 && messageTimer < 999) messageTimer--;
+}
+
+function draw() {
+  drawBG();
+  drawTitle();
+  drawAirCushions();
+  drawBubbles();
+  drawStars();
+  drawRopes();
+  drawCandy();
+  drawMonster();
+  drawParticles();
+  drawCutTrail();
+  drawHUD();
+}
+
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+loadLevel(0);
+loop();
+</script>
+</body>
+</html>

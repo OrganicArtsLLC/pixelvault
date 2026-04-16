@@ -1,0 +1,1425 @@
+<!--
+PROTOTYPE: ys
+SERIES: rpg
+NUMBER: 002
+DATE: 2026-03-22
+MECHANIC: bump into enemies to fight — angle of approach matters
+ANCESTRY: Ys: Ancient Ys Vanished (1987, Nihon Falcom), Hydlide (1984, T&E Soft)
+CONTROLS: Arrow keys — move (bump enemies to attack) | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — action RPG emergence, real-time stat resolution)
+AI-INSIGHT: Ys eliminates the attack button entirely — combat IS movement. The player's approach angle determines damage, making spatial reasoning the only combat skill. This is a continuous action space reduced to a single verb (move), where positioning encodes all tactical decisions.
+NOTES: No attack button — movement IS combat. Angle of approach is everything.
+       HP regen when still creates a natural risk/reward rhythm.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RPG-002 · DUNGEON DASH</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #111; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>RPG-002 · DUNGEON DASH</h1>
+    <p><span class="tag series">RPG — Role-Playing Game</span> <span class="tag">Prototype #002</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Move into enemies to fight them — there is no attack button. Your approach angle determines how much damage you deal and take. Defeat three bosses to win.</p>
+    <ul>
+      <li><kbd>&#8593;</kbd> <kbd>&#8595;</kbd> <kbd>&#8592;</kbd> <kbd>&#8594;</kbd> — Move (bump enemies to attack)</li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Bump Combat</h3>
+    <ul>
+      <li><strong>Off-center hit:</strong> Clip the enemy's edge — deal 2x damage, take 0.5x.</li>
+      <li><strong>Head-on hit:</strong> Walk straight into center — both deal/take full damage.</li>
+      <li><strong>From behind:</strong> Hit the enemy's back — deal 3x damage, take 0.</li>
+      <li><strong>Standing still:</strong> HP regenerates slowly (the Ys signature mechanic).</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Grind:</strong> Fight weak enemies to level up before entering harder zones.</li>
+      <li><strong>Angle:</strong> Always try to clip enemies off-center. Head-on is wasteful.</li>
+      <li><strong>Regen:</strong> Stand still to recover HP between fights.</li>
+      <li><strong>Inn:</strong> Walk into the inn building in town to fully heal.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Ys: Ancient Ys Vanished (1987, Nihon Falcom) &larr; Hydlide (1984, T&amp;E Soft) &larr; Ultima (1981)</p>
+    <p>Ys (1987) by Nihon Falcom removed the attack button entirely. In an era when action RPGs required complex input, Ys reduced combat to a single verb: move. The player's approach angle determines damage — off-center hits deal more damage and take less. This creates a spatial combat system where positioning IS the entire skill.</p>
+    <p>The HP regeneration mechanic (heal by standing still) creates a natural risk/reward rhythm: push forward aggressively, then pause to recover. This pacing mechanic predates modern "regenerating health" by two decades.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 3 — Knowledge Explosion (1980-1987)</p>
+    <p><strong>Contemporary AI:</strong> Expert systems, early neural network revival. Real-time stat resolution in games was novel.</p>
+    <p><strong>Hidden Intelligence:</strong> Ys encodes all tactical decisions into a continuous movement space. The approach angle creates a damage function that maps spatial position to combat outcome — this is a continuous state-action mapping, the same structure that modern policy gradient methods optimize. The player learns this mapping through embodied experience, not instruction.</p>
+    <p><strong>The Convergence:</strong> Bump combat is essentially a reward-shaping problem: the game rewards spatial precision (off-center hits) over brute force (head-on). Modern RL agents trained on Ys-like games would discover the same angled approach strategy that human players learn intuitively.</p>
+    <p><strong>If AI Had Designed This:</strong> Procedurally tuned enemy stat curves per zone, optimized level-up thresholds to maintain "flow" (not too easy, not too hard), and dynamic HP regen rates based on player skill estimation.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: RPG — Role-Playing Game</h3>
+    <p>Stat-driven progression with real-time spatial combat. Ys strips the RPG to its essence: move, grow, overcome.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Bump combat with angle-dependent damage.</strong> No attack button. Off-center hits deal bonus damage. HP regenerates when still. Level progression with stat growth. Overworld with zone-based difficulty.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Bump combat feel — does running into enemies feel intentional and skillful?</li>
+      <li>Angle system — does off-center vs head-on create meaningful positioning decisions?</li>
+      <li>HP regen pacing — does the stand-still-to-heal mechanic create good rhythm?</li>
+      <li>Zone progression — does the overworld feel explorable with gated difficulty?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. 6x4 overworld grid (24 screens). Five zone types: town, field, forest, mountain, dungeon. Three bosses with distinct movement patterns. Leveling system with 5 levels.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+const keys = {};
+window.addEventListener('keydown', e => { if (!infoOpen) keys[e.code] = true; e.preventDefault(); });
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+// --- CONSTANTS ---
+const TILE = 40;
+const COLS = 20, ROWS = 15;
+const MAP_W = 6, MAP_H = 4;
+const SPD = 2.5;
+
+// Zone types
+const ZONE_TOWN = 0, ZONE_FIELD = 1, ZONE_FOREST = 2, ZONE_MOUNTAIN = 3, ZONE_DUNGEON = 4, ZONE_FINAL = 5;
+
+// Zone colors
+const ZONE_BG = ['#3a2a18','#2a5a1a','#1a3a0a','#4a3a2a','#1a1a2a','#2a0a1a'];
+const ZONE_WALL = ['#6a5030','#3a7a2a','#2a4a12','#6a5a3a','#2a2a4a','#4a1a2a'];
+const ZONE_FLOOR = ['#4a3a22','#3a6a28','#1e4a10','#5a4a32','#181838','#301020'];
+
+// Level thresholds and stats: [expNeeded, hp, atk, def]
+const LEVELS = [
+  [0,    20,  5,  3],
+  [50,   30,  8,  5],
+  [150,  45, 12,  7],
+  [350,  60, 16, 10],
+  [600,  80, 22, 14]
+];
+
+// World map layout (6 cols x 4 rows)
+// T=town, F=field, O=forest, M=mountain, D=dungeon, B=final boss
+const WORLD_MAP = [
+  ['T','T','F','F','F','O'],
+  ['F','F','F','O','O','O'],
+  ['F','O','M','M','M','D'],
+  ['O','M','M','D','D','B']
+];
+
+function zoneType(mx, my) {
+  if (mx < 0 || mx >= MAP_W || my < 0 || my >= MAP_H) return -1;
+  const c = WORLD_MAP[my][mx];
+  if (c === 'T') return ZONE_TOWN;
+  if (c === 'F') return ZONE_FIELD;
+  if (c === 'O') return ZONE_FOREST;
+  if (c === 'M') return ZONE_MOUNTAIN;
+  if (c === 'D') return ZONE_DUNGEON;
+  if (c === 'B') return ZONE_FINAL;
+  return ZONE_FIELD;
+}
+
+// Seeded RNG
+function seededRand(seed) {
+  let s = Math.abs(seed) || 1;
+  return function() {
+    s = (s * 16807 + 0) % 2147483647;
+    return (s - 1) / 2147483646;
+  };
+}
+
+// --- SCREEN GENERATION ---
+function genScreen(mx, my) {
+  const zt = zoneType(mx, my);
+  const rng = seededRand(mx * 1000 + my * 37 + 99);
+  const tiles = [];
+  for (let r = 0; r < ROWS; r++) {
+    tiles[r] = [];
+    for (let c = 0; c < COLS; c++) {
+      tiles[r][c] = 0; // floor
+    }
+  }
+
+  // Border walls — leave openings for adjacent screens
+  for (let c = 0; c < COLS; c++) {
+    tiles[0][c] = 1;
+    tiles[ROWS-1][c] = 1;
+  }
+  for (let r = 0; r < ROWS; r++) {
+    tiles[r][0] = 1;
+    tiles[r][COLS-1] = 1;
+  }
+
+  // Doorways
+  // Top
+  if (my > 0) { tiles[0][9] = 0; tiles[0][10] = 0; }
+  // Bottom
+  if (my < MAP_H - 1) { tiles[ROWS-1][9] = 0; tiles[ROWS-1][10] = 0; }
+  // Left
+  if (mx > 0) { tiles[6][0] = 0; tiles[7][0] = 0; }
+  // Right
+  if (mx < MAP_W - 1) { tiles[6][COLS-1] = 0; tiles[7][COLS-1] = 0; }
+
+  // Internal features based on zone type
+  if (zt === ZONE_TOWN) {
+    // Buildings (walls forming structures)
+    // Inn
+    for (let r = 3; r <= 6; r++) for (let c = 3; c <= 7; c++) tiles[r][c] = 1;
+    tiles[6][5] = 2; // inn door (special tile: heal)
+    // NPC house
+    for (let r = 3; r <= 6; r++) for (let c = 12; c <= 16; c++) tiles[r][c] = 1;
+    tiles[6][14] = 3; // NPC door (special tile: hint)
+    // Path
+    for (let c = 1; c < COLS - 1; c++) tiles[8][c] = 0;
+  } else if (zt === ZONE_FINAL) {
+    // Boss arena — open with pillars
+    for (let i = 0; i < 4; i++) {
+      tiles[4][4 + i * 4] = 1;
+      tiles[10][4 + i * 4] = 1;
+    }
+  } else {
+    // Scatter obstacles
+    const obstCount = zt === ZONE_FIELD ? 6 : zt === ZONE_FOREST ? 14 : zt === ZONE_MOUNTAIN ? 12 : 10;
+    for (let i = 0; i < obstCount; i++) {
+      const c = 2 + Math.floor(rng() * (COLS - 4));
+      const r = 2 + Math.floor(rng() * (ROWS - 4));
+      // Don't block doorways
+      if ((r <= 1 && (c === 9 || c === 10)) || (r >= ROWS - 2 && (c === 9 || c === 10))) continue;
+      if ((c <= 1 && (r === 6 || r === 7)) || (c >= COLS - 2 && (r === 6 || r === 7))) continue;
+      tiles[r][c] = 1;
+      // Sometimes extend
+      if (rng() > 0.5 && c + 1 < COLS - 1) tiles[r][c + 1] = 1;
+      if (rng() > 0.6 && r + 1 < ROWS - 1) tiles[r + 1][c] = 1;
+    }
+  }
+
+  // Enemies
+  const enemies = [];
+  if (zt === ZONE_TOWN) {
+    // No enemies in town
+  } else if (zt === ZONE_FINAL) {
+    // Final boss only — spawned separately
+  } else {
+    const enemyDefs = getEnemyDefs(zt);
+    const count = zt === ZONE_FIELD ? 4 : zt === ZONE_FOREST ? 5 : zt === ZONE_MOUNTAIN ? 4 : 5;
+    for (let i = 0; i < count; i++) {
+      let ec, er, tries = 0;
+      do {
+        ec = 2 + Math.floor(rng() * (COLS - 4));
+        er = 2 + Math.floor(rng() * (ROWS - 4));
+        tries++;
+      } while (tiles[er][ec] !== 0 && tries < 50);
+      if (tries >= 50) continue;
+      const def = enemyDefs[Math.floor(rng() * enemyDefs.length)];
+      enemies.push({
+        x: ec * TILE + TILE / 2,
+        y: er * TILE + TILE / 2,
+        hp: def.hp, maxHp: def.hp,
+        atk: def.atk, def: def.def,
+        exp: def.exp, color: def.color,
+        name: def.name, size: def.size || 14,
+        speed: def.speed || 1,
+        dir: rng() * Math.PI * 2,
+        moveTimer: Math.floor(rng() * 60),
+        alive: true, hitFlash: 0,
+        isBoss: false
+      });
+    }
+  }
+
+  // Boss on specific screens
+  let boss = null;
+  // Boss 1: Forest boss at (5,1)
+  if (mx === 5 && my === 1) {
+    boss = makeBoss('WOLF KING', 80, 10, 4, 200, '#884', 'charge', mx, my);
+  }
+  // Boss 2: Mountain boss at (4,2)
+  if (mx === 4 && my === 2) {
+    boss = makeBoss('GOLEM LORD', 120, 14, 8, 350, '#a86', 'circle', mx, my);
+  }
+  // Boss 3: Final boss at (5,3)
+  if (mx === 5 && my === 3) {
+    boss = makeBoss('DARK FACT', 180, 20, 10, 500, '#a2f', 'dash', mx, my);
+  }
+
+  return { tiles, enemies, boss, zone: zt };
+}
+
+function getEnemyDefs(zt) {
+  if (zt === ZONE_FIELD) return [
+    { name: 'Slime', hp: 8, atk: 3, def: 1, exp: 5, color: '#4f4', size: 12, speed: 0.6 },
+    { name: 'Bee', hp: 5, atk: 4, def: 0, exp: 4, color: '#ff0', size: 10, speed: 1.5 }
+  ];
+  if (zt === ZONE_FOREST) return [
+    { name: 'Wolf', hp: 18, atk: 7, def: 3, exp: 12, color: '#888', size: 14, speed: 1.2 },
+    { name: 'Bat', hp: 10, atk: 5, def: 2, exp: 8, color: '#a6a', size: 11, speed: 1.8 }
+  ];
+  if (zt === ZONE_MOUNTAIN) return [
+    { name: 'Golem', hp: 35, atk: 10, def: 6, exp: 25, color: '#a86', size: 18, speed: 0.5 },
+    { name: 'Snake', hp: 20, atk: 12, def: 3, exp: 18, color: '#6a4', size: 13, speed: 1.4 }
+  ];
+  // Dungeon
+  return [
+    { name: 'Skeleton', hp: 30, atk: 14, def: 5, exp: 30, color: '#ddd', size: 15, speed: 1.0 },
+    { name: 'Ghost', hp: 22, atk: 16, def: 4, exp: 28, color: '#aaf', size: 14, speed: 1.3 }
+  ];
+}
+
+function makeBoss(name, hp, atk, def, exp, color, pattern, mx, my) {
+  return {
+    x: 10 * TILE + TILE / 2,
+    y: 7 * TILE + TILE / 2,
+    hp: hp, maxHp: hp,
+    atk: atk, def: def,
+    exp: exp, color: color,
+    name: name, size: 24,
+    speed: 1.5,
+    dir: 0, moveTimer: 0,
+    alive: true, hitFlash: 0,
+    isBoss: true,
+    pattern: pattern,
+    patternTimer: 0,
+    patternPhase: 0,
+    homeX: 10 * TILE + TILE / 2,
+    homeY: 7 * TILE + TILE / 2,
+    chargeDir: 0, dashTarget: null
+  };
+}
+
+// --- GAME STATE ---
+let player, mapX, mapY, screen, frame, gameState, message, messageTimer;
+let bossesDefeated, damageNumbers, healFlash;
+
+function initGame() {
+  player = {
+    x: 5 * TILE + TILE / 2, y: 8 * TILE + TILE / 2,
+    level: 1, exp: 0,
+    hp: LEVELS[0][1], maxHp: LEVELS[0][1],
+    atk: LEVELS[0][2], def: LEVELS[0][3],
+    dx: 0, dy: 1, // facing direction
+    moving: false, stillTimer: 0,
+    invincible: 0,
+    hitFlash: 0
+  };
+  mapX = 0; mapY = 0;
+  frame = 0;
+  gameState = 'play'; // play, win, dead
+  message = ''; messageTimer = 0;
+  bossesDefeated = {};
+  damageNumbers = [];
+  healFlash = 0;
+  loadScreen();
+}
+
+function loadScreen() {
+  screen = genScreen(mapX, mapY);
+  // Remove bosses already defeated
+  if (screen.boss && bossesDefeated[mapX + ',' + mapY]) {
+    screen.boss = null;
+  }
+}
+
+initGame();
+
+// --- COLLISION ---
+function tileAt(px, py) {
+  const c = Math.floor(px / TILE);
+  const r = Math.floor(py / TILE);
+  if (c < 0 || c >= COLS || r < 0 || r >= ROWS) return 1;
+  return screen.tiles[r][c];
+}
+
+function blocked(px, py, size) {
+  const s = size - 2;
+  return tileAt(px - s, py - s) === 1 || tileAt(px + s, py - s) === 1 ||
+         tileAt(px - s, py + s) === 1 || tileAt(px + s, py + s) === 1;
+}
+
+function specialTile(px, py) {
+  const c = Math.floor(px / TILE);
+  const r = Math.floor(py / TILE);
+  if (c < 0 || c >= COLS || r < 0 || r >= ROWS) return 0;
+  return screen.tiles[r][c];
+}
+
+// --- BUMP COMBAT ---
+function bumpCombat(enemy) {
+  if (player.invincible > 0 || !enemy.alive) return;
+
+  // Calculate approach angle vs enemy facing
+  const dx = player.x - enemy.x;
+  const dy = player.y - enemy.y;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  if (dist === 0) return;
+
+  // Normalized direction from enemy to player
+  const nx = dx / dist;
+  const ny = dy / dist;
+
+  // Enemy facing direction (normalized)
+  const elen = Math.sqrt(enemy.dir !== undefined ?
+    Math.cos(enemy.dir) * Math.cos(enemy.dir) + Math.sin(enemy.dir) * Math.sin(enemy.dir) : 1);
+  const ex = Math.cos(enemy.dir);
+  const ey = Math.sin(enemy.dir);
+
+  // Dot product: how aligned is player's approach with enemy's facing
+  // +1 = player approaching from front (head-on)
+  // -1 = player approaching from behind
+  const dot = nx * ex + ny * ey;
+
+  // Calculate center alignment (how close to dead center)
+  // Use player's movement direction vs line between centers
+  const plen = Math.sqrt(player.dx * player.dx + player.dy * player.dy);
+  let centerAlignment = 0;
+  if (plen > 0) {
+    const pmx = player.dx / plen;
+    const pmy = player.dy / plen;
+    // How directly is the player moving toward enemy center
+    centerAlignment = Math.abs(pmx * (-nx) + pmy * (-ny));
+  }
+
+  let playerDmgMult = 1;
+  let enemyDmgMult = 1;
+
+  if (dot < -0.3) {
+    // From behind
+    playerDmgMult = 3;
+    enemyDmgMult = 0;
+  } else if (centerAlignment < 0.7) {
+    // Off-center hit
+    playerDmgMult = 2;
+    enemyDmgMult = 0.5;
+  } else {
+    // Head-on
+    playerDmgMult = 1;
+    enemyDmgMult = 1;
+  }
+
+  // Damage calculations
+  const playerDmg = Math.max(1, Math.floor(player.atk * playerDmgMult - enemy.def));
+  const enemyDmg = Math.max(0, Math.floor(enemy.atk * enemyDmgMult - player.def));
+
+  enemy.hp -= playerDmg;
+  enemy.hitFlash = 12;
+
+  // Damage number on enemy
+  damageNumbers.push({
+    x: enemy.x, y: enemy.y - 20,
+    text: '-' + playerDmg,
+    color: playerDmgMult >= 3 ? '#ff0' : playerDmgMult >= 2 ? '#4f4' : '#fff',
+    life: 40
+  });
+
+  if (enemyDmg > 0) {
+    player.hp -= enemyDmg;
+    player.hitFlash = 10;
+    damageNumbers.push({
+      x: player.x, y: player.y - 20,
+      text: '-' + enemyDmg,
+      color: '#f44',
+      life: 40
+    });
+  }
+
+  // Knockback
+  player.invincible = 20;
+
+  // Bump label
+  if (playerDmgMult >= 3) {
+    message = 'BACKSTAB!'; messageTimer = 40;
+  } else if (playerDmgMult >= 2) {
+    message = 'Off-center hit!'; messageTimer = 30;
+  }
+
+  // Check enemy death
+  if (enemy.hp <= 0) {
+    enemy.alive = false;
+    player.exp += enemy.exp;
+    damageNumbers.push({
+      x: enemy.x, y: enemy.y - 35,
+      text: '+' + enemy.exp + ' EXP',
+      color: '#ff0',
+      life: 60
+    });
+    // Boss killed
+    if (enemy.isBoss) {
+      bossesDefeated[mapX + ',' + mapY] = true;
+      message = enemy.name + ' DEFEATED!'; messageTimer = 120;
+      // Check win condition: Dark Fact at (5,3)
+      if (mapX === 5 && mapY === 3) {
+        gameState = 'win';
+      }
+    }
+    checkLevelUp();
+  }
+
+  // Check player death
+  if (player.hp <= 0) {
+    player.hp = 0;
+    gameState = 'dead';
+  }
+}
+
+function checkLevelUp() {
+  for (let i = LEVELS.length - 1; i >= 0; i--) {
+    if (player.exp >= LEVELS[i][0] && player.level < i + 1) {
+      player.level = i + 1;
+      player.maxHp = LEVELS[i][1];
+      player.hp = player.maxHp; // full heal on level up
+      player.atk = LEVELS[i][2];
+      player.def = LEVELS[i][3];
+      message = 'LEVEL UP! Lv.' + player.level; messageTimer = 90;
+      damageNumbers.push({
+        x: player.x, y: player.y - 40,
+        text: 'LEVEL ' + player.level + '!',
+        color: '#ff0',
+        life: 80
+      });
+    }
+  }
+}
+
+// --- BOSS AI ---
+function updateBoss(boss) {
+  if (!boss || !boss.alive) return;
+  boss.patternTimer++;
+
+  const dx = player.x - boss.x;
+  const dy = player.y - boss.y;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+
+  if (boss.pattern === 'charge') {
+    // Charge pattern: pause, then rush toward player
+    if (boss.patternPhase === 0) {
+      // Track player
+      if (dist > 0) boss.dir = Math.atan2(dy, dx);
+      if (boss.patternTimer > 60) {
+        boss.patternPhase = 1;
+        boss.patternTimer = 0;
+        boss.chargeDir = boss.dir;
+      }
+    } else {
+      // Charge!
+      const cx = Math.cos(boss.chargeDir) * 4;
+      const cy = Math.sin(boss.chargeDir) * 4;
+      const nx = boss.x + cx;
+      const ny = boss.y + cy;
+      if (!blocked(nx, ny, boss.size)) {
+        boss.x = nx; boss.y = ny;
+      }
+      if (boss.patternTimer > 40) {
+        boss.patternPhase = 0;
+        boss.patternTimer = 0;
+      }
+    }
+  } else if (boss.pattern === 'circle') {
+    // Circle pattern: orbit around center, periodically rush in
+    const angle = boss.patternTimer * 0.03;
+    const radius = 120;
+    const targetX = boss.homeX + Math.cos(angle) * radius;
+    const targetY = boss.homeY + Math.sin(angle) * radius;
+    const tdx = targetX - boss.x;
+    const tdy = targetY - boss.y;
+    const td = Math.sqrt(tdx * tdx + tdy * tdy);
+    if (td > 2) {
+      const mx = boss.x + (tdx / td) * 2;
+      const my = boss.y + (tdy / td) * 2;
+      if (!blocked(mx, my, boss.size)) {
+        boss.x = mx; boss.y = my;
+      }
+    }
+    boss.dir = Math.atan2(player.y - boss.y, player.x - boss.x);
+    // Periodically rush
+    if (boss.patternTimer % 180 > 150) {
+      if (dist > 0) {
+        const rx = boss.x + (dx / dist) * 3.5;
+        const ry = boss.y + (dy / dist) * 3.5;
+        if (!blocked(rx, ry, boss.size)) {
+          boss.x = rx; boss.y = ry;
+        }
+      }
+    }
+  } else if (boss.pattern === 'dash') {
+    // Dash pattern: teleport-dash in cardinal directions, unpredictable
+    if (boss.patternPhase === 0) {
+      // Slowly approach
+      if (dist > 80) {
+        const mx = boss.x + (dx / dist) * 1.5;
+        const my = boss.y + (dy / dist) * 1.5;
+        if (!blocked(mx, my, boss.size)) {
+          boss.x = mx; boss.y = my;
+        }
+      }
+      boss.dir = Math.atan2(dy, dx);
+      if (boss.patternTimer > 50) {
+        boss.patternPhase = 1;
+        boss.patternTimer = 0;
+        // Pick dash direction toward player
+        const angles = [0, Math.PI / 2, Math.PI, -Math.PI / 2];
+        let bestAngle = 0, bestDot = -2;
+        for (const a of angles) {
+          const d = Math.cos(a) * dx + Math.sin(a) * dy;
+          if (d > bestDot) { bestDot = d; bestAngle = a; }
+        }
+        boss.chargeDir = bestAngle;
+      }
+    } else {
+      // Dash!
+      const cx = Math.cos(boss.chargeDir) * 6;
+      const cy = Math.sin(boss.chargeDir) * 6;
+      const nx = boss.x + cx;
+      const ny = boss.y + cy;
+      if (!blocked(nx, ny, boss.size)) {
+        boss.x = nx; boss.y = ny;
+      }
+      if (boss.patternTimer > 25) {
+        boss.patternPhase = 0;
+        boss.patternTimer = 0;
+      }
+    }
+  }
+}
+
+// --- UPDATE ---
+function update() {
+  if (infoOpen) return;
+
+  if (gameState === 'dead' || gameState === 'win') {
+    if (keys['KeyR']) initGame();
+    return;
+  }
+
+  frame++;
+  if (messageTimer > 0) messageTimer--;
+  if (player.invincible > 0) player.invincible--;
+  if (player.hitFlash > 0) player.hitFlash--;
+  if (healFlash > 0) healFlash--;
+
+  // Damage numbers
+  damageNumbers = damageNumbers.filter(d => { d.y -= 0.5; d.life--; return d.life > 0; });
+
+  // Player movement
+  let pdx = 0, pdy = 0;
+  if (keys['ArrowUp']) pdy = -1;
+  if (keys['ArrowDown']) pdy = 1;
+  if (keys['ArrowLeft']) pdx = -1;
+  if (keys['ArrowRight']) pdx = 1;
+
+  player.moving = pdx !== 0 || pdy !== 0;
+
+  if (player.moving) {
+    // Normalize diagonal
+    const len = Math.sqrt(pdx * pdx + pdy * pdy);
+    pdx /= len; pdy /= len;
+    player.dx = pdx; player.dy = pdy;
+    player.stillTimer = 0;
+
+    const nx = player.x + pdx * SPD;
+    const ny = player.y + pdy * SPD;
+
+    // Try both axes, then individual
+    if (!blocked(nx, ny, 10)) {
+      player.x = nx; player.y = ny;
+    } else if (!blocked(nx, player.y, 10)) {
+      player.x = nx;
+    } else if (!blocked(player.x, ny, 10)) {
+      player.y = ny;
+    }
+  } else {
+    player.stillTimer++;
+    // HP regen when standing still
+    if (player.stillTimer > 60 && frame % 30 === 0 && player.hp < player.maxHp) {
+      player.hp = Math.min(player.maxHp, player.hp + 1);
+      healFlash = 10;
+    }
+  }
+
+  // Screen transitions
+  if (player.x < 4) {
+    if (mapX > 0) { mapX--; loadScreen(); player.x = (COLS - 1) * TILE - 4; }
+    else player.x = 4;
+  }
+  if (player.x > COLS * TILE - 4) {
+    if (mapX < MAP_W - 1) { mapX++; loadScreen(); player.x = TILE + 4; }
+    else player.x = COLS * TILE - 4;
+  }
+  if (player.y < 4) {
+    if (mapY > 0) { mapY--; loadScreen(); player.y = (ROWS - 1) * TILE - 4; }
+    else player.y = 4;
+  }
+  if (player.y > ROWS * TILE - 4) {
+    if (mapY < MAP_H - 1) { mapY++; loadScreen(); player.y = TILE + 4; }
+    else player.y = ROWS * TILE - 4;
+  }
+
+  // Special tiles
+  const st = specialTile(player.x, player.y);
+  if (st === 2 && player.hp < player.maxHp) {
+    // Inn — heal
+    player.hp = player.maxHp;
+    message = 'HP restored at the inn!'; messageTimer = 60;
+    healFlash = 20;
+  }
+  if (st === 3 && messageTimer <= 0) {
+    message = 'Seek the bosses in the forest, mountain, and dungeon.'; messageTimer = 90;
+  }
+
+  // Enemy AI & bump detection
+  for (const e of screen.enemies) {
+    if (!e.alive) continue;
+    if (e.hitFlash > 0) e.hitFlash--;
+
+    // Simple movement: wander, occasionally chase player
+    e.moveTimer--;
+    if (e.moveTimer <= 0) {
+      e.moveTimer = 40 + Math.floor(Math.random() * 60);
+      const dx = player.x - e.x;
+      const dy = player.y - e.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 200 && dist > 0) {
+        // Chase player
+        e.dir = Math.atan2(dy, dx);
+      } else {
+        // Random wander
+        e.dir = Math.random() * Math.PI * 2;
+      }
+    }
+
+    const emx = e.x + Math.cos(e.dir) * e.speed;
+    const emy = e.y + Math.sin(e.dir) * e.speed;
+    if (!blocked(emx, emy, e.size - 2)) {
+      e.x = emx; e.y = emy;
+    } else {
+      e.dir = Math.random() * Math.PI * 2;
+    }
+
+    // Bump detection
+    const bdx = player.x - e.x;
+    const bdy = player.y - e.y;
+    const bdist = Math.sqrt(bdx * bdx + bdy * bdy);
+    if (bdist < 10 + e.size) {
+      bumpCombat(e);
+      // Push player back
+      if (bdist > 0) {
+        player.x += (bdx / bdist) * 12;
+        player.y += (bdy / bdist) * 12;
+      }
+    }
+  }
+
+  // Boss
+  if (screen.boss && screen.boss.alive) {
+    const boss = screen.boss;
+    if (boss.hitFlash > 0) boss.hitFlash--;
+    updateBoss(boss);
+
+    // Boss bump detection
+    const bdx = player.x - boss.x;
+    const bdy = player.y - boss.y;
+    const bdist = Math.sqrt(bdx * bdx + bdy * bdy);
+    if (bdist < 10 + boss.size) {
+      bumpCombat(boss);
+      if (bdist > 0) {
+        player.x += (bdx / bdist) * 16;
+        player.y += (bdy / bdist) * 16;
+      }
+    }
+  }
+
+  // Restart
+  if (keys['KeyR']) { initGame(); }
+}
+
+// --- DRAW ---
+function draw() {
+  const zt = zoneType(mapX, mapY);
+  ctx.fillStyle = ZONE_BG[zt] || '#111';
+  ctx.fillRect(0, 0, W, H);
+
+  // Draw tiles
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const t = screen.tiles[r][c];
+      const x = c * TILE;
+      const y = r * TILE;
+
+      if (t === 1) {
+        // Wall
+        ctx.fillStyle = ZONE_WALL[zt] || '#444';
+        ctx.fillRect(x, y, TILE, TILE);
+        // Slight detail
+        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        ctx.fillRect(x, y + TILE - 4, TILE, 4);
+        ctx.fillRect(x + TILE - 4, y, 4, TILE);
+      } else if (t === 2) {
+        // Inn door
+        ctx.fillStyle = '#864';
+        ctx.fillRect(x, y, TILE, TILE);
+        ctx.fillStyle = '#fc8';
+        ctx.font = '10px monospace'; ctx.textAlign = 'center';
+        ctx.fillText('INN', x + TILE / 2, y + TILE / 2 + 3);
+      } else if (t === 3) {
+        // NPC door
+        ctx.fillStyle = '#648';
+        ctx.fillRect(x, y, TILE, TILE);
+        ctx.fillStyle = '#faf';
+        ctx.font = '10px monospace'; ctx.textAlign = 'center';
+        ctx.fillText('NPC', x + TILE / 2, y + TILE / 2 + 3);
+      } else {
+        // Floor
+        ctx.fillStyle = ZONE_FLOOR[zt] || '#222';
+        ctx.fillRect(x, y, TILE, TILE);
+        // Subtle grid
+        ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+        ctx.strokeRect(x, y, TILE, TILE);
+      }
+    }
+  }
+
+  // Zone decoration on floors
+  if (zt === ZONE_FOREST) {
+    // Scattered grass tufts
+    ctx.fillStyle = 'rgba(80,180,40,0.3)';
+    for (let i = 0; i < 20; i++) {
+      const gx = ((i * 137 + mapX * 77) % (COLS * TILE - 80)) + 40;
+      const gy = ((i * 193 + mapY * 53) % (ROWS * TILE - 80)) + 40;
+      if (tileAt(gx, gy) === 0) {
+        ctx.fillRect(gx - 3, gy - 2, 6, 4);
+      }
+    }
+  } else if (zt === ZONE_MOUNTAIN) {
+    ctx.fillStyle = 'rgba(160,140,100,0.15)';
+    for (let i = 0; i < 12; i++) {
+      const gx = ((i * 157 + mapX * 97) % (COLS * TILE - 80)) + 40;
+      const gy = ((i * 211 + mapY * 63) % (ROWS * TILE - 80)) + 40;
+      if (tileAt(gx, gy) === 0) {
+        ctx.beginPath();
+        ctx.moveTo(gx, gy - 6); ctx.lineTo(gx - 5, gy + 4); ctx.lineTo(gx + 5, gy + 4);
+        ctx.closePath(); ctx.fill();
+      }
+    }
+  }
+
+  // Draw enemies
+  for (const e of screen.enemies) {
+    if (!e.alive) continue;
+    drawEnemy(e);
+  }
+
+  // Draw boss
+  if (screen.boss && screen.boss.alive) {
+    drawBoss(screen.boss);
+  }
+
+  // Draw player
+  drawPlayer();
+
+  // Damage numbers
+  for (const d of damageNumbers) {
+    ctx.globalAlpha = Math.min(1, d.life / 15);
+    ctx.fillStyle = d.color;
+    ctx.font = 'bold 14px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(d.text, d.x, d.y);
+    ctx.globalAlpha = 1;
+  }
+
+  // HUD Background
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(0, 0, W, 38);
+
+  // Title badge
+  ctx.fillStyle = '#1a1a1a'; ctx.fillRect(8, 8, 200, 22);
+  ctx.fillStyle = '#555'; ctx.font = '13px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('RPG-002 \u00B7 DUNGEON DASH  [?]', 16, 24);
+
+  // Stats HUD
+  ctx.font = '13px monospace'; ctx.textAlign = 'left';
+  // HP bar
+  ctx.fillStyle = '#400';
+  ctx.fillRect(220, 10, 120, 16);
+  const hpPct = player.hp / player.maxHp;
+  ctx.fillStyle = hpPct > 0.5 ? '#4a4' : hpPct > 0.25 ? '#aa4' : '#a44';
+  ctx.fillRect(220, 10, 120 * hpPct, 16);
+  ctx.strokeStyle = '#666'; ctx.lineWidth = 1;
+  ctx.strokeRect(220, 10, 120, 16);
+  ctx.fillStyle = '#fff';
+  ctx.fillText('HP ' + player.hp + '/' + player.maxHp, 224, 23);
+
+  // Level
+  ctx.fillStyle = '#ff0';
+  ctx.fillText('Lv.' + player.level, 350, 23);
+
+  // ATK/DEF
+  ctx.fillStyle = '#f84';
+  ctx.fillText('ATK ' + player.atk, 410, 23);
+  ctx.fillStyle = '#48f';
+  ctx.fillText('DEF ' + player.def, 480, 23);
+
+  // EXP
+  ctx.fillStyle = '#af4';
+  const nextLvl = player.level < LEVELS.length ? LEVELS[player.level][0] : '---';
+  ctx.fillText('EXP ' + player.exp + '/' + nextLvl, 550, 23);
+
+  // Zone name
+  const zoneNames = ['TOWN','FIELDS','FOREST','MOUNTAIN','DUNGEON','DARK TOWER'];
+  ctx.fillStyle = '#aaa'; ctx.textAlign = 'right';
+  ctx.fillText(zoneNames[zt] + ' (' + mapX + ',' + mapY + ')', W - 12, 23);
+
+  // Minimap (bottom-right corner)
+  const mmX = W - 76, mmY = H - 56;
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(mmX - 2, mmY - 2, 68, 40);
+  for (let my2 = 0; my2 < MAP_H; my2++) {
+    for (let mx2 = 0; mx2 < MAP_W; mx2++) {
+      const z = zoneType(mx2, my2);
+      const colors = ['#864','#4a4','#2a4','#a86','#448','#a2f'];
+      ctx.fillStyle = colors[z];
+      if (mx2 === mapX && my2 === mapY) ctx.fillStyle = '#fff';
+      ctx.fillRect(mmX + mx2 * 10, mmY + my2 * 8, 9, 7);
+
+      // Boss markers
+      if ((mx2 === 5 && my2 === 1) || (mx2 === 4 && my2 === 2) || (mx2 === 5 && my2 === 3)) {
+        if (bossesDefeated[mx2 + ',' + my2]) {
+          ctx.fillStyle = '#4f4';
+        } else {
+          ctx.fillStyle = '#f44';
+        }
+        ctx.fillRect(mmX + mx2 * 10 + 3, mmY + my2 * 8 + 2, 3, 3);
+      }
+    }
+  }
+
+  // Boss HP bar
+  if (screen.boss && screen.boss.alive) {
+    const boss = screen.boss;
+    const bw = 300, bh = 16;
+    const bx = (W - bw) / 2, by = H - 40;
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(bx - 4, by - 18, bw + 8, bh + 22);
+    ctx.fillStyle = '#aaa'; ctx.font = '12px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(boss.name, W / 2, by - 4);
+    ctx.fillStyle = '#400';
+    ctx.fillRect(bx, by, bw, bh);
+    ctx.fillStyle = '#c44';
+    ctx.fillRect(bx, by, bw * (boss.hp / boss.maxHp), bh);
+    ctx.strokeStyle = '#888'; ctx.strokeRect(bx, by, bw, bh);
+  }
+
+  // Message
+  if (messageTimer > 0 && message) {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(W / 2 - 200, H / 2 - 60, 400, 40);
+    ctx.fillStyle = '#ff0'; ctx.font = 'bold 16px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(message, W / 2, H / 2 - 36);
+  }
+
+  // Heal flash
+  if (healFlash > 0) {
+    ctx.fillStyle = 'rgba(100,255,100,' + (healFlash / 30) + ')';
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, 20, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Game over
+  if (gameState === 'dead') {
+    ctx.fillStyle = 'rgba(0,0,0,0.75)'; ctx.fillRect(0, 0, W, H);
+    ctx.font = 'bold 48px monospace'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#f44';
+    ctx.fillText('YOU DIED', W / 2, H / 2 - 20);
+    ctx.fillStyle = '#aaa'; ctx.font = '18px monospace';
+    ctx.fillText('Lv.' + player.level + '  EXP: ' + player.exp, W / 2, H / 2 + 20);
+    ctx.fillText('R to restart', W / 2, H / 2 + 50);
+  }
+
+  // Win
+  if (gameState === 'win') {
+    ctx.fillStyle = 'rgba(0,0,0,0.75)'; ctx.fillRect(0, 0, W, H);
+    ctx.font = 'bold 36px monospace'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#ff0';
+    ctx.fillText('DARK FACT DEFEATED!', W / 2, H / 2 - 40);
+    ctx.fillStyle = '#4f4'; ctx.font = '20px monospace';
+    ctx.fillText('The ancient land is saved.', W / 2, H / 2);
+    ctx.fillStyle = '#aaa'; ctx.font = '16px monospace';
+    ctx.fillText('Lv.' + player.level + '  Final EXP: ' + player.exp, W / 2, H / 2 + 40);
+    ctx.fillText('R to restart', W / 2, H / 2 + 70);
+  }
+}
+
+function drawPlayer() {
+  const px = player.x, py = player.y;
+  const flashing = player.invincible > 0 && Math.floor(frame / 3) % 2;
+  if (flashing) return;
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath();
+  ctx.ellipse(px, py + 14, 10, 4, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Body
+  ctx.fillStyle = player.hitFlash > 0 ? '#f88' : '#36c';
+  ctx.fillRect(px - 7, py - 4, 14, 16);
+
+  // Head
+  ctx.fillStyle = player.hitFlash > 0 ? '#faa' : '#fda';
+  ctx.beginPath();
+  ctx.arc(px, py - 8, 7, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Red hair (Adol!)
+  ctx.fillStyle = '#e33';
+  ctx.beginPath();
+  ctx.arc(px, py - 10, 7, Math.PI + 0.3, Math.PI * 2 - 0.3);
+  ctx.fill();
+  // Hair bangs
+  ctx.fillRect(px - 6, py - 14, 3, 5);
+  ctx.fillRect(px + 3, py - 14, 3, 5);
+
+  // Eyes (direction-dependent)
+  ctx.fillStyle = '#222';
+  if (player.dy < 0) {
+    // Facing up — no eyes visible (back of head)
+  } else {
+    const eyeOff = player.dx > 0.3 ? 2 : player.dx < -0.3 ? -2 : 0;
+    ctx.fillRect(px - 3 + eyeOff, py - 9, 2, 2);
+    ctx.fillRect(px + 1 + eyeOff, py - 9, 2, 2);
+  }
+
+  // Legs (animate when moving)
+  ctx.fillStyle = '#248';
+  if (player.moving) {
+    const legAnim = Math.sin(frame * 0.3) * 3;
+    ctx.fillRect(px - 5, py + 12, 4, 5 + legAnim);
+    ctx.fillRect(px + 1, py + 12, 4, 5 - legAnim);
+  } else {
+    ctx.fillRect(px - 5, py + 12, 4, 5);
+    ctx.fillRect(px + 1, py + 12, 4, 5);
+  }
+
+  // Direction indicator (subtle arrow showing facing)
+  if (player.moving) {
+    ctx.strokeStyle = 'rgba(255,255,100,0.5)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(px, py);
+    ctx.lineTo(px + player.dx * 18, py + player.dy * 18);
+    ctx.stroke();
+  }
+}
+
+function drawEnemy(e) {
+  if (e.hitFlash > 0 && Math.floor(frame / 2) % 2) {
+    ctx.fillStyle = '#fff';
+  } else {
+    ctx.fillStyle = e.color;
+  }
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  ctx.beginPath();
+  ctx.ellipse(e.x, e.y + e.size, e.size * 0.7, 3, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Body shape varies by name
+  if (e.hitFlash > 0 && Math.floor(frame / 2) % 2) {
+    ctx.fillStyle = '#fff';
+  } else {
+    ctx.fillStyle = e.color;
+  }
+
+  if (e.name === 'Slime') {
+    // Blobby
+    const bob = Math.sin(frame * 0.08 + e.x) * 2;
+    ctx.beginPath();
+    ctx.ellipse(e.x, e.y + bob, e.size, e.size * 0.7, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Eyes
+    ctx.fillStyle = '#000';
+    ctx.fillRect(e.x - 4, e.y - 3 + bob, 3, 3);
+    ctx.fillRect(e.x + 2, e.y - 3 + bob, 3, 3);
+  } else if (e.name === 'Bee') {
+    // Small, with wings
+    const bob = Math.sin(frame * 0.2 + e.x) * 3;
+    ctx.beginPath();
+    ctx.ellipse(e.x, e.y + bob, e.size * 0.8, e.size * 0.6, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Stripes
+    ctx.fillStyle = '#000';
+    ctx.fillRect(e.x - 3, e.y - 2 + bob, 6, 2);
+    // Wings
+    ctx.fillStyle = 'rgba(200,200,255,0.5)';
+    ctx.beginPath();
+    ctx.ellipse(e.x - 6, e.y - 6 + bob, 5, 3, -0.3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(e.x + 6, e.y - 6 + bob, 5, 3, 0.3, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (e.name === 'Wolf') {
+    // Quadruped shape
+    ctx.fillRect(e.x - e.size, e.y - 5, e.size * 2, 10);
+    // Head
+    ctx.fillRect(e.x + (Math.cos(e.dir) > 0 ? e.size - 4 : -e.size - 4), e.y - 8, 8, 12);
+    // Eyes
+    ctx.fillStyle = '#f00';
+    const hx = Math.cos(e.dir) > 0 ? e.x + e.size : e.x - e.size;
+    ctx.fillRect(hx - 1, e.y - 6, 2, 2);
+  } else if (e.name === 'Bat') {
+    const bob = Math.sin(frame * 0.15 + e.y) * 4;
+    // Body
+    ctx.beginPath();
+    ctx.ellipse(e.x, e.y + bob, 6, 8, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Wings
+    const wingSpan = 8 + Math.sin(frame * 0.3 + e.x) * 4;
+    ctx.beginPath();
+    ctx.moveTo(e.x - 6, e.y + bob);
+    ctx.lineTo(e.x - 6 - wingSpan, e.y - 6 + bob);
+    ctx.lineTo(e.x - 6 - wingSpan * 0.5, e.y + 2 + bob);
+    ctx.closePath(); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(e.x + 6, e.y + bob);
+    ctx.lineTo(e.x + 6 + wingSpan, e.y - 6 + bob);
+    ctx.lineTo(e.x + 6 + wingSpan * 0.5, e.y + 2 + bob);
+    ctx.closePath(); ctx.fill();
+    // Eyes
+    ctx.fillStyle = '#f00';
+    ctx.fillRect(e.x - 3, e.y - 4 + bob, 2, 2);
+    ctx.fillRect(e.x + 1, e.y - 4 + bob, 2, 2);
+  } else if (e.name === 'Golem') {
+    // Blocky
+    ctx.fillRect(e.x - e.size * 0.6, e.y - e.size, e.size * 1.2, e.size * 1.8);
+    // Head
+    ctx.fillRect(e.x - 6, e.y - e.size - 8, 12, 10);
+    // Eyes
+    ctx.fillStyle = '#fa0';
+    ctx.fillRect(e.x - 4, e.y - e.size - 4, 3, 3);
+    ctx.fillRect(e.x + 1, e.y - e.size - 4, 3, 3);
+    // Arms
+    ctx.fillStyle = e.color;
+    ctx.fillRect(e.x - e.size * 0.6 - 6, e.y - e.size + 4, 6, 14);
+    ctx.fillRect(e.x + e.size * 0.6, e.y - e.size + 4, 6, 14);
+  } else if (e.name === 'Snake') {
+    // Wavy body
+    for (let i = 0; i < 5; i++) {
+      const sx = e.x - 12 + i * 6;
+      const sy = e.y + Math.sin(frame * 0.1 + i * 0.8) * 4;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // Head
+    ctx.fillStyle = e.hitFlash > 0 ? '#fff' : '#8c6';
+    ctx.beginPath();
+    ctx.arc(e.x + 12, e.y + Math.sin(frame * 0.1 + 4) * 4, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#f00';
+    ctx.fillRect(e.x + 14, e.y + Math.sin(frame * 0.1 + 4) * 4 - 2, 2, 2);
+  } else if (e.name === 'Skeleton') {
+    // Stick figure
+    ctx.strokeStyle = e.hitFlash > 0 ? '#fff' : e.color;
+    ctx.lineWidth = 3;
+    // Spine
+    ctx.beginPath(); ctx.moveTo(e.x, e.y - 10); ctx.lineTo(e.x, e.y + 8); ctx.stroke();
+    // Arms
+    ctx.beginPath(); ctx.moveTo(e.x - 10, e.y - 2); ctx.lineTo(e.x + 10, e.y - 2); ctx.stroke();
+    // Legs
+    ctx.beginPath(); ctx.moveTo(e.x, e.y + 8); ctx.lineTo(e.x - 6, e.y + 16); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(e.x, e.y + 8); ctx.lineTo(e.x + 6, e.y + 16); ctx.stroke();
+    // Skull
+    ctx.fillStyle = e.hitFlash > 0 ? '#fff' : e.color;
+    ctx.beginPath();
+    ctx.arc(e.x, e.y - 14, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#000';
+    ctx.fillRect(e.x - 3, e.y - 16, 2, 2);
+    ctx.fillRect(e.x + 1, e.y - 16, 2, 2);
+    ctx.lineWidth = 1;
+  } else if (e.name === 'Ghost') {
+    // Translucent wavey shape
+    const bob = Math.sin(frame * 0.06 + e.x) * 4;
+    ctx.globalAlpha = 0.7;
+    ctx.beginPath();
+    ctx.moveTo(e.x - e.size, e.y + e.size + bob);
+    ctx.quadraticCurveTo(e.x - e.size, e.y - e.size + bob, e.x, e.y - e.size + bob);
+    ctx.quadraticCurveTo(e.x + e.size, e.y - e.size + bob, e.x + e.size, e.y + e.size + bob);
+    // Wavy bottom
+    for (let w = 0; w < 4; w++) {
+      const wx = e.x + e.size - w * (e.size * 2 / 4);
+      ctx.quadraticCurveTo(wx - e.size / 4, e.y + e.size + 6 + bob, wx - e.size / 2, e.y + e.size + bob);
+    }
+    ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = 1;
+    // Eyes
+    ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.arc(e.x - 4, e.y - 4 + bob, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(e.x + 4, e.y - 4 + bob, 3, 0, Math.PI * 2); ctx.fill();
+  } else {
+    // Default circle
+    ctx.beginPath();
+    ctx.arc(e.x, e.y, e.size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Facing direction indicator
+  ctx.fillStyle = 'rgba(255,0,0,0.4)';
+  ctx.beginPath();
+  ctx.arc(e.x + Math.cos(e.dir) * (e.size + 2), e.y + Math.sin(e.dir) * (e.size + 2), 3, 0, Math.PI * 2);
+  ctx.fill();
+
+  // HP bar (only if damaged)
+  if (e.hp < e.maxHp) {
+    const bw = e.size * 2;
+    ctx.fillStyle = '#400';
+    ctx.fillRect(e.x - bw / 2, e.y - e.size - 10, bw, 4);
+    ctx.fillStyle = '#f44';
+    ctx.fillRect(e.x - bw / 2, e.y - e.size - 10, bw * (e.hp / e.maxHp), 4);
+  }
+}
+
+function drawBoss(boss) {
+  if (boss.hitFlash > 0 && Math.floor(frame / 2) % 2) {
+    ctx.fillStyle = '#fff';
+  } else {
+    ctx.fillStyle = boss.color;
+  }
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.beginPath();
+  ctx.ellipse(boss.x, boss.y + boss.size + 4, boss.size, 6, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = boss.hitFlash > 0 && Math.floor(frame / 2) % 2 ? '#fff' : boss.color;
+
+  if (boss.name === 'WOLF KING') {
+    // Large wolf with crown
+    ctx.fillRect(boss.x - boss.size, boss.y - 8, boss.size * 2, 16);
+    // Head
+    const hdir = Math.cos(boss.dir) > 0 ? 1 : -1;
+    ctx.fillRect(boss.x + hdir * (boss.size - 2), boss.y - 14, 12 * hdir, 18);
+    // Crown
+    ctx.fillStyle = '#ff0';
+    const cx = boss.x + hdir * (boss.size + 4);
+    ctx.fillRect(cx - 6, boss.y - 18, 12, 4);
+    ctx.fillRect(cx - 6, boss.y - 22, 3, 4);
+    ctx.fillRect(cx - 1, boss.y - 24, 3, 6);
+    ctx.fillRect(cx + 4, boss.y - 22, 3, 4);
+    // Eyes
+    ctx.fillStyle = '#f00';
+    ctx.fillRect(cx - 2, boss.y - 12, 3, 3);
+  } else if (boss.name === 'GOLEM LORD') {
+    // Massive golem
+    ctx.fillRect(boss.x - boss.size * 0.7, boss.y - boss.size, boss.size * 1.4, boss.size * 1.8);
+    // Head
+    ctx.fillRect(boss.x - 10, boss.y - boss.size - 12, 20, 14);
+    // Eyes (glowing)
+    ctx.fillStyle = '#f80';
+    const eyePulse = Math.sin(frame * 0.1) * 0.3 + 0.7;
+    ctx.globalAlpha = eyePulse;
+    ctx.fillRect(boss.x - 7, boss.y - boss.size - 6, 5, 4);
+    ctx.fillRect(boss.x + 2, boss.y - boss.size - 6, 5, 4);
+    ctx.globalAlpha = 1;
+    // Arms
+    ctx.fillStyle = boss.hitFlash > 0 && Math.floor(frame / 2) % 2 ? '#fff' : boss.color;
+    ctx.fillRect(boss.x - boss.size * 0.7 - 10, boss.y - boss.size + 6, 10, 20);
+    ctx.fillRect(boss.x + boss.size * 0.7, boss.y - boss.size + 6, 10, 20);
+  } else if (boss.name === 'DARK FACT') {
+    // Robed figure with floating cape
+    const float = Math.sin(frame * 0.05) * 3;
+    // Cape
+    ctx.fillStyle = boss.hitFlash > 0 && Math.floor(frame / 2) % 2 ? '#fff' : '#40a';
+    ctx.beginPath();
+    ctx.moveTo(boss.x - 18, boss.y - 10 + float);
+    ctx.lineTo(boss.x - 22, boss.y + boss.size + float);
+    ctx.lineTo(boss.x + 22, boss.y + boss.size + float);
+    ctx.lineTo(boss.x + 18, boss.y - 10 + float);
+    ctx.closePath(); ctx.fill();
+    // Body
+    ctx.fillStyle = boss.hitFlash > 0 && Math.floor(frame / 2) % 2 ? '#fff' : boss.color;
+    ctx.fillRect(boss.x - 10, boss.y - 14 + float, 20, 28);
+    // Head
+    ctx.fillStyle = '#fda';
+    ctx.beginPath();
+    ctx.arc(boss.x, boss.y - 18 + float, 9, 0, Math.PI * 2);
+    ctx.fill();
+    // Eyes (menacing)
+    ctx.fillStyle = '#f00';
+    ctx.fillRect(boss.x - 5, boss.y - 20 + float, 3, 3);
+    ctx.fillRect(boss.x + 2, boss.y - 20 + float, 3, 3);
+    // Orbiting energy particles
+    for (let i = 0; i < 4; i++) {
+      const angle = frame * 0.04 + i * Math.PI / 2;
+      const ox = boss.x + Math.cos(angle) * 30;
+      const oy = boss.y + Math.sin(angle) * 20 + float;
+      ctx.fillStyle = i % 2 === 0 ? '#f4f' : '#44f';
+      ctx.beginPath();
+      ctx.arc(ox, oy, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // Facing indicator
+  ctx.fillStyle = 'rgba(255,50,50,0.5)';
+  ctx.beginPath();
+  ctx.arc(boss.x + Math.cos(boss.dir) * (boss.size + 4), boss.y + Math.sin(boss.dir) * (boss.size + 4), 4, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

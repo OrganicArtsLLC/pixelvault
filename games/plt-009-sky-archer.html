@@ -1,0 +1,1242 @@
+<!--
+PROTOTYPE: sky-archer
+SERIES: plt
+NUMBER: 009
+DATE: 2026-03-22
+MECHANIC: vertical scrolling platformer with archery combat and mythological setting
+ANCESTRY: Kid Icarus (1986, Nintendo R&D1/Toru Osawa), Metroid (1986, Nintendo R&D1)
+CONTROLS: Left/Right — move | Up/Space — jump | Z — shoot arrow | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — pattern-based enemy spawning)
+AI-INSIGHT: Kid Icarus combined vertical platforming with RPG elements (health upgrades, weapon strength, shops) — an early example of genre hybridization that would later become standard. The vertical scroll direction was unusual and created unique spatial reasoning challenges.
+NOTES: Vertical scrolling platformer. Pit climbs upward, shooting enemies with arrows.
+       Screen wraps horizontally. Falling off bottom = death.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PLT-009 · SKY ARCHER</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>PLT-009 · SKY ARCHER</h1>
+    <p><span class="tag series">PLT — Platformer</span> <span class="tag">Prototype #009</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Guide Pit upward through the Underworld, shooting enemies with your sacred bow. Climb platforms, collect hearts from defeated enemies, and visit shops to power up. Falling below the screen means death.</p>
+    <ul>
+      <li><kbd>&#8592;</kbd> <kbd>&#8594;</kbd> — Move left/right</li>
+      <li><kbd>&#8593;</kbd> or <kbd>Space</kbd> — Jump</li>
+      <li><kbd>Z</kbd> — Shoot arrow</li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Horizontal wrap:</strong> Walk off the left edge to appear on the right, and vice versa. Use this to reach platforms.</li>
+      <li><strong>Keep climbing:</strong> The screen scrolls up as you climb. Fall below the bottom and you die.</li>
+      <li><strong>Collect hearts:</strong> Defeated enemies drop hearts. Spend them at shops for upgrades.</li>
+      <li><strong>Watch for Reapers:</strong> They patrol platforms and chase you when they spot you. Stay below their line of sight or shoot fast.</li>
+      <li><strong>Shops:</strong> Enter doors marked with a torch to spend hearts on arrow power, health, or protective crystals.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Kid Icarus (1986, Nintendo R&amp;D1) &larr; Metroid (1986) &larr; Ice Climber (1985)</p>
+    <p>Kid Icarus (1986) was designed by Toru Osawa at Nintendo R&amp;D1, sharing an engine and development team with Metroid. While Metroid scrolled horizontally through interconnected areas, Kid Icarus scrolled vertically through distinct stages, creating a fundamentally different spatial challenge.</p>
+    <p>The game blended platforming with RPG-style progression: health upgrades, weapon strength tiers, shops, and even training rooms. This genre hybridization was ahead of its time. The vertical scrolling created asymmetric difficulty &mdash; falling was permanent death, while horizontal wrapping added a spatial puzzle element absent from most platformers.</p>
+    <p>The Greek mythology setting was unusual for its era, giving Nintendo a distinct aesthetic that contrasted with Metroid's sci-fi and Mario's fantasy worlds.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 3 &mdash; Knowledge Explosion (1980&ndash;1993)</p>
+    <p><strong>Contemporary AI:</strong> Expert systems, early neural networks. Pattern recognition research was accelerating.</p>
+    <p><strong>Hidden Intelligence:</strong> Kid Icarus uses pattern-based enemy spawning &mdash; enemies appear in waves with specific movement patterns (sine waves for Shemums, patrol routes for Reapers). This is hand-authored behavior scripting, but the wave-based spawn system anticipates procedural difficulty scaling.</p>
+    <p><strong>The Convergence:</strong> The Reaper's behavior &mdash; patrolling passively then switching to aggressive pursuit on detection &mdash; is a finite state machine (FSM), one of the fundamental AI architectures. The same patrol-detect-chase FSM appears in modern stealth games, now driven by perception models rather than simple range checks.</p>
+    <p><strong>If AI Had Designed This:</strong> Adaptive difficulty that adjusts platform density and enemy frequency based on player death patterns. A reinforcement learning agent would discover that the vertical scroll creates an implicit difficulty ratchet &mdash; every upward move is irreversible, making each jump a commitment.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: PLT &mdash; Platformer</h3>
+    <p>Kid Icarus is a vertical scrolling platformer with archery combat and RPG progression elements. The vertical scroll direction and horizontal wrapping distinguish it from horizontal platformers.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Vertical ascent with horizontal wrap and archery combat.</strong> One-way scrolling (up only). Fall below the screen = death. Horizontal screen wrap adds spatial puzzle element. Arrow-based ranged combat. Heart currency and shop system for RPG-style upgrades.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Vertical scrolling &mdash; does upward-only movement create meaningful tension?</li>
+      <li>Horizontal wrap &mdash; does screen wrapping add interesting navigation choices?</li>
+      <li>Archery combat &mdash; does directional shooting feel satisfying against flying enemies?</li>
+      <li>Economy loop &mdash; do hearts and shops create meaningful progression decisions?</li>
+      <li>Enemy variety &mdash; do different enemy behaviors (sine, patrol, chase) create varied challenges?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Procedurally generated vertical levels with platform placement, enemy spawning, and shop doors. Horizontal wrapping. Three enemy types with distinct behaviors. Heart drops and shop system with three upgrade paths.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+const keys = {};
+window.addEventListener('keydown', e => { if (!infoOpen) keys[e.code] = true; e.preventDefault(); });
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+// --- CONSTANTS ---
+const TILE = 32;
+const COLS = Math.floor(W / TILE); // 25
+const GRAVITY = 0.45;
+const JUMP_VEL = -9.5;
+const MOVE_SPD = 3.5;
+const ARROW_SPD = 7;
+const SCROLL_THRESHOLD = 200; // scroll when player above this Y
+
+// --- SEEDED RNG ---
+function seededRand(seed) {
+  let s = Math.abs(seed) || 1;
+  return function() {
+    s = (s * 16807 + 0) % 2147483647;
+    return (s - 1) / 2147483646;
+  };
+}
+
+// --- PLATFORM GENERATION ---
+function genPlatformRow(rowY, rng) {
+  const plats = [];
+  const count = 2 + Math.floor(rng() * 3);
+  for (let i = 0; i < count; i++) {
+    const px = Math.floor(rng() * (COLS - 3));
+    const pw = 2 + Math.floor(rng() * 3);
+    plats.push({ x: px * TILE, y: rowY, w: pw * TILE, h: TILE * 0.6 });
+  }
+  return plats;
+}
+
+function genChunk(chunkIdx) {
+  const rng = seededRand(chunkIdx * 7919 + 131);
+  const platforms = [];
+  const enemies = [];
+  const items = [];
+  const baseY = -chunkIdx * H;
+
+  // Generate rows of platforms
+  const rowCount = 6 + Math.floor(rng() * 3);
+  for (let r = 0; r < rowCount; r++) {
+    const rowY = baseY + H - (r + 1) * (H / (rowCount + 1));
+    const row = genPlatformRow(rowY, rng);
+    for (const p of row) platforms.push(p);
+
+    // Enemies on some platforms
+    if (rng() > 0.4 && row.length > 0) {
+      const ep = row[Math.floor(rng() * row.length)];
+      const etype = rng();
+      if (etype < 0.45) {
+        // Shemum (sine wave flier)
+        enemies.push({
+          type: 'shemum', x: ep.x + ep.w / 2, y: ep.y - 40,
+          baseX: ep.x + ep.w / 2, baseY: ep.y - 40,
+          alive: true, hp: 1, phase: rng() * Math.PI * 2,
+          amp: 40 + rng() * 30, freq: 0.02 + rng() * 0.01
+        });
+      } else if (etype < 0.8) {
+        // Monoeye (flying eye)
+        enemies.push({
+          type: 'monoeye', x: ep.x + ep.w / 2, y: ep.y - 60,
+          alive: true, hp: 1, vx: (rng() > 0.5 ? 1 : -1) * (1 + rng()),
+          vy: 0, baseY: ep.y - 60, phase: rng() * Math.PI * 2
+        });
+      } else {
+        // Reaper (patrols platform, chases on sight)
+        enemies.push({
+          type: 'reaper', x: ep.x + 10, y: ep.y - 24,
+          alive: true, hp: 3, vx: 1, patrolL: ep.x, patrolR: ep.x + ep.w,
+          chasing: false, chaseTimer: 0, spotted: false
+        });
+      }
+    }
+  }
+
+  // Shop door on some chunks
+  if (chunkIdx > 0 && chunkIdx % 4 === 0 && platforms.length > 0) {
+    const sp = platforms[Math.floor(rng() * platforms.length)];
+    items.push({ type: 'shop', x: sp.x + sp.w / 2 - 16, y: sp.y - TILE * 1.5, w: TILE, h: TILE * 1.5, active: true });
+  }
+
+  return { platforms, enemies, items, baseY };
+}
+
+// --- GAME STATE ---
+let player, arrows, hearts, chunks, loadedChunks, scrollY, highestY;
+let score, heartCount, lives, hp, maxHp, arrowPower, hasCrystal, crystalTimer;
+let gameOver, frame, titleScreen, shopOpen, shopItems;
+let particles, screenShake;
+
+function initGame() {
+  player = { x: W / 2, y: H - 80, vx: 0, vy: 0, w: 20, h: 28, facing: 1, onGround: false, jumpHeld: false };
+  arrows = [];
+  hearts = [];
+  particles = [];
+  chunks = {};
+  loadedChunks = new Set();
+  scrollY = 0;
+  highestY = H - 80;
+  score = 0;
+  heartCount = 0;
+  lives = 3;
+  hp = 3;
+  maxHp = 5;
+  arrowPower = 1;
+  hasCrystal = false;
+  crystalTimer = 0;
+  gameOver = false;
+  titleScreen = true;
+  shopOpen = false;
+  shopItems = [];
+  frame = 0;
+  screenShake = 0;
+
+  // Generate initial ground platform
+  chunks[-1] = {
+    platforms: [{ x: 0, y: H - 40, w: W, h: 40 }],
+    enemies: [], items: [], baseY: 0
+  };
+  loadedChunks.add(-1);
+
+  // Load first chunks
+  for (let i = 0; i < 4; i++) {
+    chunks[i] = genChunk(i);
+    loadedChunks.add(i);
+  }
+}
+
+initGame();
+
+function getWorldY(screenY) { return screenY + scrollY; }
+function getScreenY(worldY) { return worldY - scrollY; }
+
+function getAllPlatforms() {
+  const all = [];
+  for (const k of loadedChunks) {
+    if (chunks[k]) {
+      for (const p of chunks[k].platforms) all.push(p);
+    }
+  }
+  return all;
+}
+
+function getAllEnemies() {
+  const all = [];
+  for (const k of loadedChunks) {
+    if (chunks[k]) {
+      for (const e of chunks[k].enemies) all.push(e);
+    }
+  }
+  return all;
+}
+
+function getAllItems() {
+  const all = [];
+  for (const k of loadedChunks) {
+    if (chunks[k]) {
+      for (const it of chunks[k].items) all.push(it);
+    }
+  }
+  return all;
+}
+
+function spawnParticle(x, y, color, count) {
+  for (let i = 0; i < count; i++) {
+    particles.push({
+      x, y, vx: (Math.random() - 0.5) * 6, vy: (Math.random() - 0.5) * 6 - 2,
+      life: 20 + Math.random() * 20, color, size: 2 + Math.random() * 3
+    });
+  }
+}
+
+function spawnHeart(x, y, value) {
+  hearts.push({
+    x, y, vy: -3, vx: (Math.random() - 0.5) * 2,
+    value: value || 1, life: 300, size: 8
+  });
+}
+
+function openShop() {
+  shopOpen = true;
+  shopItems = [
+    { name: 'ARROW POWER +1', cost: 10, action: () => { arrowPower = Math.min(arrowPower + 1, 4); } },
+    { name: 'HEALTH +1', cost: 15, action: () => { maxHp = Math.min(maxHp + 1, 8); hp = Math.min(hp + 1, maxHp); } },
+    { name: 'CRYSTAL SHIELD', cost: 20, action: () => { hasCrystal = true; crystalTimer = 1800; } }
+  ];
+}
+
+function update() {
+  if (infoOpen) return;
+  if (titleScreen) {
+    if (keys['Space'] || keys['ArrowUp'] || keys['KeyZ']) {
+      titleScreen = false;
+    }
+    return;
+  }
+  if (gameOver) { if (keys['KeyR']) initGame(); return; }
+
+  // Shop interaction
+  if (shopOpen) {
+    if (keys['Digit1'] && shopItems[0] && heartCount >= shopItems[0].cost) {
+      heartCount -= shopItems[0].cost; shopItems[0].action(); shopItems[0] = null;
+    }
+    if (keys['Digit2'] && shopItems[1] && heartCount >= shopItems[1].cost) {
+      heartCount -= shopItems[1].cost; shopItems[1].action(); shopItems[1] = null;
+    }
+    if (keys['Digit3'] && shopItems[2] && heartCount >= shopItems[2].cost) {
+      heartCount -= shopItems[2].cost; shopItems[2].action(); shopItems[2] = null;
+    }
+    if (keys['Escape'] || keys['KeyX']) { shopOpen = false; keys['Escape'] = false; keys['KeyX'] = false; }
+    return;
+  }
+
+  frame++;
+  if (screenShake > 0) screenShake--;
+
+  // Crystal timer
+  if (hasCrystal) {
+    crystalTimer--;
+    if (crystalTimer <= 0) hasCrystal = false;
+  }
+
+  // --- Player movement ---
+  if (keys['ArrowLeft'] || keys['KeyA']) { player.vx = -MOVE_SPD; player.facing = -1; }
+  else if (keys['ArrowRight'] || keys['KeyD']) { player.vx = MOVE_SPD; player.facing = 1; }
+  else { player.vx *= 0.7; if (Math.abs(player.vx) < 0.3) player.vx = 0; }
+
+  // Jump
+  const jumpPressed = keys['ArrowUp'] || keys['Space'] || keys['KeyW'];
+  if (jumpPressed && player.onGround && !player.jumpHeld) {
+    player.vy = JUMP_VEL;
+    player.onGround = false;
+    player.jumpHeld = true;
+  }
+  if (!jumpPressed) player.jumpHeld = false;
+
+  // Variable jump height
+  if (!jumpPressed && player.vy < -2) player.vy *= 0.85;
+
+  // Gravity
+  player.vy += GRAVITY;
+  if (player.vy > 12) player.vy = 12;
+
+  // Move X with horizontal wrap
+  player.x += player.vx;
+  if (player.x < -player.w / 2) player.x = W + player.w / 2;
+  if (player.x > W + player.w / 2) player.x = -player.w / 2;
+
+  // Move Y
+  player.y += player.vy;
+  player.onGround = false;
+
+  // Platform collision
+  const platforms = getAllPlatforms();
+  for (const p of platforms) {
+    const py = getScreenY(p.y);
+    const px = p.x;
+    // Only collide when falling
+    if (player.vy >= 0) {
+      const playerBottom = player.y + player.h / 2;
+      const prevBottom = playerBottom - player.vy;
+      if (playerBottom >= py && prevBottom <= py + 4 &&
+          player.x + player.w / 2 > px && player.x - player.w / 2 < px + p.w) {
+        player.y = py - player.h / 2;
+        player.vy = 0;
+        player.onGround = true;
+      }
+    }
+  }
+
+  // Screen scrolling
+  if (player.y < SCROLL_THRESHOLD) {
+    const scrollAmt = SCROLL_THRESHOLD - player.y;
+    scrollY -= scrollAmt;
+    player.y = SCROLL_THRESHOLD;
+  }
+
+  // Track highest point
+  const worldY = getWorldY(player.y);
+  if (worldY < highestY) {
+    score += Math.floor((highestY - worldY) / 10);
+    highestY = worldY;
+  }
+
+  // Death by falling below screen
+  if (player.y > H + 40) {
+    die();
+    return;
+  }
+
+  // Load/unload chunks
+  const currentChunk = Math.floor(-scrollY / H);
+  for (let i = currentChunk - 1; i <= currentChunk + 4; i++) {
+    if (!loadedChunks.has(i) && i >= 0) {
+      chunks[i] = genChunk(i);
+      loadedChunks.add(i);
+    }
+  }
+  // Unload far chunks
+  for (const k of loadedChunks) {
+    if (k !== -1 && (k < currentChunk - 2 || k > currentChunk + 5)) {
+      loadedChunks.delete(k);
+      delete chunks[k];
+    }
+  }
+
+  // --- Shooting ---
+  if (keys['KeyZ'] && frame % 12 === 0) {
+    arrows.push({
+      x: player.x + player.facing * 12, y: player.y - 4,
+      vx: player.facing * ARROW_SPD, vy: 0, power: arrowPower, life: 60
+    });
+  }
+
+  // Move arrows
+  arrows = arrows.filter(a => {
+    a.x += a.vx;
+    a.life--;
+    if (a.life <= 0) return false;
+    // Wrap horizontally
+    if (a.x < -10) a.x = W + 10;
+    if (a.x > W + 10) a.x = -10;
+    // Hit platform
+    for (const p of platforms) {
+      const py = getScreenY(p.y);
+      if (a.x > p.x && a.x < p.x + p.w && a.y > py && a.y < py + p.h) {
+        spawnParticle(a.x, a.y, '#fa0', 3);
+        return false;
+      }
+    }
+    return true;
+  });
+
+  // --- Enemies ---
+  const allEnemies = getAllEnemies();
+  for (const e of allEnemies) {
+    if (!e.alive) continue;
+    const sy = getScreenY(e.y);
+    const sby = e.baseY !== undefined ? getScreenY(e.baseY) : sy;
+
+    // Skip if far off screen
+    if (sy < -100 || sy > H + 100) continue;
+
+    if (e.type === 'shemum') {
+      e.phase += e.freq;
+      const sx = getScreenY(e.baseX) !== undefined ? e.baseX : e.x;
+      e.x = e.baseX + Math.sin(e.phase) * e.amp;
+      e.y = e.baseY + Math.cos(e.phase * 0.5) * 20;
+    } else if (e.type === 'monoeye') {
+      e.x += e.vx;
+      e.phase += 0.04;
+      e.y = e.baseY + Math.sin(e.phase) * 30;
+      // Bounce at screen edges
+      if (e.x < 20 || e.x > W - 20) e.vx = -e.vx;
+    } else if (e.type === 'reaper') {
+      const reaperScreenY = sy;
+      const playerDx = player.x - e.x;
+      const playerDy = player.y - reaperScreenY;
+      const distToPlayer = Math.sqrt(playerDx * playerDx + playerDy * playerDy);
+
+      if (!e.chasing) {
+        // Patrol
+        e.x += e.vx;
+        if (e.x <= e.patrolL) { e.x = e.patrolL; e.vx = 1; }
+        if (e.x >= e.patrolR) { e.x = e.patrolR; e.vx = -1; }
+        // Spot player if nearby and roughly same height
+        if (distToPlayer < 200 && Math.abs(playerDy) < 80) {
+          e.chasing = true;
+          e.chaseTimer = 240;
+          e.spotted = true;
+        }
+      } else {
+        // Chase player
+        e.chaseTimer--;
+        if (e.chaseTimer <= 0 || distToPlayer > 350) {
+          e.chasing = false;
+          e.spotted = false;
+        } else {
+          const cspd = 2.5;
+          e.x += (playerDx > 0 ? cspd : -cspd);
+          // Chase Y via world coords
+          if (Math.abs(playerDy) > 10) {
+            e.y += (playerDy > 0 ? 1.5 : -1.5);
+          }
+        }
+      }
+    }
+
+    // Arrow-enemy collision
+    for (let ai = arrows.length - 1; ai >= 0; ai--) {
+      const a = arrows[ai];
+      const eScreenY = getScreenY(e.y);
+      const dx = a.x - e.x, dy = a.y - eScreenY;
+      if (dx * dx + dy * dy < 400) {
+        e.hp -= a.power;
+        spawnParticle(a.x, a.y, '#ff0', 5);
+        arrows.splice(ai, 1);
+        if (e.hp <= 0) {
+          e.alive = false;
+          score += e.type === 'reaper' ? 300 : 100;
+          spawnParticle(e.x, eScreenY, e.type === 'reaper' ? '#808' : '#f44', 12);
+          // Drop hearts
+          const hcount = e.type === 'reaper' ? 3 : 1;
+          for (let hi = 0; hi < hcount; hi++) {
+            spawnHeart(e.x + (Math.random() - 0.5) * 20, eScreenY,
+                       e.type === 'reaper' ? 5 : 1);
+          }
+        }
+        break;
+      }
+    }
+
+    // Enemy-player collision
+    if (e.alive) {
+      const eScreenY = getScreenY(e.y);
+      const dx = player.x - e.x, dy = player.y - eScreenY;
+      if (dx * dx + dy * dy < 500) {
+        if (hasCrystal) {
+          e.alive = false;
+          spawnParticle(e.x, eScreenY, '#4ff', 8);
+          score += 50;
+        } else {
+          takeDamage();
+          // Knockback
+          player.vy = -5;
+          player.vx = (dx > 0 ? 4 : -4);
+          screenShake = 8;
+        }
+      }
+    }
+  }
+
+  // --- Hearts (drops) ---
+  hearts = hearts.filter(h => {
+    h.vy += 0.15;
+    h.y += h.vy;
+    h.x += h.vx;
+    h.life--;
+
+    // Platform collision
+    for (const p of platforms) {
+      const py = getScreenY(p.y);
+      if (h.y > py && h.y - h.vy <= py &&
+          h.x > p.x && h.x < p.x + p.w) {
+        h.y = py;
+        h.vy = 0;
+        h.vx = 0;
+      }
+    }
+
+    // Player pickup
+    const dx = player.x - h.x, dy = player.y - h.y;
+    if (dx * dx + dy * dy < 600) {
+      heartCount += h.value;
+      spawnParticle(h.x, h.y, '#f4f', 4);
+      return false;
+    }
+
+    if (h.life <= 0 || h.y > H + 20) return false;
+    return true;
+  });
+
+  // --- Items (shops) ---
+  const allItems = getAllItems();
+  for (const it of allItems) {
+    if (!it.active) continue;
+    const iy = getScreenY(it.y);
+    if (Math.abs(player.x - (it.x + it.w / 2)) < 24 && Math.abs(player.y - iy - it.h / 2) < 30) {
+      if (keys['ArrowUp'] || keys['KeyW']) {
+        openShop();
+        it.active = false;
+      }
+    }
+  }
+
+  // --- Particles ---
+  particles = particles.filter(p => {
+    p.x += p.vx; p.y += p.vy; p.vy += 0.1; p.life--;
+    return p.life > 0;
+  });
+}
+
+function takeDamage() {
+  hp--;
+  if (hp <= 0) die();
+}
+
+function die() {
+  lives--;
+  spawnParticle(player.x, player.y, '#ff0', 20);
+  screenShake = 15;
+  if (lives <= 0) {
+    gameOver = true;
+  } else {
+    hp = maxHp;
+    // Respawn on nearest platform below highestY
+    player.x = W / 2;
+    player.y = H / 2;
+    player.vx = 0;
+    player.vy = 0;
+  }
+}
+
+// --- DRAWING ---
+function drawSky() {
+  // Gradient sky based on height
+  const depth = Math.min(-scrollY / 3000, 1);
+  const r1 = Math.floor(10 + depth * 30);
+  const g1 = Math.floor(8 + depth * 20);
+  const b1 = Math.floor(40 + depth * 60);
+  const r2 = Math.floor(30 + depth * 80);
+  const g2 = Math.floor(20 + depth * 50);
+  const b2 = Math.floor(80 + depth * 100);
+
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, `rgb(${r2},${g2},${b2})`);
+  grad.addColorStop(1, `rgb(${r1},${g1},${b1})`);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Stars
+  const starSeed = seededRand(42);
+  for (let i = 0; i < 60; i++) {
+    const sx = starSeed() * W;
+    const sy = ((starSeed() * H * 3) + scrollY * 0.1) % H;
+    const bright = 100 + Math.floor(starSeed() * 155);
+    ctx.fillStyle = `rgba(${bright},${bright},${bright + 50},${0.3 + Math.sin(frame * 0.02 + i) * 0.2})`;
+    ctx.fillRect(sx, sy, 2, 2);
+  }
+
+  // Columns in background (parallax)
+  ctx.fillStyle = 'rgba(80,70,100,0.15)';
+  for (let i = 0; i < 6; i++) {
+    const cx = i * 160 + 40;
+    const cy = ((scrollY * 0.05) % 200) + 300;
+    ctx.fillRect(cx, cy, 20, H);
+    // Column capital
+    ctx.fillRect(cx - 6, cy, 32, 10);
+    ctx.fillRect(cx - 3, cy + 10, 26, 6);
+  }
+}
+
+function drawPlatform(p) {
+  const sy = getScreenY(p.y);
+  if (sy < -50 || sy > H + 50) return;
+
+  // Stone platform
+  ctx.fillStyle = '#665544';
+  ctx.fillRect(p.x, sy, p.w, p.h);
+  // Top edge highlight
+  ctx.fillStyle = '#887766';
+  ctx.fillRect(p.x, sy, p.w, 3);
+  // Bottom shadow
+  ctx.fillStyle = '#443322';
+  ctx.fillRect(p.x, sy + p.h - 3, p.w, 3);
+  // Brick lines
+  ctx.strokeStyle = '#554433';
+  ctx.lineWidth = 1;
+  const brickW = TILE;
+  for (let bx = p.x + brickW; bx < p.x + p.w; bx += brickW) {
+    ctx.beginPath(); ctx.moveTo(bx, sy); ctx.lineTo(bx, sy + p.h); ctx.stroke();
+  }
+}
+
+function drawPlayer() {
+  const px = player.x, py = player.y;
+  const f = player.facing;
+  const bobY = player.onGround ? Math.sin(frame * 0.15) * 1 : 0;
+
+  // Crystal shield
+  if (hasCrystal) {
+    ctx.strokeStyle = `rgba(100,255,255,${0.4 + Math.sin(frame * 0.1) * 0.2})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(px, py + bobY, 22, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // Wings
+  const wingFlap = Math.sin(frame * 0.2) * (player.onGround ? 3 : 8);
+  ctx.fillStyle = '#ddf';
+  // Left wing
+  ctx.beginPath();
+  ctx.moveTo(px - 6, py - 8 + bobY);
+  ctx.lineTo(px - 18, py - 16 + bobY + wingFlap);
+  ctx.lineTo(px - 14, py - 6 + bobY + wingFlap * 0.3);
+  ctx.lineTo(px - 6, py - 2 + bobY);
+  ctx.fill();
+  // Right wing
+  ctx.beginPath();
+  ctx.moveTo(px + 6, py - 8 + bobY);
+  ctx.lineTo(px + 18, py - 16 + bobY + wingFlap);
+  ctx.lineTo(px + 14, py - 6 + bobY + wingFlap * 0.3);
+  ctx.lineTo(px + 6, py - 2 + bobY);
+  ctx.fill();
+
+  // Body
+  ctx.fillStyle = '#eeb866';
+  ctx.fillRect(px - 5, py - 6 + bobY, 10, 14);
+  // Tunic
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(px - 6, py - 2 + bobY, 12, 10);
+
+  // Head
+  ctx.fillStyle = '#eeb866';
+  ctx.fillRect(px - 5, py - 14 + bobY, 10, 10);
+  // Hair (brown/blue like Pit)
+  ctx.fillStyle = '#8b6914';
+  ctx.fillRect(px - 6, py - 16 + bobY, 12, 6);
+  // Laurel wreath
+  ctx.fillStyle = '#4a4';
+  ctx.fillRect(px - 7, py - 14 + bobY, 3, 4);
+  ctx.fillRect(px + 4, py - 14 + bobY, 3, 4);
+  ctx.fillRect(px - 5, py - 16 + bobY, 10, 2);
+
+  // Eye
+  ctx.fillStyle = '#222';
+  ctx.fillRect(px + f * 2, py - 12 + bobY, 2, 2);
+
+  // Legs
+  const legOff = player.onGround ? Math.sin(frame * 0.15) * 2 : 3;
+  ctx.fillStyle = '#eeb866';
+  ctx.fillRect(px - 4, py + 8 + bobY, 3, 6 + legOff);
+  ctx.fillRect(px + 1, py + 8 + bobY, 3, 6 - legOff);
+  // Sandals
+  ctx.fillStyle = '#964B00';
+  ctx.fillRect(px - 5, py + 13 + bobY + legOff, 5, 2);
+  ctx.fillRect(px, py + 13 + bobY - legOff, 5, 2);
+
+  // Bow (in facing direction)
+  ctx.strokeStyle = '#964B00';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(px + f * 10, py - 2 + bobY, 10, -Math.PI * 0.4 + (f < 0 ? Math.PI : 0),
+          Math.PI * 0.4 + (f < 0 ? Math.PI : 0));
+  ctx.stroke();
+  // Bowstring
+  ctx.strokeStyle = '#ccc';
+  ctx.lineWidth = 1;
+  const bowCx = px + f * 10;
+  const bowCy = py - 2 + bobY;
+  ctx.beginPath();
+  ctx.moveTo(bowCx + Math.cos(-Math.PI * 0.4 + (f < 0 ? Math.PI : 0)) * 10,
+             bowCy + Math.sin(-Math.PI * 0.4 + (f < 0 ? Math.PI : 0)) * 10);
+  ctx.lineTo(bowCx + Math.cos(Math.PI * 0.4 + (f < 0 ? Math.PI : 0)) * 10,
+             bowCy + Math.sin(Math.PI * 0.4 + (f < 0 ? Math.PI : 0)) * 10);
+  ctx.stroke();
+}
+
+function drawEnemy(e) {
+  const sy = getScreenY(e.y);
+  if (sy < -40 || sy > H + 40) return;
+
+  if (e.type === 'shemum') {
+    // Eggplant-like creature
+    ctx.fillStyle = '#9060c0';
+    ctx.beginPath();
+    ctx.ellipse(e.x, sy, 10, 13, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Stem
+    ctx.fillStyle = '#4a4';
+    ctx.fillRect(e.x - 3, sy - 16, 6, 6);
+    ctx.fillRect(e.x - 5, sy - 14, 2, 4);
+    ctx.fillRect(e.x + 3, sy - 14, 2, 4);
+    // Eyes
+    ctx.fillStyle = '#ff0';
+    ctx.fillRect(e.x - 5, sy - 4, 3, 3);
+    ctx.fillRect(e.x + 2, sy - 4, 3, 3);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(e.x - 4, sy - 3, 2, 2);
+    ctx.fillRect(e.x + 3, sy - 3, 2, 2);
+  } else if (e.type === 'monoeye') {
+    // Flying eye
+    ctx.fillStyle = '#c03030';
+    ctx.beginPath();
+    ctx.arc(e.x, sy, 12, 0, Math.PI * 2);
+    ctx.fill();
+    // Iris
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(e.x, sy, 7, 0, Math.PI * 2);
+    ctx.fill();
+    // Pupil (looks at player)
+    const dx = player.x - e.x, dy = player.y - sy;
+    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+    ctx.fillStyle = '#111';
+    ctx.beginPath();
+    ctx.arc(e.x + (dx / dist) * 3, sy + (dy / dist) * 3, 4, 0, Math.PI * 2);
+    ctx.fill();
+    // Veins
+    ctx.strokeStyle = '#800';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 4; i++) {
+      const a = i * Math.PI * 0.5 + 0.3;
+      ctx.beginPath();
+      ctx.moveTo(e.x + Math.cos(a) * 7, sy + Math.sin(a) * 7);
+      ctx.lineTo(e.x + Math.cos(a) * 12, sy + Math.sin(a) * 12);
+      ctx.stroke();
+    }
+  } else if (e.type === 'reaper') {
+    // Grim reaper figure
+    const flash = e.chasing && frame % 8 < 4;
+    // Cloak
+    ctx.fillStyle = flash ? '#660066' : '#333';
+    ctx.beginPath();
+    ctx.moveTo(e.x - 10, sy - 20);
+    ctx.lineTo(e.x + 10, sy - 20);
+    ctx.lineTo(e.x + 12, sy + 8);
+    ctx.lineTo(e.x - 12, sy + 8);
+    ctx.fill();
+    // Hood
+    ctx.fillStyle = flash ? '#880088' : '#444';
+    ctx.beginPath();
+    ctx.arc(e.x, sy - 18, 10, Math.PI, 0);
+    ctx.fill();
+    // Face (dark void)
+    ctx.fillStyle = '#000';
+    ctx.fillRect(e.x - 5, sy - 18, 10, 8);
+    // Eyes (red, glowing when chasing)
+    ctx.fillStyle = e.chasing ? '#f00' : '#a00';
+    ctx.fillRect(e.x - 4, sy - 16, 3, 2);
+    ctx.fillRect(e.x + 1, sy - 16, 3, 2);
+    // Scythe
+    ctx.strokeStyle = '#888';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(e.x + 10, sy + 8);
+    ctx.lineTo(e.x + 10, sy - 24);
+    ctx.stroke();
+    ctx.strokeStyle = '#aaa';
+    ctx.beginPath();
+    ctx.arc(e.x + 10, sy - 28, 8, 0.5, Math.PI - 0.3);
+    ctx.stroke();
+    // Exclamation when chasing
+    if (e.chasing) {
+      ctx.fillStyle = '#f00';
+      ctx.font = 'bold 14px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('!', e.x, sy - 32);
+    }
+  }
+}
+
+function drawHeart(h) {
+  ctx.fillStyle = h.life < 60 && frame % 6 < 3 ? 'rgba(255,100,200,0.5)' : '#f4a';
+  // Heart shape
+  ctx.beginPath();
+  ctx.moveTo(h.x, h.y + 2);
+  ctx.bezierCurveTo(h.x - 6, h.y - 6, h.x - 10, h.y + 2, h.x, h.y + 8);
+  ctx.bezierCurveTo(h.x + 10, h.y + 2, h.x + 6, h.y - 6, h.x, h.y + 2);
+  ctx.fill();
+  // Value
+  if (h.value > 1) {
+    ctx.fillStyle = '#fff';
+    ctx.font = '8px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(h.value, h.x, h.y - 4);
+  }
+}
+
+function drawShop(it) {
+  const sy = getScreenY(it.y);
+  if (sy < -60 || sy > H + 60) return;
+
+  // Door frame
+  ctx.fillStyle = '#554422';
+  ctx.fillRect(it.x - 4, sy - 4, it.w + 8, it.h + 4);
+  // Door
+  ctx.fillStyle = '#332211';
+  ctx.fillRect(it.x, sy, it.w, it.h);
+  // Arch
+  ctx.strokeStyle = '#887766';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(it.x + it.w / 2, sy, it.w / 2, Math.PI, 0);
+  ctx.stroke();
+  // Torches
+  const torchFlicker = Math.sin(frame * 0.3) * 2;
+  ctx.fillStyle = '#fa0';
+  ctx.fillRect(it.x - 8, sy + 4 + torchFlicker, 4, 6);
+  ctx.fillStyle = '#f80';
+  ctx.fillRect(it.x + it.w + 4, sy + 4 - torchFlicker, 4, 6);
+  // "SHOP" text
+  ctx.fillStyle = '#ff0';
+  ctx.font = '10px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('SHOP', it.x + it.w / 2, sy - 8);
+  // Up arrow prompt if nearby
+  const dx = player.x - (it.x + it.w / 2), dy = player.y - getScreenY(it.y + it.h / 2);
+  if (dx * dx + dy * dy < 2000) {
+    ctx.fillStyle = frame % 40 < 20 ? '#ff0' : '#aa0';
+    ctx.fillText('[UP]', it.x + it.w / 2, sy - 20);
+  }
+}
+
+function drawShopMenu() {
+  ctx.fillStyle = 'rgba(0,0,0,0.85)';
+  ctx.fillRect(W / 2 - 180, 100, 360, 340);
+  ctx.strokeStyle = '#887766';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(W / 2 - 180, 100, 360, 340);
+
+  ctx.fillStyle = '#fa0';
+  ctx.font = 'bold 20px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('~ SHOP ~', W / 2, 140);
+
+  ctx.fillStyle = '#f4a';
+  ctx.font = '14px monospace';
+  ctx.fillText('Hearts: ' + heartCount, W / 2, 170);
+
+  for (let i = 0; i < shopItems.length; i++) {
+    const si = shopItems[i];
+    if (!si) {
+      ctx.fillStyle = '#555';
+      ctx.fillText((i + 1) + '. SOLD', W / 2, 210 + i * 60);
+      continue;
+    }
+    const canBuy = heartCount >= si.cost;
+    ctx.fillStyle = canBuy ? '#fff' : '#666';
+    ctx.font = '16px monospace';
+    ctx.fillText((i + 1) + '. ' + si.name, W / 2, 210 + i * 60);
+    ctx.fillStyle = canBuy ? '#f4a' : '#633';
+    ctx.font = '13px monospace';
+    ctx.fillText('Cost: ' + si.cost + ' hearts', W / 2, 230 + i * 60);
+  }
+
+  ctx.fillStyle = '#888';
+  ctx.font = '13px monospace';
+  ctx.fillText('Press 1/2/3 to buy, ESC to leave', W / 2, 420);
+}
+
+function drawHUD() {
+  // Title badge
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(8, 8, 250, 28);
+  ctx.fillStyle = '#555';
+  ctx.font = '13px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('PLT-009 \u00b7 SKY ARCHER  [?]', 16, 26);
+
+  // Score
+  ctx.fillStyle = '#7bf';
+  ctx.font = '16px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('SCORE: ' + score, 10, 56);
+
+  // Hearts
+  ctx.fillStyle = '#f4a';
+  ctx.textAlign = 'center';
+  ctx.fillText('\u2665 ' + heartCount, W / 2, 56);
+
+  // Lives
+  ctx.fillStyle = '#4f4';
+  ctx.textAlign = 'right';
+  ctx.fillText('LIVES: ' + lives, W - 10, 56);
+
+  // HP bar
+  ctx.fillStyle = '#333';
+  ctx.fillRect(10, 62, maxHp * 22, 12);
+  for (let i = 0; i < hp; i++) {
+    ctx.fillStyle = hp <= 1 ? '#f44' : (hp <= 2 ? '#fa0' : '#4f4');
+    ctx.fillRect(12 + i * 22, 64, 18, 8);
+  }
+  ctx.strokeStyle = '#666';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(10, 62, maxHp * 22, 12);
+
+  // Arrow power indicator
+  ctx.fillStyle = '#fa0';
+  ctx.font = '12px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('BOW: ' + '\u25ba'.repeat(arrowPower), 10, 88);
+
+  // Crystal shield indicator
+  if (hasCrystal) {
+    ctx.fillStyle = '#4ff';
+    ctx.fillText('CRYSTAL: ' + Math.ceil(crystalTimer / 60) + 's', 160, 88);
+  }
+
+  // Height indicator
+  ctx.fillStyle = '#888';
+  ctx.font = '11px monospace';
+  ctx.textAlign = 'right';
+  const height = Math.floor(-scrollY / 10);
+  ctx.fillText('HEIGHT: ' + height + 'm', W - 10, 76);
+}
+
+function draw() {
+  // Screen shake offset
+  const shakeX = screenShake > 0 ? (Math.random() - 0.5) * screenShake : 0;
+  const shakeY = screenShake > 0 ? (Math.random() - 0.5) * screenShake : 0;
+  ctx.save();
+  ctx.translate(shakeX, shakeY);
+
+  drawSky();
+
+  // Platforms
+  const platforms = getAllPlatforms();
+  for (const p of platforms) drawPlatform(p);
+
+  // Items (shops)
+  const allItems = getAllItems();
+  for (const it of allItems) {
+    if (it.active && it.type === 'shop') drawShop(it);
+  }
+
+  // Enemies
+  const allEnemies = getAllEnemies();
+  for (const e of allEnemies) {
+    if (e.alive) drawEnemy(e);
+  }
+
+  // Hearts (drops)
+  for (const h of hearts) drawHeart(h);
+
+  // Arrows
+  for (const a of arrows) {
+    const len = 12 + arrowPower * 3;
+    ctx.strokeStyle = arrowPower >= 3 ? '#ff4' : (arrowPower >= 2 ? '#fa0' : '#fff');
+    ctx.lineWidth = arrowPower >= 3 ? 3 : 2;
+    ctx.beginPath();
+    ctx.moveTo(a.x - (a.vx > 0 ? len : -len), a.y);
+    ctx.lineTo(a.x, a.y);
+    ctx.stroke();
+    // Arrowhead
+    ctx.fillStyle = ctx.strokeStyle;
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y - 3);
+    ctx.lineTo(a.x + (a.vx > 0 ? 6 : -6), a.y);
+    ctx.lineTo(a.x, a.y + 3);
+    ctx.fill();
+    // Glow for powered arrows
+    if (arrowPower >= 2) {
+      ctx.fillStyle = `rgba(255,200,0,${0.2 + Math.sin(frame * 0.3) * 0.1})`;
+      ctx.beginPath();
+      ctx.arc(a.x, a.y, 6 + arrowPower, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // Particles
+  for (const p of particles) {
+    ctx.fillStyle = p.color;
+    ctx.globalAlpha = p.life / 40;
+    ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+  }
+  ctx.globalAlpha = 1;
+
+  // Player
+  if (!gameOver) drawPlayer();
+
+  ctx.restore();
+
+  // Shop menu (not affected by shake)
+  if (shopOpen) drawShopMenu();
+
+  // HUD (not affected by shake)
+  drawHUD();
+
+  // Title screen
+  if (titleScreen) {
+    ctx.fillStyle = 'rgba(0,0,0,0.8)';
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.textAlign = 'center';
+    // Title
+    ctx.fillStyle = '#fa0';
+    ctx.font = 'bold 42px monospace';
+    ctx.fillText('SKY ARCHER', W / 2, H / 2 - 80);
+    ctx.fillStyle = '#886';
+    ctx.font = '16px monospace';
+    ctx.fillText('THE CLIMB BEGINS', W / 2, H / 2 - 50);
+
+    // Decorative columns
+    ctx.fillStyle = 'rgba(150,130,100,0.3)';
+    ctx.fillRect(W / 2 - 200, H / 2 - 100, 16, 240);
+    ctx.fillRect(W / 2 + 184, H / 2 - 100, 16, 240);
+    ctx.fillRect(W / 2 - 206, H / 2 - 100, 28, 8);
+    ctx.fillRect(W / 2 + 178, H / 2 - 100, 28, 8);
+
+    ctx.fillStyle = '#ddd';
+    ctx.font = '14px monospace';
+    ctx.fillText('Climb the Underworld. Defeat Medusa.', W / 2, H / 2);
+    ctx.fillStyle = '#888';
+    ctx.font = '13px monospace';
+    ctx.fillText('\u2190 \u2192 Move   \u2191/SPACE Jump   Z Shoot', W / 2, H / 2 + 40);
+    ctx.fillText('Screen wraps horizontally', W / 2, H / 2 + 62);
+
+    ctx.fillStyle = frame % 60 < 40 ? '#ff0' : '#880';
+    ctx.font = '18px monospace';
+    ctx.fillText('PRESS SPACE TO BEGIN', W / 2, H / 2 + 110);
+  }
+
+  // Game over
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.font = 'bold 48px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#f55';
+    ctx.fillText('GAME OVER', W / 2, H / 2 - 20);
+    ctx.fillStyle = '#aaa';
+    ctx.font = '18px monospace';
+    ctx.fillText('R to restart   SCORE: ' + score, W / 2, H / 2 + 24);
+    ctx.fillStyle = '#888';
+    ctx.font = '14px monospace';
+    ctx.fillText('Height reached: ' + Math.floor(-highestY / 10) + 'm', W / 2, H / 2 + 54);
+  }
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: runner ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("runner");
+</script>
+</body>
+</html>

@@ -1,0 +1,836 @@
+<!--
+PROTOTYPE: petanque
+SERIES: spt
+NUMBER: 014
+DATE: 2026-03-24
+MECHANIC: precision ball placement — throw metal boules to land closest to a small wooden cochonnet (jack); can knock opponent's boules away; point = gentle placement, shoot = knock away
+ANCESTRY: Jeu provençal (France, ancient), Pétanque (1907, La Ciotat, Jules Lenoir), Bocce (Italy)
+CONTROLS: Mouse — aim direction | Click+drag — set power & angle | Release — throw | R — new round | N — new game | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Expert Systems — traditional Provençal, 1907 modern rules)
+AI-INSIGHT: Pétanque strategy is a classic example of the point-vs-shoot decision — a minimax problem where players choose between safe placement (pointing) and risky displacement (shooting). The optimal strategy depends on the current score differential and remaining boules, creating a dynamic programming problem similar to poker pot odds.
+NOTES: Pétanque originated in La Ciotat, France in 1907 when Jules Lenoir, unable to run due to rheumatism, modified jeu provençal to be played standing still (pieds tanqués = feet planted). Players throw metal boules toward a small wooden target ball called the cochonnet (piglet). The game spread globally and is now played in 160+ countries.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPT-014 · PÉTANQUE</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+.notice { margin-top: 20px; padding: 12px; background: #1a1a2e; border: 1px solid #333; border-radius: 4px; font-size: 11px; color: #888; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SPT-014 · P&Eacute;TANQUE</h1>
+    <p><span class="tag series">SPT — Sports</span> <span class="tag">Prototype #014</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Throw metal boules to land closest to the small yellow cochonnet (jack). Outscore your AI opponent to reach 13 points first.</p>
+    <ul>
+      <li><kbd>Click+Drag</kbd> — Aim direction and set power (longer drag = more power)</li>
+      <li><kbd>Release</kbd> — Throw the boule</li>
+      <li><kbd>R</kbd> — New round</li>
+      <li><kbd>N</kbd> — New game</li>
+      <li><kbd>?</kbd> — Toggle this panel</li>
+    </ul>
+    <h3>Strategy</h3>
+    <ul>
+      <li><strong>Pointing</strong> — Gentle throw to place your boule near the cochonnet</li>
+      <li><strong>Shooting</strong> — Hard throw to knock away an opponent's boule</li>
+      <li>The cochonnet can be moved if hit by a boule!</li>
+      <li>Each player has 3 boules per round. After all are thrown, the team with the closest boule scores 1 point per boule closer than the opponent's closest.</li>
+    </ul>
+
+    <h2>History</h2>
+    <p>P&eacute;tanque was born in 1907 in La Ciotat, a coastal town near Marseille. Jules Lenoir, a former jeu proven&ccedil;al champion crippled by rheumatism, could no longer take the running throw. His friend Ernest Pitiot drew a circle on the ground and told him to throw with his feet planted &mdash; <em>pieds tanqu&eacute;s</em> in Proven&ccedil;al dialect. The simplified rules made the game accessible to all ages and spread it worldwide.</p>
+    <p>Today p&eacute;tanque is played in over 160 countries. The F&eacute;d&eacute;ration Internationale de P&eacute;tanque et Jeu Proven&ccedil;al (FIPJP) governs the sport. Professional tournaments like the Mondial La Marseillaise draw 13,000+ teams. The game is a candidate for Olympic inclusion.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>Era 3 — Expert Systems:</strong> P&eacute;tanque strategy mirrors classical decision theory. The point-vs-shoot choice is a minimax problem: pointing is low-risk/low-reward (incremental advantage), while shooting is high-risk/high-reward (removing opponent's advantage but potentially worsening position). Optimal play depends on score differential, remaining boules, and current board state &mdash; a dynamic programming problem analogous to poker pot odds.</p>
+
+    <h2>Classification</h2>
+    <ul>
+      <li><strong>Genre:</strong> Precision Sports</li>
+      <li><strong>Input:</strong> Mouse (click-drag)</li>
+      <li><strong>Core loop:</strong> Aim &rarr; Set power &rarr; Throw &rarr; Observe result &rarr; Adapt strategy</li>
+      <li><strong>Win condition:</strong> First to 13 points</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>Top-down view of a gravel terrain. Physics simulation includes ball-ball collisions, rolling friction, and terrain drag. AI opponent uses positional analysis to decide between pointing and shooting. The cochonnet is a dynamic target &mdash; collisions can shift it, changing the scoring landscape mid-round.</p>
+
+    <div class="notice">
+      <strong>Educational Notice:</strong> This is a non-commercial prototype created for game design research and AI archaeology study. P&eacute;tanque rules and mechanics are part of public sporting tradition. No proprietary assets are used.
+    </div>
+  </div>
+</div>
+
+<script>
+// Info panel
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// Canvas setup
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+
+function resize() {
+  const s = Math.min(innerWidth / W, innerHeight / H);
+  canvas.style.width = (W * s) + 'px';
+  canvas.style.height = (H * s) + 'px';
+}
+resize();
+addEventListener('resize', resize);
+
+// Get canvas-relative mouse position
+function getMousePos(e) {
+  const r = canvas.getBoundingClientRect();
+  return {
+    x: (e.clientX - r.left) * (W / r.width),
+    y: (e.clientY - r.top) * (H / r.height)
+  };
+}
+
+// HUD text helper
+function hudText(text, x, y, size, color, align) {
+  ctx.save();
+  ctx.font = size + 'px monospace';
+  ctx.fillStyle = color || '#fff';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+// ---- CONSTANTS ----
+const FRICTION = 0.985;
+const STOP_SPEED = 0.08;
+const BOULE_RADIUS = 14;
+const JACK_RADIUS = 7;
+const MAX_POWER = 14;
+const BOULES_PER_PLAYER = 3;
+const WIN_SCORE = 13;
+const RESTITUTION = 0.7;
+
+// Gravel colors for terrain texture
+const GRAVEL_COLORS = ['#c4a96a', '#b89e60', '#d4b87a', '#a89050', '#c8ad6e', '#bca464'];
+
+// ---- STATE ----
+let gameState, roundState;
+let boules, jack;
+let playerScore, aiScore;
+let currentTurn; // 'player' or 'ai'
+let playerBoulesLeft, aiBoulesLeft;
+let dragging, dragStart, dragEnd;
+let throwingBoule; // boule currently in motion
+let allStopped;
+let roundOver, gameOver;
+let message, messageTimer;
+let gravelPattern;
+let roundScoreDisplay, roundScoreTimer;
+
+function initGravel() {
+  // Pre-generate gravel spots
+  gravelPattern = [];
+  for (let i = 0; i < 600; i++) {
+    gravelPattern.push({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      r: 1 + Math.random() * 3,
+      c: GRAVEL_COLORS[Math.floor(Math.random() * GRAVEL_COLORS.length)]
+    });
+  }
+}
+
+function newGame() {
+  playerScore = 0;
+  aiScore = 0;
+  gameOver = false;
+  message = '';
+  messageTimer = 0;
+  initGravel();
+  newRound();
+}
+
+function newRound() {
+  boules = [];
+  playerBoulesLeft = BOULES_PER_PLAYER;
+  aiBoulesLeft = BOULES_PER_PLAYER;
+  roundOver = false;
+  roundScoreDisplay = null;
+  roundScoreTimer = 0;
+  dragging = false;
+  dragStart = null;
+  dragEnd = null;
+
+  // Place cochonnet (jack) randomly in the upper portion of the pitch
+  jack = {
+    x: 300 + Math.random() * 200,
+    y: 120 + Math.random() * 160,
+    vx: 0, vy: 0,
+    radius: JACK_RADIUS,
+    color: '#f0d040',
+    type: 'jack'
+  };
+
+  currentTurn = 'player';
+  allStopped = true;
+  showMessage('Your turn — throw toward the cochonnet!');
+}
+
+function showMessage(msg, duration) {
+  message = msg;
+  messageTimer = duration || 120;
+}
+
+// ---- PHYSICS ----
+function dist(a, b) {
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+function updateBall(ball) {
+  ball.x += ball.vx;
+  ball.y += ball.vy;
+  ball.vx *= FRICTION;
+  ball.vy *= FRICTION;
+
+  // Wall bouncing
+  const r = ball.radius;
+  if (ball.x < r) { ball.x = r; ball.vx *= -0.5; }
+  if (ball.x > W - r) { ball.x = W - r; ball.vx *= -0.5; }
+  if (ball.y < r) { ball.y = r; ball.vy *= -0.5; }
+  if (ball.y > H - r) { ball.y = H - r; ball.vy *= -0.5; }
+
+  // Stop if slow enough
+  if (Math.abs(ball.vx) < STOP_SPEED && Math.abs(ball.vy) < STOP_SPEED) {
+    ball.vx = 0;
+    ball.vy = 0;
+  }
+}
+
+function collideBalls(a, b) {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const d = Math.sqrt(dx * dx + dy * dy);
+  const minD = a.radius + b.radius;
+  if (d < minD && d > 0) {
+    // Separate
+    const overlap = minD - d;
+    const nx = dx / d;
+    const ny = dy / d;
+    const massA = a.radius * a.radius;
+    const massB = b.radius * b.radius;
+    const totalMass = massA + massB;
+    a.x -= nx * overlap * (massB / totalMass);
+    a.y -= ny * overlap * (massB / totalMass);
+    b.x += nx * overlap * (massA / totalMass);
+    b.y += ny * overlap * (massA / totalMass);
+
+    // Elastic collision with restitution
+    const dvx = a.vx - b.vx;
+    const dvy = a.vy - b.vy;
+    const dvDotN = dvx * nx + dvy * ny;
+    if (dvDotN > 0) {
+      const j = (1 + RESTITUTION) * dvDotN / (1 / massA + 1 / massB);
+      a.vx -= j * nx / massA;
+      a.vy -= j * ny / massA;
+      b.vx += j * nx / massB;
+      b.vy += j * ny / massB;
+    }
+  }
+}
+
+function areAllStopped() {
+  for (const b of boules) {
+    if (b.vx !== 0 || b.vy !== 0) return false;
+  }
+  if (jack.vx !== 0 || jack.vy !== 0) return false;
+  return true;
+}
+
+// ---- SCORING ----
+function getDistToJack(boule) {
+  return dist(boule, jack);
+}
+
+function scoreRound() {
+  const playerBoules = boules.filter(b => b.owner === 'player');
+  const aiBoules = boules.filter(b => b.owner === 'ai');
+
+  if (playerBoules.length === 0 && aiBoules.length === 0) return;
+
+  let closestPlayer = Infinity, closestAI = Infinity;
+  for (const b of playerBoules) {
+    const d = getDistToJack(b);
+    if (d < closestPlayer) closestPlayer = d;
+  }
+  for (const b of aiBoules) {
+    const d = getDistToJack(b);
+    if (d < closestAI) closestAI = d;
+  }
+
+  let pts = 0;
+  let winner = '';
+  if (closestPlayer < closestAI) {
+    winner = 'player';
+    for (const b of playerBoules) {
+      if (getDistToJack(b) < closestAI) pts++;
+    }
+    playerScore += pts;
+  } else if (closestAI < closestPlayer) {
+    winner = 'ai';
+    for (const b of aiBoules) {
+      if (getDistToJack(b) < closestPlayer) pts++;
+    }
+    aiScore += pts;
+  }
+
+  roundScoreDisplay = { winner, pts };
+  roundScoreTimer = 180;
+
+  if (playerScore >= WIN_SCORE) {
+    gameOver = true;
+    showMessage('You win the game! Press N for new game.', 9999);
+  } else if (aiScore >= WIN_SCORE) {
+    gameOver = true;
+    showMessage('AI wins the game! Press N for new game.', 9999);
+  } else if (winner === 'player') {
+    showMessage('You scored ' + pts + ' point' + (pts > 1 ? 's' : '') + '! Press R for next round.', 300);
+  } else if (winner === 'ai') {
+    showMessage('AI scored ' + pts + ' point' + (pts > 1 ? 's' : '') + '! Press R for next round.', 300);
+  } else {
+    showMessage('Tie! No points scored. Press R for next round.', 300);
+  }
+}
+
+// ---- AI ----
+let aiThinkTimer = 0;
+
+function aiThrow() {
+  if (aiBoulesLeft <= 0) return;
+
+  // Decide strategy: point or shoot
+  const playerBoules = boules.filter(b => b.owner === 'player');
+  let shouldShoot = false;
+  let shootTarget = null;
+
+  // If player has a boule closer than any AI boule, consider shooting
+  if (playerBoules.length > 0) {
+    const aiBoules = boules.filter(b => b.owner === 'ai');
+    let closestPlayerDist = Infinity;
+    let closestPlayerBoule = null;
+    for (const b of playerBoules) {
+      const d = getDistToJack(b);
+      if (d < closestPlayerDist) {
+        closestPlayerDist = d;
+        closestPlayerBoule = b;
+      }
+    }
+    let closestAIDist = Infinity;
+    for (const b of aiBoules) {
+      const d = getDistToJack(b);
+      if (d < closestAIDist) closestAIDist = d;
+    }
+    if (closestPlayerDist < closestAIDist && closestPlayerDist < 80 && Math.random() < 0.5) {
+      shouldShoot = true;
+      shootTarget = closestPlayerBoule;
+    }
+  }
+
+  // Throw origin (bottom of pitch, AI side)
+  const originX = 350 + Math.random() * 100;
+  const originY = H - 50;
+
+  let targetX, targetY, power;
+
+  if (shouldShoot && shootTarget) {
+    // Aim at opponent's boule to knock it away
+    targetX = shootTarget.x + (Math.random() - 0.5) * 20;
+    targetY = shootTarget.y + (Math.random() - 0.5) * 20;
+    const d = Math.sqrt((targetX - originX) ** 2 + (targetY - originY) ** 2);
+    power = Math.min(MAX_POWER, d * 0.032 + 2);
+  } else {
+    // Point: aim near the jack with some randomness
+    const spread = 25 + Math.random() * 30;
+    const angle = Math.random() * Math.PI * 2;
+    targetX = jack.x + Math.cos(angle) * spread * (Math.random() * 0.5 + 0.2);
+    targetY = jack.y + Math.sin(angle) * spread * (Math.random() * 0.5 + 0.2);
+    const d = Math.sqrt((targetX - originX) ** 2 + (targetY - originY) ** 2);
+    power = Math.min(MAX_POWER * 0.7, d * 0.025 + 1);
+  }
+
+  const dx = targetX - originX;
+  const dy = targetY - originY;
+  const d = Math.sqrt(dx * dx + dy * dy);
+
+  const boule = {
+    x: originX,
+    y: originY,
+    vx: (dx / d) * power,
+    vy: (dy / d) * power,
+    radius: BOULE_RADIUS,
+    color: '#4466aa',
+    highlight: '#6688cc',
+    owner: 'ai',
+    type: 'boule'
+  };
+
+  boules.push(boule);
+  aiBoulesLeft--;
+  allStopped = false;
+}
+
+// ---- THROWING ----
+function throwBoule(startX, startY, endX, endY) {
+  if (playerBoulesLeft <= 0) return;
+
+  const dx = startX - endX;
+  const dy = startY - endY;
+  const dragDist = Math.sqrt(dx * dx + dy * dy);
+  const power = Math.min(MAX_POWER, dragDist * 0.07);
+
+  if (power < 0.5) return; // too weak
+
+  const originX = 350 + Math.random() * 100;
+  const originY = H - 50;
+  const d = Math.sqrt(dx * dx + dy * dy);
+
+  const boule = {
+    x: originX,
+    y: originY,
+    vx: (dx / d) * power,
+    vy: (dy / d) * power,
+    radius: BOULE_RADIUS,
+    color: '#cc3333',
+    highlight: '#ee5555',
+    owner: 'player',
+    type: 'boule'
+  };
+
+  boules.push(boule);
+  playerBoulesLeft--;
+  allStopped = false;
+}
+
+// ---- INPUT ----
+canvas.addEventListener('mousedown', function(e) {
+  if (infoOpen || gameOver || roundOver) return;
+  if (currentTurn !== 'player' || !allStopped) return;
+  if (playerBoulesLeft <= 0) return;
+  dragging = true;
+  dragStart = getMousePos(e);
+  dragEnd = dragStart;
+});
+
+canvas.addEventListener('mousemove', function(e) {
+  if (dragging) {
+    dragEnd = getMousePos(e);
+  }
+});
+
+canvas.addEventListener('mouseup', function(e) {
+  if (dragging) {
+    dragEnd = getMousePos(e);
+    throwBoule(dragStart.x, dragStart.y, dragEnd.x, dragEnd.y);
+    dragging = false;
+    dragStart = null;
+    dragEnd = null;
+  }
+});
+
+addEventListener('keydown', function(e) {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
+    e.preventDefault();
+    toggleInfo();
+    return;
+  }
+  if (e.key === 'Escape' && infoOpen) {
+    toggleInfo();
+    return;
+  }
+  if (e.key === 'r' || e.key === 'R') {
+    if (roundOver && !gameOver) newRound();
+  }
+  if (e.key === 'n' || e.key === 'N') {
+    newGame();
+  }
+});
+
+// ---- UPDATE ----
+function update() {
+  if (infoOpen) return;
+  if (gameOver) return;
+
+  // Message timer
+  if (messageTimer > 0) messageTimer--;
+
+  // Round score display timer
+  if (roundScoreTimer > 0) roundScoreTimer--;
+
+  // Physics update
+  if (!allStopped) {
+    for (const b of boules) {
+      updateBall(b);
+    }
+    updateBall(jack);
+
+    // Collisions: boules with each other
+    for (let i = 0; i < boules.length; i++) {
+      for (let j = i + 1; j < boules.length; j++) {
+        collideBalls(boules[i], boules[j]);
+      }
+      // Boule with jack
+      collideBalls(boules[i], jack);
+    }
+
+    // Check if all stopped
+    if (areAllStopped()) {
+      allStopped = true;
+
+      // Check if round is over
+      if (playerBoulesLeft <= 0 && aiBoulesLeft <= 0) {
+        roundOver = true;
+        scoreRound();
+      } else {
+        // Determine whose turn
+        // In pétanque, the player furthest from jack throws next
+        // But if one player is out of boules, the other keeps throwing
+        if (playerBoulesLeft <= 0) {
+          currentTurn = 'ai';
+        } else if (aiBoulesLeft <= 0) {
+          currentTurn = 'player';
+          showMessage('Your turn — AI is out of boules!');
+        } else {
+          // Whoever is furthest from jack throws next
+          const pBoules = boules.filter(b => b.owner === 'player');
+          const aBoules = boules.filter(b => b.owner === 'ai');
+
+          let closestP = Infinity, closestA = Infinity;
+          for (const b of pBoules) closestP = Math.min(closestP, getDistToJack(b));
+          for (const b of aBoules) closestA = Math.min(closestA, getDistToJack(b));
+
+          if (pBoules.length === 0 && aBoules.length === 0) {
+            // First throw of round: player goes
+            currentTurn = 'player';
+          } else if (pBoules.length === 0) {
+            currentTurn = 'player';
+          } else if (aBoules.length === 0) {
+            currentTurn = 'ai';
+          } else if (closestP > closestA) {
+            currentTurn = 'player';
+            showMessage('Your turn — you\'re furthest from the jack');
+          } else {
+            currentTurn = 'ai';
+          }
+        }
+
+        // AI throw with short delay
+        if (currentTurn === 'ai') {
+          aiThinkTimer = 60;
+        }
+      }
+    }
+  }
+
+  // AI think timer
+  if (currentTurn === 'ai' && allStopped && !roundOver && aiThinkTimer > 0) {
+    aiThinkTimer--;
+    if (aiThinkTimer <= 0) {
+      aiThrow();
+    }
+  }
+}
+
+// ---- DRAW ----
+function drawGravel() {
+  // Base terrain
+  ctx.fillStyle = '#c4a060';
+  ctx.fillRect(0, 0, W, H);
+
+  // Gravel texture spots
+  for (const g of gravelPattern) {
+    ctx.fillStyle = g.c;
+    ctx.beginPath();
+    ctx.arc(g.x, g.y, g.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Pitch boundary lines
+  ctx.strokeStyle = '#8a7040';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(20, 20, W - 40, H - 40);
+
+  // Throwing circle at bottom
+  ctx.strokeStyle = '#887050';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(400, H - 50, 25, 0, Math.PI * 2);
+  ctx.stroke();
+}
+
+function drawBall(ball) {
+  ctx.save();
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath();
+  ctx.ellipse(ball.x + 3, ball.y + 3, ball.radius, ball.radius * 0.7, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Ball body
+  const grad = ctx.createRadialGradient(
+    ball.x - ball.radius * 0.3, ball.y - ball.radius * 0.3, 1,
+    ball.x, ball.y, ball.radius
+  );
+  if (ball.type === 'jack') {
+    grad.addColorStop(0, '#fff4a0');
+    grad.addColorStop(0.5, ball.color);
+    grad.addColorStop(1, '#a08020');
+  } else {
+    grad.addColorStop(0, ball.highlight || '#fff');
+    grad.addColorStop(0.5, ball.color);
+    grad.addColorStop(1, '#222');
+  }
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Rim
+  ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Specular highlight
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  ctx.beginPath();
+  ctx.arc(ball.x - ball.radius * 0.25, ball.y - ball.radius * 0.25, ball.radius * 0.3, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
+}
+
+function drawDistanceLines() {
+  if (boules.length === 0) return;
+
+  // Draw faint lines from each boule to jack
+  ctx.save();
+  ctx.setLineDash([4, 4]);
+  ctx.lineWidth = 1;
+
+  for (const b of boules) {
+    ctx.strokeStyle = b.owner === 'player' ? 'rgba(255,100,100,0.3)' : 'rgba(100,100,255,0.3)';
+    ctx.beginPath();
+    ctx.moveTo(b.x, b.y);
+    ctx.lineTo(jack.x, jack.y);
+    ctx.stroke();
+
+    // Distance label
+    const d = getDistToJack(b);
+    const mx = (b.x + jack.x) / 2;
+    const my = (b.y + jack.y) / 2;
+    ctx.font = '10px monospace';
+    ctx.fillStyle = b.owner === 'player' ? 'rgba(255,150,150,0.7)' : 'rgba(150,150,255,0.7)';
+    ctx.textAlign = 'center';
+    ctx.fillText(d.toFixed(0), mx, my - 4);
+  }
+
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
+function drawAimGuide() {
+  if (!dragging || !dragStart || !dragEnd) return;
+
+  const dx = dragStart.x - dragEnd.x;
+  const dy = dragStart.y - dragEnd.y;
+  const dragDist = Math.sqrt(dx * dx + dy * dy);
+  const power = Math.min(MAX_POWER, dragDist * 0.07);
+
+  // Direction arrow from throwing circle
+  const originX = 400;
+  const originY = H - 50;
+  const d = Math.sqrt(dx * dx + dy * dy);
+  if (d < 5) return;
+
+  const nx = dx / d;
+  const ny = dy / d;
+  const len = power * 15;
+
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,0,0.6)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([6, 4]);
+  ctx.beginPath();
+  ctx.moveTo(originX, originY);
+  ctx.lineTo(originX + nx * len, originY + ny * len);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Power indicator
+  const powerPct = Math.min(100, (power / MAX_POWER) * 100);
+  const barX = 30;
+  const barY = H - 100;
+  const barH = 80;
+  ctx.fillStyle = '#333';
+  ctx.fillRect(barX, barY, 12, barH);
+  const filledH = barH * (powerPct / 100);
+  const pColor = powerPct > 70 ? '#f44' : powerPct > 40 ? '#fa0' : '#4f4';
+  ctx.fillStyle = pColor;
+  ctx.fillRect(barX, barY + barH - filledH, 12, filledH);
+  ctx.strokeStyle = '#666';
+  ctx.strokeRect(barX, barY, 12, barH);
+
+  hudText('PWR', barX - 2, barY + barH + 4, 10, '#aaa');
+
+  ctx.restore();
+}
+
+function drawHUD() {
+  // Scores
+  hudText('YOU', 30, 12, 14, '#cc3333');
+  hudText('' + playerScore, 80, 12, 14, '#fff');
+  hudText('AI', W - 80, 12, 14, '#4466aa', 'right');
+  hudText('' + aiScore, W - 35, 12, 14, '#fff', 'right');
+  hudText('First to ' + WIN_SCORE, W / 2, 12, 12, '#888', 'center');
+
+  // Boules remaining
+  for (let i = 0; i < playerBoulesLeft; i++) {
+    ctx.fillStyle = '#cc3333';
+    ctx.beginPath();
+    ctx.arc(30 + i * 22, 40, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#222';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+  for (let i = 0; i < aiBoulesLeft; i++) {
+    ctx.fillStyle = '#4466aa';
+    ctx.beginPath();
+    ctx.arc(W - 30 - i * 22, 40, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#222';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  // Turn indicator
+  if (!roundOver && !gameOver) {
+    const turnText = currentTurn === 'player' ? 'YOUR THROW' : 'AI THINKING...';
+    const turnColor = currentTurn === 'player' ? '#ff8' : '#8af';
+    hudText(turnText, W / 2, H - 20, 12, turnColor, 'center');
+  }
+
+  // Message
+  if (messageTimer > 0 && message) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    const mw = ctx.measureText(message).width || 300;
+    ctx.font = '14px monospace';
+    const tw = ctx.measureText(message).width;
+    ctx.fillRect(W / 2 - tw / 2 - 12, H / 2 + 180, tw + 24, 28);
+    hudText(message, W / 2, H / 2 + 184, 14, '#fff', 'center');
+    ctx.restore();
+  }
+
+  // Round score display
+  if (roundScoreDisplay && roundScoreTimer > 0) {
+    const rs = roundScoreDisplay;
+    const txt = rs.winner === 'player'
+      ? 'You scored ' + rs.pts + ' point' + (rs.pts > 1 ? 's' : '') + '!'
+      : rs.winner === 'ai'
+      ? 'AI scored ' + rs.pts + ' point' + (rs.pts > 1 ? 's' : '') + '!'
+      : 'No points scored';
+    const col = rs.winner === 'player' ? '#f84' : rs.winner === 'ai' ? '#48f' : '#888';
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.8)';
+    ctx.font = '20px monospace';
+    const tw = ctx.measureText(txt).width;
+    ctx.fillRect(W / 2 - tw / 2 - 16, H / 2 - 30, tw + 32, 44);
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(W / 2 - tw / 2 - 16, H / 2 - 30, tw + 32, 44);
+    hudText(txt, W / 2, H / 2 - 24, 20, col, 'center');
+    ctx.restore();
+  }
+
+  // Help hint
+  hudText('? — info', W - 10, H - 16, 10, '#555', 'right');
+}
+
+function draw() {
+  drawGravel();
+  drawDistanceLines();
+
+  // Draw jack
+  drawBall(jack);
+
+  // Draw boules (sorted by y for depth)
+  const sortedBoules = [...boules].sort((a, b) => a.y - b.y);
+  for (const b of sortedBoules) {
+    drawBall(b);
+  }
+
+  drawAimGuide();
+  drawHUD();
+
+  // Game over overlay
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(0, 0, W, H);
+    const winText = playerScore >= WIN_SCORE ? 'YOU WIN!' : 'AI WINS!';
+    const winColor = playerScore >= WIN_SCORE ? '#ff4' : '#f44';
+    hudText(winText, W / 2, H / 2 - 40, 36, winColor, 'center');
+    hudText(playerScore + ' - ' + aiScore, W / 2, H / 2 + 10, 24, '#fff', 'center');
+    hudText('Press N for new game', W / 2, H / 2 + 50, 14, '#aaa', 'center');
+  }
+}
+
+// ---- GAME LOOP ----
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+newGame();
+loop();
+</script>
+</body>
+</html>

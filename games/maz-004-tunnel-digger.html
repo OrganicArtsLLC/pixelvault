@@ -1,0 +1,1120 @@
+<!--
+PROTOTYPE: tunnel-digger
+SERIES: maz
+NUMBER: 004
+DATE: 2026-03-22
+MECHANIC: tunnel through dirt, pump enemies until they pop
+ANCESTRY: Dig Dug (1982, Shouichi Fukatani, Namco), Mr. Do! (1982, Universal)
+CONTROLS: Arrow keys — move/dig | Space — pump/inflate | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — early spatial reasoning)
+AI-INSIGHT: Dig Dug's enemies exhibit two behavioral modes — normal pathfinding and ghost-mode wall penetration — an early example of state-machine AI with environment-dependent transitions, predating modern context-aware agent architectures.
+NOTES: Tunneling mechanic creates emergent strategy as player literally shapes the level.
+       Rock-dropping adds physics puzzle layer to the action gameplay.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MAZ-004 · TUNNEL DIGGER</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>MAZ-004 · TUNNEL DIGGER</h1>
+    <p><span class="tag series">MAZ — Maze + Chase</span> <span class="tag">Prototype #004</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Dig tunnels through dirt and eliminate enemies by inflating them with your pump until they pop. Drop rocks on enemies for bonus points.</p>
+    <ul>
+      <li><kbd>&#8593;</kbd> <kbd>&#8595;</kbd> <kbd>&#8592;</kbd> <kbd>&#8594;</kbd> — Move / Dig</li>
+      <li><kbd>Space</kbd> — Shoot pump harpoon / Hold to inflate enemy</li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Pump timing:</strong> Press Space to shoot your harpoon. If it connects, hold Space to inflate the enemy. Release and they slowly deflate.</li>
+      <li><strong>Rock drops:</strong> Dig beneath a rock to make it fall. It crushes any enemy below it for bonus points.</li>
+      <li><strong>Ghost mode:</strong> Enemies occasionally turn into ghosts and pass through dirt to chase you. Stay alert!</li>
+      <li><strong>Depth bonus:</strong> Enemies deeper in the field are worth more points. The dirt color changes by layer.</li>
+      <li><strong>Last enemy:</strong> The final enemy will try to flee to the surface. Chase it down!</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Dig Dug (1982, Namco) &rarr; Mr. Do! (1982) &rarr; Boulder Dash (1984)</p>
+    <p>Dig Dug was designed by Shouichi Fukatani and released by Namco in 1982. It was revolutionary for letting the player reshape the playing field — tunneling through dirt created an ever-changing maze. The game sold over 22,000 arcade units in its first year.</p>
+    <p>The pump mechanic was uniquely tactile for its era: players physically held the button to inflate enemies, creating a visceral connection between input and on-screen action. The dual elimination methods (pumping and rock-dropping) gave players strategic choice.</p>
+    <p>Fygar, the fire-breathing dragon, was one of the earliest enemies with a directional ranged attack, forcing players to consider approach angles — a spatial reasoning challenge ahead of its time.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 3 — Knowledge Explosion (1980-1987)</p>
+    <p><strong>Contemporary AI:</strong> Expert systems maturing, early spatial reasoning research.</p>
+    <p><strong>Hidden Intelligence:</strong> Dig Dug's enemies exhibit two behavioral modes — normal tunnel-following pathfinding and ghost-mode wall penetration. This is a state-machine AI with environment-dependent transitions. The enemy decides when to "phase out" based on distance to the player and time spent chasing through tunnels — an early form of context-aware decision-making.</p>
+    <p><strong>The Convergence:</strong> The ghost-mode mechanic anticipates modern AI agent architectures where agents switch between behavioral modes based on environmental context. The enemy's ability to "break the rules" (pass through walls) when frustrated mirrors exploration strategies in reinforcement learning.</p>
+    <p><strong>If AI Had Designed This:</strong> Adaptive ghost-mode triggers calibrated to player skill — more frequent phasing for skilled players who efficiently dig escape routes, creating a difficulty curve that emerges from the AI's behavioral switching.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: MAZ — Maze + Chase</h3>
+    <p>Dig Dug inverts the traditional maze game: instead of navigating an existing maze, the player creates the maze. The tunnels you dig become the pathways enemies follow — and your escape routes.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Tunnel through dirt, pump enemies to pop them.</strong> Player-created topology. Dual elimination methods (pump + rock). Enemy state-machine AI with ghost mode. Depth-based scoring. Physics-based rock drops.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Tunneling feel — does digging through dirt feel satisfying and responsive?</li>
+      <li>Pump mechanic — does the hold-to-inflate create tension?</li>
+      <li>Ghost mode — does enemy phasing feel fair but threatening?</li>
+      <li>Rock strategy — does rock-dropping feel rewarding and skillful?</li>
+      <li>Emergent topology — does the player-created tunnel network create interesting tactical situations?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Grid-based tunneling with two enemy types (Pooka and Fygar). Pump inflation mechanic with 4-stage pop. Rock physics with crush detection. Depth-based layer colors and scoring. Ghost-mode enemy AI.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+// --- INPUT ---
+const keys = {};
+const keysDown = {};
+window.addEventListener('keydown', e => {
+  if (!infoOpen) { keysDown[e.code] = !keys[e.code]; keys[e.code] = true; }
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; keysDown[e.code] = false; });
+
+// --- CONSTANTS ---
+const COLS = 26, ROWS = 18;
+const TILE = 28;
+const OX = (W - COLS * TILE) / 2;
+const OY = 50;
+const SKY_H = 2; // top rows are sky (no dirt)
+const LAYER_COLORS = ['#c87430','#a85a20','#884818','#683010','#502008'];
+const LAYER_ROWS = [SKY_H, 5, 9, 13, ROWS];
+const PUMP_STAGES = 4;
+const PUMP_SPEED = 12; // frames per inflation stage
+const DEFLATE_SPEED = 30; // frames to deflate one stage
+const GHOST_CHANCE = 0.003;
+const GHOST_DURATION = 180;
+
+// --- GRID ---
+// 0 = empty/tunnel, 1 = dirt, 2 = rock
+let grid = [];
+let player, enemies, rocks, harpoon, score, lives, level, gameOver, frame, levelClear;
+let levelClearTimer;
+let deathTimer;
+
+function initLevel(lvl) {
+  grid = [];
+  for (let r = 0; r < ROWS; r++) {
+    grid[r] = [];
+    for (let c = 0; c < COLS; c++) {
+      grid[r][c] = r < SKY_H ? 0 : 1;
+    }
+  }
+  // Pre-carved tunnels (horizontal corridors at certain rows)
+  const tunnelRows = [SKY_H, SKY_H + 3, SKY_H + 7, SKY_H + 11];
+  for (const tr of tunnelRows) {
+    if (tr < ROWS) {
+      const startC = 1 + Math.floor(Math.random() * 4);
+      const endC = COLS - 2 - Math.floor(Math.random() * 4);
+      for (let c = startC; c <= endC; c++) {
+        if (Math.random() < 0.15) continue; // leave some dirt gaps
+        grid[tr][c] = 0;
+      }
+    }
+  }
+  // Vertical connectors
+  for (let i = 0; i < 3 + lvl; i++) {
+    const c = 3 + Math.floor(Math.random() * (COLS - 6));
+    const r1 = SKY_H + Math.floor(Math.random() * 4);
+    const r2 = r1 + 2 + Math.floor(Math.random() * 4);
+    for (let r = r1; r <= Math.min(r2, ROWS - 1); r++) grid[r][c] = 0;
+  }
+
+  // Player start - top center, in sky row
+  player = {
+    col: Math.floor(COLS / 2), row: SKY_H,
+    x: 0, y: 0, dir: 0, // 0=right,1=down,2=left,3=up
+    moving: false, animFrame: 0
+  };
+  player.x = OX + player.col * TILE + TILE / 2;
+  player.y = OY + player.row * TILE + TILE / 2;
+  // Clear around player start
+  for (let dr = -1; dr <= 1; dr++)
+    for (let dc = -1; dc <= 1; dc++) {
+      const rr = player.row + dr, cc = player.col + dc;
+      if (rr >= 0 && rr < ROWS && cc >= 0 && cc < COLS) grid[rr][cc] = 0;
+    }
+
+  // Enemies
+  enemies = [];
+  const enemyCount = 3 + Math.min(lvl, 5);
+  const pookaCount = Math.ceil(enemyCount * 0.6);
+  for (let i = 0; i < enemyCount; i++) {
+    let ec, er;
+    let tries = 0;
+    do {
+      ec = 2 + Math.floor(Math.random() * (COLS - 4));
+      er = SKY_H + 3 + Math.floor(Math.random() * (ROWS - SKY_H - 4));
+      tries++;
+    } while (tries < 100 && (Math.abs(ec - player.col) < 5 && Math.abs(er - player.row) < 5));
+    // Clear a small area around enemy
+    grid[er][ec] = 0;
+    if (ec > 0) grid[er][ec - 1] = 0;
+    if (ec < COLS - 1) grid[er][ec + 1] = 0;
+    enemies.push({
+      type: i < pookaCount ? 'pooka' : 'fygar',
+      col: ec, row: er,
+      x: OX + ec * TILE + TILE / 2,
+      y: OY + er * TILE + TILE / 2,
+      dir: Math.floor(Math.random() * 4),
+      inflate: 0, // 0 to PUMP_STAGES
+      deflateTimer: 0,
+      alive: true,
+      ghost: false,
+      ghostTimer: 0,
+      moveTimer: 0,
+      crushAnim: 0,
+      fireTimer: 0,
+      fireActive: false,
+      fireDir: 0,
+      fleeing: false
+    });
+  }
+
+  // Rocks (2-3 per level)
+  rocks = [];
+  const rockCount = 2 + (lvl > 2 ? 1 : 0);
+  for (let i = 0; i < rockCount; i++) {
+    let rc, rr;
+    let tries = 0;
+    do {
+      rc = 2 + Math.floor(Math.random() * (COLS - 4));
+      rr = SKY_H + 1 + Math.floor(Math.random() * (ROWS - SKY_H - 6));
+      tries++;
+    } while (tries < 100 && (grid[rr][rc] !== 1 || grid[rr + 1][rc] !== 1));
+    grid[rr][rc] = 0; // rock sits in a cleared cell
+    rocks.push({
+      col: rc, row: rr,
+      x: OX + rc * TILE + TILE / 2,
+      y: OY + rr * TILE + TILE / 2,
+      falling: false, fallSpeed: 0,
+      settled: true, shakeTimer: 0,
+      unsupported: false, unsupportTimer: 0,
+      crushed: false
+    });
+  }
+
+  harpoon = null;
+  levelClear = false;
+  levelClearTimer = 0;
+  deathTimer = 0;
+}
+
+function initGame() {
+  score = 0; lives = 3; level = 1; gameOver = false; frame = 0;
+  initLevel(level);
+}
+initGame();
+
+// --- HELPERS ---
+function getGridRow(y) { return Math.floor((y - OY) / TILE); }
+function getGridCol(x) { return Math.floor((x - OX) / TILE); }
+function gridCenterX(c) { return OX + c * TILE + TILE / 2; }
+function gridCenterY(r) { return OY + r * TILE + TILE / 2; }
+function inBounds(r, c) { return r >= 0 && r < ROWS && c >= 0 && c < COLS; }
+function isDirt(r, c) { return inBounds(r, c) && grid[r][c] === 1; }
+function isTunnel(r, c) { return inBounds(r, c) && grid[r][c] === 0; }
+function getLayer(r) {
+  for (let i = 0; i < LAYER_ROWS.length - 1; i++) {
+    if (r < LAYER_ROWS[i + 1]) return i;
+  }
+  return LAYER_COLORS.length - 1;
+}
+function layerPoints(r) { return (getLayer(r) + 1) * 100; }
+
+const DX = [1, 0, -1, 0];
+const DY = [0, 1, 0, -1];
+
+// --- UPDATE ---
+function update() {
+  if (infoOpen) return;
+  if (gameOver) { if (keys['KeyR']) initGame(); return; }
+  if (levelClear) {
+    levelClearTimer++;
+    if (levelClearTimer > 90) { level++; initLevel(level); }
+    return;
+  }
+  if (deathTimer > 0) {
+    deathTimer--;
+    if (deathTimer <= 0) {
+      if (lives <= 0) { gameOver = true; } else { initLevel(level); }
+    }
+    return;
+  }
+  frame++;
+
+  // --- PLAYER MOVEMENT ---
+  let wantDir = -1;
+  if (keys['ArrowRight']) wantDir = 0;
+  else if (keys['ArrowDown']) wantDir = 1;
+  else if (keys['ArrowLeft']) wantDir = 2;
+  else if (keys['ArrowUp']) wantDir = 3;
+
+  player.moving = false;
+  if (wantDir >= 0) {
+    player.dir = wantDir;
+    const spd = 2;
+    let nx = player.x + DX[wantDir] * spd;
+    let ny = player.y + DY[wantDir] * spd;
+    // Clamp to field
+    nx = Math.max(OX + TILE / 2, Math.min(OX + (COLS - 1) * TILE + TILE / 2, nx));
+    ny = Math.max(OY + TILE / 2, Math.min(OY + (ROWS - 1) * TILE + TILE / 2, ny));
+
+    // Check rock collision
+    let blockedByRock = false;
+    for (const rock of rocks) {
+      if (rock.crushed || rock.falling) continue;
+      const rdx = nx - rock.x, rdy = ny - rock.y;
+      if (Math.abs(rdx) < TILE * 0.8 && Math.abs(rdy) < TILE * 0.8) {
+        blockedByRock = true; break;
+      }
+    }
+    if (!blockedByRock) {
+      player.x = nx; player.y = ny;
+      player.moving = true;
+      player.animFrame += 0.15;
+      // Dig — clear dirt at player position
+      const pr = getGridRow(player.y);
+      const pc = getGridCol(player.x);
+      if (inBounds(pr, pc) && grid[pr][pc] === 1) {
+        grid[pr][pc] = 0;
+        // Also clear adjacent cell in movement direction for smoother tunnels
+        const ar = pr + DY[wantDir], ac = pc + DX[wantDir];
+        if (inBounds(ar, ac) && grid[ar][ac] === 1) {
+          // Only pre-clear if player is near the edge of current cell
+          const cellCX = gridCenterX(pc), cellCY = gridCenterY(pr);
+          const distToEdge = Math.abs(DX[wantDir] * (player.x - cellCX)) + Math.abs(DY[wantDir] * (player.y - cellCY));
+          if (distToEdge > TILE * 0.3) grid[ar][ac] = 0;
+        }
+      }
+      // Snap to grid axis when moving (keep aligned on perpendicular axis)
+      if (wantDir === 0 || wantDir === 2) {
+        // Moving horizontally, snap y
+        const targetRow = Math.round((player.y - OY - TILE / 2) / TILE);
+        const targetY = OY + targetRow * TILE + TILE / 2;
+        player.y += (targetY - player.y) * 0.3;
+      } else {
+        // Moving vertically, snap x
+        const targetCol = Math.round((player.x - OX - TILE / 2) / TILE);
+        const targetX = OX + targetCol * TILE + TILE / 2;
+        player.x += (targetX - player.x) * 0.3;
+      }
+      player.col = Math.round((player.x - OX - TILE / 2) / TILE);
+      player.row = Math.round((player.y - OY - TILE / 2) / TILE);
+    }
+  }
+
+  // --- PUMP / HARPOON ---
+  if (keysDown['Space'] && !harpoon) {
+    // Fire harpoon
+    harpoon = {
+      x: player.x, y: player.y,
+      dir: player.dir,
+      length: 0,
+      maxLength: TILE * 4,
+      attached: null, // enemy reference
+      retracting: false
+    };
+  }
+  keysDown['Space'] = false;
+
+  if (harpoon) {
+    if (harpoon.attached) {
+      // Attached to enemy — inflate while Space held
+      const en = harpoon.attached;
+      if (keys['Space']) {
+        en.deflateTimer = 0;
+        if (frame % PUMP_SPEED === 0) {
+          en.inflate++;
+          if (en.inflate >= PUMP_STAGES) {
+            // POP!
+            en.alive = false;
+            score += layerPoints(en.row) * (en.inflate);
+            harpoon = null;
+          }
+        }
+      } else {
+        // Not holding space — deflate
+        en.deflateTimer++;
+        if (en.deflateTimer >= DEFLATE_SPEED) {
+          en.deflateTimer = 0;
+          en.inflate--;
+          if (en.inflate <= 0) {
+            en.inflate = 0;
+            harpoon = null;
+          }
+        }
+      }
+      // Keep harpoon attached point at enemy
+      if (harpoon && harpoon.attached) {
+        harpoon.x = player.x;
+        harpoon.y = player.y;
+      }
+    } else if (!harpoon.retracting) {
+      // Extend harpoon
+      const spd = 6;
+      harpoon.length += spd;
+      const tipX = player.x + DX[harpoon.dir] * harpoon.length;
+      const tipY = player.y + DY[harpoon.dir] * harpoon.length;
+
+      // Check if hits dirt
+      const tr = getGridRow(tipY), tc = getGridCol(tipX);
+      if (!inBounds(tr, tc) || isDirt(tr, tc)) {
+        harpoon = null;
+      } else if (harpoon.length >= harpoon.maxLength) {
+        harpoon = null;
+      } else {
+        // Check if hits enemy
+        for (const en of enemies) {
+          if (!en.alive || en.ghost) continue;
+          const edx = tipX - en.x, edy = tipY - en.y;
+          if (Math.abs(edx) < TILE * 0.5 && Math.abs(edy) < TILE * 0.5) {
+            harpoon.attached = en;
+            en.inflate = Math.max(en.inflate, 1);
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  // --- ENEMY AI ---
+  // Pre-compute alive count and fleeing count before the loop
+  let totalAlive = enemies.filter(e => e.alive).length;
+  let totalFleeing = enemies.filter(e => e.alive && e.fleeing).length;
+  for (const en of enemies) {
+    if (!en.alive) continue;
+    if (en.inflate > 0) {
+      // Inflated enemies don't move
+      if (!harpoon || harpoon.attached !== en) {
+        en.deflateTimer++;
+        if (en.deflateTimer >= DEFLATE_SPEED) {
+          en.deflateTimer = 0;
+          en.inflate--;
+        }
+      }
+      continue;
+    }
+
+    // Track how long enemy has been stuck (no tunnel moves available)
+    if (!en.stuckTimer) en.stuckTimer = 0;
+
+    // Ghost mode toggle
+    if (!en.ghost && !en.fleeing) {
+      // Increase ghost chance if enemy has been stuck
+      const stuckBonus = en.stuckTimer > 120 ? 0.02 : 0;
+      if (Math.random() < GHOST_CHANCE + level * 0.001 + stuckBonus) {
+        en.ghost = true;
+        en.ghostTimer = GHOST_DURATION;
+        en.stuckTimer = 0;
+      }
+    }
+    if (en.ghost) {
+      en.ghostTimer--;
+      if (en.ghostTimer <= 0) {
+        // Only un-ghost if in a tunnel
+        const er = getGridRow(en.y), ec = getGridCol(en.x);
+        if (isTunnel(er, ec)) {
+          en.ghost = false;
+        } else {
+          en.ghostTimer = 20; // keep ghosting until in tunnel
+        }
+      }
+    }
+
+    // Last enemy flees upward — only if exactly 1 alive and none already fleeing
+    if (totalAlive === 1 && !en.fleeing && totalFleeing === 0) {
+      en.fleeing = true;
+      en.ghost = true;
+      en.ghostTimer = 9999;
+    }
+
+    en.moveTimer++;
+    const moveRate = en.fleeing ? 1 : (en.ghost ? 2 : 3);
+    if (en.moveTimer < moveRate) continue;
+    en.moveTimer = 0;
+
+    if (en.ghost) {
+      // Ghost mode: move through dirt toward player (or upward if fleeing)
+      let targetX, targetY;
+      if (en.fleeing) {
+        targetX = en.x;
+        targetY = OY - TILE; // flee off top
+      } else {
+        targetX = player.x;
+        targetY = player.y;
+      }
+      const gdx = targetX - en.x, gdy = targetY - en.y;
+      const gd = Math.sqrt(gdx * gdx + gdy * gdy);
+      if (gd > 1) {
+        const ghostSpd = en.fleeing ? 2.5 : 1.5;
+        en.x += (gdx / gd) * ghostSpd;
+        en.y += (gdy / gd) * ghostSpd;
+      }
+      en.col = Math.round((en.x - OX - TILE / 2) / TILE);
+      en.row = Math.round((en.y - OY - TILE / 2) / TILE);
+      // Fled off screen (any edge)
+      if (en.y < OY - TILE || en.y > OY + ROWS * TILE + TILE ||
+          en.x < OX - TILE || en.x > OX + COLS * TILE + TILE) {
+        en.alive = false;
+      }
+    } else {
+      // Normal mode: follow tunnels, chase player
+      const er = Math.round((en.y - OY - TILE / 2) / TILE);
+      const ec = Math.round((en.x - OX - TILE / 2) / TILE);
+      const targetCX = gridCenterX(ec);
+      const targetCY = gridCenterY(er);
+
+      // Snap toward grid alignment
+      const snapDist = 1.5;
+      let atCenter = Math.abs(en.x - targetCX) < snapDist && Math.abs(en.y - targetCY) < snapDist;
+      if (!atCenter) {
+        // Move toward cell center
+        if (Math.abs(en.x - targetCX) > snapDist) en.x += (targetCX > en.x ? 1.5 : -1.5);
+        if (Math.abs(en.y - targetCY) > snapDist) en.y += (targetCY > en.y ? 1.5 : -1.5);
+      } else {
+        en.x = targetCX; en.y = targetCY;
+        // Choose next direction: prefer toward player, but only tunnel cells
+        const pdx = player.x - en.x, pdy = player.y - en.y;
+        let dirs = [];
+        for (let d = 0; d < 4; d++) {
+          const nr = er + DY[d], nc = ec + DX[d];
+          if (isTunnel(nr, nc)) {
+            // Don't reverse unless no other choice
+            if (d !== ((en.dir + 2) % 4)) dirs.push(d);
+          }
+        }
+        if (dirs.length === 0) {
+          // Allow reverse
+          for (let d = 0; d < 4; d++) {
+            const nr = er + DY[d], nc = ec + DX[d];
+            if (isTunnel(nr, nc)) dirs.push(d);
+          }
+        }
+        if (dirs.length > 0) {
+          en.stuckTimer = 0;
+          // Score directions by closeness to player
+          dirs.sort((a, b) => {
+            const ax = DX[a] * pdx + DY[a] * pdy;
+            const bx = DX[b] * pdx + DY[b] * pdy;
+            return bx - ax;
+          });
+          // Usually pick best, sometimes random for variety
+          en.dir = Math.random() < 0.8 ? dirs[0] : dirs[Math.floor(Math.random() * dirs.length)];
+          en.x += DX[en.dir] * 1.5;
+          en.y += DY[en.dir] * 1.5;
+        } else {
+          en.stuckTimer++;
+        }
+      }
+      en.col = Math.round((en.x - OX - TILE / 2) / TILE);
+      en.row = Math.round((en.y - OY - TILE / 2) / TILE);
+    }
+
+    // Fygar fire breathing
+    if (en.type === 'fygar' && !en.ghost && en.inflate === 0) {
+      en.fireTimer++;
+      if (en.fireTimer > 120 + Math.random() * 60) {
+        // Check if player is roughly on same row
+        if (Math.abs(en.y - player.y) < TILE) {
+          en.fireActive = true;
+          en.fireDir = player.x > en.x ? 0 : 2;
+          en.fireTimer = -30; // fire lasts 30 frames
+        } else {
+          en.fireTimer = 0;
+        }
+      }
+      if (en.fireActive && en.fireTimer >= 0) {
+        en.fireActive = false;
+      }
+    }
+  }
+
+  // Fleeing timeout — if an enemy has been fleeing for too long, remove it
+  for (const en of enemies) {
+    if (!en.alive) continue;
+    if (en.fleeing) {
+      if (!en.fleeTimer) en.fleeTimer = 0;
+      en.fleeTimer++;
+      if (en.fleeTimer > 300) { // 5 seconds at 60fps
+        en.alive = false;
+      }
+    }
+  }
+
+  // Check for level clear
+  const remainingAlive = enemies.filter(e => e.alive).length;
+  if (remainingAlive === 0) {
+    levelClear = true;
+    levelClearTimer = 0;
+    score += 1000;
+  }
+
+  // --- ROCK PHYSICS ---
+  for (const rock of rocks) {
+    if (rock.crushed) continue;
+    const rr = rock.row, rc = rock.col;
+
+    if (!rock.falling) {
+      // Check if cell below is empty (dug out)
+      const belowR = rr + 1;
+      if (inBounds(belowR, rc) && grid[belowR][rc] === 0) {
+        if (!rock.unsupported) {
+          rock.unsupported = true;
+          rock.unsupportTimer = 0;
+        }
+        rock.unsupportTimer++;
+        rock.shakeTimer++;
+        if (rock.unsupportTimer > 30) {
+          rock.falling = true;
+          rock.fallSpeed = 0;
+          rock.settled = false;
+        }
+      } else {
+        rock.unsupported = false;
+        rock.unsupportTimer = 0;
+        rock.shakeTimer = 0;
+      }
+    } else {
+      // Falling
+      rock.fallSpeed = Math.min(rock.fallSpeed + 0.3, 5);
+      rock.y += rock.fallSpeed;
+      rock.row = Math.round((rock.y - OY - TILE / 2) / TILE);
+      // Clear dirt as rock falls
+      const fr = getGridRow(rock.y);
+      if (inBounds(fr, rock.col)) grid[fr][rock.col] = 0;
+
+      // Check if landed on dirt or bottom
+      const nextR = rock.row + 1;
+      if (!inBounds(nextR, rock.col) || (isDirt(nextR, rock.col) && rock.fallSpeed > 2)) {
+        // Landed
+        rock.y = gridCenterY(rock.row);
+        rock.falling = false;
+        rock.crushed = true; // rock breaks after falling
+      }
+
+      // Crush enemies
+      for (const en of enemies) {
+        if (!en.alive) continue;
+        const edx = rock.x - en.x, edy = rock.y - en.y;
+        if (Math.abs(edx) < TILE * 0.7 && Math.abs(edy) < TILE * 0.7) {
+          en.alive = false;
+          en.crushAnim = 30;
+          score += layerPoints(en.row) * 3; // bonus for rock kills
+        }
+      }
+
+      // Crush player
+      const pdx = rock.x - player.x, pdy = rock.y - player.y;
+      if (Math.abs(pdx) < TILE * 0.6 && Math.abs(pdy) < TILE * 0.6) {
+        die();
+        return;
+      }
+    }
+  }
+
+  // --- ENEMY-PLAYER COLLISION ---
+  for (const en of enemies) {
+    if (!en.alive || en.inflate > 0) continue;
+    const edx = player.x - en.x, edy = player.y - en.y;
+    if (Math.abs(edx) < TILE * 0.6 && Math.abs(edy) < TILE * 0.6) {
+      die(); return;
+    }
+    // Fygar fire damage
+    if (en.fireActive && en.type === 'fygar') {
+      const fLen = TILE * 3;
+      const fx1 = en.x, fx2 = en.x + (en.fireDir === 0 ? fLen : -fLen);
+      const fMinX = Math.min(fx1, fx2), fMaxX = Math.max(fx1, fx2);
+      if (player.x > fMinX && player.x < fMaxX && Math.abs(player.y - en.y) < TILE * 0.6) {
+        die(); return;
+      }
+    }
+  }
+
+  // Restart
+  if (keys['KeyR']) initGame();
+}
+
+function die() {
+  lives--;
+  harpoon = null;
+  deathTimer = 60;
+  if (lives <= 0) {
+    deathTimer = 90;
+  }
+}
+
+// --- DRAW ---
+function draw() {
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+
+  // Sky
+  ctx.fillStyle = '#2244aa';
+  ctx.fillRect(OX, OY, COLS * TILE, SKY_H * TILE);
+
+  // Dirt layers
+  for (let r = SKY_H; r < ROWS; r++) {
+    const layer = getLayer(r);
+    for (let c = 0; c < COLS; c++) {
+      const x = OX + c * TILE, y = OY + r * TILE;
+      if (grid[r][c] === 1) {
+        ctx.fillStyle = LAYER_COLORS[layer];
+        ctx.fillRect(x, y, TILE, TILE);
+        // Dirt texture dots
+        ctx.fillStyle = lighten(LAYER_COLORS[layer], 20);
+        if ((r + c) % 3 === 0) ctx.fillRect(x + 4, y + 4, 3, 3);
+        if ((r + c) % 5 === 1) ctx.fillRect(x + 16, y + 12, 2, 2);
+        if ((r + c) % 4 === 2) ctx.fillRect(x + 8, y + 20, 3, 2);
+      } else {
+        // Tunnel background — darker
+        ctx.fillStyle = darken(LAYER_COLORS[layer], 50);
+        ctx.fillRect(x, y, TILE, TILE);
+      }
+    }
+  }
+
+  // Draw tunnel edges (rounded look)
+  for (let r = SKY_H; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (grid[r][c] !== 0) continue;
+      const x = OX + c * TILE, y = OY + r * TILE;
+      const layer = getLayer(r);
+      const edgeColor = darken(LAYER_COLORS[layer], 25);
+      ctx.fillStyle = edgeColor;
+      // Draw small edge indicators where tunnel meets dirt
+      if (inBounds(r, c - 1) && grid[r][c - 1] === 1) ctx.fillRect(x, y, 2, TILE);
+      if (inBounds(r, c + 1) && grid[r][c + 1] === 1) ctx.fillRect(x + TILE - 2, y, 2, TILE);
+      if (inBounds(r - 1, c) && grid[r - 1][c] === 1) ctx.fillRect(x, y, TILE, 2);
+      if (inBounds(r + 1, c) && grid[r + 1][c] === 1) ctx.fillRect(x, y + TILE - 2, TILE, 2);
+    }
+  }
+
+  // Rocks
+  for (const rock of rocks) {
+    if (rock.crushed) continue;
+    const rx = rock.x + (rock.shakeTimer > 0 ? Math.sin(rock.shakeTimer * 0.8) * 2 : 0);
+    const ry = rock.y;
+    // Rock body
+    ctx.fillStyle = '#888';
+    ctx.fillRect(rx - TILE * 0.45, ry - TILE * 0.4, TILE * 0.9, TILE * 0.8);
+    ctx.fillStyle = '#999';
+    ctx.fillRect(rx - TILE * 0.35, ry - TILE * 0.3, TILE * 0.5, TILE * 0.4);
+    ctx.fillStyle = '#777';
+    ctx.fillRect(rx - TILE * 0.45, ry + TILE * 0.1, TILE * 0.9, TILE * 0.2);
+    // Cracks
+    ctx.strokeStyle = '#555'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(rx - 3, ry - 5); ctx.lineTo(rx + 4, ry + 3); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(rx + 2, ry - 6); ctx.lineTo(rx - 2, ry + 2); ctx.stroke();
+  }
+
+  // Enemies
+  for (const en of enemies) {
+    if (!en.alive) {
+      if (en.crushAnim > 0) {
+        en.crushAnim--;
+        drawCrushEffect(en.x, en.y, en.crushAnim);
+      }
+      continue;
+    }
+    const inflateScale = 1 + en.inflate * 0.25;
+    const ghostAlpha = en.ghost ? 0.4 + Math.sin(frame * 0.1) * 0.2 : 1;
+    ctx.globalAlpha = ghostAlpha;
+
+    if (en.type === 'pooka') {
+      drawPooka(en.x, en.y, inflateScale, en.inflate);
+    } else {
+      drawFygar(en.x, en.y, inflateScale, en.inflate, en.fireActive, en.fireDir);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // Harpoon
+  if (harpoon) {
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+    let endX, endY;
+    if (harpoon.attached) {
+      endX = harpoon.attached.x;
+      endY = harpoon.attached.y;
+    } else {
+      endX = player.x + DX[harpoon.dir] * harpoon.length;
+      endY = player.y + DY[harpoon.dir] * harpoon.length;
+    }
+    ctx.beginPath();
+    ctx.moveTo(player.x, player.y);
+    ctx.lineTo(endX, endY);
+    ctx.stroke();
+    // Harpoon tip
+    ctx.fillStyle = '#ff0';
+    ctx.beginPath();
+    ctx.arc(endX, endY, 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Player
+  if (deathTimer > 0 && lives >= 0) {
+    // Death animation
+    drawDeathAnim(player.x, player.y, deathTimer);
+  } else if (deathTimer <= 0) {
+    drawPlayer(player.x, player.y, player.dir, player.animFrame);
+  }
+
+  // Fygar fire effects (draw on top)
+  for (const en of enemies) {
+    if (!en.alive || !en.fireActive || en.type !== 'fygar') continue;
+    drawFire(en.x, en.y, en.fireDir);
+  }
+
+  // --- HUD ---
+  // Title badge
+  ctx.fillStyle = '#1a1a1a'; ctx.fillRect(8, 8, 260, 28);
+  ctx.fillStyle = '#555'; ctx.font = '13px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('MAZ-004 \u00B7 TUNNEL DIGGER  [?]', 16, 26);
+
+  // Score
+  ctx.fillStyle = '#fff'; ctx.font = '16px monospace';
+  ctx.textAlign = 'right';
+  ctx.fillText('SCORE: ' + score, W - 16, 26);
+
+  // Lives
+  ctx.textAlign = 'center';
+  for (let i = 0; i < lives; i++) {
+    drawMiniPlayer(W / 2 - 30 + i * 25, 18);
+  }
+
+  // Level
+  ctx.fillStyle = '#aaa'; ctx.font = '12px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('ROUND ' + level, W / 2, H - 8);
+
+  // Level clear
+  if (levelClear) {
+    ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0, 0, W, H);
+    ctx.font = 'bold 36px monospace'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#4f4';
+    ctx.fillText('ROUND CLEAR!', W / 2, H / 2 - 10);
+    ctx.fillStyle = '#ff0'; ctx.font = '18px monospace';
+    ctx.fillText('+1000 BONUS', W / 2, H / 2 + 25);
+  }
+
+  // Game over
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.75)'; ctx.fillRect(0, 0, W, H);
+    ctx.font = 'bold 48px monospace'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#f55';
+    ctx.fillText('GAME OVER', W / 2, H / 2 - 20);
+    ctx.fillStyle = '#aaa'; ctx.font = '18px monospace';
+    ctx.fillText('SCORE: ' + score + '   Press R to restart', W / 2, H / 2 + 24);
+  }
+}
+
+// --- DRAW HELPERS ---
+function drawPlayer(x, y, dir, anim) {
+  const bob = Math.sin(anim * 2) * 2;
+  // Body (white suit)
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(x - 8, y - 10 + bob, 16, 18);
+  // Head
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(x, y - 12 + bob, 7, 0, Math.PI * 2); ctx.fill();
+  // Helmet visor
+  ctx.fillStyle = '#44f';
+  ctx.beginPath(); ctx.arc(x + (dir === 2 ? -2 : 2), y - 12 + bob, 4, 0, Math.PI * 2); ctx.fill();
+  // Arms
+  ctx.fillStyle = '#fff';
+  const armOff = Math.sin(anim * 3) * 3;
+  ctx.fillRect(x - 12, y - 4 + bob + armOff, 4, 8);
+  ctx.fillRect(x + 8, y - 4 + bob - armOff, 4, 8);
+  // Legs
+  ctx.fillRect(x - 6, y + 8 + bob, 4, 6);
+  ctx.fillRect(x + 2, y + 8 + bob, 4, 6);
+  // Pump (show tube in facing direction)
+  ctx.strokeStyle = '#f80'; ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(x + DX[dir] * 8, y + bob);
+  ctx.lineTo(x + DX[dir] * 14, y + DY[dir] * 4 + bob);
+  ctx.stroke();
+}
+
+function drawMiniPlayer(x, y) {
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(x - 4, y - 5, 8, 10);
+  ctx.fillStyle = '#44f';
+  ctx.fillRect(x - 1, y - 7, 4, 3);
+}
+
+function drawPooka(x, y, scale, inflate) {
+  const s = TILE * 0.4 * scale;
+  // Body - round red blob
+  if (inflate > 0) {
+    ctx.fillStyle = inflate >= 3 ? '#ff4444' : '#ff6644';
+  } else {
+    ctx.fillStyle = '#f44';
+  }
+  ctx.beginPath(); ctx.arc(x, y, s, 0, Math.PI * 2); ctx.fill();
+  // Goggles
+  if (inflate < 3) {
+    ctx.fillStyle = '#ff0';
+    ctx.beginPath(); ctx.arc(x - s * 0.3, y - s * 0.2, s * 0.25, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + s * 0.3, y - s * 0.2, s * 0.25, 0, Math.PI * 2); ctx.fill();
+    // Pupils
+    ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.arc(x - s * 0.3, y - s * 0.2, s * 0.12, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + s * 0.3, y - s * 0.2, s * 0.12, 0, Math.PI * 2); ctx.fill();
+  }
+  // Inflate indicator
+  if (inflate > 0) {
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(x, y, s + 2, 0, Math.PI * 2); ctx.stroke();
+  }
+}
+
+function drawFygar(x, y, scale, inflate, fire, fireDir) {
+  const s = TILE * 0.4 * scale;
+  // Body - green dragon
+  if (inflate > 0) {
+    ctx.fillStyle = inflate >= 3 ? '#44ff44' : '#66ff66';
+  } else {
+    ctx.fillStyle = '#4c4';
+  }
+  // Elongated body
+  ctx.beginPath();
+  ctx.ellipse(x, y, s * 1.2, s * 0.85, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Wings
+  if (inflate < 2) {
+    ctx.fillStyle = '#3a3';
+    const wingFlap = Math.sin(frame * 0.15) * 3;
+    ctx.beginPath();
+    ctx.moveTo(x - s * 0.5, y - s * 0.3);
+    ctx.lineTo(x - s * 0.2, y - s * 0.9 + wingFlap);
+    ctx.lineTo(x + s * 0.2, y - s * 0.3);
+    ctx.fill();
+  }
+  // Eyes
+  if (inflate < 3) {
+    ctx.fillStyle = '#ff0';
+    ctx.beginPath(); ctx.arc(x + s * 0.4, y - s * 0.15, s * 0.2, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.arc(x + s * 0.4, y - s * 0.15, s * 0.1, 0, Math.PI * 2); ctx.fill();
+    // Mouth/snout
+    ctx.fillStyle = '#2a2';
+    ctx.fillRect(x + s * 0.6, y, s * 0.5, s * 0.25);
+  }
+  if (inflate > 0) {
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.ellipse(x, y, s * 1.2 + 2, s * 0.85 + 2, 0, 0, Math.PI * 2); ctx.stroke();
+  }
+}
+
+function drawFire(x, y, dir) {
+  const fLen = TILE * 3;
+  for (let i = 0; i < 8; i++) {
+    const fx = x + (dir === 0 ? 1 : -1) * (i * fLen / 8 + Math.random() * 10);
+    const fy = y + (Math.random() - 0.5) * 16;
+    const fs = 6 + Math.random() * 8;
+    ctx.fillStyle = i < 3 ? '#ff0' : (i < 6 ? '#f80' : '#f44');
+    ctx.globalAlpha = 0.7 + Math.random() * 0.3;
+    ctx.beginPath(); ctx.arc(fx, fy, fs, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawCrushEffect(x, y, t) {
+  ctx.fillStyle = '#ff0';
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2 + t * 0.1;
+    const d = (30 - t) * 1.5;
+    ctx.fillRect(x + Math.cos(a) * d - 2, y + Math.sin(a) * d - 2, 4, 4);
+  }
+}
+
+function drawDeathAnim(x, y, t) {
+  ctx.fillStyle = '#fff';
+  ctx.globalAlpha = t / 60;
+  const expand = (60 - t) * 0.5;
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    ctx.fillRect(x + Math.cos(a) * expand - 2, y + Math.sin(a) * expand - 2, 4, 4);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function lighten(hex, amt) {
+  let r = parseInt(hex.slice(1, 3), 16);
+  let g = parseInt(hex.slice(3, 5), 16);
+  let b = parseInt(hex.slice(5, 7), 16);
+  r = Math.min(255, r + amt); g = Math.min(255, g + amt); b = Math.min(255, b + amt);
+  return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+}
+
+function darken(hex, amt) {
+  let r = parseInt(hex.slice(1, 3), 16);
+  let g = parseInt(hex.slice(3, 5), 16);
+  let b = parseInt(hex.slice(5, 7), 16);
+  r = Math.max(0, r - amt); g = Math.max(0, g - amt); b = Math.max(0, b - amt);
+  return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

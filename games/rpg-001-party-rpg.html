@@ -1,0 +1,1389 @@
+<!--
+PROTOTYPE: party-rpg
+SERIES: rpg
+NUMBER: 001
+DATE: 2026-03-22
+MECHANIC: crawl dungeon in first person with party combat
+ANCESTRY: The Bard's Tale (1985, Interplay/Michael Cranford), Wizardry (1981, Sir-Tech)
+CONTROLS: Arrow keys — move/turn | Space — attack/select | 1-4 — select party member | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — procedural generation, growing game complexity)
+AI-INSIGHT: The dungeon crawl is a state-space search problem — the player explores a partially observable graph, building a mental model (map) through sequential observation. Party combat adds multi-agent coordination where each member's action must account for shared resources and complementary roles.
+NOTES: First-person perspective creates tension through limited visibility.
+       Party management adds strategic depth beyond solo action games.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RPG-001 · PARTY RPG</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #0a0a12; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>RPG-001 · PARTY RPG</h1>
+    <p><span class="tag series">RPG — Role-Playing</span> <span class="tag">Prototype #001</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Lead a party of four adventurers through a 3-level dungeon. Navigate corridors in first-person, fight monsters in turn-based combat, and defeat the boss on level 3 to win.</p>
+    <ul>
+      <li><kbd>&#8593;</kbd> — Move forward</li>
+      <li><kbd>&#8592;</kbd> / <kbd>&#8594;</kbd> — Turn left / right</li>
+      <li><kbd>&#8595;</kbd> — Step backward</li>
+      <li><kbd>1</kbd>-<kbd>4</kbd> — Select party member</li>
+      <li><kbd>Space</kbd> — Attack / confirm selection</li>
+      <li><kbd>D</kbd> — Defend (in combat)</li>
+      <li><kbd>S</kbd> — Cast spell (in combat, if MP available)</li>
+      <li><kbd>F</kbd> — Flee from combat</li>
+      <li><kbd>R</kbd> — Restart (on game over/victory)</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Combat</h3>
+    <ul>
+      <li>Select a party member with <kbd>1</kbd>-<kbd>4</kbd>, then choose action.</li>
+      <li><strong>Warrior:</strong> High HP and attack. No spells.</li>
+      <li><strong>Rogue:</strong> Medium stats. 25% critical hit chance for double damage.</li>
+      <li><strong>Mage:</strong> Low HP, high magic. Fireball hits all enemies.</li>
+      <li><strong>Healer:</strong> Medium stats. Heal spell restores party HP.</li>
+      <li>Find treasure chests for gold and XP. Level up to increase stats.</li>
+      <li>Find stairs down to descend deeper. Defeat the boss on level 3.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Wizardry (1981, Sir-Tech) &#8594; The Bard's Tale (1985, Interplay) &#8594; Dungeon Master (1987) &#8594; Eye of the Beholder (1991)</p>
+    <p>The Bard's Tale (1985) was a landmark CRPG that brought the first-person dungeon crawl to a wider audience. Designed by Michael Cranford and published by Interplay, it built on the wireframe corridors of Wizardry but added color, a persistent overworld city, and party-based tactical combat.</p>
+    <p>The first-person dungeon crawl format creates a unique tension: the player sees only what's directly ahead. Every turn around a corner could reveal treasure or death. This limited visibility transforms spatial navigation into an information-gathering problem — the player must build a mental (or paper) map through sequential observation.</p>
+    <p>Party management adds a layer of multi-agent coordination. Each character has a role — tank, damage, healing, utility — and the player must orchestrate their actions as a team, managing shared resources like hit points and spell slots.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 3 — Knowledge Explosion (1980-1993)</p>
+    <p><strong>Contemporary AI:</strong> Expert systems, early knowledge representation. The era when AI researchers believed capturing domain expertise in rule systems could solve complex problems.</p>
+    <p><strong>Hidden Intelligence:</strong> The dungeon crawl is a partially observable Markov decision process (POMDP). The player has incomplete state knowledge (unexplored map) and must choose actions (move, turn, fight) that simultaneously gather information and pursue goals. Each step is a tradeoff between exploration and exploitation.</p>
+    <p>Party combat is a multi-agent coordination problem. Four characters with complementary abilities must act in sequence, and the optimal action for each depends on the others' choices. This is the same structure as multi-robot task allocation in modern AI.</p>
+    <p><strong>The Convergence:</strong> Modern game AI uses Monte Carlo tree search for dungeon generation and reinforcement learning for combat balancing — the same problems players solve intuitively.</p>
+    <p><strong>If AI Had Designed This:</strong> Procedurally calibrated encounters tuned by RL agents to maintain a target difficulty curve — keeping tension without frustration. The dungeon layout would maximize information uncertainty per tile to keep exploration rewarding.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: RPG — Role-Playing</h3>
+    <p>Games where character progression (stats, levels, equipment) interacts with tactical decision-making. The player's strategic choices compound over time.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>First-person dungeon crawl with party-based turn combat.</strong> Grid movement in 3D perspective. Random encounters. Four-member party with class roles. Level progression. Multi-floor dungeon with boss.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>First-person immersion — does the wireframe corridor view create spatial tension?</li>
+      <li>Party coordination — do the four roles feel distinct and complementary?</li>
+      <li>Combat pacing — does turn-based combat flow without tedium?</li>
+      <li>Exploration reward — do treasure and stairs motivate pushing deeper?</li>
+      <li>Progression arc — does leveling up feel meaningful across 3 dungeon levels?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Three procedurally generated 8x8 dungeon levels. Wireframe first-person perspective rendering with 3 depth levels. Four-class party system. Turn-based combat with attack/defend/spell/flee. Boss encounter on level 3.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+const justPressed = {};
+const keys = {};
+window.addEventListener('keydown', e => {
+  if (infoOpen) return;
+  if (!keys[e.code]) justPressed[e.code] = true;
+  keys[e.code] = true;
+  e.preventDefault();
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+function pop(code) { if (justPressed[code]) { justPressed[code] = false; return true; } return false; }
+
+// --- CONSTANTS ---
+const MAP_SIZE = 8;
+const DIR_N = 0, DIR_E = 1, DIR_S = 2, DIR_W = 3;
+const DX = [0, 1, 0, -1];
+const DY = [-1, 0, 1, 0];
+const DIR_NAMES = ['North', 'East', 'South', 'West'];
+
+// --- DUNGEON GENERATION ---
+function seededRand(seed) {
+  let s = seed | 0;
+  if (s === 0) s = 1;
+  return function() {
+    s = (s * 16807) % 2147483647;
+    return (s - 1) / 2147483646;
+  };
+}
+
+function generateDungeon(level) {
+  const rng = seededRand(level * 7919 + 1337);
+  // 0 = wall, 1 = floor, 2 = treasure, 3 = stairs down, 4 = boss
+  const map = [];
+  for (let y = 0; y < MAP_SIZE; y++) {
+    map[y] = [];
+    for (let x = 0; x < MAP_SIZE; x++) {
+      map[y][x] = 0;
+    }
+  }
+
+  // Carve paths using recursive backtracker
+  const visited = [];
+  for (let y = 0; y < MAP_SIZE; y++) {
+    visited[y] = [];
+    for (let x = 0; x < MAP_SIZE; x++) visited[y][x] = false;
+  }
+
+  const stack = [];
+  const startX = 1, startY = 1;
+  visited[startY][startX] = true;
+  map[startY][startX] = 1;
+  stack.push({ x: startX, y: startY });
+
+  while (stack.length > 0) {
+    const curr = stack[stack.length - 1];
+    const neighbors = [];
+    for (let d = 0; d < 4; d++) {
+      const nx = curr.x + DX[d] * 2;
+      const ny = curr.y + DY[d] * 2;
+      if (nx >= 0 && nx < MAP_SIZE && ny >= 0 && ny < MAP_SIZE && !visited[ny][nx]) {
+        neighbors.push({ x: nx, y: ny, mx: curr.x + DX[d], my: curr.y + DY[d] });
+      }
+    }
+    if (neighbors.length > 0) {
+      const next = neighbors[Math.floor(rng() * neighbors.length)];
+      visited[next.y][next.x] = true;
+      map[next.y][next.x] = 1;
+      map[next.my][next.mx] = 1;
+      stack.push({ x: next.x, y: next.y });
+    } else {
+      stack.pop();
+    }
+  }
+
+  // Open some extra passages for loops
+  const extraPassages = 3 + Math.floor(rng() * 4);
+  for (let i = 0; i < extraPassages; i++) {
+    const x = 1 + Math.floor(rng() * (MAP_SIZE - 2));
+    const y = 1 + Math.floor(rng() * (MAP_SIZE - 2));
+    if (map[y][x] === 0) {
+      let adjFloors = 0;
+      for (let d = 0; d < 4; d++) {
+        const nx = x + DX[d], ny = y + DY[d];
+        if (nx >= 0 && nx < MAP_SIZE && ny >= 0 && ny < MAP_SIZE && map[ny][nx] === 1) adjFloors++;
+      }
+      if (adjFloors >= 2) map[y][x] = 1;
+    }
+  }
+
+  // Place treasures
+  const treasureCount = 2 + Math.floor(rng() * 3);
+  let placed = 0;
+  for (let tries = 0; tries < 100 && placed < treasureCount; tries++) {
+    const x = 1 + Math.floor(rng() * (MAP_SIZE - 2));
+    const y = 1 + Math.floor(rng() * (MAP_SIZE - 2));
+    if (map[y][x] === 1 && !(x === startX && y === startY)) {
+      map[y][x] = 2;
+      placed++;
+    }
+  }
+
+  // Place stairs down (levels 1-2) or boss (level 3)
+  let stairsPlaced = false;
+  for (let tries = 0; tries < 200 && !stairsPlaced; tries++) {
+    const x = 1 + Math.floor(rng() * (MAP_SIZE - 2));
+    const y = 1 + Math.floor(rng() * (MAP_SIZE - 2));
+    const dist = Math.abs(x - startX) + Math.abs(y - startY);
+    if (map[y][x] === 1 && dist >= 4) {
+      map[y][x] = level < 3 ? 3 : 4;
+      stairsPlaced = true;
+    }
+  }
+  // Fallback: place in far corner area
+  if (!stairsPlaced) {
+    for (let y = MAP_SIZE - 1; y >= 0 && !stairsPlaced; y--) {
+      for (let x = MAP_SIZE - 1; x >= 0 && !stairsPlaced; x--) {
+        if (map[y][x] === 1) {
+          map[y][x] = level < 3 ? 3 : 4;
+          stairsPlaced = true;
+        }
+      }
+    }
+  }
+
+  return map;
+}
+
+// --- MONSTER DATA ---
+function getMonsters(level) {
+  const pool = [
+    { name: 'Rat Swarm', hp: 8, atk: 3, def: 1, xp: 10, gold: 5 },
+    { name: 'Skeleton', hp: 15, atk: 6, def: 3, xp: 20, gold: 10 },
+    { name: 'Goblin', hp: 12, atk: 5, def: 2, xp: 15, gold: 12 },
+    { name: 'Orc Warrior', hp: 25, atk: 10, def: 5, xp: 35, gold: 20 },
+    { name: 'Dark Elf', hp: 20, atk: 12, def: 4, xp: 40, gold: 25 },
+    { name: 'Stone Golem', hp: 40, atk: 8, def: 10, xp: 50, gold: 30 },
+    { name: 'Wraith', hp: 30, atk: 14, def: 3, xp: 55, gold: 35 },
+    { name: 'Red Dragon', hp: 50, atk: 18, def: 8, xp: 70, gold: 50 },
+    { name: 'Lich Lord', hp: 60, atk: 20, def: 10, xp: 80, gold: 60 }
+  ];
+  const boss = { name: 'MANGAR THE DARK', hp: 120, atk: 24, def: 12, xp: 200, gold: 500, isBoss: true };
+
+  const start = Math.min((level - 1) * 3, pool.length - 3);
+  const available = pool.slice(start, start + 4);
+  return { pool: available, boss };
+}
+
+// --- MONSTER ASCII ART ---
+function getMonsterArt(name) {
+  if (name === 'Rat Swarm') return [
+    '  .  .  .  .',
+    ' /\\_/\\_/\\_/\\',
+    '( o.o o.o  )',
+    ' > ^ > ^  < ',
+    '  ~~~~  ~~~~'
+  ];
+  if (name === 'Skeleton') return [
+    '    .-.    ',
+    '   (o o)   ',
+    '    | |    ',
+    '   /| |\\   ',
+    '  /_| |_\\  ',
+    '    | |    ',
+    '   _| |_   '
+  ];
+  if (name === 'Goblin') return [
+    '   /\\_/\\   ',
+    '  ( o.o )  ',
+    '   > - <   ',
+    '  /|   |\\  ',
+    ' (_|   |_) '
+  ];
+  if (name === 'Orc Warrior') return [
+    '  \\[===]/  ',
+    '   (o o)   ',
+    '  --|+|--  ',
+    '   /|~|\\   ',
+    '  / | | \\  ',
+    ' /  | |  \\ '
+  ];
+  if (name === 'Dark Elf') return [
+    '   /| |\\   ',
+    '  ( o.o )  ',
+    '   \\=^=/   ',
+    '   /| |\\   ',
+    '  | | | |  ',
+    '   /   \\   '
+  ];
+  if (name === 'Stone Golem') return [
+    '  [=====]  ',
+    '  |[o][o]| ',
+    '  |  __  | ',
+    ' /|======|\\ ',
+    '| |      | |',
+    '|/|      |\\|',
+    '  |______|  '
+  ];
+  if (name === 'Wraith') return [
+    '   .oOo.   ',
+    '  ( O O )  ',
+    '   \\ ~ /   ',
+    '  .:| |:.  ',
+    ' :: | | :: ',
+    '  \'\'|_|\'\'  '
+  ];
+  if (name === 'Red Dragon') return [
+    '      /\\_   ',
+    '  ___/ o \\_ ',
+    ' <___  ~__>',
+    '  /  \\=/\\  ',
+    ' / /\\ | /\\ ',
+    '<_/  \\|/  \\',
+    '   ~~~~~~~~'
+  ];
+  if (name === 'Lich Lord') return [
+    '   _{O}_   ',
+    '  / o o \\  ',
+    '  \\ ___ /  ',
+    '  .|===|.  ',
+    ' /||   ||\\ ',
+    '/_||   ||_\\',
+    '  ||___||  '
+  ];
+  if (name === 'MANGAR THE DARK') return [
+    '  ___/\\___  ',
+    ' / *(  )* \\ ',
+    '| / O  O \\ |',
+    '|{  ____  }|',
+    ' \\|=|  |=|/ ',
+    '  /||  ||\\ ',
+    ' / ||  || \\ ',
+    '/  ||  ||  \\',
+    '|  ||__||  |',
+    ' \\________/ '
+  ];
+  return ['  (?.?)  ', '  /| |\\  ', '  _| |_  '];
+}
+
+// --- PARTY ---
+function createParty() {
+  return [
+    { name: 'Kael', cls: 'Warrior', hp: 40, maxHp: 40, mp: 0, maxMp: 0, atk: 12, def: 8, level: 1, xp: 0, alive: true },
+    { name: 'Shade', cls: 'Rogue', hp: 28, maxHp: 28, mp: 0, maxMp: 0, atk: 10, def: 5, level: 1, xp: 0, alive: true },
+    { name: 'Elara', cls: 'Mage', hp: 20, maxHp: 20, mp: 30, maxMp: 30, atk: 4, def: 3, level: 1, xp: 0, alive: true },
+    { name: 'Theron', cls: 'Healer', hp: 25, maxHp: 25, mp: 25, maxMp: 25, atk: 6, def: 5, level: 1, xp: 0, alive: true }
+  ];
+}
+
+function xpToLevel(level) { return level * 60; }
+
+function checkLevelUp(member) {
+  const needed = xpToLevel(member.level);
+  if (member.xp >= needed) {
+    member.xp -= needed;
+    member.level++;
+    member.maxHp += member.cls === 'Warrior' ? 8 : member.cls === 'Healer' ? 5 : member.cls === 'Rogue' ? 6 : 4;
+    member.hp = member.maxHp;
+    member.atk += member.cls === 'Mage' ? 1 : 2;
+    member.def += 1;
+    if (member.cls === 'Mage') { member.maxMp += 8; member.mp = member.maxMp; }
+    if (member.cls === 'Healer') { member.maxMp += 6; member.mp = member.maxMp; }
+    return true;
+  }
+  return false;
+}
+
+// --- GAME STATE ---
+let phase, party, dungeonLevel, dungeon, playerX, playerY, playerDir;
+let explored, gold, combatState, message, messageTimer, frame;
+let encounterCooldown;
+
+function initGame() {
+  phase = 'title';
+  party = createParty();
+  dungeonLevel = 1;
+  gold = 0;
+  frame = 0;
+  message = '';
+  messageTimer = 0;
+  encounterCooldown = 0;
+  enterDungeon(1);
+}
+
+function enterDungeon(level) {
+  dungeonLevel = level;
+  dungeon = generateDungeon(level);
+  playerX = 1; playerY = 1; playerDir = DIR_E;
+  explored = [];
+  for (let y = 0; y < MAP_SIZE; y++) {
+    explored[y] = [];
+    for (let x = 0; x < MAP_SIZE; x++) explored[y][x] = false;
+  }
+  explored[playerY][playerX] = true;
+  encounterCooldown = 3;
+}
+
+initGame();
+
+// --- COMBAT ---
+function startCombat(monsters, isBoss) {
+  phase = 'combat';
+  combatState = {
+    monsters: monsters.map(m => ({ ...m, maxHp: m.hp })),
+    currentMember: 0,
+    action: null,
+    combatLog: [],
+    turn: 'player',
+    monsterTurnIdx: 0,
+    actionDelay: 0,
+    isBoss: isBoss || false,
+    fled: false
+  };
+  // Select first alive member
+  for (let i = 0; i < 4; i++) {
+    if (party[i].alive) { combatState.currentMember = i; break; }
+  }
+  combatState.combatLog.push(isBoss ? 'MANGAR THE DARK blocks your path!' : 'Monsters attack!');
+}
+
+function spawnEncounter() {
+  const monsterData = getMonsters(dungeonLevel);
+  const count = 1 + Math.floor(Math.random() * 3);
+  const monsters = [];
+  for (let i = 0; i < count; i++) {
+    const template = monsterData.pool[Math.floor(Math.random() * monsterData.pool.length)];
+    const scale = 1 + (dungeonLevel - 1) * 0.3;
+    monsters.push({
+      name: template.name,
+      hp: Math.floor(template.hp * scale),
+      atk: Math.floor(template.atk * scale),
+      def: Math.floor(template.def * scale),
+      xp: Math.floor(template.xp * scale),
+      gold: Math.floor(template.gold * scale)
+    });
+  }
+  startCombat(monsters, false);
+}
+
+function combatAttack(memberIdx) {
+  const m = party[memberIdx];
+  if (!m.alive) return;
+  const cs = combatState;
+
+  // Find first alive monster
+  let target = -1;
+  for (let i = 0; i < cs.monsters.length; i++) {
+    if (cs.monsters[i].hp > 0) { target = i; break; }
+  }
+  if (target < 0) return;
+
+  let dmg = Math.max(1, m.atk - cs.monsters[target].def + Math.floor(Math.random() * 4) - 2);
+  let crit = false;
+
+  if (m.cls === 'Rogue' && Math.random() < 0.25) {
+    dmg *= 2;
+    crit = true;
+  }
+
+  cs.monsters[target].hp -= dmg;
+  cs.combatLog.push(m.name + ' hits ' + cs.monsters[target].name + ' for ' + dmg + (crit ? ' CRIT!' : ''));
+
+  if (cs.monsters[target].hp <= 0) {
+    cs.combatLog.push(cs.monsters[target].name + ' defeated!');
+  }
+}
+
+function combatSpell(memberIdx) {
+  const m = party[memberIdx];
+  if (!m.alive) return;
+  const cs = combatState;
+
+  if (m.cls === 'Mage' && m.mp >= 8) {
+    m.mp -= 8;
+    // Fireball: hits all monsters
+    let totalDmg = 0;
+    for (const mon of cs.monsters) {
+      if (mon.hp <= 0) continue;
+      const dmg = Math.max(2, 10 + m.level * 3 - mon.def + Math.floor(Math.random() * 4));
+      mon.hp -= dmg;
+      totalDmg += dmg;
+      if (mon.hp <= 0) cs.combatLog.push(mon.name + ' defeated!');
+    }
+    cs.combatLog.push(m.name + ' casts FIREBALL! ' + totalDmg + ' total damage');
+  } else if (m.cls === 'Healer' && m.mp >= 6) {
+    m.mp -= 6;
+    const healAmt = 12 + m.level * 4;
+    // Heal party
+    for (const p of party) {
+      if (p.alive) {
+        p.hp = Math.min(p.maxHp, p.hp + healAmt);
+      }
+    }
+    cs.combatLog.push(m.name + ' casts HEAL! Party restored ' + healAmt + ' HP');
+  } else {
+    cs.combatLog.push(m.name + ' has no spells or MP!');
+  }
+}
+
+function combatDefend(memberIdx) {
+  const m = party[memberIdx];
+  if (!m.alive) return;
+  m._defending = true;
+  combatState.combatLog.push(m.name + ' defends.');
+}
+
+function monsterTurn() {
+  const cs = combatState;
+  const alive = party.filter(p => p.alive);
+  if (alive.length === 0) return;
+
+  for (const mon of cs.monsters) {
+    if (mon.hp <= 0) continue;
+    const target = alive[Math.floor(Math.random() * alive.length)];
+    let dmg = Math.max(1, mon.atk - target.def + Math.floor(Math.random() * 4) - 2);
+    if (target._defending) { dmg = Math.floor(dmg * 0.4); }
+    target.hp -= dmg;
+    cs.combatLog.push(mon.name + ' hits ' + target.name + ' for ' + dmg);
+    if (target.hp <= 0) {
+      target.hp = 0;
+      target.alive = false;
+      cs.combatLog.push(target.name + ' falls!');
+    }
+  }
+
+  // Clear defend flags
+  for (const p of party) p._defending = false;
+}
+
+function checkCombatEnd() {
+  const cs = combatState;
+  const allMonsDead = cs.monsters.every(m => m.hp <= 0);
+  const allPartyDead = party.every(p => !p.alive);
+
+  if (allMonsDead) {
+    // Award XP and gold
+    let totalXp = 0, totalGold = 0;
+    for (const m of cs.monsters) {
+      totalXp += m.xp;
+      totalGold += m.gold;
+    }
+    gold += totalGold;
+    let levelUps = [];
+    for (const p of party) {
+      if (p.alive) {
+        p.xp += totalXp;
+        if (checkLevelUp(p)) levelUps.push(p.name);
+      }
+    }
+    message = 'Victory! +' + totalXp + ' XP, +' + totalGold + ' gold';
+    if (levelUps.length > 0) message += ' | LEVEL UP: ' + levelUps.join(', ');
+    messageTimer = 120;
+
+    if (cs.isBoss) {
+      phase = 'victory';
+    } else {
+      phase = 'exploring';
+      encounterCooldown = 4;
+    }
+    return true;
+  }
+
+  if (allPartyDead) {
+    phase = 'gameover';
+    return true;
+  }
+
+  return false;
+}
+
+function nextCombatMember() {
+  const cs = combatState;
+  for (let i = cs.currentMember + 1; i < 4; i++) {
+    if (party[i].alive) { cs.currentMember = i; return true; }
+  }
+  return false; // All members have acted
+}
+
+// --- FIRST PERSON RENDERING ---
+function canSee(x, y) {
+  return x >= 0 && x < MAP_SIZE && y >= 0 && y < MAP_SIZE;
+}
+
+function isWall(x, y) {
+  if (x < 0 || x >= MAP_SIZE || y < 0 || y >= MAP_SIZE) return true;
+  return dungeon[y][x] === 0;
+}
+
+function drawFirstPerson() {
+  const vpX = 40, vpY = 20, vpW = 440, vpH = 340;
+
+  // Sky/ceiling
+  ctx.fillStyle = '#111118';
+  ctx.fillRect(vpX, vpY, vpW, vpH / 2);
+  // Floor
+  ctx.fillStyle = '#1a1a10';
+  ctx.fillRect(vpX, vpY + vpH / 2, vpW, vpH / 2);
+
+  // Horizon line
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(vpX, vpY + vpH / 2);
+  ctx.lineTo(vpX + vpW, vpY + vpH / 2);
+  ctx.stroke();
+
+  // Perspective depth levels (3 levels deep)
+  const depths = [
+    { scale: 0.9, shade: 160 },
+    { scale: 0.55, shade: 110 },
+    { scale: 0.3, shade: 70 }
+  ];
+
+  const cx = vpX + vpW / 2;
+  const cy = vpY + vpH / 2;
+
+  // Draw from back to front
+  for (let depth = 2; depth >= 0; depth--) {
+    const d = depths[depth];
+    const halfW = (vpW / 2) * d.scale;
+    const halfH = (vpH / 2) * d.scale;
+    const shade = d.shade;
+
+    // Check cells at this depth relative to player
+    const fwdX = DX[playerDir];
+    const fwdY = DY[playerDir];
+    // Right direction
+    const rightDir = (playerDir + 1) % 4;
+    const rightX = DX[rightDir];
+    const rightY = DY[rightDir];
+
+    const lookDist = depth + 1;
+    const cellX = playerX + fwdX * lookDist;
+    const cellY = playerY + fwdY * lookDist;
+    const leftCellX = cellX - rightX;
+    const leftCellY = cellY - rightY;
+    const rightCellX = cellX + rightX;
+    const rightCellY = cellY + rightY;
+
+    // Walls at this depth
+    const wallColor = 'rgb(' + shade + ',' + shade + ',' + (shade + 20) + ')';
+    const darkWallColor = 'rgb(' + Math.floor(shade * 0.7) + ',' + Math.floor(shade * 0.7) + ',' + Math.floor(shade * 0.8) + ')';
+    const outlineColor = 'rgb(' + Math.floor(shade * 0.4) + ',' + Math.floor(shade * 0.4) + ',' + Math.floor(shade * 0.5) + ')';
+
+    const nextD = depth > 0 ? depths[depth - 1] : { scale: 1.2 };
+    const nextHalfW = (vpW / 2) * nextD.scale;
+    const nextHalfH = (vpH / 2) * nextD.scale;
+
+    // Front wall (if blocked)
+    if (isWall(cellX, cellY)) {
+      ctx.fillStyle = wallColor;
+      ctx.fillRect(cx - halfW, cy - halfH, halfW * 2, halfH * 2);
+      ctx.strokeStyle = outlineColor;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(cx - halfW, cy - halfH, halfW * 2, halfH * 2);
+
+      // Stone texture lines
+      ctx.strokeStyle = outlineColor;
+      ctx.lineWidth = 1;
+      const brickH = halfH * 0.4;
+      for (let row = 0; row < 5; row++) {
+        const by = cy - halfH + row * brickH;
+        ctx.beginPath();
+        ctx.moveTo(cx - halfW, by);
+        ctx.lineTo(cx + halfW, by);
+        ctx.stroke();
+        // Vertical brick lines
+        const offset = (row % 2 === 0) ? 0 : halfW * 0.5;
+        for (let bx = -halfW + offset; bx < halfW; bx += halfW * 0.5) {
+          ctx.beginPath();
+          ctx.moveTo(cx + bx, by);
+          ctx.lineTo(cx + bx, by + brickH);
+          ctx.stroke();
+        }
+      }
+    } else {
+      // Corridor continues - draw side walls if present
+      // Left wall
+      if (isWall(leftCellX, leftCellY)) {
+        ctx.fillStyle = darkWallColor;
+        ctx.beginPath();
+        ctx.moveTo(cx - nextHalfW, cy - nextHalfH);
+        ctx.lineTo(cx - halfW, cy - halfH);
+        ctx.lineTo(cx - halfW, cy + halfH);
+        ctx.lineTo(cx - nextHalfW, cy + nextHalfH);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = outlineColor;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      // Right wall
+      if (isWall(rightCellX, rightCellY)) {
+        ctx.fillStyle = darkWallColor;
+        ctx.beginPath();
+        ctx.moveTo(cx + nextHalfW, cy - nextHalfH);
+        ctx.lineTo(cx + halfW, cy - halfH);
+        ctx.lineTo(cx + halfW, cy + halfH);
+        ctx.lineTo(cx + nextHalfW, cy + nextHalfH);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = outlineColor;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      // Ceiling trapezoid
+      ctx.fillStyle = 'rgb(' + Math.floor(shade * 0.3) + ',' + Math.floor(shade * 0.3) + ',' + Math.floor(shade * 0.4) + ')';
+      ctx.beginPath();
+      ctx.moveTo(cx - nextHalfW, cy - nextHalfH);
+      ctx.lineTo(cx + nextHalfW, cy - nextHalfH);
+      ctx.lineTo(cx + halfW, cy - halfH);
+      ctx.lineTo(cx - halfW, cy - halfH);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = outlineColor; ctx.lineWidth = 1; ctx.stroke();
+
+      // Floor trapezoid
+      ctx.fillStyle = 'rgb(' + Math.floor(shade * 0.25) + ',' + Math.floor(shade * 0.3) + ',' + Math.floor(shade * 0.2) + ')';
+      ctx.beginPath();
+      ctx.moveTo(cx - nextHalfW, cy + nextHalfH);
+      ctx.lineTo(cx + nextHalfW, cy + nextHalfH);
+      ctx.lineTo(cx + halfW, cy + halfH);
+      ctx.lineTo(cx - halfW, cy + halfH);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = outlineColor; ctx.lineWidth = 1; ctx.stroke();
+
+      // Draw special tile markers at depth 1 (immediate forward)
+      if (depth === 0) {
+        const tileType = dungeon[cellY] && dungeon[cellY][cellX];
+        if (tileType === 2) {
+          // Treasure chest
+          ctx.fillStyle = '#a86';
+          ctx.fillRect(cx - 20, cy + halfH - 30, 40, 25);
+          ctx.strokeStyle = '#d4a54a'; ctx.lineWidth = 2;
+          ctx.strokeRect(cx - 20, cy + halfH - 30, 40, 25);
+          ctx.fillStyle = '#ff0';
+          ctx.fillRect(cx - 3, cy + halfH - 22, 6, 6);
+        } else if (tileType === 3) {
+          // Stairs
+          ctx.fillStyle = '#555';
+          for (let s = 0; s < 4; s++) {
+            const sw = 30 - s * 5;
+            ctx.fillRect(cx - sw / 2, cy + halfH - 10 - s * 8, sw, 8);
+          }
+          ctx.fillStyle = '#aaa'; ctx.font = '10px monospace'; ctx.textAlign = 'center';
+          ctx.fillText('STAIRS', cx, cy + halfH - 40);
+        } else if (tileType === 4) {
+          // Boss marker
+          ctx.fillStyle = '#800';
+          ctx.beginPath();
+          ctx.arc(cx, cy, 20, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#f00'; ctx.font = 'bold 14px monospace'; ctx.textAlign = 'center';
+          ctx.fillText('!', cx, cy + 5);
+        }
+      }
+    }
+  }
+
+  // Draw immediate left/right walls (player's cell)
+  const immLeftX = playerX - DX[(playerDir + 1) % 4];
+  const immLeftY = playerY - DY[(playerDir + 1) % 4];
+  const immRightX = playerX + DX[(playerDir + 1) % 4];
+  const immRightY = playerY + DY[(playerDir + 1) % 4];
+
+  if (isWall(immLeftX, immLeftY)) {
+    ctx.fillStyle = 'rgb(120,120,130)';
+    ctx.beginPath();
+    ctx.moveTo(vpX, vpY);
+    ctx.lineTo(cx - vpW / 2 * depths[0].scale, cy - vpH / 2 * depths[0].scale);
+    ctx.lineTo(cx - vpW / 2 * depths[0].scale, cy + vpH / 2 * depths[0].scale);
+    ctx.lineTo(vpX, vpY + vpH);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#333'; ctx.lineWidth = 2; ctx.stroke();
+  }
+  if (isWall(immRightX, immRightY)) {
+    ctx.fillStyle = 'rgb(120,120,130)';
+    ctx.beginPath();
+    ctx.moveTo(vpX + vpW, vpY);
+    ctx.lineTo(cx + vpW / 2 * depths[0].scale, cy - vpH / 2 * depths[0].scale);
+    ctx.lineTo(cx + vpW / 2 * depths[0].scale, cy + vpH / 2 * depths[0].scale);
+    ctx.lineTo(vpX + vpW, vpY + vpH);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#333'; ctx.lineWidth = 2; ctx.stroke();
+  }
+
+  // Viewport border
+  ctx.strokeStyle = '#555';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(vpX, vpY, vpW, vpH);
+
+  // Compass / direction indicator
+  ctx.fillStyle = '#222';
+  ctx.fillRect(vpX, vpY + vpH + 4, vpW, 24);
+  ctx.fillStyle = '#7bf'; ctx.font = '14px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('Facing ' + DIR_NAMES[playerDir] + '  |  Level ' + dungeonLevel + '  |  (' + playerX + ',' + playerY + ')', cx, vpY + vpH + 20);
+}
+
+// --- MINIMAP ---
+function drawMinimap() {
+  const mmX = 510, mmY = 20, cellSize = 14;
+  const mmW = MAP_SIZE * cellSize, mmH = MAP_SIZE * cellSize;
+
+  ctx.fillStyle = '#111';
+  ctx.fillRect(mmX - 2, mmY - 2, mmW + 4, mmH + 4);
+  ctx.strokeStyle = '#555'; ctx.lineWidth = 1;
+  ctx.strokeRect(mmX - 2, mmY - 2, mmW + 4, mmH + 4);
+
+  for (let y = 0; y < MAP_SIZE; y++) {
+    for (let x = 0; x < MAP_SIZE; x++) {
+      const px = mmX + x * cellSize;
+      const py = mmY + y * cellSize;
+      if (!explored[y][x]) {
+        ctx.fillStyle = '#0a0a0a';
+        ctx.fillRect(px, py, cellSize, cellSize);
+        continue;
+      }
+      const tile = dungeon[y][x];
+      if (tile === 0) {
+        ctx.fillStyle = '#333';
+      } else if (tile === 1) {
+        ctx.fillStyle = '#2a2a2a';
+      } else if (tile === 2) {
+        ctx.fillStyle = '#a86';
+      } else if (tile === 3) {
+        ctx.fillStyle = '#55a';
+      } else if (tile === 4) {
+        ctx.fillStyle = '#a22';
+      }
+      ctx.fillRect(px, py, cellSize, cellSize);
+      ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 0.5;
+      ctx.strokeRect(px, py, cellSize, cellSize);
+    }
+  }
+
+  // Player position and direction
+  const ppx = mmX + playerX * cellSize + cellSize / 2;
+  const ppy = mmY + playerY * cellSize + cellSize / 2;
+  ctx.fillStyle = '#0f0';
+  ctx.beginPath();
+  const angle = playerDir * Math.PI / 2 - Math.PI / 2;
+  ctx.moveTo(ppx + Math.cos(angle) * 5, ppy + Math.sin(angle) * 5);
+  ctx.lineTo(ppx + Math.cos(angle + 2.5) * 4, ppy + Math.sin(angle + 2.5) * 4);
+  ctx.lineTo(ppx + Math.cos(angle - 2.5) * 4, ppy + Math.sin(angle - 2.5) * 4);
+  ctx.closePath();
+  ctx.fill();
+
+  // Minimap label
+  ctx.fillStyle = '#666'; ctx.font = '11px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('MAP', mmX, mmY - 6);
+}
+
+// --- PARTY HUD ---
+function drawPartyHud() {
+  const hudY = 380;
+  const memberW = 180;
+  const startX = 40;
+
+  for (let i = 0; i < 4; i++) {
+    const m = party[i];
+    const mx = startX + i * (memberW + 12);
+    const my = hudY;
+
+    // Background
+    ctx.fillStyle = m.alive ? '#181820' : '#1a1010';
+    ctx.fillRect(mx, my, memberW, 90);
+    ctx.strokeStyle = (combatState && combatState.currentMember === i && phase === 'combat') ? '#ff0' : '#333';
+    ctx.lineWidth = (combatState && combatState.currentMember === i && phase === 'combat') ? 2 : 1;
+    ctx.strokeRect(mx, my, memberW, 90);
+
+    // Name and class
+    ctx.fillStyle = m.alive ? '#ddd' : '#666';
+    ctx.font = 'bold 13px monospace'; ctx.textAlign = 'left';
+    ctx.fillText((i + 1) + '. ' + m.name, mx + 6, my + 16);
+    ctx.fillStyle = m.alive ? '#888' : '#555';
+    ctx.font = '11px monospace';
+    ctx.fillText(m.cls + ' Lv' + m.level, mx + 6, my + 30);
+
+    if (!m.alive) {
+      ctx.fillStyle = '#a33'; ctx.font = 'bold 12px monospace';
+      ctx.fillText('DEAD', mx + memberW - 42, my + 16);
+      continue;
+    }
+
+    // HP bar
+    const hpBarW = memberW - 12;
+    const hpPct = m.hp / m.maxHp;
+    ctx.fillStyle = '#300';
+    ctx.fillRect(mx + 6, my + 38, hpBarW, 12);
+    ctx.fillStyle = hpPct > 0.5 ? '#0a0' : hpPct > 0.25 ? '#aa0' : '#a00';
+    ctx.fillRect(mx + 6, my + 38, hpBarW * hpPct, 12);
+    ctx.fillStyle = '#fff'; ctx.font = '10px monospace';
+    ctx.fillText('HP ' + m.hp + '/' + m.maxHp, mx + 8, my + 48);
+
+    // MP bar (if applicable)
+    if (m.maxMp > 0) {
+      const mpPct = m.mp / m.maxMp;
+      ctx.fillStyle = '#003';
+      ctx.fillRect(mx + 6, my + 54, hpBarW, 12);
+      ctx.fillStyle = '#44f';
+      ctx.fillRect(mx + 6, my + 54, hpBarW * mpPct, 12);
+      ctx.fillStyle = '#fff'; ctx.font = '10px monospace';
+      ctx.fillText('MP ' + m.mp + '/' + m.maxMp, mx + 8, my + 64);
+    }
+
+    // XP bar
+    const xpNeeded = xpToLevel(m.level);
+    const xpPct = m.xp / xpNeeded;
+    ctx.fillStyle = '#220';
+    ctx.fillRect(mx + 6, my + 72, hpBarW, 10);
+    ctx.fillStyle = '#660';
+    ctx.fillRect(mx + 6, my + 72, hpBarW * xpPct, 10);
+    ctx.fillStyle = '#aa8'; ctx.font = '9px monospace';
+    ctx.fillText('XP ' + m.xp + '/' + xpNeeded, mx + 8, my + 80);
+  }
+
+  // Gold
+  ctx.fillStyle = '#d4a54a'; ctx.font = '14px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('Gold: ' + gold, 40, hudY + 106);
+}
+
+// --- COMBAT SCREEN ---
+function drawCombat() {
+  const cs = combatState;
+  ctx.fillStyle = '#0a0a12'; ctx.fillRect(0, 0, W, 370);
+
+  // Monster display area
+  ctx.fillStyle = '#111';
+  ctx.fillRect(40, 20, 440, 340);
+  ctx.strokeStyle = '#444'; ctx.lineWidth = 2;
+  ctx.strokeRect(40, 20, 440, 340);
+
+  // Draw monsters
+  const aliveMonsters = cs.monsters.filter(m => m.hp > 0);
+  const monsterSpacing = 440 / (aliveMonsters.length + 1);
+
+  for (let i = 0; i < aliveMonsters.length; i++) {
+    const mon = aliveMonsters[i];
+    const mx = 40 + monsterSpacing * (i + 1);
+    const my = 120;
+
+    // ASCII art
+    const art = getMonsterArt(mon.name);
+    ctx.fillStyle = cs.isBoss ? '#f44' : '#8f8';
+    ctx.font = '14px monospace'; ctx.textAlign = 'center';
+    for (let l = 0; l < art.length; l++) {
+      ctx.fillText(art[l], mx, my + l * 16);
+    }
+
+    // Name
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 12px monospace';
+    ctx.fillText(mon.name, mx, my + art.length * 16 + 12);
+
+    // HP bar
+    const hpPct = mon.hp / mon.maxHp;
+    const barW = 80;
+    ctx.fillStyle = '#400';
+    ctx.fillRect(mx - barW / 2, my + art.length * 16 + 18, barW, 8);
+    ctx.fillStyle = '#f44';
+    ctx.fillRect(mx - barW / 2, my + art.length * 16 + 18, barW * hpPct, 8);
+    ctx.fillStyle = '#ddd'; ctx.font = '10px monospace';
+    ctx.fillText(mon.hp + '/' + mon.maxHp, mx, my + art.length * 16 + 38);
+  }
+
+  // Combat menu (right side)
+  const menuX = 510, menuY = 30;
+  ctx.fillStyle = '#181820';
+  ctx.fillRect(menuX, menuY, 260, 330);
+  ctx.strokeStyle = '#555'; ctx.lineWidth = 1;
+  ctx.strokeRect(menuX, menuY, 260, 330);
+
+  if (cs.turn === 'player') {
+    const member = party[cs.currentMember];
+    ctx.fillStyle = '#ff0'; ctx.font = 'bold 14px monospace'; ctx.textAlign = 'left';
+    ctx.fillText(member.name + "'s turn", menuX + 10, menuY + 22);
+
+    ctx.fillStyle = '#ddd'; ctx.font = '13px monospace';
+    ctx.fillText('[Space] Attack', menuX + 10, menuY + 52);
+    ctx.fillText('[D]     Defend', menuX + 10, menuY + 72);
+    if (member.maxMp > 0 && member.mp > 0) {
+      ctx.fillStyle = '#8af';
+      const spellName = member.cls === 'Mage' ? 'Fireball (8 MP)' : 'Heal (6 MP)';
+      ctx.fillText('[S]     ' + spellName, menuX + 10, menuY + 92);
+    } else {
+      ctx.fillStyle = '#555';
+      ctx.fillText('[S]     No spell/MP', menuX + 10, menuY + 92);
+    }
+    ctx.fillStyle = '#aaa';
+    ctx.fillText('[F]     Flee', menuX + 10, menuY + 112);
+  } else {
+    ctx.fillStyle = '#f88'; ctx.font = 'bold 14px monospace'; ctx.textAlign = 'left';
+    ctx.fillText('Enemies attack...', menuX + 10, menuY + 22);
+  }
+
+  // Combat log
+  ctx.fillStyle = '#111';
+  ctx.fillRect(menuX + 5, menuY + 140, 250, 180);
+  ctx.strokeStyle = '#333'; ctx.lineWidth = 1;
+  ctx.strokeRect(menuX + 5, menuY + 140, 250, 180);
+  ctx.fillStyle = '#888'; ctx.font = '10px monospace'; ctx.textAlign = 'left';
+  const logStart = Math.max(0, cs.combatLog.length - 12);
+  for (let i = logStart; i < cs.combatLog.length; i++) {
+    const logLine = cs.combatLog[i];
+    ctx.fillStyle = logLine.includes('CRIT') ? '#ff0' :
+                    logLine.includes('defeated') ? '#0f0' :
+                    logLine.includes('falls') ? '#f44' :
+                    logLine.includes('casts') ? '#8af' : '#999';
+    ctx.fillText(logLine.substring(0, 34), menuX + 10, menuY + 156 + (i - logStart) * 14);
+  }
+}
+
+// --- TITLE SCREEN ---
+function drawTitle() {
+  ctx.fillStyle = '#0a0a12'; ctx.fillRect(0, 0, W, H);
+
+  // Title art
+  const titleArt = [
+    '  _____ _            ____              _ _       _____     _      ',
+    ' |_   _| |__   ___  | __ )  __ _ _ __ | ( )___  |_   _|_ _| | ___ ',
+    "   | | | '_ \\ / _ \\ |  _ \\ / _` | '__|| |// __|   | |/ _` | |/ _ \\",
+    '   | | | | | |  __/ | |_) | (_| | |   | | \\__ \\   | | (_| | |  __/',
+    '   |_| |_| |_|\\___| |____/ \\__,_|_|   |_| |___/   |_|\\__,_|_|\\___|'
+  ];
+
+  ctx.fillStyle = '#7bf'; ctx.font = '12px monospace'; ctx.textAlign = 'center';
+  for (let i = 0; i < titleArt.length; i++) {
+    ctx.fillText(titleArt[i], W / 2, 140 + i * 16);
+  }
+
+  ctx.fillStyle = '#f80'; ctx.font = '16px monospace';
+  ctx.fillText('A First-Person Dungeon Crawl', W / 2, 260);
+
+  ctx.fillStyle = '#666'; ctx.font = '14px monospace';
+  ctx.fillText('Inspired by The Bard\'s Tale (1985) and Wizardry (1981)', W / 2, 290);
+
+  // Party preview
+  ctx.fillStyle = '#444'; ctx.font = '13px monospace';
+  ctx.fillText('Your Party:', W / 2, 340);
+  const clsColors = { Warrior: '#f44', Rogue: '#ff0', Mage: '#88f', Healer: '#4f4' };
+  for (let i = 0; i < 4; i++) {
+    const m = party[i];
+    ctx.fillStyle = clsColors[m.cls];
+    ctx.fillText(m.name + ' the ' + m.cls, W / 2, 365 + i * 22);
+  }
+
+  // Blink prompt
+  if (Math.floor(frame / 30) % 2 === 0) {
+    ctx.fillStyle = '#fff'; ctx.font = '18px monospace';
+    ctx.fillText('Press SPACE or ENTER to begin', W / 2, 490);
+  }
+
+  ctx.fillStyle = '#333'; ctx.font = '12px monospace';
+  ctx.fillText('Arrow Keys: Move/Turn | Space: Attack | 1-4: Select | ?: Info', W / 2, 540);
+}
+
+// --- GAME OVER / VICTORY ---
+function drawGameOver() {
+  ctx.fillStyle = 'rgba(0,0,0,0.85)'; ctx.fillRect(0, 0, W, H);
+  ctx.font = 'bold 48px monospace'; ctx.textAlign = 'center';
+  ctx.fillStyle = '#f44';
+  ctx.fillText('GAME OVER', W / 2, H / 2 - 40);
+  ctx.fillStyle = '#aaa'; ctx.font = '18px monospace';
+  ctx.fillText('Your party has fallen on level ' + dungeonLevel, W / 2, H / 2 + 10);
+  ctx.fillText('Gold collected: ' + gold, W / 2, H / 2 + 40);
+  ctx.fillStyle = '#666'; ctx.font = '16px monospace';
+  ctx.fillText('Press R to restart', W / 2, H / 2 + 80);
+}
+
+function drawVictory() {
+  ctx.fillStyle = 'rgba(0,0,0,0.85)'; ctx.fillRect(0, 0, W, H);
+  ctx.font = 'bold 40px monospace'; ctx.textAlign = 'center';
+  ctx.fillStyle = '#ff0';
+  ctx.fillText('VICTORY!', W / 2, H / 2 - 60);
+  ctx.fillStyle = '#7bf'; ctx.font = '18px monospace';
+  ctx.fillText('Mangar the Dark has been defeated!', W / 2, H / 2 - 20);
+  ctx.fillStyle = '#ddd'; ctx.font = '16px monospace';
+  ctx.fillText('Gold: ' + gold, W / 2, H / 2 + 20);
+  // Party summary
+  for (let i = 0; i < 4; i++) {
+    const m = party[i];
+    ctx.fillStyle = m.alive ? '#4f4' : '#a33';
+    ctx.fillText(m.name + ' Lv' + m.level + (m.alive ? '' : ' (fallen)'), W / 2, H / 2 + 55 + i * 22);
+  }
+  ctx.fillStyle = '#666'; ctx.font = '14px monospace';
+  ctx.fillText('Press R to play again', W / 2, H / 2 + 160);
+}
+
+// --- UPDATE ---
+function update() {
+  if (infoOpen) return;
+  frame++;
+  if (messageTimer > 0) messageTimer--;
+
+  if (phase === 'title') {
+    if (pop('Space') || pop('Enter')) {
+      phase = 'exploring';
+    }
+    return;
+  }
+
+  if (phase === 'gameover' || phase === 'victory') {
+    if (pop('KeyR')) initGame();
+    return;
+  }
+
+  if (phase === 'exploring') {
+    // Movement
+    let moved = false;
+    if (pop('ArrowUp')) {
+      const nx = playerX + DX[playerDir];
+      const ny = playerY + DY[playerDir];
+      if (!isWall(nx, ny)) {
+        playerX = nx; playerY = ny; moved = true;
+      }
+    }
+    if (pop('ArrowDown')) {
+      const nx = playerX - DX[playerDir];
+      const ny = playerY - DY[playerDir];
+      if (!isWall(nx, ny)) {
+        playerX = nx; playerY = ny; moved = true;
+      }
+    }
+    if (pop('ArrowLeft')) {
+      playerDir = (playerDir + 3) % 4;
+    }
+    if (pop('ArrowRight')) {
+      playerDir = (playerDir + 1) % 4;
+    }
+
+    if (moved) {
+      // Reveal nearby cells
+      explored[playerY][playerX] = true;
+      for (let d = 0; d < 4; d++) {
+        const nx = playerX + DX[d];
+        const ny = playerY + DY[d];
+        if (nx >= 0 && nx < MAP_SIZE && ny >= 0 && ny < MAP_SIZE) {
+          explored[ny][nx] = true;
+        }
+      }
+      // Also reveal 2 ahead in facing direction
+      for (let dist = 1; dist <= 3; dist++) {
+        const fx = playerX + DX[playerDir] * dist;
+        const fy = playerY + DY[playerDir] * dist;
+        if (fx >= 0 && fx < MAP_SIZE && fy >= 0 && fy < MAP_SIZE) {
+          explored[fy][fx] = true;
+          if (isWall(fx, fy)) break;
+        }
+      }
+
+      // Check tile
+      const tile = dungeon[playerY][playerX];
+      if (tile === 2) {
+        // Treasure
+        const goldFound = 20 + Math.floor(Math.random() * 30) * dungeonLevel;
+        const xpFound = 15 + Math.floor(Math.random() * 20) * dungeonLevel;
+        gold += goldFound;
+        let levelUps = [];
+        for (const p of party) {
+          if (p.alive) {
+            p.xp += xpFound;
+            if (checkLevelUp(p)) levelUps.push(p.name);
+          }
+        }
+        message = 'Treasure! +' + goldFound + ' gold, +' + xpFound + ' XP';
+        if (levelUps.length > 0) message += ' | LEVEL UP: ' + levelUps.join(', ');
+        messageTimer = 100;
+        dungeon[playerY][playerX] = 1; // Clear treasure
+        // Partial heal from rest
+        for (const p of party) {
+          if (p.alive) p.hp = Math.min(p.maxHp, p.hp + 3);
+        }
+      } else if (tile === 3) {
+        // Stairs down
+        message = 'Descending to level ' + (dungeonLevel + 1) + '...';
+        messageTimer = 80;
+        enterDungeon(dungeonLevel + 1);
+        // Small heal between levels
+        for (const p of party) {
+          if (p.alive) {
+            p.hp = Math.min(p.maxHp, p.hp + Math.floor(p.maxHp * 0.25));
+            p.mp = Math.min(p.maxMp, p.mp + Math.floor(p.maxMp * 0.25));
+          }
+        }
+        return;
+      } else if (tile === 4) {
+        // Boss
+        const monsterData = getMonsters(dungeonLevel);
+        startCombat([{ ...monsterData.boss }], true);
+        return;
+      }
+
+      // Random encounter
+      if (tile === 1 || tile === 2) {
+        encounterCooldown--;
+        if (encounterCooldown <= 0 && Math.random() < 0.25) {
+          spawnEncounter();
+          encounterCooldown = 3;
+          return;
+        }
+      }
+    }
+
+    if (pop('KeyR')) {
+      initGame();
+    }
+  }
+
+  if (phase === 'combat') {
+    const cs = combatState;
+
+    if (cs.actionDelay > 0) {
+      cs.actionDelay--;
+      if (cs.actionDelay === 0) {
+        if (cs.turn === 'monster_done') {
+          // Check end after monster turn
+          if (!checkCombatEnd()) {
+            cs.turn = 'player';
+            // Reset to first alive member
+            cs.currentMember = -1;
+            nextCombatMember();
+            if (cs.currentMember === -1) {
+              // No alive members somehow
+              for (let i = 0; i < 4; i++) {
+                if (party[i].alive) { cs.currentMember = i; break; }
+              }
+            }
+          }
+        } else if (cs.turn === 'resolving') {
+          if (!checkCombatEnd()) {
+            // Next member or monster turn
+            if (!nextCombatMember()) {
+              // All members acted, monster turn
+              cs.turn = 'monster';
+              cs.actionDelay = 20;
+            }
+          }
+        } else if (cs.turn === 'monster') {
+          monsterTurn();
+          cs.turn = 'monster_done';
+          cs.actionDelay = 30;
+        }
+      }
+      return;
+    }
+
+    if (cs.turn === 'player') {
+      // Select member
+      for (let i = 0; i < 4; i++) {
+        if (pop('Digit' + (i + 1)) && party[i].alive) {
+          cs.currentMember = i;
+        }
+      }
+
+      // Actions
+      if (pop('Space')) {
+        combatAttack(cs.currentMember);
+        cs.turn = 'resolving';
+        cs.actionDelay = 15;
+      }
+      if (pop('KeyD')) {
+        combatDefend(cs.currentMember);
+        cs.turn = 'resolving';
+        cs.actionDelay = 10;
+      }
+      if (pop('KeyS')) {
+        combatSpell(cs.currentMember);
+        cs.turn = 'resolving';
+        cs.actionDelay = 15;
+      }
+      if (pop('KeyF') && !cs.isBoss) {
+        // Flee attempt
+        if (Math.random() < 0.5) {
+          cs.combatLog.push('Party flees!');
+          phase = 'exploring';
+          encounterCooldown = 5;
+        } else {
+          cs.combatLog.push('Cannot escape!');
+          // Monster gets a free turn
+          cs.turn = 'monster';
+          cs.actionDelay = 20;
+        }
+      }
+    }
+  }
+}
+
+// --- DRAW ---
+function draw() {
+  ctx.fillStyle = '#0a0a12'; ctx.fillRect(0, 0, W, H);
+
+  if (phase === 'title') {
+    drawTitle();
+  } else if (phase === 'gameover') {
+    drawFirstPerson();
+    drawMinimap();
+    drawPartyHud();
+    drawGameOver();
+  } else if (phase === 'victory') {
+    drawFirstPerson();
+    drawMinimap();
+    drawPartyHud();
+    drawVictory();
+  } else if (phase === 'exploring') {
+    drawFirstPerson();
+    drawMinimap();
+    drawPartyHud();
+  } else if (phase === 'combat') {
+    drawCombat();
+    drawPartyHud();
+  }
+
+  // Message
+  if (messageTimer > 0 && phase !== 'combat') {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(W / 2 - 280, 490, 560, 30);
+    ctx.fillStyle = '#ff0'; ctx.font = '14px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(message, W / 2, 510);
+  }
+
+  // Title badge (always)
+  ctx.fillStyle = '#1a1a1a'; ctx.fillRect(8, 8, 260, 28);
+  ctx.fillStyle = '#555'; ctx.font = '13px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('RPG-001 \u00b7 BARD\'S TALE  [?]', 16, 26);
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+</body>
+</html>

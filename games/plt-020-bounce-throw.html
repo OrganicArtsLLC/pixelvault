@@ -1,0 +1,979 @@
+<!--
+PROTOTYPE: bounce-throw
+SERIES: plt
+NUMBER: 020
+DATE: 2026-03-24
+MECHANIC: bouncing star physics — throw a star that bounces off walls and slopes following physics; ride the star as a platform; the star's trajectory depends on surface angles
+ANCESTRY: Gimmick! (1992, Sunsoft) — Famicom/NES, released only in Japan and Scandinavia. One of the greatest games few people played.
+CONTROLS: Left/Right arrows — move | Space — jump | Z — throw star | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Machine Learning — the star's physics simulation reflects early computational approaches to real-time trajectory prediction)
+AI-INSIGHT: Gimmick!'s bouncing star mechanic is a real-time physics simulation that required players to internalize reflection angles — essentially becoming human trajectory predictors. The emergent puzzle-platforming created by physics interactions anticipated how ML systems learn to predict physical outcomes from observed trajectories.
+NOTES: Side-scrolling platformer with unique bouncing star mechanic.
+       Star bounces follow angle of incidence = angle of reflection.
+       Players can ride the bouncing star as a moving platform.
+       4 levels with increasing complexity of star puzzle usage.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PLT-020 · BOUNCE THROW</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>PLT-020 · BOUNCE THROW</h1>
+    <p><span class="tag series">PLT — Platformer</span> <span class="tag">Prototype #020</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>You are Yumetaro, a small green creature. Throw your bouncing star to defeat enemies, activate switches, and — most importantly — ride it across gaps and up to high platforms.</p>
+    <ul>
+      <li><kbd>&#8592;</kbd> <kbd>&#8594;</kbd> &mdash; Move left/right</li>
+      <li><kbd>Space</kbd> &mdash; Jump</li>
+      <li><kbd>Z</kbd> &mdash; Throw star (aim with direction keys)</li>
+      <li><kbd>R</kbd> &mdash; Restart level</li>
+      <li><kbd>?</kbd> &mdash; Toggle this info panel</li>
+    </ul>
+    <h3>The Star Mechanic</h3>
+    <ul>
+      <li><strong>Bouncing physics:</strong> The star bounces off walls, floors, and ceilings following reflection physics (angle in = angle out).</li>
+      <li><strong>Ride the star:</strong> Jump onto the bouncing star to ride it like a moving platform. This is the key to crossing gaps and reaching high places.</li>
+      <li><strong>Destroy enemies:</strong> The star destroys any enemy it hits while bouncing.</li>
+      <li><strong>Slopes redirect:</strong> Slopes change the star's trajectory — use them to aim your bounces precisely.</li>
+      <li><strong>Think ahead:</strong> The real puzzle is predicting where the star will bounce. Throw it so it ends up where you need a platform.</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li>You can only have one star active at a time. Wait for it to expire or collect it back.</li>
+      <li>The star lasts about 6 seconds before fading.</li>
+      <li>On slopes, the star follows the surface angle — use this to redirect bounces.</li>
+      <li>Some gaps can only be crossed by riding the star. Throw it, then jump on!</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Gimmick! (1992, Sunsoft) &mdash; Famicom, Japan &amp; Scandinavia only</p>
+    <p>Gimmick! (known as Mr. Gimmick in Scandinavia) was developed by Sunsoft and released for the Famicom in 1992, with a limited PAL release in Scandinavia. It never received a North American release, making it one of the rarest and most sought-after NES-era platformers.</p>
+    <p>The game is widely regarded as one of the greatest platformers of the 8-bit era. Its star-throwing mechanic was revolutionary — a real-time physics simulation running on 8-bit hardware, where the star bounced off surfaces following proper reflection angles. Players could ride the bouncing star, creating emergent puzzle-platforming that was years ahead of its time.</p>
+    <p>Sunsoft's programming team achieved remarkable technical feats: smooth parallax scrolling, a sophisticated physics engine, and one of the best soundtracks on the Famicom (composed by Naoki Kodaka). The game's obscurity is a tragedy of distribution rather than quality — it represents the absolute peak of what the Famicom hardware could achieve.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 3 &mdash; Machine Learning (1980&ndash;2000)</p>
+    <p><strong>Contemporary AI:</strong> Early neural networks, backpropagation, reinforcement learning foundations.</p>
+    <p><strong>Insight:</strong> Gimmick!&rsquo;s bouncing star mechanic is essentially a real-time physics simulation requiring players to become human trajectory predictors. Each throw demands mental modeling of reflection angles across multiple surfaces — the same geometric reasoning that underlies early computational physics and trajectory optimization in ML. The emergent puzzle-platforming (throw here, bounce off that slope, ride across the gap) mirrors how reinforcement learning agents must plan multi-step physical interactions to achieve goals.</p>
+
+    <h2>Classification</h2>
+    <ul>
+      <li><strong>Primary:</strong> Platformer (physics-based)</li>
+      <li><strong>Secondary:</strong> Puzzle-platformer, projectile physics</li>
+      <li><strong>Input:</strong> 4-direction + jump + throw</li>
+      <li><strong>Perspective:</strong> Side-on, horizontal scroll</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This prototype implements the core bouncing star mechanic with proper reflection physics, slope interactions, star riding, and 4 levels of increasing puzzle complexity. The star's trajectory depends on surface angles, creating the signature emergent puzzle-platforming where players must plan multi-bounce paths to progress.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+var W = 800, H = 600;
+var canvas = document.getElementById('c');
+var ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+// ── Info panel ──
+var infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// ── Resize ──
+function resize() {
+  var s = Math.min(innerWidth / W, innerHeight / H);
+  canvas.width = W; canvas.height = H;
+  canvas.style.width = (W * s) + 'px';
+  canvas.style.height = (H * s) + 'px';
+}
+resize();
+addEventListener('resize', resize);
+
+// ── Input ──
+var keys = {};
+addEventListener('keydown', function(e) {
+  if (e.key === '?' || e.key === '/') { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+  keys[e.key] = true;
+  if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' '].indexOf(e.key) >= 0) e.preventDefault();
+});
+addEventListener('keyup', function(e) { keys[e.key] = false; });
+
+// ── Constants ──
+var GRAVITY = 0.5;
+var TILE = 32;
+var COLS = 25, ROWS = 19; // 800/32=25, 608/32=19
+var STAR_SPEED = 7;
+var STAR_LIFE = 360; // frames (~6s)
+var STAR_BOUNCE_LOSS = 0.85;
+
+// ── Level data ──
+// Tile types: 0=air, 1=solid, 2=slope-right(/)  3=slope-left(\), 4=goal, 5=spike, 6=switch-block(off), 7=switch
+var levels = [
+  { // Level 1 — Introduction: basic star bouncing
+    name: 'GREEN HILLS',
+    bg: '#1a2844',
+    tiles: null,
+    enemies: [{x:480,y:480,w:24,h:24,dx:1,minX:448,maxX:576}],
+    spawn: {x:64,y:480},
+    goal: {x:720,y:128}
+  },
+  { // Level 2 — Star riding across gaps
+    name: 'CRYSTAL CAVES',
+    bg: '#0d1a2e',
+    tiles: null,
+    enemies: [{x:320,y:352,w:24,h:24,dx:1,minX:288,maxX:448},{x:560,y:224,w:24,h:24,dx:-1,minX:512,maxX:640}],
+    spawn: {x:64,y:480},
+    goal: {x:720,y:96}
+  },
+  { // Level 3 — Slopes redirect the star
+    name: 'SUNSET FACTORY',
+    bg: '#2a1a0d',
+    tiles: null,
+    enemies: [{x:400,y:320,w:24,h:24,dx:1,minX:352,maxX:512},{x:256,y:192,w:24,h:24,dx:-1,minX:192,maxX:352}],
+    spawn: {x:64,y:512},
+    goal: {x:720,y:96}
+  },
+  { // Level 4 — Complex multi-bounce puzzle
+    name: 'STAR PALACE',
+    bg: '#1a0d2e',
+    tiles: null,
+    enemies: [{x:320,y:416,w:24,h:24,dx:1,minX:256,maxX:448},{x:544,y:288,w:24,h:24,dx:-1,minX:480,maxX:640},{x:192,y:160,w:24,h:24,dx:1,minX:128,maxX:320}],
+    spawn: {x:64,y:544},
+    goal: {x:720,y:64}
+  }
+];
+
+// Build level tile maps
+function buildLevel(idx) {
+  var t = [];
+  for (var r = 0; r < ROWS; r++) {
+    t[r] = [];
+    for (var c = 0; c < COLS; c++) t[r][c] = 0;
+  }
+  // Floor
+  for (var c = 0; c < COLS; c++) t[ROWS-1][c] = 1;
+  // Walls
+  for (var r = 0; r < ROWS; r++) { t[r][0] = 1; t[r][COLS-1] = 1; }
+  // Ceiling
+  for (var c = 0; c < COLS; c++) t[0][c] = 1;
+
+  if (idx === 0) {
+    // Level 1: gentle intro — platforms with small gap, goal on high platform
+    // Ground platforms
+    for (var c = 1; c < 10; c++) t[17][c] = 1;
+    for (var c = 12; c < 24; c++) t[17][c] = 1;
+    // Mid platforms
+    for (var c = 5; c < 10; c++) t[13][c] = 1;
+    for (var c = 14; c < 19; c++) t[13][c] = 1;
+    // High platform with goal
+    for (var c = 20; c < 24; c++) t[5][c] = 1;
+    // Stepping stones
+    for (var c = 10; c < 13; c++) t[9][c] = 1;
+    for (var c = 16; c < 20; c++) t[9][c] = 1;
+    // Slope to redirect star
+    t[17][11] = 2; // / slope in gap
+  } else if (idx === 1) {
+    // Level 2: big gap that requires star riding
+    for (var c = 1; c < 8; c++) t[17][c] = 1;
+    // Big gap from 8-16
+    for (var c = 16; c < 24; c++) t[17][c] = 1;
+    // Platforms above
+    for (var c = 3; c < 7; c++) t[13][c] = 1;
+    for (var c = 10; c < 15; c++) t[10][c] = 1;
+    for (var c = 17; c < 22; c++) t[8][c] = 1;
+    // High goal platform
+    for (var c = 20; c < 24; c++) t[4][c] = 1;
+    // Wall to bounce star off
+    for (var r = 13; r < 18; r++) t[r][15] = 1;
+    // Slope
+    t[17][7] = 2;
+  } else if (idx === 2) {
+    // Level 3: slopes galore
+    for (var c = 1; c < 6; c++) t[17][c] = 1;
+    for (var c = 8; c < 13; c++) t[15][c] = 1;
+    for (var c = 15; c < 20; c++) t[13][c] = 1;
+    for (var c = 20; c < 24; c++) t[17][c] = 1;
+    // Slopes connecting platforms
+    t[16][6] = 2; t[16][7] = 2;
+    t[14][13] = 2; t[14][14] = 2;
+    // Upper area
+    for (var c = 3; c < 8; c++) t[9][c] = 1;
+    for (var c = 12; c < 17; c++) t[7][c] = 1;
+    for (var c = 20; c < 24; c++) t[4][c] = 1;
+    // Slopes for star redirect
+    t[10][8] = 2; t[8][11] = 2;
+    t[6][10] = 3; // backslash slope
+    t[5][18] = 2;
+  } else if (idx === 3) {
+    // Level 4: complex multi-bounce puzzle
+    for (var c = 1; c < 5; c++) t[17][c] = 1;
+    for (var c = 7; c < 12; c++) t[15][c] = 1;
+    for (var c = 14; c < 19; c++) t[13][c] = 1;
+    for (var c = 7; c < 12; c++) t[11][c] = 1;
+    for (var c = 14; c < 19; c++) t[9][c] = 1;
+    for (var c = 3; c < 8; c++) t[7][c] = 1;
+    for (var c = 20; c < 24; c++) t[17][c] = 1;
+    // Vertical walls creating bounce corridors
+    for (var r = 9; r < 14; r++) t[r][13] = 1;
+    for (var r = 7; r < 12; r++) t[r][19] = 1;
+    // Slopes
+    t[16][5] = 2; t[16][6] = 2;
+    t[12][12] = 2;
+    t[8][12] = 2;
+    t[10][6] = 3;
+    // Goal platform high right
+    for (var c = 21; c < 24; c++) t[3][c] = 1;
+    // Bridge to goal (needs star ride)
+    t[5][19] = 2; t[5][20] = 2;
+  }
+  return t;
+}
+
+// ── Game state ──
+var currentLevel = 0;
+var player, star, enemies, cameraX, tiles, gameState, deathTimer, winTimer, msg;
+
+function initLevel(idx) {
+  var lv = levels[idx];
+  tiles = buildLevel(idx);
+  player = {
+    x: lv.spawn.x, y: lv.spawn.y, w: 20, h: 28,
+    vx: 0, vy: 0, onGround: false, facing: 1,
+    starCooldown: 0
+  };
+  star = null;
+  enemies = [];
+  for (var i = 0; i < lv.enemies.length; i++) {
+    var e = lv.enemies[i];
+    enemies.push({x:e.x, y:e.y, w:e.w, h:e.h, dx:e.dx, minX:e.minX, maxX:e.maxX, alive:true});
+  }
+  cameraX = 0;
+  gameState = 'play';
+  deathTimer = 0;
+  winTimer = 0;
+  msg = '';
+}
+
+initLevel(0);
+
+// ── Tile collision helpers ──
+function tileAt(gx, gy) {
+  var c = Math.floor(gx / TILE), r = Math.floor(gy / TILE);
+  if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return 1;
+  return tiles[r][c];
+}
+
+function isSolid(gx, gy) {
+  var t = tileAt(gx, gy);
+  return t === 1;
+}
+
+function getSlopeY(gx, gy) {
+  var c = Math.floor(gx / TILE), r = Math.floor(gy / TILE);
+  if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return -1;
+  var t = tiles[r][c];
+  var lx = gx - c * TILE; // local x within tile
+  if (t === 2) { // / slope — high on left, low on right
+    return r * TILE + (TILE - lx);
+  }
+  if (t === 3) { // \ slope — low on left, high on right
+    return r * TILE + lx;
+  }
+  return -1;
+}
+
+function isSlope(gx, gy) {
+  var t = tileAt(gx, gy);
+  return t === 2 || t === 3;
+}
+
+function getSlopeNormal(t) {
+  // Returns normal vector for slope surface
+  if (t === 2) return { x: -0.707, y: -0.707 }; // / slope
+  if (t === 3) return { x: 0.707, y: -0.707 };  // \ slope
+  return { x: 0, y: -1 }; // flat
+}
+
+// ── Physics: move entity with tile collision ──
+function moveEntity(ent, isPlayer) {
+  // Horizontal
+  ent.x += ent.vx;
+  // Left collision
+  if (isSolid(ent.x, ent.y) || isSolid(ent.x, ent.y + ent.h - 1)) {
+    ent.x = Math.floor(ent.x / TILE) * TILE + TILE;
+    ent.vx = 0;
+  }
+  // Right collision
+  if (isSolid(ent.x + ent.w, ent.y) || isSolid(ent.x + ent.w, ent.y + ent.h - 1)) {
+    ent.x = Math.floor((ent.x + ent.w) / TILE) * TILE - ent.w;
+    ent.vx = 0;
+  }
+
+  // Vertical
+  ent.vy += GRAVITY;
+  if (ent.vy > 12) ent.vy = 12;
+  ent.y += ent.vy;
+  ent.onGround = false;
+
+  // Floor collision
+  if (ent.vy >= 0) {
+    var footL = isSolid(ent.x + 2, ent.y + ent.h);
+    var footR = isSolid(ent.x + ent.w - 2, ent.y + ent.h);
+    if (footL || footR) {
+      ent.y = Math.floor((ent.y + ent.h) / TILE) * TILE - ent.h;
+      ent.vy = 0;
+      ent.onGround = true;
+    }
+    // Slope floor check
+    var slopeYL = getSlopeY(ent.x + ent.w / 2, ent.y + ent.h);
+    if (slopeYL >= 0 && ent.y + ent.h > slopeYL) {
+      ent.y = slopeYL - ent.h;
+      ent.vy = 0;
+      ent.onGround = true;
+    }
+  }
+
+  // Ceiling collision
+  if (ent.vy < 0) {
+    if (isSolid(ent.x + 2, ent.y) || isSolid(ent.x + ent.w - 2, ent.y)) {
+      ent.y = Math.floor(ent.y / TILE) * TILE + TILE;
+      ent.vy = 0;
+    }
+  }
+}
+
+// ── Star physics ──
+function throwStar() {
+  if (star) return;
+  if (player.starCooldown > 0) return;
+  var dx = player.facing * STAR_SPEED;
+  var dy = -3;
+  if (keys['ArrowUp']) dy = -STAR_SPEED * 0.8;
+  if (keys['ArrowDown']) dy = 2;
+  star = {
+    x: player.x + player.w / 2, y: player.y - 4,
+    vx: dx, vy: dy,
+    radius: 10, life: STAR_LIFE, bounces: 0,
+    carrying: false // whether player is riding
+  };
+  player.starCooldown = 20;
+}
+
+function reflectVector(vx, vy, nx, ny) {
+  var dot = vx * nx + vy * ny;
+  return { x: vx - 2 * dot * nx, y: vy - 2 * dot * ny };
+}
+
+function updateStar() {
+  if (!star) return;
+  star.life--;
+  if (star.life <= 0) { star = null; return; }
+
+  var r = star.radius;
+
+  // Move star
+  star.x += star.vx;
+  star.y += star.vy;
+  star.vy += GRAVITY * 0.4; // lighter gravity for star
+
+  // Bounce off walls (left/right)
+  if (isSolid(star.x - r, star.y) || star.x - r < 0) {
+    star.vx = Math.abs(star.vx) * STAR_BOUNCE_LOSS;
+    star.x = Math.max(r + TILE, star.x);
+    star.bounces++;
+  }
+  if (isSolid(star.x + r, star.y) || star.x + r > W) {
+    star.vx = -Math.abs(star.vx) * STAR_BOUNCE_LOSS;
+    star.x = Math.min(W - r - TILE, star.x);
+    star.bounces++;
+  }
+
+  // Bounce off ceiling
+  if (isSolid(star.x, star.y - r)) {
+    star.vy = Math.abs(star.vy) * STAR_BOUNCE_LOSS;
+    star.y = Math.floor((star.y - r) / TILE) * TILE + TILE + r;
+    star.bounces++;
+  }
+
+  // Bounce off floor
+  if (isSolid(star.x, star.y + r)) {
+    star.vy = -Math.abs(star.vy) * STAR_BOUNCE_LOSS;
+    star.y = Math.floor((star.y + r) / TILE) * TILE - r;
+    star.bounces++;
+    // Add slight friction on floor bounce
+    star.vx *= 0.95;
+  }
+
+  // Slope bounces
+  var slopeT = tileAt(star.x, star.y + r);
+  if (slopeT === 2 || slopeT === 3) {
+    var n = getSlopeNormal(slopeT);
+    var ref = reflectVector(star.vx, star.vy, n.x, n.y);
+    star.vx = ref.x * STAR_BOUNCE_LOSS;
+    star.vy = ref.y * STAR_BOUNCE_LOSS;
+    // Push star out of slope
+    star.y -= r * 0.5;
+    star.bounces++;
+  }
+  // Also check slope at center
+  var slopeTc = tileAt(star.x, star.y);
+  if (slopeTc === 2 || slopeTc === 3) {
+    var n2 = getSlopeNormal(slopeTc);
+    var ref2 = reflectVector(star.vx, star.vy, n2.x, n2.y);
+    star.vx = ref2.x * STAR_BOUNCE_LOSS;
+    star.vy = ref2.y * STAR_BOUNCE_LOSS;
+    star.y -= r * 0.5;
+    star.bounces++;
+  }
+
+  // Speed minimum — if too slow, kill star
+  if (Math.abs(star.vx) < 0.3 && Math.abs(star.vy) < 0.3 && star.bounces > 2) {
+    star.life = Math.min(star.life, 30); // fade out
+  }
+
+  // Check if player is riding the star
+  if (!star.carrying) {
+    // Player can land on star
+    var px = player.x + player.w / 2, py = player.y + player.h;
+    var dx = px - star.x, dy = py - star.y;
+    if (Math.abs(dx) < r + 6 && dy > -4 && dy < r + 8 && player.vy >= 0) {
+      star.carrying = true;
+    }
+  }
+
+  if (star.carrying) {
+    // Player rides the star
+    player.x = star.x - player.w / 2;
+    player.y = star.y - player.h - r;
+    player.vy = 0;
+    player.onGround = true;
+    // Player can jump off
+    if (keys[' ']) {
+      star.carrying = false;
+      player.vy = -9;
+    }
+    // Player can steer slightly while riding
+    if (keys['ArrowLeft']) star.vx -= 0.15;
+    if (keys['ArrowRight']) star.vx += 0.15;
+  }
+
+  // Star kills enemies
+  for (var i = 0; i < enemies.length; i++) {
+    var e = enemies[i];
+    if (!e.alive) continue;
+    var edx = star.x - (e.x + e.w/2);
+    var edy = star.y - (e.y + e.h/2);
+    if (Math.abs(edx) < r + e.w/2 && Math.abs(edy) < r + e.h/2) {
+      e.alive = false;
+    }
+  }
+}
+
+// ── Enemies ──
+function updateEnemies() {
+  for (var i = 0; i < enemies.length; i++) {
+    var e = enemies[i];
+    if (!e.alive) continue;
+    e.x += e.dx;
+    if (e.x <= e.minX || e.x + e.w >= e.maxX) e.dx = -e.dx;
+  }
+}
+
+// ── Collision: player vs enemies ──
+function checkPlayerEnemies() {
+  for (var i = 0; i < enemies.length; i++) {
+    var e = enemies[i];
+    if (!e.alive) continue;
+    if (player.x + player.w > e.x && player.x < e.x + e.w &&
+        player.y + player.h > e.y && player.y < e.y + e.h) {
+      // Check if stomping from above
+      if (player.vy > 0 && player.y + player.h - e.y < 12) {
+        e.alive = false;
+        player.vy = -7;
+      } else {
+        gameState = 'dead';
+        deathTimer = 90;
+      }
+    }
+  }
+}
+
+// ── Check goal ──
+function checkGoal() {
+  var lv = levels[currentLevel];
+  var gx = lv.goal.x, gy = lv.goal.y;
+  if (player.x + player.w > gx && player.x < gx + TILE &&
+      player.y + player.h > gy && player.y < gy + TILE) {
+    gameState = 'win';
+    winTimer = 120;
+  }
+}
+
+// ── Draw ──
+function drawTiles() {
+  for (var r = 0; r < ROWS; r++) {
+    for (var c = 0; c < COLS; c++) {
+      var t = tiles[r][c];
+      var x = c * TILE, y = r * TILE;
+      if (t === 1) {
+        ctx.fillStyle = '#5a7a4a';
+        ctx.fillRect(x, y, TILE, TILE);
+        ctx.fillStyle = '#4a6a3a';
+        ctx.fillRect(x + 1, y + 1, TILE - 2, TILE - 2);
+        // Brick lines
+        ctx.strokeStyle = '#3a5a2a';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, y + TILE / 2); ctx.lineTo(x + TILE, y + TILE / 2);
+        ctx.stroke();
+      } else if (t === 2) {
+        // / slope
+        ctx.fillStyle = '#5a7a4a';
+        ctx.beginPath();
+        ctx.moveTo(x, y + TILE);
+        ctx.lineTo(x + TILE, y);
+        ctx.lineTo(x + TILE, y + TILE);
+        ctx.closePath();
+        ctx.fill();
+      } else if (t === 3) {
+        // \ slope
+        ctx.fillStyle = '#5a7a4a';
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + TILE, y + TILE);
+        ctx.lineTo(x, y + TILE);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+  }
+}
+
+function drawPlayer() {
+  var px = player.x, py = player.y;
+  // Body (green creature)
+  ctx.fillStyle = '#4ade4a';
+  ctx.fillRect(px + 3, py + 6, 14, 16);
+  // Head
+  ctx.fillRect(px + 2, py, 16, 12);
+  // Eyes
+  ctx.fillStyle = '#000';
+  var eyeOff = player.facing > 0 ? 4 : -2;
+  ctx.fillRect(px + 8 + eyeOff, py + 3, 3, 4);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(px + 9 + eyeOff, py + 3, 2, 2);
+  // Feet
+  ctx.fillStyle = '#3a8a3a';
+  ctx.fillRect(px + 2, py + 22, 6, 6);
+  ctx.fillRect(px + 12, py + 22, 6, 6);
+  // Star antenna
+  ctx.fillStyle = '#ffdd00';
+  ctx.beginPath();
+  ctx.arc(px + 10, py - 3, 3, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawStar() {
+  if (!star) return;
+  var alpha = star.life < 60 ? star.life / 60 : 1;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.translate(star.x, star.y);
+  ctx.rotate(Date.now() * 0.005);
+  // Draw 5-point star
+  ctx.fillStyle = '#ffdd00';
+  ctx.beginPath();
+  for (var i = 0; i < 5; i++) {
+    var angle = (i * 4 * Math.PI / 5) - Math.PI / 2;
+    var r = star.radius;
+    if (i === 0) ctx.moveTo(Math.cos(angle) * r, Math.sin(angle) * r);
+    else ctx.lineTo(Math.cos(angle) * r, Math.sin(angle) * r);
+  }
+  ctx.closePath();
+  ctx.fill();
+  // Inner glow
+  ctx.fillStyle = '#fff8c0';
+  ctx.beginPath();
+  ctx.arc(0, 0, 4, 0, Math.PI * 2);
+  ctx.fill();
+  // Trail particles
+  ctx.fillStyle = 'rgba(255,221,0,' + (alpha * 0.4) + ')';
+  for (var j = 0; j < 3; j++) {
+    var tx = -star.vx * (j + 1) * 2 + (Math.random() - 0.5) * 4;
+    var ty = -star.vy * (j + 1) * 2 + (Math.random() - 0.5) * 4;
+    ctx.beginPath();
+    ctx.arc(tx, ty, 2 + Math.random() * 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawEnemies() {
+  for (var i = 0; i < enemies.length; i++) {
+    var e = enemies[i];
+    if (!e.alive) continue;
+    // Red spiky enemy
+    ctx.fillStyle = '#e44';
+    ctx.fillRect(e.x + 2, e.y + 6, e.w - 4, e.h - 6);
+    // Spikes on top
+    ctx.fillStyle = '#f66';
+    for (var s = 0; s < 3; s++) {
+      ctx.beginPath();
+      ctx.moveTo(e.x + 4 + s * 8, e.y + 6);
+      ctx.lineTo(e.x + 8 + s * 8, e.y);
+      ctx.lineTo(e.x + 12 + s * 8, e.y + 6);
+      ctx.closePath();
+      ctx.fill();
+    }
+    // Eyes
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(e.x + 6, e.y + 10, 4, 4);
+    ctx.fillRect(e.x + 14, e.y + 10, 4, 4);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(e.x + 7, e.y + 11, 2, 2);
+    ctx.fillRect(e.x + 15, e.y + 11, 2, 2);
+  }
+}
+
+function drawGoal() {
+  var lv = levels[currentLevel];
+  var gx = lv.goal.x, gy = lv.goal.y;
+  // Glowing star portal
+  ctx.save();
+  var pulse = 0.7 + 0.3 * Math.sin(Date.now() * 0.004);
+  ctx.globalAlpha = pulse;
+  ctx.fillStyle = '#ffdd00';
+  ctx.beginPath();
+  for (var i = 0; i < 5; i++) {
+    var angle = (i * 4 * Math.PI / 5) - Math.PI / 2;
+    var r = 14;
+    var cx = gx + TILE / 2, cy = gy + TILE / 2;
+    if (i === 0) ctx.moveTo(cx + Math.cos(angle) * r, cy + Math.sin(angle) * r);
+    else ctx.lineTo(cx + Math.cos(angle) * r, cy + Math.sin(angle) * r);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(gx + TILE / 2, gy + TILE / 2, 5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawBG() {
+  var lv = levels[currentLevel];
+  ctx.fillStyle = lv.bg;
+  ctx.fillRect(0, 0, W, H);
+  // Parallax stars
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  for (var i = 0; i < 40; i++) {
+    var sx = ((i * 137 + 29) % W);
+    var sy = ((i * 89 + 47) % H);
+    ctx.fillRect(sx, sy, 1 + (i % 2), 1 + (i % 2));
+  }
+}
+
+function drawHUD() {
+  hudText('LEVEL ' + (currentLevel + 1) + '/4 — ' + levels[currentLevel].name, 10, 10, '#fff', 14);
+  hudText('[?] Info', W - 90, 10, '#888', 12);
+  if (!star) {
+    hudText('STAR: READY', 10, 30, '#ffdd00', 12);
+  } else {
+    var pct = Math.floor(star.life / STAR_LIFE * 100);
+    hudText('STAR: ' + pct + '%', 10, 30, pct > 30 ? '#ffdd00' : '#f44', 12);
+    if (star.carrying) hudText('RIDING!', 90, 30, '#4f4', 12);
+  }
+  hudText('Z=Throw  Space=Jump  Arrows=Move', W / 2, H - 16, '#666', 11, 'center');
+}
+
+// ── Trajectory preview ──
+function drawTrajectoryPreview() {
+  if (star) return; // only show when no star active
+  if (player.starCooldown > 0) return;
+  var dx = player.facing * STAR_SPEED;
+  var dy = -3;
+  if (keys['ArrowUp']) dy = -STAR_SPEED * 0.8;
+  if (keys['ArrowDown']) dy = 2;
+  // Simulate a few bounces
+  var sx = player.x + player.w / 2, sy = player.y - 4;
+  ctx.strokeStyle = 'rgba(255,221,0,0.25)';
+  ctx.setLineDash([4, 4]);
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(sx, sy);
+  var tvx = dx, tvy = dy;
+  for (var step = 0; step < 60; step++) {
+    sx += tvx;
+    sy += tvy;
+    tvy += GRAVITY * 0.4;
+    // Simple bounce simulation
+    if (isSolid(sx, sy) || sx < TILE || sx > W - TILE) {
+      tvx = -tvx * STAR_BOUNCE_LOSS;
+      break;
+    }
+    if (isSolid(sx, sy + 10) && tvy > 0) {
+      tvy = -tvy * STAR_BOUNCE_LOSS;
+    }
+    ctx.lineTo(sx, sy);
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+// ── Update ──
+function update() {
+  if (infoOpen) return;
+
+  if (gameState === 'dead') {
+    deathTimer--;
+    if (deathTimer <= 0) initLevel(currentLevel);
+    return;
+  }
+
+  if (gameState === 'win') {
+    winTimer--;
+    if (winTimer <= 0) {
+      currentLevel++;
+      if (currentLevel >= levels.length) {
+        gameState = 'complete';
+      } else {
+        initLevel(currentLevel);
+      }
+    }
+    return;
+  }
+
+  if (gameState === 'complete') {
+    if (keys['r'] || keys['R']) {
+      currentLevel = 0;
+      initLevel(0);
+    }
+    return;
+  }
+
+  // Restart
+  if (keys['r'] || keys['R']) {
+    initLevel(currentLevel);
+    return;
+  }
+
+  // Player movement
+  if (!star || !star.carrying) {
+    if (keys['ArrowLeft']) { player.vx = -4; player.facing = -1; }
+    else if (keys['ArrowRight']) { player.vx = 4; player.facing = 1; }
+    else player.vx *= 0.7;
+
+    if (keys[' '] && player.onGround) {
+      player.vy = -9;
+      player.onGround = false;
+    }
+  }
+
+  // Throw star
+  if (keys['z'] || keys['Z']) {
+    throwStar();
+    keys['z'] = false; keys['Z'] = false;
+  }
+
+  if (player.starCooldown > 0) player.starCooldown--;
+
+  // Move player (not if riding star — star handles position)
+  if (!star || !star.carrying) {
+    moveEntity(player, true);
+  }
+
+  // Star physics
+  updateStar();
+
+  // Enemies
+  updateEnemies();
+
+  // Player-enemy collision
+  checkPlayerEnemies();
+
+  // Goal check
+  checkGoal();
+
+  // Fall death
+  if (player.y > H + 50) {
+    gameState = 'dead';
+    deathTimer = 60;
+  }
+}
+
+// ── Draw ──
+function draw() {
+  drawBG();
+  drawTiles();
+  drawGoal();
+  drawEnemies();
+  drawTrajectoryPreview();
+  drawStar();
+  drawPlayer();
+  drawHUD();
+
+  if (gameState === 'dead') {
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(0, 0, W, H);
+    hudText('OUCH!', W / 2, H / 2 - 20, '#f44', 32, 'center');
+    hudText('Restarting...', W / 2, H / 2 + 20, '#aaa', 14, 'center');
+  }
+
+  if (gameState === 'win') {
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.fillRect(0, 0, W, H);
+    hudText('LEVEL CLEAR!', W / 2, H / 2 - 20, '#ffdd00', 32, 'center');
+    if (currentLevel < levels.length - 1) {
+      hudText('Next: ' + levels[currentLevel + 1].name, W / 2, H / 2 + 20, '#aaa', 14, 'center');
+    }
+  }
+
+  if (gameState === 'complete') {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(0, 0, W, H);
+    hudText('CONGRATULATIONS!', W / 2, H / 2 - 40, '#ffdd00', 28, 'center');
+    hudText('You mastered the bouncing star!', W / 2, H / 2, '#fff', 16, 'center');
+    hudText('Yumetaro is free!', W / 2, H / 2 + 30, '#4ade4a', 16, 'center');
+    hudText('Press R to play again', W / 2, H / 2 + 60, '#888', 12, 'center');
+  }
+}
+
+// ── Loop ──
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: runner ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("runner");
+</script>
+</body>
+</html>

@@ -1,0 +1,601 @@
+<!--
+PROTOTYPE: room-escape
+SERIES: sht
+NUMBER: 002
+DATE: 2026-03-22
+MECHANIC: room-by-room arena — shoot robots, avoid walls, flee Evil Otto
+ANCESTRY: Berzerk (1980, Stern Electronics), Frenzy (1982, Stern)
+CONTROLS: WASD — move | Arrow keys — shoot direction | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 2 (Expert Systems — rule-based, no learning)
+AI-INSIGHT: Evil Otto is an unkillable pursuer with simple deterministic behavior — it bounces and chases. This creates asymmetric threat levels: robots are killable puzzles, Otto is a hard timer. The combination of solvable and unsolvable threats in the same space creates a planning problem where the player must triage — a concept formalized in multi-objective optimization decades later.
+NOTES: Room transitions make each screen a self-contained combat puzzle.
+       Evil Otto as unkillable pursuer adds a hard timer to every room.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SHT-002 · ROOM ESCAPE</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SHT-002 · ROOM ESCAPE</h1>
+    <p><span class="tag series">SHT — Shooter</span> <span class="tag">Prototype #002</span> <span class="tag">★★★★☆</span></p>
+
+    <h2>How to Play</h2>
+    <p>Clear robots from each room. Exit through any doorway to enter a new room. Don't touch walls or robots. Flee Evil Otto — he cannot be killed.</p>
+    <ul>
+      <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> — Move</li>
+      <li><kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> — Shoot in that direction</li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Walls kill:</strong> Touching any wall (even briefly) is lethal. Stay centered in corridors.</li>
+      <li><strong>Evil Otto:</strong> Appears after a few seconds. He bounces and cannot be stopped. Leave the room.</li>
+      <li><strong>Robot-on-robot:</strong> Robots can shoot each other and walk into walls. Use this to your advantage.</li>
+      <li><strong>Doorways:</strong> Exit through any wall opening to generate a new room.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Berzerk (1980, Stern Electronics) → Frenzy (1982) → Smash TV (1990)</p>
+    <p>Berzerk (1980) was one of the first arcade games with speech synthesis ("Intruder alert!"). It introduced room-by-room arena combat — each screen is a self-contained puzzle with procedurally placed walls and robots.</p>
+    <p>Evil Otto — the bouncing smiley face that cannot be killed — is one of gaming's first unkillable pursuers. He creates an implicit timer: stay too long and death is certain. The combination of killable robots and unkillable Otto forces the player to triage threats, a multi-objective decision problem.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 2 — Expert Systems (1972–1980)</p>
+    <p><strong>Contemporary AI:</strong> Rule-based systems. No concept of multi-objective decision-making in games.</p>
+    <p><strong>Hidden Intelligence:</strong> The dual-threat design (killable robots + unkillable Otto) creates an asymmetric planning problem. The player must decide: fight or flee? Clear the room for points or exit safely? This is triage under time pressure — a multi-objective optimization problem where the objectives conflict. Modern AI formalizes this as Pareto-optimal decision-making.</p>
+    <p><strong>The Convergence:</strong> Berzerk's room-based structure with procedural layouts anticipates roguelike design. Each room is a micro-episode, and the infinite room sequence resembles episodic RL training environments.</p>
+    <p><strong>If AI Had Designed This:</strong> Procedurally optimized room layouts that maximize the tension between "clearable" and "must flee" — calibrating Evil Otto's arrival time to the expected room-clear time for a given layout.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: SHT — Shooter</h3>
+    <p>Berzerk adds room transitions and an unkillable pursuer to the arena shooter formula. Movement and shooting are on separate input axes.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Room-by-room arena with dual-threat triage.</strong> Lethal walls. Robots that shoot back. Evil Otto as hard timer. Separate move and shoot controls. Procedural room generation.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Room transitions — does entering a new room feel like a fresh puzzle?</li>
+      <li>Dual-threat triage — does the fight-or-flee decision feel meaningful?</li>
+      <li>Wall lethality — does wall-touch-kills add tension to movement?</li>
+      <li>Evil Otto pressure — does his arrival create urgency without unfairness?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Procedural room layouts with internal walls. Seeded rooms from coordinates. Evil Otto spawns after delay.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+const keys = {};
+window.addEventListener('keydown', e => { if (!infoOpen) keys[e.code] = true; e.preventDefault(); });
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+// --- ROOM GENERATION ---
+const ROOM_W = 20, ROOM_H = 15, TILE = 32;
+const OX = (W - ROOM_W * TILE) / 2 + TILE;
+const OY = (H - ROOM_H * TILE) / 2 + TILE;
+const INNER_W = (ROOM_W - 2) * TILE;
+const INNER_H = (ROOM_H - 2) * TILE;
+
+function seededRand(seed) {
+  let s = seed;
+  return function() {
+    s = (s * 16807 + 0) % 2147483647;
+    return (s - 1) / 2147483646;
+  };
+}
+
+function genRoom(rx, ry) {
+  const rng = seededRand(rx * 1000 + ry * 37 + 42);
+  const walls = []; // internal wall segments
+
+  // Random internal walls (2-5 segments)
+  const wallCount = 2 + Math.floor(rng() * 4);
+  for (let i = 0; i < wallCount; i++) {
+    const horizontal = rng() > 0.5;
+    if (horizontal) {
+      const wc = 2 + Math.floor(rng() * (ROOM_W - 6));
+      const wr = 2 + Math.floor(rng() * (ROOM_H - 4));
+      const wl = 2 + Math.floor(rng() * 4);
+      for (let j = 0; j < wl && wc + j < ROOM_W - 2; j++) {
+        walls.push({ c: wc + j, r: wr });
+      }
+    } else {
+      const wc = 2 + Math.floor(rng() * (ROOM_W - 4));
+      const wr = 2 + Math.floor(rng() * (ROOM_H - 6));
+      const wl = 2 + Math.floor(rng() * 3);
+      for (let j = 0; j < wl && wr + j < ROOM_H - 2; j++) {
+        walls.push({ c: wc, r: wr + j });
+      }
+    }
+  }
+
+  // Robots (3-8)
+  const robotCount = 3 + Math.floor(rng() * 6);
+  const robots = [];
+  for (let i = 0; i < robotCount; i++) {
+    let rc, rr;
+    do {
+      rc = 2 + Math.floor(rng() * (ROOM_W - 4));
+      rr = 2 + Math.floor(rng() * (ROOM_H - 4));
+    } while (walls.some(w => w.c === rc && w.r === rr));
+    robots.push({
+      x: OX + (rc - 1) * TILE + TILE / 2,
+      y: OY + (rr - 1) * TILE + TILE / 2,
+      alive: true,
+      shootTimer: 60 + Math.floor(rng() * 120)
+    });
+  }
+
+  // Doorways (openings in outer wall)
+  const doors = {
+    top: ROOM_W / 2,
+    bottom: ROOM_W / 2,
+    left: ROOM_H / 2,
+    right: ROOM_H / 2
+  };
+
+  return { walls, robots, doors };
+}
+
+// --- STATE ---
+let player, bullets, robotBullets, room, roomX, roomY, otto, ottoTimer, score, lives, gameOver, roomsCleared, frame;
+
+function initGame() {
+  roomX = 0; roomY = 0;
+  score = 0; lives = 3; gameOver = false; roomsCleared = 0; frame = 0;
+  enterRoom(0, 0, W / 2, H / 2);
+}
+
+function enterRoom(rx, ry, px, py) {
+  roomX = rx; roomY = ry;
+  room = genRoom(rx, ry);
+  player = { x: px, y: py, size: 12 };
+  bullets = [];
+  robotBullets = [];
+  otto = null;
+  ottoTimer = 300 + Math.max(0, 200 - roomsCleared * 20);
+}
+
+initGame();
+
+function isWallAt(px, py, pad) {
+  const p = pad || 0;
+  // Outer walls (with door openings)
+  const inRoom = px > OX + p && px < OX + INNER_W - p && py > OY + p && py < OY + INNER_H - p;
+  if (!inRoom) {
+    // Check if at a doorway
+    const doorW = TILE * 1.5;
+    const topDoorX = OX + (room.doors.top - 1) * TILE;
+    const bottomDoorX = OX + (room.doors.bottom - 1) * TILE;
+    const leftDoorY = OY + (room.doors.left - 1) * TILE;
+    const rightDoorY = OY + (room.doors.right - 1) * TILE;
+
+    if (py <= OY + p && px > topDoorX && px < topDoorX + doorW) return false; // top door
+    if (py >= OY + INNER_H - p && px > bottomDoorX && px < bottomDoorX + doorW) return false;
+    if (px <= OX + p && py > leftDoorY && py < leftDoorY + doorW) return false;
+    if (px >= OX + INNER_W - p && py > rightDoorY && py < rightDoorY + doorW) return false;
+
+    return true; // wall
+  }
+
+  // Internal walls
+  for (const w of room.walls) {
+    const wx = OX + (w.c - 1) * TILE, wy = OY + (w.r - 1) * TILE;
+    if (px + p > wx && px - p < wx + TILE && py + p > wy && py - p < wy + TILE) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function update() {
+  if (infoOpen) return;
+  if (gameOver) { if (keys['KeyR']) initGame(); return; }
+  frame++;
+
+  // Player movement
+  const spd = 3;
+  let nx = player.x, ny = player.y;
+  if (keys['KeyW']) ny -= spd;
+  if (keys['KeyS']) ny += spd;
+  if (keys['KeyA']) nx -= spd;
+  if (keys['KeyD']) nx += spd;
+
+  if (!isWallAt(nx, ny, player.size)) {
+    player.x = nx; player.y = ny;
+  } else if (!isWallAt(nx, player.y, player.size)) {
+    player.x = nx;
+  } else if (!isWallAt(player.x, ny, player.size)) {
+    player.y = ny;
+  }
+
+  // Wall death check
+  if (isWallAt(player.x, player.y, player.size - 2)) {
+    die(); return;
+  }
+
+  // Room transition check
+  if (player.x < OX - 10) { enterRoom(roomX - 1, roomY, OX + INNER_W - 20, player.y); roomsCleared++; return; }
+  if (player.x > OX + INNER_W + 10) { enterRoom(roomX + 1, roomY, OX + 20, player.y); roomsCleared++; return; }
+  if (player.y < OY - 10) { enterRoom(roomX, roomY - 1, player.x, OY + INNER_H - 20); roomsCleared++; return; }
+  if (player.y > OY + INNER_H + 10) { enterRoom(roomX, roomY + 1, player.x, OY + 20); roomsCleared++; return; }
+
+  // Player shooting
+  if (frame % 8 === 0) {
+    let sdx = 0, sdy = 0;
+    if (keys['ArrowUp']) sdy = -1;
+    if (keys['ArrowDown']) sdy = 1;
+    if (keys['ArrowLeft']) sdx = -1;
+    if (keys['ArrowRight']) sdx = 1;
+    if (sdx || sdy) {
+      const len = Math.sqrt(sdx * sdx + sdy * sdy);
+      bullets.push({ x: player.x, y: player.y, vx: sdx / len * 8, vy: sdy / len * 8 });
+    }
+  }
+
+  // Move player bullets
+  bullets = bullets.filter(b => {
+    b.x += b.vx; b.y += b.vy;
+    if (isWallAt(b.x, b.y, 0)) return false;
+
+    // Hit robot
+    for (const r of room.robots) {
+      if (!r.alive) continue;
+      const dx = b.x - r.x, dy = b.y - r.y;
+      if (dx * dx + dy * dy < 256) {
+        r.alive = false;
+        score += 50;
+        return false;
+      }
+    }
+    return true;
+  });
+
+  // Robot AI
+  for (const r of room.robots) {
+    if (!r.alive) continue;
+    // Move toward player slowly
+    const dx = player.x - r.x, dy = player.y - r.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist > 30) {
+      const mx = r.x + (dx / dist) * 0.8;
+      const my = r.y + (dy / dist) * 0.8;
+      if (!isWallAt(mx, my, 10)) {
+        r.x = mx; r.y = my;
+      } else {
+        // Robot walks into wall — dies!
+        r.alive = false; score += 50;
+      }
+    }
+
+    // Robot shooting
+    r.shootTimer--;
+    if (r.shootTimer <= 0 && dist < 400) {
+      r.shootTimer = 80 + Math.floor(Math.random() * 60);
+      robotBullets.push({ x: r.x, y: r.y, vx: (dx / dist) * 4, vy: (dy / dist) * 4 });
+    }
+
+    // Robot-player collision
+    if (dist < 20) { die(); return; }
+  }
+
+  // Move robot bullets
+  robotBullets = robotBullets.filter(b => {
+    b.x += b.vx; b.y += b.vy;
+    if (isWallAt(b.x, b.y, 0)) return false;
+
+    // Hit player
+    const dx = b.x - player.x, dy = b.y - player.y;
+    if (dx * dx + dy * dy < 144) { die(); return false; }
+
+    // Hit other robots
+    for (const r of room.robots) {
+      if (!r.alive) continue;
+      const rdx = b.x - r.x, rdy = b.y - r.y;
+      if (rdx * rdx + rdy * rdy < 144) {
+        r.alive = false; score += 50;
+        return false;
+      }
+    }
+    return true;
+  });
+
+  // Evil Otto
+  ottoTimer--;
+  if (ottoTimer <= 0 && !otto) {
+    otto = {
+      x: player.x < W / 2 ? OX + INNER_W - 40 : OX + 40,
+      y: OY + INNER_H / 2,
+      vx: 0, vy: 2
+    };
+  }
+  if (otto) {
+    // Chase player
+    const odx = player.x - otto.x, ody = player.y - otto.y;
+    const odist = Math.sqrt(odx * odx + ody * ody);
+    otto.x += (odx / odist) * 2;
+    otto.y += (ody / odist) * 1.5;
+    // Bounce off walls slightly
+    otto.y += Math.sin(frame * 0.08) * 1.5;
+
+    // Otto-player collision
+    if (odist < 22) { die(); return; }
+  }
+}
+
+function die() {
+  lives--;
+  if (lives <= 0) { gameOver = true; return; }
+  enterRoom(roomX, roomY, W / 2, H / 2);
+}
+
+function draw() {
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+
+  // Room border
+  ctx.strokeStyle = '#44f'; ctx.lineWidth = 3;
+
+  // Draw walls with doorway openings
+  const doorW = TILE * 1.5;
+  // Top wall
+  const topDX = OX + (room.doors.top - 1) * TILE;
+  ctx.beginPath(); ctx.moveTo(OX, OY); ctx.lineTo(topDX, OY); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(topDX + doorW, OY); ctx.lineTo(OX + INNER_W, OY); ctx.stroke();
+  // Bottom wall
+  const botDX = OX + (room.doors.bottom - 1) * TILE;
+  ctx.beginPath(); ctx.moveTo(OX, OY + INNER_H); ctx.lineTo(botDX, OY + INNER_H); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(botDX + doorW, OY + INNER_H); ctx.lineTo(OX + INNER_W, OY + INNER_H); ctx.stroke();
+  // Left wall
+  const leftDY = OY + (room.doors.left - 1) * TILE;
+  ctx.beginPath(); ctx.moveTo(OX, OY); ctx.lineTo(OX, leftDY); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(OX, leftDY + doorW); ctx.lineTo(OX, OY + INNER_H); ctx.stroke();
+  // Right wall
+  const rightDY = OY + (room.doors.right - 1) * TILE;
+  ctx.beginPath(); ctx.moveTo(OX + INNER_W, OY); ctx.lineTo(OX + INNER_W, rightDY); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(OX + INNER_W, rightDY + doorW); ctx.lineTo(OX + INNER_W, OY + INNER_H); ctx.stroke();
+
+  // Internal walls
+  ctx.fillStyle = '#22c';
+  for (const w of room.walls) {
+    ctx.fillRect(OX + (w.c - 1) * TILE, OY + (w.r - 1) * TILE, TILE, TILE);
+  }
+
+  // Robots
+  for (const r of room.robots) {
+    if (!r.alive) continue;
+    ctx.fillStyle = '#4f4';
+    // Body
+    ctx.fillRect(r.x - 8, r.y - 10, 16, 20);
+    // Head
+    ctx.fillStyle = '#6f6';
+    ctx.fillRect(r.x - 6, r.y - 14, 12, 6);
+    // Eyes
+    ctx.fillStyle = '#f00';
+    ctx.fillRect(r.x - 4, r.y - 12, 3, 3);
+    ctx.fillRect(r.x + 1, r.y - 12, 3, 3);
+    // Arms
+    ctx.fillStyle = '#4f4';
+    ctx.fillRect(r.x - 12, r.y - 4, 4, 10);
+    ctx.fillRect(r.x + 8, r.y - 4, 4, 10);
+  }
+
+  // Player
+  ctx.fillStyle = '#ff0';
+  ctx.fillRect(player.x - 6, player.y - 12, 12, 24);
+  ctx.fillStyle = '#fa0';
+  ctx.fillRect(player.x - 4, player.y - 14, 8, 6);
+  // Legs
+  ctx.fillStyle = '#ff0';
+  ctx.fillRect(player.x - 6, player.y + 12, 4, 6);
+  ctx.fillRect(player.x + 2, player.y + 12, 4, 6);
+
+  // Bullets
+  ctx.fillStyle = '#fff';
+  for (const b of bullets) { ctx.fillRect(b.x - 2, b.y - 2, 4, 4); }
+
+  // Robot bullets
+  ctx.fillStyle = '#f55';
+  for (const b of robotBullets) { ctx.fillRect(b.x - 2, b.y - 2, 4, 4); }
+
+  // Evil Otto
+  if (otto) {
+    ctx.fillStyle = '#ff0';
+    ctx.beginPath();
+    ctx.arc(otto.x, otto.y, 18, 0, Math.PI * 2);
+    ctx.fill();
+    // Evil smiley
+    ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.arc(otto.x - 6, otto.y - 4, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(otto.x + 6, otto.y - 4, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath();
+    ctx.arc(otto.x, otto.y + 2, 8, 0.2, Math.PI - 0.2);
+    ctx.lineWidth = 2; ctx.strokeStyle = '#000'; ctx.stroke();
+  }
+
+  // HUD
+  ctx.fillStyle = '#4f4'; ctx.font = '16px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('SCORE: ' + score, 10, 26);
+  ctx.textAlign = 'center';
+  ctx.fillText('ROOM (' + roomX + ',' + roomY + ')', W / 2, 26);
+  ctx.textAlign = 'right';
+  ctx.fillText('LIVES: ' + lives, W - 10, 26);
+
+  // Otto warning
+  if (ottoTimer > 0 && ottoTimer < 120) {
+    ctx.fillStyle = '#f55'; ctx.font = '14px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('BOUNCER APPROACHING', W / 2, H - 20);
+  }
+
+  // Game over
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, W, H);
+    ctx.font = 'bold 48px monospace'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#f55';
+    ctx.fillText('GAME OVER', W / 2, H / 2 - 20);
+    ctx.fillStyle = '#aaa'; ctx.font = '18px monospace';
+    ctx.fillText('R to restart   SCORE: ' + score, W / 2, H / 2 + 24);
+  }
+
+  // Title badge
+  ctx.fillStyle = '#1a1a1a'; ctx.fillRect(8, 8, 230, 28);
+  ctx.fillStyle = '#555'; ctx.font = '13px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('SHT-002 · BERZERK  [?]', 16, 26);
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: twin-stick ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("twin-stick");
+</script>
+</body>
+</html>

@@ -1,0 +1,833 @@
+<!--
+PROTOTYPE: nanacacrash
+SERIES: spt
+NUMBER: 017
+DATE: 2026-03-24
+MECHANIC: launch and bounce — crash a bicycle into a person, launching them; they bounce off characters in the field who boost or block; maximize distance through chain bounces
+ANCESTRY: Nanaca Crash (2005, Anonymous Japanese Flash developer), Yeti Sports (2004, Chris Hilgert), Kitten Cannon (2005, Dan Fleming)
+CONTROLS: Click — set angle / set power / aerial boost | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 5 (Expert Systems — optimization of launch parameters, trajectory prediction, character placement RNG)
+AI-INSIGHT: Nanaca Crash went viral in Japan as a Flash game in 2005, pioneering the launch-and-bounce genre. The deceptive simplicity — two clicks to launch, then pray for good bounces — hides a genuine optimization problem: angle and power selection interact nonlinearly with random character placement to create enormous variance in outcomes.
+NOTES: The charm is in the absurd ragdoll physics and chain bounces.
+       Random character placement creates infinite replayability.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPT-017 · NANACA CRASH</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SPT-017 · NANACA CRASH</h1>
+    <p><span class="tag series">SPT — Sports</span> <span class="tag">Prototype #017</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Launch a person through the air and bounce off characters to maximize distance!</p>
+    <ul>
+      <li><kbd>Click</kbd> — Set launch angle (swinging indicator)</li>
+      <li><kbd>Click</kbd> — Set launch power (filling bar)</li>
+      <li><kbd>Click</kbd> — Aerial boost during flight (3 uses)</li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <p>Boost characters (green) bounce you upward. Block characters (red) stop you dead. Special characters (gold) give a mega launch. Time your aerial boosts to extend combos!</p>
+
+    <h2>History</h2>
+    <p><em>Nanaca Crash</em> (2005) was an anonymous Japanese Flash game that went viral worldwide. A girl on a bicycle crashes into a boy, launching him across a field full of anime characters who either boost or block his flight. The game distilled the launch-and-bounce genre to its purest form.</p>
+    <p>It belonged to a wave of viral Flash launch games including <em>Yeti Sports</em> (2004), <em>Kitten Cannon</em> (2005), and later <em>Learn to Fly</em> (2009) and <em>Burrito Bison</em> (2011). The genre's appeal is primal: big number go up. The combination of skill (launch timing) and luck (character placement) creates a slot-machine-like compulsion loop.</p>
+
+    <h2>AI Archaeology</h2>
+    <h3>Era 5 — Expert Systems</h3>
+    <p>The optimization problem in Nanaca Crash is deceptively complex. Launch angle and power create an initial trajectory, but the random placement of field characters means optimal strategy changes every attempt. A perfect launch into an empty field scores less than a mediocre launch into a chain of boost characters.</p>
+    <p>An AI agent could learn optimal launch parameters for expected value, but the high variance from random placement means even optimal play produces wildly different results. This randomness is a feature — it keeps players coming back, convinced the next attempt will chain perfectly.</p>
+
+    <h3>Classification</h3>
+    <p><span class="tag">launch game</span> <span class="tag">distance optimization</span> <span class="tag">chain bounces</span> <span class="tag">ragdoll physics</span> <span class="tag">viral Flash game</span></p>
+
+    <h2>Prototype Notes</h2>
+    <ul>
+      <li>Swinging angle selector and filling power bar for two-click launch</li>
+      <li>Scrolling field with randomly placed boost, block, and special characters</li>
+      <li>Ragdoll-style character tumbles through the air with rotation</li>
+      <li>Three aerial boosts per launch for player agency during flight</li>
+      <li>Distance counter and best distance tracking</li>
+      <li>Character placement re-randomized each attempt for infinite replayability</li>
+    </ul>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+var canvas = document.getElementById('c');
+var ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, size, color, align) {
+  ctx.save();
+  ctx.font = size + 'px monospace';
+  ctx.fillStyle = color || '#fff';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(text, Math.round(x), Math.round(y));
+  ctx.restore();
+}
+
+// ── Canvas setup ──
+var W = 800, H = 600;
+canvas.width = W;
+canvas.height = H;
+
+function resize() {
+  var s = Math.min(innerWidth / W, innerHeight / H);
+  canvas.style.width = (W * s) + 'px';
+  canvas.style.height = (H * s) + 'px';
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ── Info panel ──
+var infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// ── Game constants ──
+var GRAVITY = 0.15;
+var GROUND_Y = 500;
+var AIR_FRICTION = 0.999;
+var GROUND_FRICTION = 0.92;
+var BOUNCE_DAMPING = 0.5;
+var MAX_BOOSTS = 3;
+var BOOST_POWER = 8;
+var FIELD_LENGTH = 50000;
+
+// ── Character types ──
+var CHAR_BOOST = 0;
+var CHAR_BLOCK = 1;
+var CHAR_SPECIAL = 2;
+
+// ── Game state ──
+var phase; // 'angle', 'power', 'flying', 'stopped', 'result'
+var angle, angleDir, angleSpeed;
+var power, powerDir;
+var px, py, vx, vy, rotation, rotSpeed;
+var cameraX;
+var boostsLeft;
+var distance, bestDistance;
+var characters;
+var hitFlash, hitFlashTimer;
+var bounceCount;
+var lastHitType;
+var comboTimer;
+var particles;
+
+bestDistance = 0;
+
+function generateCharacters() {
+  characters = [];
+  // Place characters from 300 to FIELD_LENGTH
+  var x = 300;
+  while (x < FIELD_LENGTH) {
+    var gap = 120 + Math.random() * 200;
+    x += gap;
+    var type;
+    var r = Math.random();
+    if (r < 0.55) type = CHAR_BOOST;
+    else if (r < 0.85) type = CHAR_BLOCK;
+    else type = CHAR_SPECIAL;
+    characters.push({
+      x: x,
+      y: GROUND_Y,
+      type: type,
+      hit: false,
+      animTimer: 0
+    });
+  }
+}
+
+function resetGame() {
+  phase = 'angle';
+  angle = 45;
+  angleDir = 1;
+  angleSpeed = 1.5;
+  power = 0;
+  powerDir = 1;
+  px = 100;
+  py = GROUND_Y;
+  vx = 0;
+  vy = 0;
+  rotation = 0;
+  rotSpeed = 0;
+  cameraX = 0;
+  boostsLeft = MAX_BOOSTS;
+  distance = 0;
+  bounceCount = 0;
+  lastHitType = -1;
+  comboTimer = 0;
+  hitFlash = '';
+  hitFlashTimer = 0;
+  particles = [];
+  generateCharacters();
+}
+
+resetGame();
+
+// ── Input ──
+var clickQueued = false;
+
+canvas.addEventListener('click', function(e) {
+  if (infoOpen) return;
+  if (phase === 'flying' && boostsLeft > 0) {
+    boostsLeft--;
+    vy = -BOOST_POWER;
+    vx += 2;
+    rotSpeed += 0.03;
+    hitFlash = 'AERIAL BOOST! (' + boostsLeft + ' left)';
+    hitFlashTimer = 30;
+    spawnParticles(px, py, '#8ef', 10);
+    return;
+  }
+  clickQueued = true;
+});
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
+    toggleInfo();
+    return;
+  }
+  if (e.key === 'Escape' && infoOpen) {
+    toggleInfo();
+    return;
+  }
+  if (infoOpen) return;
+  if (e.key === 'r' || e.key === 'R') {
+    resetGame();
+  }
+});
+
+// ── Particles ──
+function spawnParticles(x, y, color, count) {
+  for (var i = 0; i < count; i++) {
+    var a = Math.random() * Math.PI * 2;
+    var sp = 1 + Math.random() * 4;
+    particles.push({
+      x: x, y: y,
+      vx: Math.cos(a) * sp,
+      vy: Math.sin(a) * sp - 2,
+      life: 30 + Math.random() * 20,
+      maxLife: 50,
+      color: color,
+      size: 2 + Math.random() * 3
+    });
+  }
+}
+
+// ── Draw character ──
+function drawCharacter(ch, offsetX) {
+  var sx = ch.x - offsetX;
+  var sy = ch.y;
+  if (sx < -60 || sx > W + 60) return;
+
+  ctx.save();
+  ctx.translate(sx, sy);
+
+  if (ch.hit) {
+    ch.animTimer++;
+    ctx.globalAlpha = Math.max(0, 1 - ch.animTimer / 30);
+  }
+
+  // Body
+  var bodyColor, headColor, label;
+  if (ch.type === CHAR_BOOST) {
+    bodyColor = '#2d2'; headColor = '#5f5'; label = '+';
+  } else if (ch.type === CHAR_BLOCK) {
+    bodyColor = '#d22'; headColor = '#f55'; label = 'X';
+  } else {
+    bodyColor = '#fd0'; headColor = '#ff6'; label = '★';
+  }
+
+  // Legs
+  ctx.fillStyle = bodyColor;
+  ctx.fillRect(-8, -20, 6, 20);
+  ctx.fillRect(2, -20, 6, 20);
+
+  // Torso
+  ctx.fillRect(-10, -50, 20, 30);
+
+  // Head
+  ctx.fillStyle = headColor;
+  ctx.beginPath();
+  ctx.arc(0, -60, 10, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Label
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 14px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, 0, -60);
+
+  // Arms spread
+  ctx.strokeStyle = bodyColor;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(-10, -45);
+  ctx.lineTo(-20, -35);
+  ctx.moveTo(10, -45);
+  ctx.lineTo(20, -35);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+// ── Draw player (ragdoll-style) ──
+function drawPlayer(offsetX) {
+  var sx = px - offsetX;
+  var sy = py;
+
+  ctx.save();
+  ctx.translate(sx, sy);
+  ctx.rotate(rotation);
+
+  // Body
+  ctx.fillStyle = '#48f';
+  ctx.fillRect(-6, -24, 12, 24);
+
+  // Head
+  ctx.fillStyle = '#fdb';
+  ctx.beginPath();
+  ctx.arc(0, -32, 8, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Hair
+  ctx.fillStyle = '#543';
+  ctx.beginPath();
+  ctx.arc(0, -35, 8, Math.PI, Math.PI * 2);
+  ctx.fill();
+
+  // Legs
+  ctx.fillStyle = '#36c';
+  var legAngle = phase === 'flying' ? Math.sin(rotation * 3) * 0.3 : 0;
+  ctx.save();
+  ctx.rotate(legAngle);
+  ctx.fillRect(-6, 0, 5, 16);
+  ctx.restore();
+  ctx.save();
+  ctx.rotate(-legAngle);
+  ctx.fillRect(1, 0, 5, 16);
+  ctx.restore();
+
+  // Arms
+  ctx.strokeStyle = '#fdb';
+  ctx.lineWidth = 3;
+  var armAngle = phase === 'flying' ? Math.sin(rotation * 2) * 0.5 : 0;
+  ctx.beginPath();
+  ctx.moveTo(-6, -20);
+  ctx.lineTo(-6 + Math.cos(armAngle - 1) * 12, -20 + Math.sin(armAngle - 1) * 12);
+  ctx.moveTo(6, -20);
+  ctx.lineTo(6 + Math.cos(-armAngle + 1) * 12, -20 + Math.sin(-armAngle + 1) * 12);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+// ── Draw bicycle ──
+function drawBicycle(offsetX) {
+  var bx = 40 - offsetX;
+  var by = GROUND_Y;
+
+  ctx.save();
+  ctx.translate(bx, by);
+
+  // Wheels
+  ctx.strokeStyle = '#888';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(-12, -8, 10, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(12, -8, 10, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Frame
+  ctx.strokeStyle = '#f44';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(-12, -8);
+  ctx.lineTo(0, -24);
+  ctx.lineTo(12, -8);
+  ctx.lineTo(0, -8);
+  ctx.lineTo(-12, -8);
+  ctx.moveTo(0, -24);
+  ctx.lineTo(0, -8);
+  ctx.stroke();
+
+  // Handlebars
+  ctx.beginPath();
+  ctx.moveTo(10, -28);
+  ctx.lineTo(14, -24);
+  ctx.stroke();
+
+  // Seat
+  ctx.fillStyle = '#333';
+  ctx.fillRect(-4, -27, 8, 3);
+
+  // Rider (girl)
+  ctx.fillStyle = '#f6a';
+  ctx.fillRect(-4, -46, 10, 18);
+
+  // Head
+  ctx.fillStyle = '#fdb';
+  ctx.beginPath();
+  ctx.arc(1, -52, 7, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Hair
+  ctx.fillStyle = '#d44';
+  ctx.beginPath();
+  ctx.arc(1, -55, 7, Math.PI, Math.PI * 2);
+  ctx.fill();
+  ctx.fillRect(-5, -55, 3, 10);
+
+  ctx.restore();
+}
+
+// ── Update ──
+function update() {
+  if (infoOpen) return;
+
+  // Angle phase
+  if (phase === 'angle') {
+    angle += angleDir * angleSpeed;
+    if (angle >= 80) { angle = 80; angleDir = -1; }
+    if (angle <= 10) { angle = 10; angleDir = 1; }
+
+    if (clickQueued) {
+      clickQueued = false;
+      phase = 'power';
+      power = 0;
+      powerDir = 1;
+    }
+    return;
+  }
+
+  // Power phase
+  if (phase === 'power') {
+    power += powerDir * 1.2;
+    if (power >= 100) { power = 100; powerDir = -1; }
+    if (power <= 0) { power = 0; powerDir = 1; }
+
+    if (clickQueued) {
+      clickQueued = false;
+      // Launch!
+      var rad = angle * Math.PI / 180;
+      var speed = 8 + (power / 100) * 16;
+      vx = Math.cos(rad) * speed;
+      vy = -Math.sin(rad) * speed;
+      rotSpeed = 0.08 + Math.random() * 0.04;
+      phase = 'flying';
+    }
+    return;
+  }
+
+  // Result screen
+  if (phase === 'result') {
+    if (clickQueued) {
+      clickQueued = false;
+      resetGame();
+    }
+    return;
+  }
+
+  // Flying phase
+  if (phase === 'flying') {
+    // Apply physics
+    vy += GRAVITY;
+    vx *= AIR_FRICTION;
+    vy *= AIR_FRICTION;
+    px += vx;
+    py += vy;
+    rotation += rotSpeed;
+
+    // Combo timer
+    if (comboTimer > 0) comboTimer--;
+
+    // Ground collision
+    if (py >= GROUND_Y) {
+      py = GROUND_Y;
+      if (Math.abs(vx) < 0.5 && Math.abs(vy) < 1) {
+        // Stopped
+        phase = 'result';
+        distance = Math.max(0, Math.floor(px - 100));
+        if (distance > bestDistance) bestDistance = distance;
+        return;
+      }
+      // Bounce off ground
+      vy = -Math.abs(vy) * BOUNCE_DAMPING;
+      vx *= GROUND_FRICTION;
+      rotSpeed *= 0.8;
+      spawnParticles(px, py, '#ca8', 5);
+    }
+
+    // Sky limit
+    if (py < 20) {
+      py = 20;
+      vy = Math.abs(vy) * 0.3;
+    }
+
+    // Character collisions
+    for (var i = 0; i < characters.length; i++) {
+      var ch = characters[i];
+      if (ch.hit) continue;
+      var dx = px - ch.x;
+      var dy = py - (ch.y - 30);
+      var dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 35) {
+        ch.hit = true;
+        ch.animTimer = 0;
+        bounceCount++;
+
+        if (ch.type === CHAR_BOOST) {
+          // Boost: bounce upward and forward
+          vy = -(6 + Math.random() * 4);
+          vx = Math.abs(vx) * 1.1 + 2;
+          rotSpeed = 0.1 + Math.random() * 0.05;
+          hitFlash = 'BOOST!';
+          hitFlashTimer = 40;
+          lastHitType = CHAR_BOOST;
+          comboTimer = 60;
+          spawnParticles(ch.x, ch.y - 30, '#5f5', 15);
+        } else if (ch.type === CHAR_BLOCK) {
+          // Block: stop almost completely
+          vx *= 0.1;
+          vy = -2;
+          rotSpeed *= 0.2;
+          hitFlash = 'BLOCKED!';
+          hitFlashTimer = 40;
+          lastHitType = CHAR_BLOCK;
+          comboTimer = 0;
+          spawnParticles(ch.x, ch.y - 30, '#f55', 15);
+        } else {
+          // Special: mega launch
+          vy = -(12 + Math.random() * 4);
+          vx = Math.abs(vx) * 1.3 + 6;
+          rotSpeed = 0.15;
+          hitFlash = '★ MEGA LAUNCH! ★';
+          hitFlashTimer = 60;
+          lastHitType = CHAR_SPECIAL;
+          comboTimer = 90;
+          spawnParticles(ch.x, ch.y - 30, '#ff0', 25);
+        }
+      }
+    }
+
+    // Update camera
+    var targetCam = px - 200;
+    if (targetCam < 0) targetCam = 0;
+    cameraX += (targetCam - cameraX) * 0.1;
+
+    // Update distance
+    distance = Math.max(0, Math.floor(px - 100));
+  }
+
+  // Hit flash timer
+  if (hitFlashTimer > 0) hitFlashTimer--;
+
+  // Update particles
+  for (var i = particles.length - 1; i >= 0; i--) {
+    var p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.1;
+    p.life--;
+    if (p.life <= 0) {
+      particles.splice(i, 1);
+    }
+  }
+}
+
+
+// ── Draw ──
+function draw() {
+  // Sky gradient
+  var grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#1a2a4a');
+  grad.addColorStop(0.6, '#3a6a9a');
+  grad.addColorStop(1, '#6ab04c');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Ground
+  ctx.fillStyle = '#4a8a3a';
+  ctx.fillRect(0, GROUND_Y, W, H - GROUND_Y);
+
+  // Ground line
+  ctx.strokeStyle = '#5a9a4a';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, GROUND_Y);
+  ctx.lineTo(W, GROUND_Y);
+  ctx.stroke();
+
+  // Distance markers on ground
+  var startMark = Math.floor(cameraX / 200) * 200;
+  for (var m = startMark; m < cameraX + W + 200; m += 200) {
+    var mx = m - cameraX;
+    ctx.strokeStyle = '#3a7a2a';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(mx, GROUND_Y);
+    ctx.lineTo(mx, GROUND_Y + 15);
+    ctx.stroke();
+    var mDist = Math.max(0, m - 100);
+    if (mDist >= 0) {
+      hudText(mDist + 'm', mx, GROUND_Y + 18, 10, '#5a9a4a', 'center');
+    }
+  }
+
+  // Clouds (parallax)
+  ctx.fillStyle = 'rgba(255,255,255,0.15)';
+  for (var c = 0; c < 8; c++) {
+    var cx2 = ((c * 347 + 100) % 1200) - (cameraX * 0.2) % 1200;
+    if (cx2 < -100) cx2 += 1200;
+    var cy2 = 50 + (c * 73) % 150;
+    ctx.beginPath();
+    ctx.arc(cx2, cy2, 30 + (c % 3) * 15, 0, Math.PI * 2);
+    ctx.arc(cx2 + 25, cy2 - 5, 25 + (c % 2) * 10, 0, Math.PI * 2);
+    ctx.arc(cx2 - 20, cy2 + 3, 20 + (c % 3) * 8, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Background hills (parallax)
+  ctx.fillStyle = '#3a7a3a';
+  ctx.beginPath();
+  ctx.moveTo(0, GROUND_Y);
+  for (var hx = 0; hx <= W; hx += 5) {
+    var worldX = hx + cameraX * 0.3;
+    var hy = GROUND_Y - 20 - Math.sin(worldX * 0.005) * 30 - Math.sin(worldX * 0.012) * 15;
+    ctx.lineTo(hx, hy);
+  }
+  ctx.lineTo(W, GROUND_Y);
+  ctx.closePath();
+  ctx.fill();
+
+  // Characters
+  for (var i = 0; i < characters.length; i++) {
+    drawCharacter(characters[i], cameraX);
+  }
+
+  // Bicycle (at launch point)
+  if (phase !== 'result') {
+    drawBicycle(cameraX);
+  }
+
+  // Player
+  if (phase !== 'angle' && phase !== 'power') {
+    drawPlayer(cameraX);
+  } else {
+    // Draw player standing at launch position
+    ctx.save();
+    ctx.translate(100 - cameraX, GROUND_Y);
+    ctx.fillStyle = '#48f';
+    ctx.fillRect(-6, -44, 12, 24);
+    ctx.fillStyle = '#fdb';
+    ctx.beginPath();
+    ctx.arc(0, -52, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#543';
+    ctx.beginPath();
+    ctx.arc(0, -55, 8, Math.PI, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#36c';
+    ctx.fillRect(-6, -20, 5, 16);
+    ctx.fillRect(1, -20, 5, 16);
+    ctx.restore();
+  }
+
+  // Particles
+  for (var i = 0; i < particles.length; i++) {
+    var p = particles[i];
+    var alpha = p.life / p.maxLife;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x - cameraX - p.size / 2, p.y - p.size / 2, p.size, p.size);
+  }
+  ctx.globalAlpha = 1;
+
+  // ── HUD ──
+
+  // Angle selector
+  if (phase === 'angle') {
+    // Draw angle arc
+    ctx.save();
+    ctx.translate(100, GROUND_Y);
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, 80, -Math.PI * 80 / 180, -Math.PI * 10 / 180);
+    ctx.stroke();
+
+    // Angle indicator
+    var rad = angle * Math.PI / 180;
+    ctx.strokeStyle = '#ff0';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(Math.cos(-rad) * 90, Math.sin(-rad) * 90);
+    ctx.stroke();
+
+    // Arrow head
+    ctx.fillStyle = '#ff0';
+    ctx.beginPath();
+    var ax = Math.cos(-rad) * 90;
+    var ay = Math.sin(-rad) * 90;
+    ctx.arc(ax, ay, 5, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+
+    hudText('CLICK TO SET ANGLE: ' + Math.floor(angle) + '°', W / 2, 30, 18, '#ff0', 'center');
+    hudText('Aim high for distance, low for speed', W / 2, 55, 12, '#aaa', 'center');
+  }
+
+  // Power bar
+  if (phase === 'power') {
+    var barX = 50, barY = 520, barW = 300, barH = 30;
+
+    ctx.fillStyle = '#222';
+    ctx.fillRect(barX, barY, barW, barH);
+
+    // Power fill with color gradient
+    var pColor;
+    if (power < 40) pColor = '#4a4';
+    else if (power < 70) pColor = '#aa4';
+    else if (power < 90) pColor = '#f84';
+    else pColor = '#f44';
+    ctx.fillStyle = pColor;
+    ctx.fillRect(barX, barY, barW * (power / 100), barH);
+
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(barX, barY, barW, barH);
+
+    hudText('POWER', barX + barW / 2, barY - 22, 16, '#fff', 'center');
+    hudText('CLICK TO SET POWER: ' + Math.floor(power) + '%', W / 2, 30, 18, '#ff0', 'center');
+    hudText('Angle: ' + Math.floor(angle) + '°', W / 2, 55, 12, '#aaa', 'center');
+  }
+
+  // Flight HUD
+  if (phase === 'flying') {
+    // Distance
+    hudText('DISTANCE: ' + distance + 'm', 20, 20, 20, '#fff');
+
+    // Speed indicator
+    var speed = Math.sqrt(vx * vx + vy * vy);
+    hudText('Speed: ' + speed.toFixed(1), 20, 48, 12, '#adf');
+
+    // Bounces
+    hudText('Bounces: ' + bounceCount, 20, 66, 12, '#afa');
+
+    // Aerial boosts remaining
+    var boostStr = '';
+    for (var b = 0; b < MAX_BOOSTS; b++) {
+      boostStr += b < boostsLeft ? '● ' : '○ ';
+    }
+    hudText('Boosts: ' + boostStr, 20, 84, 12, '#8ef');
+    if (boostsLeft > 0) {
+      hudText('CLICK for aerial boost!', 20, 102, 11, '#8ef');
+    }
+
+    // Hit flash
+    if (hitFlashTimer > 0) {
+      var flashAlpha = hitFlashTimer / 60;
+      var flashColor;
+      if (lastHitType === CHAR_BOOST) flashColor = '#5f5';
+      else if (lastHitType === CHAR_BLOCK) flashColor = '#f55';
+      else if (lastHitType === CHAR_SPECIAL) flashColor = '#ff0';
+      else flashColor = '#8ef';
+
+      ctx.save();
+      ctx.globalAlpha = flashAlpha;
+      hudText(hitFlash, W / 2, 200, 28, flashColor, 'center');
+      ctx.restore();
+    }
+
+    // Best distance
+    if (bestDistance > 0) {
+      hudText('Best: ' + bestDistance + 'm', W - 20, 20, 14, '#aaa', 'right');
+    }
+  }
+
+  // Result screen
+  if (phase === 'result') {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(0, 0, W, H);
+
+    hudText('FINAL DISTANCE', W / 2, 160, 20, '#aaa', 'center');
+    hudText(distance + 'm', W / 2, 195, 48, '#ff0', 'center');
+
+    if (distance >= bestDistance) {
+      hudText('★ NEW BEST! ★', W / 2, 260, 22, '#fd0', 'center');
+    } else {
+      hudText('Best: ' + bestDistance + 'm', W / 2, 260, 16, '#888', 'center');
+    }
+
+    hudText('Bounces: ' + bounceCount, W / 2, 300, 16, '#afa', 'center');
+
+    hudText('Click to play again', W / 2, 380, 16, '#8ef', 'center');
+  }
+
+  // Title on start
+  if (phase === 'angle') {
+    hudText('NANACA CRASH', W / 2, H - 60, 14, '#888', 'center');
+    hudText('Press ? for info', W / 2, H - 40, 11, '#555', 'center');
+  }
+}
+
+// ── Main loop ──
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+loop();
+</script>
+</body>
+</html>

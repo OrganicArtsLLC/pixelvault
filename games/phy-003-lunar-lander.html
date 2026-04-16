@@ -1,0 +1,537 @@
+<!--
+PROTOTYPE: lunar-lander
+SERIES: phy
+NUMBER: 003
+DATE: 2026-03-22
+MECHANIC: gravity landing — thrust against gravity with finite fuel to land softly
+ANCESTRY: Lunar Lander (1979, Atari), Thrust (1986, Jeremy Smith)
+CONTROLS: Up arrow or W — thrust | Left/Right or A/D — rotate | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 2 (Expert Systems — rule-based, no learning)
+AI-INSIGHT: Lunar Lander is a continuous control problem with a hard constraint (fuel) and a soft constraint (landing speed). It's the archetype of the powered descent guidance problem that NASA solved analytically for Apollo — optimal control theory applied to games before anyone called it that.
+NOTES: Pure physics puzzle — no enemies, no maze. Just gravity, fuel, and the ground.
+       The tension comes entirely from resource depletion and precision.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PHY-003 · LUNAR LANDER</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>PHY-003 · LUNAR LANDER</h1>
+    <p><span class="tag series">PHY — Physics</span> <span class="tag">Prototype #003</span> <span class="tag">★★★★☆</span></p>
+
+    <h2>How to Play</h2>
+    <p>Land the spacecraft safely on a flat landing pad. Control thrust and rotation against lunar gravity. Land gently (low velocity) to score points. Crash too hard and it's over.</p>
+    <ul>
+      <li><kbd>↑</kbd> or <kbd>W</kbd> — Main thruster (burns fuel)</li>
+      <li><kbd>←</kbd> <kbd>→</kbd> or <kbd>A</kbd> <kbd>D</kbd> — Rotate</li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Fuel is finite:</strong> Every thrust burns fuel. Plan your descent carefully.</li>
+      <li><strong>Landing speed:</strong> Must be under 2.0 m/s vertical and 1.0 m/s horizontal for safe landing.</li>
+      <li><strong>Angle matters:</strong> Must be nearly upright to land safely.</li>
+      <li><strong>Bonus pads:</strong> Smaller pads are worth more points (2x, 3x multiplier).</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Lunar Lander (1979, Atari) → Thrust (1986) → Kerbal Space Program (2011)</p>
+    <p>Lunar Lander (1979) by Atari was one of the first vector-graphics arcade games. Based on a 1969 text-mode simulation (Lunar by Jim Storer), it challenged players to manage thrust, fuel, and gravity for a soft landing. The original used a thrust lever for analog control.</p>
+    <p>The game distills spaceflight to its essence: Newton's laws, fuel management, and precision. There are no enemies, no time pressure beyond fuel — just physics and nerve.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 2 — Expert Systems (1972–1980)</p>
+    <p><strong>Contemporary AI:</strong> Optimal control theory was well-developed (Pontryagin, Bellman). NASA had already solved the powered descent guidance problem analytically for Apollo (1969).</p>
+    <p><strong>Hidden Intelligence:</strong> Lunar Lander is a continuous control problem with a hard constraint (fuel) and soft constraints (landing velocity, angle). NASA's real landing guidance used optimal control mathematics — the game is a human-playable version of the same problem. The player becomes an analog computer, solving differential equations through feel.</p>
+    <p><strong>The Convergence:</strong> OpenAI Gym's LunarLander-v2 is one of the most popular RL benchmarks. Every RL student trains an agent on essentially this game. The 1979 arcade game became a canonical AI training environment 40 years later.</p>
+    <p><strong>If AI Had Designed This:</strong> Procedurally generated terrain with difficulty curves optimized by the same optimal control math NASA used — fuel-optimal trajectories as the scoring rubric.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: PHY — Physics</h3>
+    <p>Games where Newtonian mechanics are the primary challenge. Lunar Lander strips physics to its purest form: gravity, thrust, inertia.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Thrust vs gravity with finite fuel.</strong> Continuous control. Rotation for thrust direction. Resource depletion creates urgency. Landing speed threshold determines success.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Gravity feel — does the pull feel consistent and learnable?</li>
+      <li>Thrust response — is the thrust-to-weight ratio satisfying?</li>
+      <li>Fuel anxiety — does dwindling fuel create genuine tension?</li>
+      <li>Landing precision — do the landing tolerances feel fair?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Vector-style line graphics. Procedural terrain with multiple landing pads. Physics simulation at 60fps.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+const keys = {};
+window.addEventListener('keydown', e => { if (!infoOpen) keys[e.code] = true; e.preventDefault(); });
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+// --- CONSTANTS ---
+const GRAVITY = 0.02;
+const THRUST = 0.06;
+const ROTATE_SPD = 0.04;
+const MAX_FUEL = 500;
+const SAFE_VY = 2.0;
+const SAFE_VX = 1.0;
+const SAFE_ANGLE = 0.3; // radians from vertical
+
+// --- STATE ---
+let ship, terrain, pads, stars, score, gameOver, landed, phase;
+
+function genTerrain() {
+  const pts = [];
+  const padDefs = [];
+  const n = 40;
+  let x = 0;
+  const segW = W / n;
+
+  // Decide pad positions (2-3 pads)
+  const padSegs = [];
+  padSegs.push(8 + Math.floor(Math.random() * 5));  // left area
+  padSegs.push(20 + Math.floor(Math.random() * 5)); // center area
+  if (Math.random() > 0.4) padSegs.push(30 + Math.floor(Math.random() * 5)); // right area
+
+  const padWidths = [3, 2, 2]; // in segments
+  const padMultipliers = [1, 2, 3];
+
+  let baseHeight = H * 0.75;
+  for (let i = 0; i <= n; i++) {
+    let isPad = false;
+    for (let p = 0; p < padSegs.length; p++) {
+      if (i >= padSegs[p] && i <= padSegs[p] + padWidths[p]) {
+        isPad = true;
+        if (i === padSegs[p]) {
+          const padY = baseHeight + (Math.random() - 0.5) * 40;
+          padDefs.push({
+            x1: padSegs[p] * segW,
+            x2: (padSegs[p] + padWidths[p]) * segW,
+            y: padY,
+            mult: padMultipliers[p],
+            width: padWidths[p]
+          });
+        }
+        const pd = padDefs[padDefs.length - 1];
+        pts.push({ x: i * segW, y: pd.y });
+        baseHeight = pd.y;
+        break;
+      }
+    }
+    if (!isPad) {
+      baseHeight += (Math.random() - 0.5) * 50;
+      baseHeight = Math.max(H * 0.5, Math.min(H * 0.9, baseHeight));
+      pts.push({ x: i * segW, y: baseHeight });
+    }
+  }
+  return { pts, pads: padDefs };
+}
+
+function genStars() {
+  const s = [];
+  for (let i = 0; i < 100; i++) {
+    s.push({ x: Math.random() * W, y: Math.random() * H * 0.6, bright: Math.random() });
+  }
+  return s;
+}
+
+function initGame() {
+  ship = {
+    x: W * 0.3 + Math.random() * W * 0.4,
+    y: 80,
+    vx: (Math.random() - 0.5) * 2,
+    vy: 0.5,
+    angle: 0,
+    fuel: MAX_FUEL,
+    thrusting: false
+  };
+  const t = genTerrain();
+  terrain = t.pts;
+  pads = t.pads;
+  stars = genStars();
+  score = 0;
+  gameOver = false;
+  landed = false;
+  phase = 'playing';
+}
+initGame();
+
+// --- TERRAIN HEIGHT AT X ---
+function terrainYatX(px) {
+  for (let i = 0; i < terrain.length - 1; i++) {
+    if (px >= terrain[i].x && px <= terrain[i + 1].x) {
+      const t = (px - terrain[i].x) / (terrain[i + 1].x - terrain[i].x);
+      return terrain[i].y + t * (terrain[i + 1].y - terrain[i].y);
+    }
+  }
+  return H;
+}
+
+function update() {
+  if (infoOpen) return;
+  if (phase !== 'playing') { if (keys['KeyR']) initGame(); return; }
+
+  // Rotation
+  if (keys['ArrowLeft'] || keys['KeyA']) ship.angle -= ROTATE_SPD;
+  if (keys['ArrowRight'] || keys['KeyD']) ship.angle += ROTATE_SPD;
+
+  // Thrust
+  ship.thrusting = false;
+  if ((keys['ArrowUp'] || keys['KeyW']) && ship.fuel > 0) {
+    ship.vx += Math.sin(ship.angle) * THRUST;
+    ship.vy -= Math.cos(ship.angle) * THRUST;
+    ship.fuel -= 0.5;
+    ship.thrusting = true;
+  }
+
+  // Gravity
+  ship.vy += GRAVITY;
+
+  // Move
+  ship.x += ship.vx;
+  ship.y += ship.vy;
+
+  // Screen wrap horizontally
+  if (ship.x < 0) ship.x += W;
+  if (ship.x > W) ship.x -= W;
+
+  // Ceiling
+  if (ship.y < 0) { ship.y = 0; ship.vy = Math.max(0, ship.vy); }
+
+  // Ground collision
+  const groundY = terrainYatX(ship.x);
+  if (ship.y + 12 >= groundY) {
+    ship.y = groundY - 12;
+
+    // Check if on a pad
+    let onPad = null;
+    for (const p of pads) {
+      if (ship.x >= p.x1 && ship.x <= p.x2) {
+        onPad = p;
+        break;
+      }
+    }
+
+    const speed = Math.sqrt(ship.vx * ship.vx + ship.vy * ship.vy);
+    const absAngle = Math.abs(ship.angle % (Math.PI * 2));
+    const angleOk = absAngle < SAFE_ANGLE || absAngle > Math.PI * 2 - SAFE_ANGLE;
+
+    if (onPad && Math.abs(ship.vy) < SAFE_VY && Math.abs(ship.vx) < SAFE_VX && angleOk) {
+      // Safe landing!
+      phase = 'landed';
+      landed = true;
+      const fuelBonus = Math.floor(ship.fuel);
+      score = (100 + fuelBonus) * onPad.mult;
+    } else {
+      // Crash
+      phase = 'crashed';
+      gameOver = true;
+    }
+
+    ship.vx = 0;
+    ship.vy = 0;
+  }
+}
+
+function draw() {
+  ctx.fillStyle = '#06060f'; ctx.fillRect(0, 0, W, H);
+
+  // Stars
+  for (const s of stars) {
+    ctx.fillStyle = `rgba(255,255,255,${0.3 + s.bright * 0.5})`;
+    ctx.fillRect(s.x, s.y, 1 + (s.bright > 0.8 ? 1 : 0), 1);
+  }
+
+  // Terrain
+  ctx.strokeStyle = '#6a6aaa';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(terrain[0].x, terrain[0].y);
+  for (let i = 1; i < terrain.length; i++) {
+    ctx.lineTo(terrain[i].x, terrain[i].y);
+  }
+  ctx.lineTo(W, H);
+  ctx.lineTo(0, H);
+  ctx.closePath();
+  ctx.fillStyle = '#1a1a2a';
+  ctx.fill();
+  ctx.stroke();
+
+  // Landing pads
+  for (const p of pads) {
+    ctx.fillStyle = p.mult === 1 ? '#4a4' : p.mult === 2 ? '#cc4' : '#f55';
+    ctx.fillRect(p.x1, p.y - 3, p.x2 - p.x1, 3);
+    ctx.fillStyle = '#fff';
+    ctx.font = '11px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(p.mult + 'x', (p.x1 + p.x2) / 2, p.y + 14);
+  }
+
+  // Ship
+  ctx.save();
+  ctx.translate(ship.x, ship.y);
+  ctx.rotate(ship.angle);
+
+  if (phase === 'crashed') {
+    // Explosion
+    ctx.fillStyle = '#f80';
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      const r = 8 + Math.random() * 20;
+      ctx.beginPath();
+      ctx.arc(Math.cos(a) * r, Math.sin(a) * r, 3 + Math.random() * 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else {
+    // Lander body (vector style)
+    ctx.strokeStyle = '#ddd';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    // Main body (triangle top)
+    ctx.moveTo(0, -12);
+    ctx.lineTo(-8, 4);
+    ctx.lineTo(8, 4);
+    ctx.closePath();
+    ctx.stroke();
+    // Legs
+    ctx.beginPath();
+    ctx.moveTo(-8, 4); ctx.lineTo(-12, 12);
+    ctx.moveTo(8, 4); ctx.lineTo(12, 12);
+    // Landing feet
+    ctx.moveTo(-14, 12); ctx.lineTo(-10, 12);
+    ctx.moveTo(10, 12); ctx.lineTo(14, 12);
+    ctx.stroke();
+
+    // Thrust flame
+    if (ship.thrusting) {
+      ctx.fillStyle = '#f80';
+      ctx.beginPath();
+      ctx.moveTo(-4, 5);
+      ctx.lineTo(4, 5);
+      ctx.lineTo(0, 12 + Math.random() * 12);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#ff0';
+      ctx.beginPath();
+      ctx.moveTo(-2, 5);
+      ctx.lineTo(2, 5);
+      ctx.lineTo(0, 8 + Math.random() * 8);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+
+  // HUD
+  ctx.fillStyle = '#aaa'; ctx.font = '14px monospace';
+  ctx.textAlign = 'left';
+
+  // Altitude
+  const alt = Math.max(0, terrainYatX(ship.x) - ship.y - 12);
+  ctx.fillText('ALT: ' + alt.toFixed(0) + 'm', 10, H - 70);
+
+  // Velocity
+  const vxDisplay = (ship.vx * 50).toFixed(1);
+  const vyDisplay = (ship.vy * 50).toFixed(1);
+  ctx.fillStyle = Math.abs(ship.vy) > SAFE_VY ? '#f55' : '#5f5';
+  ctx.fillText('VY: ' + vyDisplay + ' m/s', 10, H - 50);
+  ctx.fillStyle = Math.abs(ship.vx) > SAFE_VX ? '#f55' : '#5f5';
+  ctx.fillText('VX: ' + vxDisplay + ' m/s', 10, H - 30);
+
+  // Fuel bar
+  ctx.fillStyle = '#555'; ctx.fillRect(W - 160, H - 30, 150, 14);
+  const fuelPct = ship.fuel / MAX_FUEL;
+  ctx.fillStyle = fuelPct > 0.25 ? '#4a4' : '#f44';
+  ctx.fillRect(W - 160, H - 30, 150 * fuelPct, 14);
+  ctx.fillStyle = '#fff'; ctx.font = '11px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('FUEL: ' + Math.floor(ship.fuel), W - 85, H - 19);
+
+  // Angle indicator
+  ctx.fillStyle = '#aaa'; ctx.textAlign = 'right';
+  const angleDeg = ((ship.angle * 180 / Math.PI) % 360).toFixed(0);
+  ctx.fillText('ANG: ' + angleDeg, W - 10, H - 50);
+
+  // Result overlay
+  if (phase === 'landed') {
+    ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0, 0, W, H);
+    ctx.font = 'bold 48px monospace'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#4f4';
+    ctx.fillText('LANDED!', W / 2, H / 2 - 30);
+    ctx.fillStyle = '#fff'; ctx.font = '22px monospace';
+    ctx.fillText('SCORE: ' + score, W / 2, H / 2 + 10);
+    ctx.fillStyle = '#aaa'; ctx.font = '16px monospace';
+    ctx.fillText('R to try again', W / 2, H / 2 + 40);
+  }
+  if (phase === 'crashed') {
+    ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0, 0, W, H);
+    ctx.font = 'bold 48px monospace'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#f55';
+    ctx.fillText('CRASHED', W / 2, H / 2 - 30);
+    ctx.fillStyle = '#aaa'; ctx.font = '16px monospace';
+    ctx.fillText('R to restart', W / 2, H / 2 + 10);
+  }
+
+  // Title badge
+  ctx.fillStyle = '#1a1a1a'; ctx.fillRect(8, 8, 260, 28);
+  ctx.fillStyle = '#555'; ctx.font = '13px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('PHY-003 · LUNAR LANDER  [?]', 16, 26);
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: dpad4 ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("dpad4");
+</script>
+</body>
+</html>

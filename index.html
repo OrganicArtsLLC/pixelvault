@@ -1,0 +1,1420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta http-equiv="Content-Security-Policy"
+  content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https:; frame-src 'self';">
+<title>Pixel Vault — Museum of Game Mechanics</title>
+<style>
+/* ── DESIGN TOKENS ── */
+:root {
+  --bg:#0d0e1c; --bg-hdr:#0a0b16; --bg-card:#13152a; --bg-hover:#1c2044;
+  --bg-sel:#162038; --bg-badge:#1a1e3a; --border:#2c3060; --border-dim:#1a1e38;
+  --text:#c8ccec; --text-dim:#8890c8; --text-mut:#52588a; --text-br:#e8ecff;
+  --accent:#5ab8ff; --accent-dim:#7aaae0; --gold:#ffd060; --green:#4de87a;
+  --orange:#ff9040; --red:#ff5050; --font:'Courier New',monospace;
+  --nav-h:52px; --mob-nav-h:60px; --hero-h:360px;
+  --track-arch:#5ab8ff; --track-ai:#ffd060; --track-evo:#ff9040;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:13px;min-height:100vh;overflow-x:hidden}
+a{color:var(--accent);text-decoration:none}
+button{cursor:pointer;font-family:var(--font)}
+
+/* ── TOP NAV ── */
+.top-nav{
+  position:sticky;top:0;z-index:500;height:var(--nav-h);
+  display:flex;align-items:center;gap:12px;padding:0 16px;
+  background:rgba(10,11,22,.92);backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--border-dim);
+}
+.nav-logo{font-size:15px;font-weight:700;letter-spacing:2px;color:var(--text-br);white-space:nowrap}
+.nav-logo span{color:var(--accent)}
+.nav-tabs{display:flex;gap:4px;flex-shrink:0}
+.nav-tab{
+  background:none;border:none;color:var(--text-dim);font-size:12px;
+  padding:4px 10px;border-radius:4px;letter-spacing:1px;transition:all .15s;
+}
+.nav-tab:hover{color:var(--text-br);background:var(--bg-hover)}
+.nav-tab.active{color:var(--accent);background:var(--bg-badge)}
+.nav-search{
+  flex:1;min-width:0;background:var(--bg-card);border:1px solid var(--border-dim);
+  border-radius:4px;padding:5px 10px;color:var(--text);font-family:var(--font);font-size:12px;
+  outline:none;
+}
+.nav-search:focus{border-color:var(--accent)}
+.nav-search::placeholder{color:var(--text-mut)}
+
+/* ── VIEWS ── */
+.view{display:none}
+.view.active{display:block}
+.flex-view.active{display:flex}
+
+/* ── HERO ── */
+.hero{
+  position:relative;height:var(--hero-h);overflow:hidden;
+  background:var(--bg-hdr);
+}
+.hero::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse 70% 80% at 50% 50%, rgba(90,184,255,.12) 0%, transparent 70%);
+  pointer-events:none;z-index:1;
+}
+.hero::after{
+  content:'';position:absolute;inset:0;
+  background:repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,.08) 3px, rgba(0,0,0,.08) 4px);
+  pointer-events:none;z-index:2;
+}
+.hero-iframes{
+  position:absolute;inset:0;display:flex;gap:2px;overflow:hidden;z-index:0;opacity:.45;
+}
+.hero-iframe-slot{
+  flex:1;min-width:0;overflow:hidden;position:relative;
+}
+.hero-iframe-slot iframe{
+  position:absolute;top:0;left:0;border:none;pointer-events:none;
+  transform-origin:top left;
+}
+.hero-content{
+  position:absolute;inset:0;z-index:3;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;
+  background:linear-gradient(to bottom, rgba(13,14,28,.2) 0%, rgba(13,14,28,.7) 100%);
+}
+.hero-title{font-size:clamp(28px,5vw,52px);letter-spacing:6px;color:var(--text-br);font-weight:700}
+.hero-title span{color:var(--accent)}
+.hero-subtitle{font-size:11px;letter-spacing:3px;color:var(--text-dim);text-transform:uppercase;margin-top:-6px}
+.hero-counter-wrap{display:flex;align-items:baseline;gap:8px}
+.hero-counter{font-size:clamp(40px,7vw,72px);font-weight:700;color:var(--gold);letter-spacing:4px;line-height:1}
+.hero-counter-label{font-size:11px;color:var(--text-dim);letter-spacing:2px;text-transform:uppercase}
+.hero-cta{display:flex;gap:10px;margin-top:4px}
+.hero-btn{
+  background:transparent;border:1px solid var(--border);color:var(--text);
+  padding:8px 18px;border-radius:3px;font-size:12px;letter-spacing:1px;
+  transition:all .2s;
+}
+.hero-btn:hover{border-color:var(--accent);color:var(--accent);background:rgba(90,184,255,.06)}
+.hero-btn.primary{border-color:var(--accent);color:var(--accent)}
+.hero-btn.primary:hover{background:rgba(90,184,255,.14)}
+
+/* ── FILTER BAR ── */
+.filter-bar{
+  position:sticky;top:var(--nav-h);z-index:400;
+  display:flex;align-items:center;gap:6px;padding:8px 14px;flex-wrap:wrap;
+  background:rgba(13,14,28,.96);border-bottom:1px solid var(--border-dim);
+}
+.filter-chip{
+  background:none;border:1px solid var(--border);color:var(--text-dim);
+  padding:3px 10px;border-radius:12px;font-size:11px;letter-spacing:.5px;
+  cursor:pointer;transition:all .15s;white-space:nowrap;
+}
+.filter-chip:hover{color:var(--text-br);border-color:var(--border)}
+.filter-chip.active[data-track="all"]{border-color:var(--text-br);color:var(--text-br);background:var(--bg-badge)}
+.filter-chip.active[data-track="archetype"]{border-color:var(--track-arch);color:var(--track-arch);background:rgba(90,184,255,.08)}
+.filter-chip.active[data-track="ai-archaeology"]{border-color:var(--track-ai);color:var(--track-ai);background:rgba(255,208,96,.08)}
+.filter-chip.active[data-era]{border-color:var(--accent-dim);color:var(--accent);background:rgba(90,184,255,.06)}
+.filter-sep{width:1px;height:16px;background:var(--border-dim);margin:0 4px;flex-shrink:0}
+.filter-era-label{font-size:10px;color:var(--text-mut);letter-spacing:1px;text-transform:uppercase;flex-shrink:0}
+
+/* ── GALLERY TOOLBAR ── */
+.gallery-toolbar{
+  display:flex;align-items:center;gap:8px;padding:6px 14px;
+  border-bottom:1px solid var(--border-dim);background:var(--bg);
+}
+.sort-label{font-size:10px;color:var(--text-mut);letter-spacing:1px;text-transform:uppercase;margin-right:2px}
+.sort-btn,.view-btn{
+  background:none;border:1px solid var(--border-dim);color:var(--text-dim);
+  padding:3px 9px;border-radius:3px;font-size:11px;transition:all .15s;
+}
+.sort-btn:hover,.view-btn:hover{color:var(--text-br)}
+.sort-btn.active,.view-btn.active{border-color:var(--accent);color:var(--accent)}
+.tb-spacer{flex:1}
+.tb-count{font-size:10px;color:var(--text-mut);letter-spacing:.5px}
+
+/* ── SERIES SECTION ── */
+.series-section{margin-bottom:0}
+.series-heading{
+  padding:8px 14px;font-size:10px;letter-spacing:2px;text-transform:uppercase;
+  color:var(--text-mut);background:var(--bg-hdr);border-bottom:1px solid var(--border-dim);
+  display:flex;align-items:center;gap:8px;
+}
+.series-heading span{color:var(--text-dim)}
+
+/* ── AI COMPANION DIVIDER (within series grid) ── */
+.ai-companion-divider{
+  grid-column:1 / -1;
+  padding:6px 14px;
+  font-size:9px;letter-spacing:2px;text-transform:uppercase;
+  color:var(--track-ai);
+  background:rgba(255,208,96,.04);
+  border-top:1px solid rgba(255,208,96,.15);
+  border-bottom:1px solid rgba(255,208,96,.08);
+  display:flex;align-items:center;gap:8px;
+}
+.ai-companion-divider .aic-count{color:var(--text-mut)}
+
+/* ── CARD GRID ── */
+.card-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));
+  gap:2px;background:var(--border-dim);padding:0;
+}
+
+/* ── THUMB CARD ── */
+.thumb-card{
+  position:relative;aspect-ratio:4/3;overflow:hidden;
+  background:var(--bg-card);cursor:pointer;
+}
+.thumb-card:hover .tc-overlay{opacity:1}
+.thumb-card:hover .tc-play-btn{opacity:1;transform:scale(1)}
+.thumb-card:hover .tc-preview{opacity:.9}
+.tc-track-bar{position:absolute;top:0;left:0;right:0;height:2px;z-index:4}
+.tc-track-bar.arch{background:var(--track-arch)}
+.tc-track-bar.ai{background:var(--track-ai)}
+.tc-track-bar.evo{background:var(--track-evo)}
+.tc-img{width:100%;height:100%;object-fit:cover;display:block}
+.tc-placeholder{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:6px;
+  background:var(--bg-card);border:1px solid var(--border-dim);
+}
+.tc-placeholder-icon{font-size:28px;opacity:.4}
+.tc-placeholder-id{font-size:10px;color:var(--text-mut);letter-spacing:2px}
+.tc-preview{
+  position:absolute;inset:0;opacity:0;transition:opacity .2s;pointer-events:none;z-index:1;
+}
+.tc-preview iframe{
+  position:absolute;top:0;left:0;width:800px;height:600px;border:none;pointer-events:none;
+  transform-origin:top left;
+}
+.tc-overlay{
+  position:absolute;inset:0;z-index:3;opacity:0;transition:opacity .2s;
+  background:linear-gradient(to top, rgba(10,11,22,.95) 0%, rgba(10,11,22,.5) 50%, transparent 100%);
+  display:flex;flex-direction:column;justify-content:flex-end;padding:10px 12px;gap:2px;
+}
+.tc-name{font-size:12px;color:var(--text-br);font-weight:700;letter-spacing:.5px}
+.tc-mechanic{font-size:10px;color:var(--text-dim);line-height:1.3}
+.tc-era{font-size:9px;color:var(--text-mut);letter-spacing:.5px;margin-top:2px}
+.tc-ancestry{
+  font-size:8px;color:rgba(255,255,255,.35);line-height:1.3;margin-top:3px;
+  overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+}
+.tc-play-btn{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) scale(.8);
+  z-index:4;width:44px;height:44px;border-radius:50%;
+  background:rgba(90,184,255,.25);border:2px solid var(--accent);
+  display:flex;align-items:center;justify-content:center;
+  opacity:0;transition:all .2s;font-size:18px;color:var(--accent);
+}
+.tc-skel{
+  position:absolute;inset:0;background:linear-gradient(90deg,var(--bg-card) 25%,var(--bg-hover) 50%,var(--bg-card) 75%);
+  background-size:200% 100%;animation:skel-shine 1.6s infinite;
+}
+@keyframes skel-shine{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* ── LIST VIEW ── */
+.list-series-hdr{
+  padding:6px 14px;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;
+  color:var(--text-mut);background:var(--bg-hdr);border-bottom:1px solid var(--border-dim);
+}
+.list-row{
+  display:flex;align-items:center;gap:12px;padding:8px 14px;
+  border-bottom:1px solid var(--border-dim);cursor:pointer;transition:background .12s;
+}
+.list-row:hover{background:var(--bg-hover)}
+.list-thumb{width:64px;height:48px;object-fit:cover;border-radius:2px;flex-shrink:0;background:var(--bg-card)}
+.list-info{flex:1;min-width:0}
+.list-name{font-size:12px;color:var(--text-br);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.list-mechanic{font-size:10px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.list-meta{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.list-era-badge{font-size:9px;color:var(--text-mut);background:var(--bg-badge);padding:2px 6px;border-radius:2px;white-space:nowrap}
+.list-stars{font-size:10px;color:var(--gold)}
+.list-id{font-size:9px;color:var(--text-mut);letter-spacing:.5px;min-width:60px;text-align:right}
+.list-track-pip{width:4px;height:32px;border-radius:2px;flex-shrink:0}
+.list-track-pip.arch{background:var(--track-arch)}
+.list-track-pip.ai{background:var(--track-ai)}
+
+/* ── PLAY VIEW ── */
+#view-play{height:calc(100vh - var(--nav-h));overflow:hidden}
+.sidebar{
+  width:360px;flex-shrink:0;overflow-y:auto;
+  border-right:1px solid var(--border-dim);background:var(--bg-hdr);
+  display:flex;flex-direction:column;
+}
+.sb-search{
+  margin:10px;background:var(--bg-card);border:1px solid var(--border-dim);
+  border-radius:3px;padding:6px 10px;color:var(--text);font-family:var(--font);
+  font-size:12px;outline:none;flex-shrink:0;
+}
+.sb-search:focus{border-color:var(--accent)}
+.sb-search::placeholder{color:var(--text-mut)}
+.sb-list{flex:1;overflow-y:auto}
+.track-header{
+  padding:6px 12px;font-size:9px;letter-spacing:2px;text-transform:uppercase;
+  background:var(--bg);border-bottom:1px solid var(--border-dim);
+  display:flex;align-items:center;gap:6px;position:sticky;top:0;z-index:2;
+}
+.track-header.arch{color:var(--track-arch)}
+.track-header.ai{color:var(--track-ai)}
+.sb-game-item{
+  padding:8px 12px;border-bottom:1px solid var(--border-dim);cursor:pointer;transition:background .1s;
+}
+.sb-game-item:hover{background:var(--bg-hover)}
+.sb-game-item.active{background:var(--bg-sel);border-left:2px solid var(--accent)}
+.sgi-top{display:flex;align-items:center;gap:6px;margin-bottom:2px}
+.sgi-name{font-size:11px;color:var(--text-br);font-weight:700;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sgi-id{font-size:9px;color:var(--text-mut);flex-shrink:0}
+.sgi-mechanic{font-size:10px;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.player-area{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.player-toolbar{
+  display:flex;align-items:center;gap:8px;padding:6px 12px;
+  background:var(--bg-hdr);border-bottom:1px solid var(--border-dim);flex-shrink:0;
+}
+.player-title{font-size:12px;color:var(--text-br);font-weight:700;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pbtn{
+  background:none;border:1px solid var(--border-dim);color:var(--text-dim);
+  padding:3px 8px;border-radius:3px;font-size:11px;transition:all .15s;flex-shrink:0;
+}
+.pbtn:hover{border-color:var(--accent);color:var(--accent)}
+.iframe-wrap{
+  flex:1;position:relative;min-height:0;overflow:hidden;background:#000;
+  display:flex;align-items:center;justify-content:center;
+}
+#pp-msg{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  color:var(--text-mut);font-size:13px;letter-spacing:1px;flex-direction:column;gap:8px;
+}
+#game-frame{border:none;background:#000}
+.info-panel{padding:12px 14px;font-size:11px;color:var(--text-dim);flex-shrink:0;border-top:1px solid var(--border-dim);display:none;overflow-y:auto;max-height:180px}
+.info-panel.open{display:block}
+.info-row{display:flex;gap:8px;margin-bottom:5px;align-items:flex-start}
+.info-key{color:var(--text-mut);width:80px;flex-shrink:0;letter-spacing:.5px}
+.info-val{color:var(--text);flex:1;line-height:1.5}
+.lb-bar{flex-shrink:0;border-top:1px solid var(--border-dim);display:none}
+.lb-bar.open{display:block}
+.lb-header{padding:6px 12px;font-size:10px;color:var(--text-dim);display:flex;gap:8px;align-items:center;border-bottom:1px solid var(--border-dim)}
+.lb-header span{flex:1;letter-spacing:1px;text-transform:uppercase}
+.lb-list{max-height:130px;overflow-y:auto}
+.lb-entry{display:flex;align-items:center;gap:10px;padding:5px 12px;border-bottom:1px solid var(--border-dim);font-size:11px}
+.lb-rank{width:22px;color:var(--text-mut)}
+.lb-rank.gold{color:var(--gold)}
+.lb-rank.silver{color:#aab}
+.lb-rank.bronze{color:var(--orange)}
+.lb-name{flex:1;color:var(--text)}
+.lb-score{color:var(--accent);font-weight:700}
+.lb-entry.lb-new{background:rgba(90,184,255,.06);border-left:2px solid var(--accent)}
+
+/* ── GAME MODAL ── */
+.game-modal-overlay{
+  display:none;position:fixed;inset:0;z-index:800;
+  background:rgba(5,5,15,.85);backdrop-filter:blur(4px);
+  align-items:center;justify-content:center;
+}
+.game-modal-overlay.open{display:flex}
+.game-modal{
+  background:var(--bg-hdr);border:1px solid var(--border);border-radius:4px;
+  width:min(820px,98vw);max-height:calc(100vh - 20px);
+  display:flex;flex-direction:column;overflow:hidden;
+}
+.gm-toolbar{
+  display:flex;align-items:center;gap:8px;padding:8px 12px;
+  border-bottom:1px solid var(--border-dim);flex-shrink:0;
+}
+.gm-title{flex:1;font-size:13px;color:var(--text-br);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gm-btn{
+  background:none;border:1px solid var(--border-dim);color:var(--text-dim);
+  padding:4px 10px;border-radius:3px;font-size:11px;transition:all .15s;flex-shrink:0;
+}
+.gm-btn:hover{border-color:var(--accent);color:var(--accent)}
+.gm-btn.close:hover{border-color:var(--red);color:var(--red)}
+.game-modal-body{
+  flex:0 0 auto;position:relative;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;background:#000;
+}
+#gm-iframe{border:none;background:#000}
+.game-modal-info{padding:10px 14px;flex-shrink:0;font-size:11px;color:var(--text-dim);border-top:1px solid var(--border-dim);display:none;overflow-y:auto;max-height:180px}
+.game-modal-info.open{display:block}
+
+/* ── SCORE MODAL ── */
+.score-overlay{
+  display:none;position:fixed;inset:0;z-index:9999;
+  background:rgba(5,5,15,.9);align-items:center;justify-content:center;
+}
+.score-overlay.open{display:flex}
+.score-modal{
+  background:var(--bg-hdr);border:1px solid var(--border);border-radius:4px;
+  padding:28px 32px;width:min(400px,92vw);text-align:center;
+}
+.sm-title{font-size:16px;color:var(--text-br);margin-bottom:4px;letter-spacing:1px}
+.sm-score{font-size:48px;color:var(--gold);font-weight:700;letter-spacing:4px;margin:10px 0}
+.sm-input{
+  width:100%;background:var(--bg-card);border:1px solid var(--border);
+  border-radius:3px;padding:9px 12px;color:var(--text);font-family:var(--font);
+  font-size:13px;margin:10px 0;outline:none;text-align:center;
+}
+.sm-input:focus{border-color:var(--accent)}
+.sm-row{display:flex;gap:10px;justify-content:center;margin-top:8px}
+.sm-btn{
+  background:var(--bg-card);border:1px solid var(--border);color:var(--text);
+  padding:8px 20px;border-radius:3px;font-size:12px;font-family:var(--font);transition:all .15s;
+}
+.sm-btn:hover{border-color:var(--accent);color:var(--accent)}
+.sm-btn.primary{border-color:var(--accent);color:var(--accent);background:rgba(90,184,255,.08)}
+.sm-btn.primary:hover{background:rgba(90,184,255,.18)}
+.sm-err{color:var(--red);font-size:11px;margin-top:6px;display:none}
+.sm-err.show{display:block}
+
+/* ── HISTORY VIEW ── */
+#view-history{
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+  min-height:calc(100vh - var(--nav-h));gap:18px;padding:40px 20px;text-align:center;
+}
+#view-history.active{display:flex}
+.hist-title{font-size:32px;letter-spacing:4px;color:var(--text-br)}
+.hist-title span{color:var(--gold)}
+.hist-desc{font-size:12px;color:var(--text-dim);max-width:480px;line-height:1.8;letter-spacing:.5px}
+.hist-link{
+  display:inline-block;border:1px solid var(--gold);color:var(--gold);
+  padding:10px 28px;border-radius:3px;font-size:13px;letter-spacing:2px;
+  transition:all .2s;text-decoration:none;
+}
+.hist-link:hover{background:rgba(255,208,96,.1)}
+.hist-series-grid{
+  display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:820px;
+  margin:16px 0 8px;
+}
+.hsi{
+  border:1px solid var(--border);padding:8px 12px;border-radius:3px;
+  background:var(--bg-card);min-width:130px;cursor:pointer;transition:border-color .15s;
+  text-align:left;
+}
+.hsi:hover{border-color:var(--accent)}
+.hsi-code{font-size:9px;color:var(--text-mut);letter-spacing:1.5px;text-transform:uppercase}
+.hsi-name{font-size:11px;color:var(--text-br);letter-spacing:.3px;margin-top:2px}
+.hsi-counts{display:flex;gap:6px;margin-top:4px;flex-wrap:wrap}
+.hsi-arch{font-size:9px;color:var(--track-arch)}
+.hsi-ai{font-size:9px;color:var(--track-ai)}
+.hist-stats{display:flex;gap:32px;margin-top:10px}
+.hist-stat{text-align:center}
+.hist-stat-n{font-size:28px;color:var(--accent);font-weight:700}
+.hist-stat-l{font-size:10px;color:var(--text-mut);letter-spacing:1px;text-transform:uppercase}
+
+/* ── MOBILE BOTTOM NAV ── */
+.mob-nav{
+  display:none;position:fixed;bottom:0;left:0;right:0;z-index:600;
+  height:var(--mob-nav-h);background:rgba(10,11,22,.97);
+  border-top:1px solid var(--border);justify-content:space-around;align-items:center;
+}
+.mob-tab{
+  background:none;border:none;color:var(--text-dim);
+  display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 12px;
+  font-family:var(--font);font-size:10px;letter-spacing:.5px;transition:color .15s;
+}
+.mob-tab.active{color:var(--accent)}
+.mob-icon{font-size:18px;display:block}
+
+/* ── RESPONSIVE ── */
+@media(max-width:768px){
+  .top-nav{display:none}
+  .mob-nav{display:flex}
+  body{padding-bottom:var(--mob-nav-h)}
+  .hero{height:260px}
+  .hero-iframes{display:none}
+  .hero-counter{font-size:48px}
+  .filter-bar{top:0;padding:6px 10px}
+  .card-grid{
+    display:flex;flex-wrap:nowrap;overflow-x:auto;scroll-snap-type:x mandatory;
+    -webkit-overflow-scrolling:touch;gap:0;background:var(--bg);scrollbar-width:none;
+  }
+  .card-grid::-webkit-scrollbar{display:none}
+  .thumb-card{
+    flex:0 0 calc(100vw - 32px);max-width:320px;scroll-snap-align:start;
+    aspect-ratio:4/3;margin-right:2px;
+  }
+  #view-play{flex-direction:column;height:calc(100vh - var(--mob-nav-h))}
+  .sidebar{width:100%;height:180px;border-right:none;border-bottom:1px solid var(--border-dim)}
+  .game-modal-body{background:#000}
+  #gm-iframe{width:100vw;height:calc((100vw) * 0.75)}
+  .gm-toolbar{padding:6px 8px}
+  .gm-title{font-size:11px}
+  /* Mobile cards: overlay + play btn always visible, clean layout */
+  .tc-overlay{opacity:1;background:linear-gradient(to top,rgba(10,11,22,.9) 0%,rgba(10,11,22,.1) 55%,transparent 100%)}
+  .tc-play-btn{opacity:1;transform:translate(-50%,-50%) scale(1)}
+  .tc-era,.tc-ancestry{display:none}
+}
+@media(max-width:480px){
+  .gallery-toolbar .sort-label,.gallery-toolbar .sort-btn:not(.active){display:none}
+}
+/* ── LANDSCAPE (short viewport — phones rotated, browsers with toolbar) ── */
+@media(max-height:500px){
+  .hero{height:110px}
+  .hero-iframes{display:none}
+  .hero-subtitle,.hero-cta{display:none}
+  .hero-counter{font-size:36px}
+  .hero-title{font-size:22px;letter-spacing:3px}
+  .hero-counter-wrap{gap:6px}
+  .filter-bar{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .filter-bar::-webkit-scrollbar{display:none}
+}
+</style>
+<!-- Pixel Vault Analytics — replace G-XXXXXXXXXX with your GA4 Measurement ID (see tools/analytics-setup.md) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  window.gtag = function(){ dataLayer.push(arguments); };
+  window.gtag('js', new Date());
+  window.gtag('config', 'G-XXXXXXXXXX', { anonymize_ip: true });
+</script>
+</head>
+<body>
+
+<!-- ── TOP NAV ── -->
+<nav class="top-nav">
+  <div class="nav-logo">PIXEL<span>VAULT</span></div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" data-view="gallery">Gallery</button>
+    <button class="nav-tab" data-view="play">Play</button>
+    <button class="nav-tab" data-view="history">Compendium</button>
+  </div>
+  <input class="nav-search" id="nav-search-input" placeholder="Search games…" autocomplete="off" spellcheck="false">
+</nav>
+
+<!-- ══════════════ GALLERY VIEW ══════════════ -->
+<div id="view-gallery" class="view active">
+
+  <!-- HERO -->
+  <section class="hero" id="hero-section">
+    <div class="hero-iframes" id="hero-iframes"></div>
+    <div class="hero-content">
+      <div class="hero-title">PIXEL <span>VAULT</span></div>
+      <div class="hero-subtitle">Museum of Game Mechanics</div>
+      <div class="hero-counter-wrap">
+        <div class="hero-counter" id="hero-counter">0</div>
+        <div class="hero-counter-label">playable games</div>
+      </div>
+      <div class="hero-cta">
+        <button class="hero-btn primary" onclick="pickRandom()">▶ Play Random</button>
+        <button class="hero-btn" onclick="document.getElementById('filter-bar').scrollIntoView({behavior:'smooth'})">Browse All →</button>
+        <a class="hero-btn" href="compendium.html" target="_blank" rel="noopener" style="text-decoration:none">📖 100 Years of History</a>
+        <a class="hero-btn" href="compendium.html" target="_blank" rel="noopener" style="text-decoration:none">📖 100 Years of History</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- FILTER BAR -->
+  <div class="filter-bar" id="filter-bar">
+    <button class="filter-chip active" data-track="all">All</button>
+    <button class="filter-chip" data-track="archetype">Archetypes</button>
+    <button class="filter-chip" data-track="ai-archaeology">AI Archaeology</button>
+    <div class="filter-sep"></div>
+    <span class="filter-era-label">Era:</span>
+    <div id="era-chips"></div>
+  </div>
+
+  <!-- TOOLBAR -->
+  <div class="gallery-toolbar">
+    <span class="sort-label">Sort:</span>
+    <button class="sort-btn active" data-sort="series">Series</button>
+    <button class="sort-btn" data-sort="name">Name</button>
+    <button class="sort-btn" data-sort="era">Era</button>
+    <button class="sort-btn" data-sort="rating">Rating</button>
+    <div class="tb-spacer"></div>
+    <span class="tb-count" id="tb-count"></span>
+    <button class="view-btn active" id="tog-grid" title="Grid view">▦</button>
+    <button class="view-btn" id="tog-list" title="List view">≡</button>
+  </div>
+
+  <!-- CARD GRID -->
+  <main id="card-grid-wrap"></main>
+</div>
+
+<!-- ══════════════ PLAY VIEW ══════════════ -->
+<div id="view-play" class="view flex-view">
+  <div class="sidebar">
+    <input class="sb-search" id="sb-search" placeholder="Filter games…" autocomplete="off">
+    <div id="sb-list"></div>
+  </div>
+  <div class="player-area">
+    <div class="player-toolbar">
+      <span class="player-title" id="player-title">Select a game →</span>
+      <button class="pbtn" id="pbtn-info" title="Show info">Info</button>
+      <button class="pbtn" id="pbtn-scores" title="Leaderboard">Scores</button>
+      <button class="pbtn" id="pbtn-reload" title="Reload">↺</button>
+      <button class="pbtn" id="pbtn-popout" title="Open in new tab">↗</button>
+    </div>
+    <div class="iframe-wrap" id="iframe-wrap">
+      <div id="pp-msg">
+        <span style="font-size:24px;opacity:.3">▶</span>
+        <span>Select a game from the sidebar</span>
+      </div>
+      <iframe id="game-frame" sandbox="allow-scripts allow-same-origin" style="display:none"></iframe>
+    </div>
+    <div class="info-panel" id="info-panel"></div>
+    <div class="lb-bar" id="lb-bar">
+      <div class="lb-header">
+        <span>Leaderboard</span>
+        <button class="pbtn" id="lb-close" style="font-size:10px;padding:2px 6px">✕</button>
+      </div>
+      <div class="lb-list" id="lb-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ HISTORY VIEW ══════════════ -->
+<div id="view-history" class="view">
+  <div class="hist-title">GAME <span>COMPENDIUM</span></div>
+  <div style="text-align:center;margin-bottom:4px">
+    <div style="font-size:11px;color:var(--text-mut);letter-spacing:.5px;margin-bottom:10px">70+ creators · 100 years of genre evolution · the AI convergence timeline</div>
+    <a class="hist-link" href="compendium.html" target="_blank" rel="noopener" style="font-size:14px;padding:14px 48px">📖 Open Full Compendium →</a>
+    <div style="font-size:10px;color:var(--text-mut);margin-top:10px;letter-spacing:.5px">Series index below ↓</div>
+  </divence timeline — all in one place.</div>
+  <div style="text-align:center;margin-bottom:4px">
+    <div style="font-size:11px;color:var(--text-mut);letter-spacing:.5px;margin-bottom:10px">70+ creators · 100 years of genre evolution · the AI convergence timeline</div>
+    <a class="hist-link" href="compendium.html" target="_blank" rel="noopener" style="font-size:14px;padding:14px 48px">📖 Open Full Compendium →</a>
+    <div style="font-size:10px;color:var(--text-mut);margin-top:10px;letter-spacing:.5px">Series index below ↓</div>
+  </div>
+  <div class="hist-series-grid" id="hist-series"></div>
+  <div class="hist-stats" id="hist-stats"></div>
+</div>
+
+<!-- ══════════════ GAME MODAL ══════════════ -->
+<div class="game-modal-overlay" id="game-modal" role="dialog" aria-modal="true">
+  <div class="game-modal">
+    <div class="gm-toolbar">
+      <span class="gm-title" id="gm-title">—</span>
+      <button class="gm-btn" id="gm-info-btn">Info</button>
+      <button class="gm-btn" id="gm-playview-btn">Play View</button>
+      <button class="gm-btn" id="gm-fullscreen-btn" title="Fullscreen (F)">⛶</button>
+      <button class="gm-btn" id="gm-newtab-btn">↗</button>
+      <button class="gm-btn close" id="gm-close-btn">✕</button>
+    </div>
+    <div class="game-modal-body" id="gm-body">
+      <iframe id="gm-iframe" sandbox="allow-scripts allow-same-origin" allowfullscreen></iframe>
+    </div>
+    <div class="game-modal-info" id="gm-info-panel"></div>
+  </div>
+</div>
+
+<!-- ══════════════ SCORE MODAL ══════════════ -->
+<div class="score-overlay" id="score-overlay" role="dialog" aria-modal="true">
+  <div class="score-modal">
+    <div class="sm-title">GAME OVER</div>
+    <div class="sm-score" id="sm-score">0</div>
+    <div style="font-size:11px;color:var(--text-dim);margin-bottom:6px;letter-spacing:.5px" id="sm-game-name"></div>
+    <input class="sm-input" id="sm-name-input" placeholder="Enter your name" maxlength="24" autocomplete="off" autocorrect="off" spellcheck="false">
+    <div class="sm-err" id="sm-err">Name required (2–24 characters)</div>
+    <div class="sm-row">
+      <button class="sm-btn primary" id="sm-submit">Submit Score</button>
+      <button class="sm-btn" id="sm-skip">Skip</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ MOBILE NAV ══════════════ -->
+<nav class="mob-nav">
+  <button class="mob-tab active" data-view="gallery"><span class="mob-icon">▦</span>Gallery</button>
+  <button class="mob-tab" data-view="history"><span class="mob-icon">📖</span>Compendium</button>
+</nav>
+
+<script>
+(function(){
+'use strict';
+
+/* ── STATE ── */
+let manifest = [];
+let activeView = 'gallery';
+let galFilter = { track: 'all', era: null, search: '' };
+let galSort = 'series';
+let galViewMode = 'grid';
+let selectedGame = null;
+let modalGame = null;
+let apiUrl = null;
+let leaderboardEnabled = false;
+let currentSessionId = null;
+let pendingScore = null;
+
+/* ── HELPERS ── */
+function esc(str) {
+  const d = document.createElement('div');
+  d.textContent = String(str || '');
+  return d.innerHTML;
+}
+function toStars(r) {
+  const n = parseInt(r) || 0;
+  return '★'.repeat(n) + '☆'.repeat(Math.max(0, 5 - n));
+}
+function debounce(fn, ms) {
+  let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
+}
+function pvTrack(event, params) {
+  if (typeof window.gtag === 'function') window.gtag('event', event, params || {});
+}
+function trackClass(track) {
+  if (track === 'archetype') return 'arch';
+  if (track === 'ai-archaeology') return 'ai';
+  return 'evo';
+}
+function trackLabel(track) {
+  if (track === 'archetype') return 'Archetype';
+  if (track === 'ai-archaeology') return 'AI Archaeology';
+  return 'AI Evolution';
+}
+function thumbSrc(id) { return 'thumbnails/' + id + '.webp?v=20260414'; }
+
+/* ── CONFIG ── */
+async function loadConfig() {
+  try {
+    const r = await fetch('config.json');
+    if (!r.ok) return;
+    const cfg = await r.json();
+    if (cfg.apiUrl) { apiUrl = cfg.apiUrl; leaderboardEnabled = true; }
+  } catch (_) {}
+}
+
+/* ── BOOTSTRAP ── */
+async function init() {
+  await loadConfig();
+  try {
+    const r = await fetch('manifest.json');
+    if (!r.ok) throw new Error('manifest not found');
+    const data = await r.json();
+    manifest = (data.prototypes || []).filter(p => p.track !== 'ai-evolution');
+  } catch (e) {
+    document.getElementById('card-grid-wrap').innerHTML =
+      '<div style="padding:40px;text-align:center;color:var(--text-mut)">Could not load manifest.json</div>';
+    return;
+  }
+  buildEraFilterChips();
+  renderGallery();
+  renderSidebarList();
+  renderHeroIframes();
+  animateCounter(manifest.length);
+  renderHistoryStats();
+  renderCompendiumView();
+  bindNav();
+  bindFilters();
+  bindSortToggle();
+  bindSearch();
+  bindMobileGestures();
+  bindModal();
+  bindPlayerControls();
+  bindScoreModal();
+  bindSbSearch();
+  listenForGameMessages();
+  handleDeepLink();
+}
+
+/* ── MOBILE GESTURE LOCK ── */
+function bindMobileGestures() {
+  /* Prevent pinch-to-zoom on the gallery page; Safari ignores user-scalable=no
+     from iOS 10+ so we need JS as well */
+  document.addEventListener('touchmove', function(e) {
+    if (e.touches.length > 1) e.preventDefault();
+  }, { passive: false });
+  /* Safari-specific gesture events */
+  document.addEventListener('gesturestart', function(e) { e.preventDefault(); });
+  document.addEventListener('gesturechange', function(e) { e.preventDefault(); });
+}
+
+/* ── NAVIGATION ── */
+function bindNav() {
+  function setView(v) {
+    if (v === activeView) return;
+    activeView = v;
+    pvTrack('section_view', { section: v });
+    document.querySelectorAll('.view').forEach(el => {
+      el.classList.remove('active');
+    });
+    const target = document.getElementById('view-' + v);
+    if (target) target.classList.add('active');
+    document.querySelectorAll('.nav-tab,.mob-tab').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.view === v);
+    });
+    const url = new URL(location.href);
+    url.searchParams.set('view', v);
+    history.replaceState({}, '', url);
+  }
+  document.querySelectorAll('.nav-tab,.mob-tab').forEach(btn => {
+    btn.addEventListener('click', () => setView(btn.dataset.view));
+  });
+  window._setView = setView;
+}
+
+/* ── HERO IFRAMES ── */
+function renderHeroIframes() {
+  const container = document.getElementById('hero-iframes');
+  if (!container || !manifest.length) return;
+  const eligible = manifest.filter(p => p.track === 'archetype');
+  if (!eligible.length) return;
+  const count = Math.min(7, eligible.length);
+  const slots = [];
+  const used = new Set();
+  while (slots.length < count) {
+    const idx = Math.floor(Math.random() * eligible.length);
+    if (!used.has(idx)) { used.add(idx); slots.push(eligible[idx]); }
+  }
+  const slotW = Math.floor(100 / count);
+  slots.forEach((proto, i) => {
+    const slot = document.createElement('div');
+    slot.className = 'hero-iframe-slot';
+    slot.style.cssText = 'opacity:0;transition:opacity 1.2s';
+    const scale = slotW / 800 * (window.innerWidth / 100);
+    slot.innerHTML = '<iframe sandbox="allow-scripts allow-same-origin"' +
+      ' style="width:800px;height:600px;transform:scale(' + Math.max(0.15, scale).toFixed(3) + ');transform-origin:top left;border:none;pointer-events:none"' +
+      ' src="' + esc(proto.file) + '"></iframe>';
+    container.appendChild(slot);
+    setTimeout(() => { slot.style.opacity = '1'; }, 300 + i * 180);
+  });
+}
+
+/* ── COUNTER ANIMATION ── */
+function animateCounter(target) {
+  const el = document.getElementById('hero-counter');
+  if (!el) return;
+  const obs = new IntersectionObserver(entries => {
+    if (!entries[0].isIntersecting) return;
+    obs.disconnect();
+    const dur = 1400, start = performance.now();
+    function tick(now) {
+      const t = Math.min(1, (now - start) / dur);
+      const ease = 1 - Math.pow(1 - t, 3);
+      el.textContent = Math.round(ease * target);
+      if (t < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }, { threshold: 0.1 });
+  obs.observe(el);
+}
+
+/* ── ERA CHIPS ── */
+function buildEraFilterChips() {
+  const container = document.getElementById('era-chips');
+  if (!container) return;
+  const eras = new Map();
+  manifest.forEach(p => {
+    if (!p.aiEra) return;
+    const era = String(p.aiEra).trim();
+    const prefix = era.split(' ')[0];
+    if (!eras.has(prefix)) eras.set(prefix, era);
+  });
+  Array.from(eras.entries()).sort((a,b) => a[0].localeCompare(b[0])).forEach(([prefix, era]) => {
+    const btn = document.createElement('button');
+    btn.className = 'filter-chip';
+    btn.dataset.era = prefix;
+    btn.title = era;
+    btn.textContent = era.length > 20 ? prefix : era;
+    container.appendChild(btn);
+  });
+}
+
+/* ── FILTERS ── */
+function bindFilters() {
+  document.getElementById('filter-bar').addEventListener('click', e => {
+    const chip = e.target.closest('.filter-chip');
+    if (!chip) return;
+    if ('track' in chip.dataset) {
+      galFilter.track = chip.dataset.track;
+      galFilter.era = null;
+      document.querySelectorAll('.filter-chip[data-track]').forEach(c => c.classList.toggle('active', c === chip));
+      document.querySelectorAll('.filter-chip[data-era]').forEach(c => c.classList.remove('active'));
+    } else if ('era' in chip.dataset) {
+      if (galFilter.era === chip.dataset.era) {
+        galFilter.era = null;
+        chip.classList.remove('active');
+      } else {
+        galFilter.era = chip.dataset.era;
+        document.querySelectorAll('.filter-chip[data-era]').forEach(c => c.classList.toggle('active', c === chip));
+      }
+    }
+    renderGallery();
+  });
+}
+
+/* ── GALLERY SORT/VIEW ── */
+function bindSortToggle() {
+  document.querySelectorAll('.sort-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      galSort = btn.dataset.sort;
+      document.querySelectorAll('.sort-btn').forEach(b => b.classList.toggle('active', b === btn));
+      renderGallery();
+    });
+  });
+  document.getElementById('tog-grid').addEventListener('click', () => {
+    galViewMode = 'grid';
+    document.getElementById('tog-grid').classList.add('active');
+    document.getElementById('tog-list').classList.remove('active');
+    renderGallery();
+  });
+  document.getElementById('tog-list').addEventListener('click', () => {
+    galViewMode = 'list';
+    document.getElementById('tog-list').classList.add('active');
+    document.getElementById('tog-grid').classList.remove('active');
+    renderGallery();
+  });
+}
+
+/* ── SEARCH ── */
+function bindSearch() {
+  const inp = document.getElementById('nav-search-input');
+  inp.addEventListener('input', debounce(e => {
+    const q = e.target.value.trim();
+    galFilter.search = q.toLowerCase();
+    if (q.length >= 3) pvTrack('search', { search_term: q });
+    renderGallery();
+  }, 200));
+}
+
+/* ── FILTER PROTOS ── */
+function filterProtos() {
+  return manifest.filter(p => {
+    if (galFilter.track !== 'all' && p.track !== galFilter.track) return false;
+    if (galFilter.era && (!p.aiEra || !String(p.aiEra).startsWith(galFilter.era))) return false;
+    if (galFilter.search) {
+      const hay = [p.name, p.mechanic, p.seriesName, p.series, p.id].join(' ').toLowerCase();
+      if (!hay.includes(galFilter.search)) return false;
+    }
+    return true;
+  });
+}
+
+/* ── SORT PROTOS ── */
+function sortProtos(protos) {
+  if (galSort === 'series') return [...protos].sort((a,b) => (a.series||'').localeCompare(b.series||'') || (a.id||'').localeCompare(b.id||''));
+  if (galSort === 'name') return [...protos].sort((a,b) => (a.name||'').localeCompare(b.name||''));
+  if (galSort === 'era') return [...protos].sort((a,b) => (String(a.aiEra||'z')).localeCompare(String(b.aiEra||'z')));
+  if (galSort === 'rating') return [...protos].sort((a,b) => (parseInt(b.rating)||0) - (parseInt(a.rating)||0));
+  return protos;
+}
+
+/* ── RENDER GALLERY ── */
+function renderGallery() {
+  const wrap = document.getElementById('card-grid-wrap');
+  const protos = sortProtos(filterProtos());
+  document.getElementById('tb-count').textContent = protos.length + ' game' + (protos.length !== 1 ? 's' : '');
+  if (galViewMode === 'grid') renderGridView(protos, wrap);
+  else renderListView(protos, wrap);
+}
+
+function renderGridView(protos, wrap) {
+  wrap.innerHTML = '';
+  if (!protos.length) {
+    wrap.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-mut)">No games match this filter.</div>';
+    return;
+  }
+  const byGroup = {};
+  protos.forEach(p => {
+    const key = galSort === 'series' ? (p.seriesName || p.series || 'Other') :
+                galSort === 'era' ? (String(p.aiEra || 'Unknown Era')) :
+                galSort === 'rating' ? (p.rating ? '★'.repeat(parseInt(p.rating)) : 'Unrated') : 'All';
+    if (!byGroup[key]) byGroup[key] = [];
+    byGroup[key].push(p);
+  });
+  Object.keys(byGroup).forEach(groupKey => {
+    const section = document.createElement('div');
+    section.className = 'series-section';
+    const heading = document.createElement('div');
+    heading.className = 'series-heading';
+    const archetypes = byGroup[groupKey].filter(p => p.track !== 'ai-archaeology');
+    const companions = byGroup[groupKey].filter(p => p.track === 'ai-archaeology');
+    heading.innerHTML = esc(groupKey) + '<span>' + byGroup[groupKey].length + '</span>' +
+      (companions.length ? '<span style="color:var(--track-ai);font-size:9px;margin-left:4px">+ ' + companions.length + ' AI</span>' : '');
+    const grid = document.createElement('div');
+    grid.className = 'card-grid';
+    archetypes.forEach(p => grid.appendChild(makeThumbCard(p)));
+    if (companions.length && archetypes.length) {
+      const divider = document.createElement('div');
+      divider.className = 'ai-companion-divider';
+      divider.innerHTML = '⚗ AI Archaeology Companions <span class="aic-count">(' + companions.length + ')</span>';
+      grid.appendChild(divider);
+    }
+    companions.forEach(p => grid.appendChild(makeThumbCard(p)));
+    section.appendChild(heading);
+    section.appendChild(grid);
+    wrap.appendChild(section);
+  });
+}
+
+function renderListView(protos, wrap) {
+  wrap.innerHTML = '';
+  if (!protos.length) {
+    wrap.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-mut)">No games match this filter.</div>';
+    return;
+  }
+  const byGroup = {};
+  protos.forEach(p => {
+    const key = galSort === 'series' ? (p.seriesName || p.series || 'Other') :
+                galSort === 'era' ? (String(p.aiEra || 'Unknown Era')) : 'All';
+    if (!byGroup[key]) byGroup[key] = [];
+    byGroup[key].push(p);
+  });
+  Object.keys(byGroup).forEach(groupKey => {
+    const hdr = document.createElement('div');
+    hdr.className = 'list-series-hdr';
+    hdr.textContent = groupKey;
+    wrap.appendChild(hdr);
+    byGroup[groupKey].forEach(p => wrap.appendChild(makeListRow(p)));
+  });
+}
+
+/* ── MAKE CARD ── */
+function makeThumbCard(proto) {
+  const card = document.createElement('div');
+  card.className = 'thumb-card';
+  card.dataset.id = proto.id;
+  const tc = trackClass(proto.track);
+  card.innerHTML =
+    '<div class="tc-track-bar ' + tc + '"></div>' +
+    '<img class="tc-img" src="' + thumbSrc(proto.id) + '" alt="' + esc(proto.name) + '" loading="lazy"' +
+      ' onerror="this.style.display=\'none\';this.nextSibling.style.display=\'flex\'">' +
+    '<div class="tc-placeholder" style="display:none">' +
+      '<span class="tc-placeholder-icon">🕹</span>' +
+      '<span class="tc-placeholder-id">' + esc(proto.id) + '</span>' +
+    '</div>' +
+    '<div class="tc-preview" id="prev-' + esc(proto.id) + '"></div>' +
+    '<div class="tc-overlay">' +
+      '<div class="tc-name">' + esc(proto.name) + '</div>' +
+      '<div class="tc-mechanic">' + esc(proto.mechanic) + '</div>' +
+      '<div class="tc-era">' + esc(proto.aiEra || '') + '</div>' +
+      (proto.ancestry ? '<div class="tc-ancestry">' + esc(proto.ancestry.slice(0, 90)) + '</div>' : '') +
+    '</div>' +
+    '<div class="tc-play-btn">▶</div>';
+  card.addEventListener('click', () => {
+    pvTrack('game_open', { game_id: proto.id, game_name: proto.name, game_series: proto.series, game_track: proto.track, open_method: 'play_engine' });
+    const playUrl = 'play.html?game=' + encodeURIComponent(proto.id);
+    if (window.matchMedia('(hover: none)').matches || window.innerWidth <= 768) {
+      /* Mobile: open play engine in new tab (full viewport, no chrome limitations) */
+      sessionStorage.setItem('pv-gallery-state', JSON.stringify({ url: location.href, scrollY: window.scrollY }));
+      window.open(playUrl, '_blank', 'noopener');
+    } else {
+      /* Desktop: navigate same tab — play.html uses sessionStorage to restore gallery */
+      sessionStorage.setItem('pv-gallery-state', JSON.stringify({ url: location.href, scrollY: window.scrollY }));
+      location.href = playUrl;
+    }
+  });
+  return card;
+}
+
+function makeListRow(proto) {
+  const row = document.createElement('div');
+  row.className = 'list-row';
+  const tc = trackClass(proto.track);
+  row.innerHTML =
+    '<div class="list-track-pip ' + tc + '"></div>' +
+    '<img class="list-thumb" src="' + thumbSrc(proto.id) + '" alt="" loading="lazy"' +
+      ' onerror="this.style.background=\'var(--bg-card)\'">' +
+    '<div class="list-info">' +
+      '<div class="list-name">' + esc(proto.name) + '</div>' +
+      '<div class="list-mechanic">' + esc(proto.mechanic) + '</div>' +
+    '</div>' +
+    '<div class="list-meta">' +
+      '<span class="list-era-badge">' + esc(proto.aiEra || '') + '</span>' +
+      '<span class="list-stars">' + toStars(proto.rating) + '</span>' +
+      '<span class="list-id">' + esc(proto.id) + '</span>' +
+    '</div>';
+  row.addEventListener('click', () => openModal(proto));
+  return row;
+}
+
+/* ── RANDOM PICK ── */
+function pickRandom() {
+  const eligible = manifest.filter(p => p.track === 'archetype' || p.track === 'ai-archaeology');
+  if (!eligible.length) return;
+  const proto = eligible[Math.floor(Math.random() * eligible.length)];
+  pvTrack('game_open', { game_id: proto.id, game_name: proto.name, game_series: proto.series, game_track: proto.track, open_method: 'random_pick' });
+  sessionStorage.setItem('pv-gallery-state', JSON.stringify({ url: location.href, scrollY: window.scrollY }));
+  location.href = 'play.html?game=' + encodeURIComponent(proto.id);
+}
+
+/* ── GAME MODAL ── */
+function openModal(proto) {
+  modalGame = proto;
+  const overlay = document.getElementById('game-modal');
+  const iframe = document.getElementById('gm-iframe');
+  const title = document.getElementById('gm-title');
+  const infoPanel = document.getElementById('gm-info-panel');
+  const body = document.getElementById('gm-body');
+  title.textContent = proto.name + ' — ' + (proto.mechanic || '');
+  infoPanel.innerHTML = buildInfoHTML(proto, 'gm');
+  infoPanel.classList.remove('open');
+  /* size the iframe body to 800x600 scaled to fit */
+  const maxW = Math.min(820, window.innerWidth * 0.98) - 2;
+  const available = window.innerHeight - 100;
+  const scale = Math.min(1, maxW / 800, available / 600);
+  const iw = Math.round(800 * scale), ih = Math.round(600 * scale);
+  body.style.height = ih + 'px';
+  iframe.style.width = '800px';
+  iframe.style.height = '600px';
+  iframe.style.transform = 'scale(' + scale.toFixed(4) + ')';
+  iframe.style.transformOrigin = 'top left';
+  iframe.src = proto.file;
+  overlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  const url = new URL(location.href);
+  url.searchParams.set('game', proto.id);
+  history.pushState({ game: proto.id }, '', url);
+  if (leaderboardEnabled) startSession(proto.id).catch(() => {});
+  /* On mobile, auto-request fullscreen for best play experience */
+  if (window.innerWidth < 768 && (overlay.requestFullscreen || overlay.webkitRequestFullscreen)) {
+    (overlay.requestFullscreen || overlay.webkitRequestFullscreen).call(overlay).catch(() => {});
+    if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {});
+  }
+  pvTrack('game_open', { game_id: proto.id, game_name: proto.name, game_series: proto.series, game_track: proto.track });
+}
+
+function closeModal() {
+  if (modalGame) pvTrack('game_close', { game_id: modalGame.id, game_name: modalGame.name });
+  const overlay = document.getElementById('game-modal');
+  overlay.classList.remove('open');
+  document.body.style.overflow = '';
+  setTimeout(() => { document.getElementById('gm-iframe').src = ''; }, 100);
+  modalGame = null;
+  const url = new URL(location.href);
+  url.searchParams.delete('game');
+  history.replaceState({}, '', url);
+}
+
+function bindModal() {
+  document.getElementById('gm-close-btn').addEventListener('click', closeModal);
+  document.getElementById('game-modal').addEventListener('click', e => {
+    if (e.target === document.getElementById('game-modal')) closeModal();
+  });
+  document.getElementById('gm-info-btn').addEventListener('click', () => {
+    document.getElementById('gm-info-panel').classList.toggle('open');
+  });
+  document.getElementById('gm-playview-btn').addEventListener('click', () => {
+    if (modalGame) {
+      closeModal();
+      window._setView('play');
+      setTimeout(() => loadInPlayer(modalGame), 50);
+    }
+  });
+  document.getElementById('gm-newtab-btn').addEventListener('click', () => {
+    if (modalGame) {
+      pvTrack('game_open', { game_id: modalGame.id, game_name: modalGame.name, game_series: modalGame.series, game_track: modalGame.track, open_method: 'play_engine_modal' });
+      sessionStorage.setItem('pv-gallery-state', JSON.stringify({ url: location.href, scrollY: window.scrollY }));
+      window.open('play.html?game=' + encodeURIComponent(modalGame.id), '_blank', 'noopener,noreferrer');
+    }
+  });
+  document.getElementById('gm-fullscreen-btn').addEventListener('click', toggleModalFullscreen);
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && document.getElementById('game-modal').classList.contains('open')) closeModal();
+    if (e.key === 'f' && document.getElementById('game-modal').classList.contains('open')) toggleModalFullscreen();
+  });
+  document.addEventListener('fullscreenchange', onFullscreenChange);
+  document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+}
+
+/* ── FULLSCREEN ── */
+function toggleModalFullscreen() {
+  const target = document.getElementById('game-modal');
+  if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+    (target.requestFullscreen || target.webkitRequestFullscreen || target.mozRequestFullScreen).call(target);
+    if (screen.orientation && screen.orientation.lock) {
+      screen.orientation.lock('landscape').catch(() => {});
+    }
+  } else {
+    (document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen).call(document);
+  }
+}
+
+function onFullscreenChange() {
+  const btn = document.getElementById('gm-fullscreen-btn');
+  const iframe = document.getElementById('gm-iframe');
+  const body = document.getElementById('gm-body');
+  if (!btn || !iframe) return;
+  const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+  btn.textContent = isFs ? '⤡' : '⛶';
+  if (isFs) {
+    const toolbarH = document.querySelector('.gm-toolbar').offsetHeight || 40;
+    const availW = screen.width || window.innerWidth;
+    const availH = (screen.height || window.innerHeight) - toolbarH;
+    const scale = Math.min(availW / 800, availH / 600);
+    body.style.height = Math.round(600 * scale) + 'px';
+    iframe.style.transform = 'scale(' + scale.toFixed(4) + ')';
+  } else if (modalGame) {
+    const maxW = Math.min(820, window.innerWidth * 0.98) - 2;
+    const available = window.innerHeight - 100;
+    const scale = Math.min(1, maxW / 800, available / 600);
+    body.style.height = Math.round(600 * scale) + 'px';
+    iframe.style.transform = 'scale(' + scale.toFixed(4) + ')';
+  }
+}
+
+/* ── SIDEBAR ── */
+function renderSidebarList() {
+  const list = document.getElementById('sb-list');
+  list.innerHTML = '';
+  const byTrack = {};
+  manifest.forEach(p => {
+    if (!byTrack[p.track]) byTrack[p.track] = [];
+    byTrack[p.track].push(p);
+  });
+  ['archetype', 'ai-archaeology'].forEach(track => {
+    const protos = byTrack[track] || [];
+    if (!protos.length) return;
+    const hdr = document.createElement('div');
+    hdr.className = 'track-header ' + trackClass(track);
+    hdr.innerHTML = '▸ ' + esc(trackLabel(track)) + ' <span style="color:var(--text-mut);margin-left:4px">(' + protos.length + ')</span>';
+    list.appendChild(hdr);
+    protos.forEach(p => {
+      const item = document.createElement('div');
+      item.className = 'sb-game-item';
+      item.dataset.id = p.id;
+      item.innerHTML =
+        '<div class="sgi-top"><span class="sgi-name">' + esc(p.name) + '</span><span class="sgi-id">' + esc(p.id) + '</span></div>' +
+        '<div class="sgi-mechanic">' + esc(p.mechanic) + '</div>';
+      item.addEventListener('click', () => loadInPlayer(p));
+      list.appendChild(item);
+    });
+  });
+}
+
+function bindSbSearch() {
+  document.getElementById('sb-search').addEventListener('input', debounce(e => {
+    const q = e.target.value.toLowerCase().trim();
+    document.querySelectorAll('.sb-game-item').forEach(el => {
+      const text = el.textContent.toLowerCase();
+      el.style.display = q && !text.includes(q) ? 'none' : '';
+    });
+  }, 180));
+}
+
+/* ── PLAYER ── */
+function loadInPlayer(proto) {
+  selectedGame = proto;
+  document.querySelectorAll('.sb-game-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.id === proto.id);
+  });
+  const frame = document.getElementById('game-frame');
+  const msgEl = document.getElementById('pp-msg');
+  const wrap = document.getElementById('iframe-wrap');
+  msgEl.style.display = 'none';
+  frame.style.display = 'block';
+  const available = wrap.offsetWidth || 600;
+  const scale = Math.min(1, available / 800);
+  const ih = Math.round(600 * scale);
+  wrap.style.height = ih + 'px';
+  frame.style.width = '800px';
+  frame.style.height = '600px';
+  frame.style.transform = 'scale(' + scale.toFixed(2) + ')';
+  frame.style.transformOrigin = 'top left';
+  frame.src = proto.file;
+  document.getElementById('player-title').textContent = proto.name;
+  document.getElementById('info-panel').innerHTML = buildInfoHTML(proto, 'pp');
+  document.getElementById('info-panel').classList.add('open');
+  document.getElementById('lb-bar').classList.remove('open');
+  if (leaderboardEnabled) startSession(proto.id).catch(() => {});
+}
+
+function bindPlayerControls() {
+  document.getElementById('pbtn-info').addEventListener('click', () => {
+    document.getElementById('info-panel').classList.toggle('open');
+  });
+  document.getElementById('pbtn-scores').addEventListener('click', () => {
+    if (!leaderboardEnabled) return;
+    const bar = document.getElementById('lb-bar');
+    bar.classList.toggle('open');
+    if (bar.classList.contains('open') && selectedGame) loadLeaderboard(selectedGame.id);
+  });
+  document.getElementById('pbtn-reload').addEventListener('click', () => {
+    const f = document.getElementById('game-frame');
+    if (f.src) { const s = f.src; f.src = ''; setTimeout(() => f.src = s, 50); }
+  });
+  document.getElementById('pbtn-popout').addEventListener('click', () => {
+    if (selectedGame) window.open(selectedGame.file, '_blank', 'noopener,noreferrer');
+  });
+  document.getElementById('lb-close').addEventListener('click', () => {
+    document.getElementById('lb-bar').classList.remove('open');
+  });
+}
+
+/* ── INFO HTML ── */
+function buildInfoHTML(proto, prefix) {
+  const rows = [
+    ['Mechanic', proto.mechanic],
+    ['Ancestry', proto.ancestry],
+    ['Controls', proto.controls],
+    ['AI Era', proto.aiEra],
+    ['AI Insight', proto.aiInsight],
+    ['Date', proto.date],
+    ['ID', proto.id],
+  ];
+  const html = rows.filter(r => r[1]).map(r =>
+    '<div class="info-row"><span class="info-key">' + esc(r[0]) + '</span><span class="info-val">' + esc(r[1]) + '</span></div>'
+  ).join('');
+  return '<div class="info-row" style="border-bottom:1px solid var(--border-dim);padding-bottom:8px;margin-bottom:8px"><span class="info-key" style="color:var(--gold)">? Key</span><span class="info-val" style="color:var(--text-dim)">Press <strong style="color:var(--text-br)">?</strong> while playing for full controls, history &amp; AI analysis</span></div>' + html;
+}
+
+/* ── HISTORY STATS ── */
+function renderHistoryStats() {
+  const el = document.getElementById('hist-stats');
+  if (!el || !manifest.length) return;
+  const arch = manifest.filter(p => p.track === 'archetype').length;
+  const ai = manifest.filter(p => p.track === 'ai-archaeology').length;
+  el.innerHTML =
+    '<div class="hist-stat"><div class="hist-stat-n">' + arch + '</div><div class="hist-stat-l">Archetypes</div></div>' +
+    '<div class="hist-stat"><div class="hist-stat-n">' + ai + '</div><div class="hist-stat-l">AI Archaeology</div></div>' +
+    '<div class="hist-stat"><div class="hist-stat-n">' + manifest.length + '</div><div class="hist-stat-l">Total Playable</div></div>';
+}
+
+/* ── COMPENDIUM SERIES GRID ── */
+function renderCompendiumView() {
+  const el = document.getElementById('hist-series');
+  if (!el || !manifest.length) return;
+  const bySeries = {};
+  manifest.forEach(g => {
+    if (!bySeries[g.series]) bySeries[g.series] = { name: g.seriesName || g.series, archetypes: 0, ai: 0 };
+    if (g.track === 'archetype') bySeries[g.series].archetypes++;
+    else if (g.track === 'ai-archaeology') bySeries[g.series].ai++;
+  });
+  const rows = Object.entries(bySeries)
+    .filter(([, d]) => d.archetypes > 0)
+    .sort((a, b) => a[0].localeCompare(b[0]));
+  el.innerHTML = rows.map(([code, d]) =>
+    '<div class="hsi" onclick="goToSeries(' + JSON.stringify(d.name) + ')">' +
+      '<div class="hsi-code">' + esc(code) + '</div>' +
+      '<div class="hsi-name">' + esc(d.name) + '</div>' +
+      '<div class="hsi-counts">' +
+        '<span class="hsi-arch">' + d.archetypes + ' arch</span>' +
+        (d.ai ? '<span class="hsi-ai">+ ' + d.ai + ' AI</span>' : '') +
+      '</div>' +
+    '</div>'
+  ).join('');
+}
+
+function goToSeries(seriesName) {
+  window._setView('gallery');
+  setTimeout(() => {
+    const headings = document.querySelectorAll('.series-heading');
+    for (const h of headings) {
+      if (h.textContent.includes(seriesName)) {
+        h.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        break;
+      }
+    }
+  }, 150);
+}
+
+/* ── LEADERBOARD ── */
+async function startSession(gameId) {
+  if (!leaderboardEnabled || !apiUrl) return;
+  try {
+    const r = await fetch(apiUrl + '/session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gameId })
+    });
+    if (!r.ok) return;
+    const d = await r.json();
+    currentSessionId = d.sessionId || null;
+  } catch (_) {}
+}
+
+async function loadLeaderboard(gameId) {
+  if (!leaderboardEnabled || !apiUrl) return;
+  try {
+    const r = await fetch(apiUrl + '/leaderboard/' + encodeURIComponent(gameId));
+    if (!r.ok) return;
+    const d = await r.json();
+    renderLbEntries(d.entries || d || []);
+  } catch (_) {}
+}
+
+function renderLbEntries(entries) {
+  const list = document.getElementById('lb-list');
+  if (!entries.length) { list.innerHTML = '<div class="lb-entry" style="color:var(--text-mut)">No scores yet — be first!</div>'; return; }
+  list.innerHTML = entries.slice(0, 10).map((e, i) => {
+    const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1);
+    return '<div class="lb-entry' + (e.isNew ? ' lb-new' : '') + '">' +
+      '<span class="lb-rank ' + rankClass + '">' + medal + '</span>' +
+      '<span class="lb-name">' + esc(e.playerName || 'Anonymous') + '</span>' +
+      '<span class="lb-score">' + esc(e.score) + '</span></div>';
+  }).join('');
+}
+
+/* ── SCORE MESSAGES ── */
+function listenForGameMessages() {
+  window.addEventListener('message', e => {
+    try {
+      if (typeof e.data !== 'object' || !e.data) return;
+      if (e.data.type !== 'PIXELVAULT_SCORE') return;
+      const score = parseInt(e.data.score, 10);
+      if (isNaN(score) || score < 0) return;
+      pendingScore = score;
+      showScoreModal(score);
+    } catch (_) {}
+  });
+}
+
+function showScoreModal(score) {
+  const overlay = document.getElementById('score-overlay');
+  document.getElementById('sm-score').textContent = score;
+  const game = modalGame || selectedGame;
+  document.getElementById('sm-game-name').textContent = game ? game.name : '';
+  document.getElementById('sm-name-input').value = '';
+  document.getElementById('sm-err').classList.remove('show');
+  overlay.classList.add('open');
+  setTimeout(() => document.getElementById('sm-name-input').focus(), 50);
+}
+
+function hideScoreModal() {
+  document.getElementById('score-overlay').classList.remove('open');
+}
+
+function bindScoreModal() {
+  document.getElementById('sm-submit').addEventListener('click', submitScore);
+  document.getElementById('sm-skip').addEventListener('click', hideScoreModal);
+  document.getElementById('sm-name-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') submitScore();
+  });
+  document.getElementById('score-overlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('score-overlay')) hideScoreModal();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && document.getElementById('score-overlay').classList.contains('open')) hideScoreModal();
+  });
+}
+
+async function submitScore() {
+  if (!leaderboardEnabled || !apiUrl) { hideScoreModal(); return; }
+  const name = document.getElementById('sm-name-input').value.trim();
+  if (name.length < 2 || name.length > 24) {
+    document.getElementById('sm-err').classList.add('show');
+    return;
+  }
+  const game = modalGame || selectedGame;
+  if (!game || pendingScore === null) { hideScoreModal(); return; }
+  hideScoreModal();
+  try {
+    await fetch(apiUrl + '/score', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gameId: game.id, playerName: name, score: pendingScore, sessionId: currentSessionId })
+    });
+    pendingScore = null;
+    if (document.getElementById('lb-bar').classList.contains('open') || document.getElementById('game-modal').classList.contains('open')) {
+      await loadLeaderboard(game.id);
+    }
+  } catch (_) { pendingScore = null; }
+}
+
+/* ── DEEP LINK ── */
+function handleDeepLink() {
+  const params = new URLSearchParams(location.search);
+  const view = params.get('view');
+  if (view && ['gallery','play','history'].includes(view)) window._setView(view);
+  const gameId = params.get('game');
+  if (gameId) {
+    const proto = manifest.find(p => p.id === gameId);
+    if (proto) openModal(proto);
+  }
+}
+
+/* ── KICK OFF ── */
+init().catch(e => console.error('Pixel Vault init error:', e));
+
+})();
+</script>
+</body>
+</html>

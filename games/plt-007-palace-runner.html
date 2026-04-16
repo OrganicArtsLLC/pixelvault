@@ -1,0 +1,1738 @@
+<!--
+PROTOTYPE: palace-runner
+SERIES: plt
+NUMBER: 007
+DATE: 2026-03-22
+MECHANIC: cinematic platformer with traps, ledge-grabbing, and sword combat
+ANCESTRY: Prince of Persia (1989, Jordan Mechner, Broderbund), Karateka (1984, Jordan Mechner)
+CONTROLS: Arrow keys — move/climb | Space — jump | Z — careful step | X — sword | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — rotoscoped animation and physics-based movement)
+AI-INSIGHT: Prince of Persia's rotoscoped animation created the first physics-plausible movement system in platformers — momentum, stumbling, ledge-grabbing. This commitment to physical realism in character control prefigured the motion-capture and physics-based animation that modern AI animation systems now generate.
+NOTES: The timer creates global urgency that transforms careful platforming into speed-running.
+       Sword combat is simple but contextual — it only appears when guards are present.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PLT-007 · PALACE RUNNER</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>PLT-007 · PALACE RUNNER</h1>
+    <p><span class="tag series">PLT — Platformer</span> <span class="tag">Prototype #007</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Navigate the dungeon to escape before time runs out. Avoid traps, defeat guards with your sword, and find the exit on each level.</p>
+    <ul>
+      <li><kbd>&#8592;</kbd> <kbd>&#8594;</kbd> — Run left/right</li>
+      <li><kbd>&#8593;</kbd> <kbd>&#8595;</kbd> — Climb up/down ledges</li>
+      <li><kbd>Space</kbd> — Jump (running jump or standing jump)</li>
+      <li><kbd>Z</kbd> or <kbd>Shift</kbd> — Careful step / grab ledge / parry (in combat)</li>
+      <li><kbd>X</kbd> — Draw sword / attack (in combat)</li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Careful step (Z):</strong> Walk slowly to test for loose floor tiles. Falling floors crumble when you run over them.</li>
+      <li><strong>Ledge grab:</strong> When falling past a ledge, hold Z to grab on. Press Up to pull yourself up.</li>
+      <li><strong>Spikes:</strong> Spike pits are instant death. Look before you leap.</li>
+      <li><strong>Guillotines:</strong> Time your passage through timed guillotine traps.</li>
+      <li><strong>Sword combat:</strong> When near a guard, press X to draw your sword. Use Left/Right to advance/retreat, X to strike, Z to parry.</li>
+      <li><strong>Potions:</strong> Collect potions on the ground to restore health.</li>
+      <li><strong>Timer:</strong> You have 60 minutes (simplified). Move quickly but carefully.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Karateka (1984, Jordan Mechner) &rarr; Prince of Persia (1989, Broderbund) &rarr; Out of This World (1991) &rarr; Oddworld (1997) &rarr; Prince of Persia: Sands of Time (2003)</p>
+    <p>Jordan Mechner spent four years developing Prince of Persia (1985-1989). He filmed his brother David running and jumping, then rotoscoped the footage frame by frame. The result was unprecedented fluid movement on the Apple II &mdash; a character that felt human.</p>
+    <p>Mechner's earlier Karateka (1984) pioneered cinematic game techniques. Prince of Persia elevated every aspect &mdash; more complex animation, intricate level design, and the 60-minute timer that transformed exploration into speed-running. It launched the "cinematic platformer" subgenre where the Prince moved as a physical body with momentum, stumbling, and ledge-grabbing.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 3 &mdash; Knowledge Explosion (through late 1980s influence)</p>
+    <p><strong>Contemporary AI:</strong> Neural networks were in their second winter. Expert systems were losing credibility. Connectionists and symbolists debated architecture.</p>
+    <p><strong>Hidden Intelligence:</strong> Prince of Persia's rotoscoped animation encoded an implicit physical model of human movement &mdash; momentum, stumbling, ledge-grabbing, recovery. This prefigured the motion-capture and physics-based animation that AI systems now generate procedurally.</p>
+    <p><strong>The Convergence:</strong> Modern AI locomotion controllers (deep RL) rediscovered what Mechner encoded by hand: realistic movement requires transition states, momentum, and environment-aware animation. Rotoscoping was manual "data-driven animation."</p>
+    <p><strong>If AI Had Designed This:</strong> Procedurally generated dungeons with guaranteed solvability. Adaptive trap timing calibrated to skill. RL-driven character animation replacing hand-rotoscoped frames.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: PLT &mdash; Platformer</h3>
+    <p>Prince of Persia is the foundational cinematic platformer. Gravity, momentum, ledge interaction, and physical consequence define every action. The room-based level structure creates discrete puzzle-action challenges.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Cinematic platformer with physics-based movement, trap navigation, and contextual sword combat.</strong> Running jump distance depends on momentum. Ledge-grabbing as a core traversal mechanic. Environmental hazards (spikes, guillotines, falling floors) as puzzle elements. Simple sword dueling against guards. Global timer creating urgency.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Cinematic movement &mdash; does the interpolated animation create a sense of weight and momentum?</li>
+      <li>Ledge mechanics &mdash; does grabbing and pulling up feel responsive and satisfying?</li>
+      <li>Trap variety &mdash; do spikes, guillotines, and falling floors create distinct challenges?</li>
+      <li>Sword combat &mdash; does the advance/retreat/strike/parry loop feel tactical?</li>
+      <li>Timer pressure &mdash; does the countdown create meaningful urgency?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Room-based dungeon with 3 levels (3-4 rooms each). Spike pits, guillotine traps, falling floor tiles, guard encounters, health potions, and a 60-minute timer. Animation states simulate the rotoscoped fluidity of the original.</p>
+
+    <h2>Educational Notice</h2>
+    <p>Educational reconstruction for research. Not affiliated with original creators.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+const keys = {};
+const justPressed = {};
+window.addEventListener('keydown', e => {
+  if (infoOpen) return;
+  if (!keys[e.code]) justPressed[e.code] = true;
+  keys[e.code] = true;
+  e.preventDefault();
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+function pop(code) { if (justPressed[code]) { justPressed[code] = false; return true; } return false; }
+function popAny(codes) { for (const c of codes) { if (pop(c)) return true; } return false; }
+function anyKey(codes) { for (const c of codes) { if (keys[c]) return true; } return false; }
+
+// --- CONSTANTS ---
+const TILE = 48;
+const COLS = 16; // room is 16 tiles wide (768 usable of 800)
+const ROWS = 12; // room is 12 tiles tall (576 usable of 600)
+const OX = 16;   // offset x to center 768 in 800
+const OY = 12;   // offset y to center 576 in 600
+const GRAVITY = 0.5;
+const RUN_SPEED = 3;
+const CAREFUL_SPEED = 1;
+const JUMP_VX = 4;
+const JUMP_VY = -9;
+const SJUMP_VY = -8;
+
+// Tile types
+const T_EMPTY = 0, T_FLOOR = 1, T_SPIKE = 2, T_GATE = 3, T_EXIT = 4;
+const T_GUILL = 5, T_LOOSE = 6, T_POTION = 7, T_WALL = 8;
+
+// Animation states
+const S_IDLE = 0, S_RUN = 1, S_JUMP = 2, S_FALL = 3, S_HANG = 4;
+const S_CLIMB = 5, S_CAREFUL = 6, S_COMBAT = 7, S_DEAD = 8;
+const S_TURN = 9, S_PULLUP = 10, S_LAND = 11, S_STUMBLE = 12;
+
+// --- LEVEL DATA ---
+const FLOOR_ROW = 9;
+
+function makeLevels() {
+  const levels = [];
+
+  levels.push({ rooms: [
+    { tiles: makeRoom([
+      { type: T_FLOOR, row: FLOOR_ROW, c1: 0, c2: 15 },
+      { type: T_WALL, row: 0, c1: 0, c2: 0 },
+      { type: T_WALL, row: 1, c1: 0, c2: 0 },
+      { type: T_WALL, row: 2, c1: 0, c2: 0 },
+      { type: T_POTION, row: FLOOR_ROW, c1: 4, c2: 4 },
+    ]), guards: [], exit: 'right' },
+
+    // Room 1: Spike pit
+    { tiles: makeRoom([
+      { type: T_FLOOR, row: FLOOR_ROW, c1: 0, c2: 4 },
+      { type: T_SPIKE, row: FLOOR_ROW, c1: 5, c2: 7 },
+      { type: T_FLOOR, row: FLOOR_ROW, c1: 8, c2: 15 },
+      { type: T_LOOSE, row: FLOOR_ROW, c1: 12, c2: 12 },
+    ]), guards: [], exit: 'right' },
+
+    { tiles: makeRoom([
+      { type: T_FLOOR, row: FLOOR_ROW, c1: 0, c2: 15 },
+      { type: T_GUILL, row: FLOOR_ROW, c1: 6, c2: 6 },
+      { type: T_FLOOR, row: 5, c1: 10, c2: 14 },
+    ]), guards: [{ x: 11, hp: 2, maxHp: 2 }], exit: 'right' },
+
+    // Room 3: Exit with traps
+    { tiles: makeRoom([
+      { type: T_FLOOR, row: FLOOR_ROW, c1: 0, c2: 3 },
+      { type: T_SPIKE, row: FLOOR_ROW, c1: 4, c2: 5 },
+      { type: T_FLOOR, row: FLOOR_ROW, c1: 6, c2: 9 },
+      { type: T_LOOSE, row: FLOOR_ROW, c1: 7, c2: 8 },
+      { type: T_FLOOR, row: FLOOR_ROW, c1: 10, c2: 15 },
+      { type: T_EXIT, row: FLOOR_ROW, c1: 14, c2: 14 },
+    ]), guards: [], exit: 'next_level' },
+  ]});
+
+  // --- LEVEL 2: 4 rooms ---
+  levels.push({ rooms: [
+    // Room 0: Start with falling floors
+    { tiles: makeRoom([
+      { type: T_FLOOR, row: FLOOR_ROW, c1: 0, c2: 5 },
+      { type: T_LOOSE, row: FLOOR_ROW, c1: 6, c2: 9 },
+      { type: T_FLOOR, row: FLOOR_ROW, c1: 10, c2: 15 },
+      { type: T_POTION, row: FLOOR_ROW, c1: 3, c2: 3 },
+    ]), guards: [], exit: 'right' },
+
+    // Room 1: Multi-level with guard
+    { tiles: makeRoom([
+      { type: T_FLOOR, row: FLOOR_ROW, c1: 0, c2: 15 },
+      { type: T_FLOOR, row: 5, c1: 3, c2: 8 },
+      { type: T_GUILL, row: FLOOR_ROW, c1: 10, c2: 10 },
+      { type: T_POTION, row: 5, c1: 5, c2: 5 },
+    ]), guards: [{ x: 13, hp: 2, maxHp: 2 }], exit: 'right' },
+
+    // Room 2: Double guillotine + spikes
+    { tiles: makeRoom([
+      { type: T_FLOOR, row: FLOOR_ROW, c1: 0, c2: 3 },
+      { type: T_GUILL, row: FLOOR_ROW, c1: 4, c2: 4 },
+      { type: T_FLOOR, row: FLOOR_ROW, c1: 5, c2: 8 },
+      { type: T_GUILL, row: FLOOR_ROW, c1: 9, c2: 9 },
+      { type: T_FLOOR, row: FLOOR_ROW, c1: 10, c2: 11 },
+      { type: T_SPIKE, row: FLOOR_ROW, c1: 12, c2: 12 },
+      { type: T_FLOOR, row: FLOOR_ROW, c1: 13, c2: 15 },
+    ]), guards: [], exit: 'right' },
+
+    // Room 3: Guard before exit
+    { tiles: makeRoom([
+      { type: T_FLOOR, row: FLOOR_ROW, c1: 0, c2: 15 },
+      { type: T_FLOOR, row: 6, c1: 0, c2: 5 },
+      { type: T_EXIT, row: FLOOR_ROW, c1: 14, c2: 14 },
+    ]), guards: [{ x: 10, hp: 3, maxHp: 3 }], exit: 'next_level' },
+  ]});
+
+  // --- LEVEL 3: 3 rooms ---
+  levels.push({ rooms: [
+    // Room 0: Gauntlet
+    { tiles: makeRoom([
+      { type: T_FLOOR, row: FLOOR_ROW, c1: 0, c2: 2 },
+      { type: T_SPIKE, row: FLOOR_ROW, c1: 3, c2: 3 },
+      { type: T_FLOOR, row: FLOOR_ROW, c1: 4, c2: 5 },
+      { type: T_GUILL, row: FLOOR_ROW, c1: 6, c2: 6 },
+      { type: T_FLOOR, row: FLOOR_ROW, c1: 7, c2: 8 },
+      { type: T_LOOSE, row: FLOOR_ROW, c1: 9, c2: 10 },
+      { type: T_FLOOR, row: FLOOR_ROW, c1: 11, c2: 15 },
+      { type: T_POTION, row: FLOOR_ROW, c1: 13, c2: 13 },
+    ]), guards: [{ x: 12, hp: 2, maxHp: 2 }], exit: 'right' },
+
+    // Room 1: Vertical challenge
+    { tiles: makeRoom([
+      { type: T_FLOOR, row: FLOOR_ROW, c1: 0, c2: 4 },
+      { type: T_SPIKE, row: FLOOR_ROW, c1: 5, c2: 7 },
+      { type: T_FLOOR, row: FLOOR_ROW, c1: 8, c2: 15 },
+      { type: T_FLOOR, row: 5, c1: 5, c2: 10 },
+      { type: T_GUILL, row: 5, c1: 8, c2: 8 },
+    ]), guards: [{ x: 7, hp: 3, maxHp: 3 }], exit: 'right' },
+
+    // Room 2: Final room
+    { tiles: makeRoom([
+      { type: T_FLOOR, row: FLOOR_ROW, c1: 0, c2: 4 },
+      { type: T_SPIKE, row: FLOOR_ROW, c1: 5, c2: 6 },
+      { type: T_FLOOR, row: FLOOR_ROW, c1: 7, c2: 15 },
+      { type: T_LOOSE, row: FLOOR_ROW, c1: 8, c2: 9 },
+      { type: T_EXIT, row: FLOOR_ROW, c1: 14, c2: 14 },
+    ]), guards: [{ x: 12, hp: 3, maxHp: 3 }], exit: 'win' },
+  ]});
+
+  return levels;
+}
+
+function makeRoom(defs) {
+  const tiles = [];
+  for (let r = 0; r < ROWS; r++) {
+    tiles[r] = [];
+    for (let c = 0; c < COLS; c++) {
+      tiles[r][c] = { type: T_EMPTY, fallen: false, guill_t: Math.random() * Math.PI * 2 };
+    }
+  }
+  for (const d of defs) {
+    for (let c = d.c1; c <= d.c2; c++) {
+      tiles[d.row][c].type = d.type;
+    }
+  }
+  // Add walls on row below floor for visual depth
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (tiles[r][c].type !== T_EMPTY) {
+        for (let rr = r + 1; rr < ROWS; rr++) {
+          if (tiles[rr][c].type === T_EMPTY) tiles[rr][c].type = T_WALL;
+        }
+      }
+    }
+  }
+  return tiles;
+}
+
+// --- GAME STATE ---
+let levels, levelIdx, roomIdx, room;
+let player, guards, particles, frame;
+let gameOver, won, titleScreen;
+let timer, timerStart;
+let looseTimers; // tracks falling floor animations
+let transitionTimer, transitionDir;
+
+function initGame() {
+  levels = makeLevels();
+  levelIdx = 0;
+  roomIdx = 0;
+  frame = 0;
+  gameOver = false;
+  won = false;
+  titleScreen = true;
+  timer = 60 * 60; // 60 minutes in seconds
+  timerStart = Date.now();
+  particles = [];
+  transitionTimer = 0;
+  transitionDir = 0;
+  enterRoom();
+}
+
+function enterRoom() {
+  const lv = levels[levelIdx];
+  room = lv.rooms[roomIdx];
+  // Deep copy tiles so loose floors reset properly per entry
+  room._tiles = JSON.parse(JSON.stringify(room.tiles));
+  looseTimers = [];
+
+  // Init guards for this room
+  guards = [];
+  for (const gd of room.guards) {
+    guards.push({
+      x: gd.x * TILE + OX + TILE / 2,
+      y: FLOOR_ROW * TILE + OY - 1,
+      hp: gd.maxHp,
+      maxHp: gd.maxHp,
+      facing: -1,
+      state: S_IDLE,
+      stateT: 0,
+      attackCD: 40 + Math.random() * 60,
+      blockCD: 0,
+      stunT: 0,
+      dead: false,
+    });
+  }
+
+  // Place player
+  if (transitionDir === 0) {
+    // Start of level — left side
+    player.x = 2 * TILE + OX + TILE / 2;
+  } else if (transitionDir === 1) {
+    // Came from left room
+    player.x = 1 * TILE + OX + TILE / 2;
+  }
+  // Find ground at player x
+  const pc = Math.floor((player.x - OX) / TILE);
+  let groundR = FLOOR_ROW;
+  for (let r = 0; r < ROWS; r++) {
+    if (room._tiles[r] && room._tiles[r][pc] && room._tiles[r][pc].type >= T_FLOOR) {
+      groundR = r; break;
+    }
+  }
+  player.y = groundR * TILE + OY - 1;
+  player.vy = 0;
+  player.state = S_IDLE;
+  player.stateT = 0;
+  player.hangCol = -1;
+  player.hangRow = -1;
+  player.combat = false;
+}
+
+function initPlayer() {
+  return {
+    x: 100, y: FLOOR_ROW * TILE + OY - 1,
+    vx: 0, vy: 0,
+    w: 16, h: 44,
+    facing: 1,
+    state: S_IDLE,
+    stateT: 0,
+    hp: 3, maxHp: 3,
+    combat: false,
+    swordDrawn: false,
+    attackT: 0,
+    parryT: 0,
+    hangCol: -1, hangRow: -1,
+    invT: 0,
+    walkFrame: 0,
+    dead: false,
+  };
+}
+
+player = initPlayer();
+initGame();
+
+// --- TILE HELPERS ---
+function tileAt(r, c) {
+  if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return { type: T_WALL };
+  return room._tiles[r][c];
+}
+
+function isSolidTile(r, c) {
+  const t = tileAt(r, c);
+  if (t.fallen) return false;
+  return t.type === T_FLOOR || t.type === T_GATE || t.type === T_GUILL ||
+         t.type === T_LOOSE || t.type === T_POTION || t.type === T_EXIT || t.type === T_WALL;
+}
+
+function pixToTile(px, py) {
+  return { r: Math.floor((py - OY) / TILE), c: Math.floor((px - OX) / TILE) };
+}
+
+function tileToPixCenter(r, c) {
+  return { x: c * TILE + OX + TILE / 2, y: r * TILE + OY + TILE / 2 };
+}
+
+// --- PLAYER UPDATE ---
+function updatePlayer() {
+  const p = player;
+  if (p.dead) return;
+  if (p.invT > 0) p.invT--;
+  p.stateT++;
+
+  // Transition animation
+  if (transitionTimer > 0) return;
+
+  // --- HANGING STATE ---
+  if (p.state === S_HANG) {
+    p.vx = 0; p.vy = 0;
+    const hx = p.hangCol * TILE + OX + TILE / 2;
+    p.x += (hx - p.x) * 0.3;
+    p.y = p.hangRow * TILE + OY + TILE - 1;
+    if (keys['ArrowUp'] || popAny(['Space'])) {
+      p.state = S_PULLUP;
+      p.stateT = 0;
+    } else if (popAny(['ArrowDown'])) {
+      p.state = S_FALL;
+      p.stateT = 0;
+      p.hangCol = -1; p.hangRow = -1;
+    }
+    return;
+  }
+
+  // --- PULL UP ---
+  if (p.state === S_PULLUP) {
+    p.vx = 0; p.vy = 0;
+    if (p.stateT > 20) {
+      p.y = p.hangRow * TILE + OY - 1;
+      p.x = p.hangCol * TILE + OX + TILE / 2;
+      p.state = S_IDLE;
+      p.stateT = 0;
+      p.hangCol = -1; p.hangRow = -1;
+    } else {
+      const t = p.stateT / 20;
+      const startY = p.hangRow * TILE + OY + TILE - 1;
+      const endY = p.hangRow * TILE + OY - 1;
+      p.y = startY + (endY - startY) * t;
+    }
+    return;
+  }
+
+  // --- LANDING ---
+  if (p.state === S_LAND) {
+    p.vx = 0;
+    if (p.stateT > 10) {
+      p.state = S_IDLE;
+      p.stateT = 0;
+    }
+    return;
+  }
+
+  // --- STUMBLE ---
+  if (p.state === S_STUMBLE) {
+    p.vx *= 0.9;
+    if (p.stateT > 18) {
+      p.state = S_IDLE;
+      p.stateT = 0;
+    }
+    return;
+  }
+
+  // --- DEAD ---
+  if (p.state === S_DEAD) return;
+
+  // --- COMBAT ---
+  if (p.combat) {
+    updateCombat();
+    return;
+  }
+
+  // Check if guard is nearby — enter combat
+  for (const g of guards) {
+    if (g.dead) continue;
+    if (Math.abs(g.x - p.x) < TILE * 3 && Math.abs(g.y - p.y) < TILE) {
+      if (popAny(['KeyX'])) {
+        p.combat = true;
+        p.swordDrawn = true;
+        p.state = S_COMBAT;
+        p.stateT = 0;
+        g.facing = p.x < g.x ? -1 : 1;
+        return;
+      }
+    }
+  }
+
+  const onGround = isOnGround(p.x, p.y);
+
+  // --- JUMPING ---
+  if (p.state === S_JUMP) {
+    p.vy += GRAVITY;
+    p.x += p.vx;
+    p.y += p.vy;
+    p.stateT++;
+
+    // Grab ledge check
+    if (p.vy > 0 && anyKey(['KeyZ', 'ShiftLeft', 'ShiftRight'])) {
+      const ledge = checkLedgeGrab(p.x, p.y, p.facing);
+      if (ledge) {
+        p.state = S_HANG;
+        p.stateT = 0;
+        p.hangCol = ledge.c;
+        p.hangRow = ledge.r;
+        p.vy = 0; p.vx = 0;
+        return;
+      }
+    }
+
+    // Land
+    if (p.vy > 0 && onGround) {
+      snapToGround(p);
+      checkFloorInteraction(p.x, p.y);
+      if (p.vy > 8) {
+        // Hard landing
+        p.state = S_STUMBLE;
+        p.stateT = 0;
+      } else {
+        p.state = S_LAND;
+        p.stateT = 0;
+      }
+      p.vy = 0; p.vx = 0;
+      return;
+    }
+
+    // Wall collision
+    clampToWalls(p);
+
+    // Fall off screen
+    if (p.y > ROWS * TILE + OY + 50) {
+      killPlayer();
+    }
+    return;
+  }
+
+  // --- FALLING ---
+  if (p.state === S_FALL || (!onGround && p.state !== S_JUMP && p.state !== S_HANG)) {
+    p.state = S_FALL;
+    p.vy += GRAVITY;
+    p.y += p.vy;
+
+    // Grab ledge
+    if (p.vy > 0 && anyKey(['KeyZ', 'ShiftLeft', 'ShiftRight'])) {
+      const ledge = checkLedgeGrab(p.x, p.y, p.facing);
+      if (ledge) {
+        p.state = S_HANG;
+        p.stateT = 0;
+        p.hangCol = ledge.c;
+        p.hangRow = ledge.r;
+        p.vy = 0; p.vx = 0;
+        return;
+      }
+    }
+
+    if (p.vy > 0 && onGround) {
+      snapToGround(p);
+      checkFloorInteraction(p.x, p.y);
+      if (p.vy > 12) {
+        killPlayer();
+        return;
+      } else if (p.vy > 6) {
+        p.state = S_STUMBLE;
+      } else {
+        p.state = S_LAND;
+      }
+      p.stateT = 0;
+      p.vy = 0; p.vx = 0;
+      return;
+    }
+
+    if (p.y > ROWS * TILE + OY + 50) killPlayer();
+    return;
+  }
+
+  // --- GROUNDED STATES ---
+  if (!onGround) {
+    p.state = S_FALL;
+    p.stateT = 0;
+    return;
+  }
+
+  // Careful step
+  if (anyKey(['KeyZ', 'ShiftLeft', 'ShiftRight'])) {
+    if (keys['ArrowLeft'] || keys['ArrowRight']) {
+      p.state = S_CAREFUL;
+      const dir = keys['ArrowLeft'] ? -1 : 1;
+      p.facing = dir;
+      p.x += dir * CAREFUL_SPEED;
+      p.walkFrame += 0.08;
+      clampToWalls(p);
+      // Check ground ahead
+      const aheadC = Math.floor((p.x + dir * 20 - OX) / TILE);
+      const footR = Math.floor((p.y - OY) / TILE);
+      const ahead = tileAt(footR, aheadC);
+      // Don't walk off edges
+      if (!isSolidTile(footR, aheadC) && aheadC >= 0 && aheadC < COLS) {
+        p.x -= dir * CAREFUL_SPEED; // step back
+      }
+      return;
+    }
+  }
+
+  // Run
+  if (keys['ArrowLeft'] || keys['ArrowRight']) {
+    const dir = keys['ArrowLeft'] ? -1 : 1;
+    if (p.facing !== dir && p.state === S_RUN) {
+      p.state = S_TURN;
+      p.stateT = 0;
+      p.facing = dir;
+      return;
+    }
+    p.facing = dir;
+    p.state = S_RUN;
+    p.x += dir * RUN_SPEED;
+    p.walkFrame += 0.15;
+
+    // Check floor interaction while running
+    checkFloorInteraction(p.x, p.y);
+
+    clampToWalls(p);
+    snapToGround(p);
+
+    // Room transition
+    if (p.x > COLS * TILE + OX - 8) {
+      transitionRoom(1);
+      return;
+    }
+    if (p.x < OX + 8) {
+      transitionRoom(-1);
+      return;
+    }
+  } else {
+    if (p.state === S_RUN) {
+      p.state = S_IDLE;
+      p.stateT = 0;
+    }
+  }
+
+  // Turn
+  if (p.state === S_TURN) {
+    if (p.stateT > 6) {
+      p.state = S_IDLE;
+      p.stateT = 0;
+    }
+    return;
+  }
+
+  // Jump
+  if (popAny(['Space'])) {
+    p.state = S_JUMP;
+    p.stateT = 0;
+    if (keys['ArrowLeft'] || keys['ArrowRight']) {
+      // Running jump
+      const dir = keys['ArrowLeft'] ? -1 : 1;
+      p.facing = dir;
+      p.vx = dir * JUMP_VX;
+      p.vy = JUMP_VY;
+    } else {
+      // Standing jump (mostly vertical)
+      p.vx = p.facing * 1;
+      p.vy = SJUMP_VY;
+    }
+  }
+
+  // Climb up
+  if (keys['ArrowUp']) {
+    // Check for climbable ledge above
+    const pc = Math.floor((p.x - OX) / TILE);
+    const pr = Math.floor((p.y - OY) / TILE);
+    // Look for a platform edge to grab
+    if (pr > 0 && isSolidTile(pr - 1, pc) && !isSolidTile(pr, pc)) {
+      // There's a block above us but space where we are — not useful
+    }
+    // Check for ledge directly above by looking for a platform in the row above
+    for (let dc = -1; dc <= 1; dc++) {
+      const cc = pc + dc;
+      if (cc < 0 || cc >= COLS) continue;
+      // If there's a floor 1 tile up and the space 2 up is clear
+      const upR = pr - 1;
+      if (upR >= 0 && isSolidTile(upR, cc) && !isSolidTile(upR - 1, cc)) {
+        // Can climb to this ledge
+        p.state = S_HANG;
+        p.stateT = 0;
+        p.hangCol = cc;
+        p.hangRow = upR;
+        p.facing = dc === 0 ? p.facing : dc;
+        return;
+      }
+    }
+  }
+}
+
+function isOnGround(x, y) {
+  const tc = pixToTile(x, y);
+  // Check tile at feet (y is at floor surface, so check the tile row directly)
+  const footR = tc.r;
+  const footC = tc.c;
+  if (footC < 0 || footC >= COLS) return true; // walls
+  return isSolidTile(footR, footC);
+}
+
+function snapToGround(p) {
+  const tc = pixToTile(p.x, p.y);
+  p.y = tc.r * TILE + OY - 1;
+}
+
+function checkFloorInteraction(x, y) {
+  const tc = pixToTile(x, y);
+  const tile = tileAt(tc.r, tc.c);
+
+  // Spike
+  if (tile.type === T_SPIKE && !tile.fallen) {
+    killPlayer();
+    return;
+  }
+
+  // Potion
+  if (tile.type === T_POTION && !tile.fallen) {
+    player.hp = Math.min(player.hp + 1, player.maxHp);
+    tile.type = T_FLOOR;
+    spawnParticles(x, y - 20, '#f4f', 8);
+  }
+
+  // Exit
+  if (tile.type === T_EXIT) {
+    nextLevel();
+    return;
+  }
+
+  // Loose floor — start crumbling if running (not careful step)
+  if (tile.type === T_LOOSE && !tile.fallen && player.state === S_RUN) {
+    looseTimers.push({ r: tc.r, c: tc.c, t: 30 });
+  }
+}
+
+function checkLedgeGrab(x, y, facing) {
+  const tc = pixToTile(x, y);
+  // Look for an edge to grab nearby
+  for (let dc = -1; dc <= 1; dc++) {
+    const cc = tc.c + dc;
+    if (cc < 0 || cc >= COLS) continue;
+    for (let dr = -1; dr <= 1; dr++) {
+      const rr = tc.r + dr;
+      if (rr < 0 || rr >= ROWS) continue;
+      // Ledge: solid tile with empty space above
+      if (isSolidTile(rr, cc) && !isSolidTile(rr - 1, cc)) {
+        // Player feet should be near the top of this tile
+        const ledgeY = rr * TILE + OY;
+        if (Math.abs(y - ledgeY - TILE + 1) < TILE * 0.8) {
+          return { r: rr, c: cc };
+        }
+      }
+    }
+  }
+  return null;
+}
+
+function clampToWalls(p) {
+  const tc = pixToTile(p.x, p.y - TILE / 2);
+  // Left wall
+  if (p.x < OX + 4) p.x = OX + 4;
+  if (p.x > OX + COLS * TILE - 4) p.x = OX + COLS * TILE - 4;
+  // Solid tile to left
+  if (tc.c > 0 && tileAt(tc.r, tc.c - 1).type === T_WALL) {
+    const wallR = tc.c * TILE + OX;
+    if (p.x < wallR + 8) p.x = wallR + 8;
+  }
+}
+
+function killPlayer() {
+  player.dead = true;
+  player.state = S_DEAD;
+  player.stateT = 0;
+  player.hp = 0;
+  spawnParticles(player.x, player.y - 20, '#f44', 15);
+  setTimeout(() => {
+    if (!gameOver) {
+      player.hp = 0;
+      gameOver = true;
+    }
+  }, 1500);
+}
+
+function hurtPlayer(dmg) {
+  if (player.invT > 0 || player.dead) return;
+  player.hp -= dmg;
+  player.invT = 60;
+  spawnParticles(player.x, player.y - 20, '#f44', 6);
+  if (player.hp <= 0) {
+    killPlayer();
+  }
+}
+
+// --- COMBAT ---
+function updateCombat() {
+  const p = player;
+  p.stateT++;
+
+  if (p.attackT > 0) p.attackT--;
+  if (p.parryT > 0) p.parryT--;
+
+  // Find nearest alive guard
+  let nearGuard = null;
+  let nearDist = Infinity;
+  for (const g of guards) {
+    if (g.dead) continue;
+    const d = Math.abs(g.x - p.x);
+    if (d < nearDist) { nearDist = d; nearGuard = g; }
+  }
+
+  if (!nearGuard || nearDist > TILE * 5) {
+    // Exit combat
+    p.combat = false;
+    p.swordDrawn = false;
+    p.state = S_IDLE;
+    p.stateT = 0;
+    return;
+  }
+
+  // Face guard
+  p.facing = nearGuard.x > p.x ? 1 : -1;
+
+  // Movement in combat — advance/retreat
+  if (keys['ArrowLeft']) {
+    p.x -= 1.5;
+  } else if (keys['ArrowRight']) {
+    p.x += 1.5;
+  }
+  clampToWalls(p);
+
+  // Attack
+  if (popAny(['KeyX']) && p.attackT <= 0) {
+    p.attackT = 25;
+    // Check if in range
+    if (nearDist < TILE * 1.5) {
+      if (nearGuard.blockCD > 0) {
+        // Guard blocked
+        spawnParticles((p.x + nearGuard.x) / 2, p.y - 30, '#ff0', 4);
+      } else {
+        // Hit!
+        nearGuard.hp--;
+        nearGuard.stunT = 20;
+        spawnParticles(nearGuard.x, nearGuard.y - 25, '#f44', 8);
+        if (nearGuard.hp <= 0) {
+          nearGuard.dead = true;
+          spawnParticles(nearGuard.x, nearGuard.y - 20, '#aaa', 15);
+          p.combat = false;
+          p.swordDrawn = false;
+          p.state = S_IDLE;
+          p.stateT = 0;
+        }
+      }
+    }
+  }
+
+  // Parry
+  if (popAny(['KeyZ', 'ShiftLeft', 'ShiftRight'])) {
+    p.parryT = 20;
+  }
+}
+
+// --- GUARD AI ---
+function updateGuards() {
+  for (const g of guards) {
+    if (g.dead) continue;
+    g.stateT++;
+    if (g.stunT > 0) { g.stunT--; continue; }
+    if (g.blockCD > 0) g.blockCD--;
+
+    const dist = Math.abs(g.x - player.x);
+    g.facing = player.x < g.x ? -1 : 1;
+
+    if (player.combat && dist < TILE * 4) {
+      // Combat AI
+      g.attackCD--;
+
+      // Move toward player
+      if (dist > TILE * 1.2) {
+        g.x += g.facing * 1.2;
+      } else if (dist < TILE * 0.6) {
+        g.x -= g.facing * 0.8;
+      }
+
+      // Attack
+      if (g.attackCD <= 0 && dist < TILE * 1.5) {
+        g.attackCD = 50 + Math.random() * 40;
+        // Check player parry
+        if (player.parryT > 0) {
+          spawnParticles((player.x + g.x) / 2, player.y - 30, '#ff0', 5);
+          g.stunT = 15;
+        } else {
+          hurtPlayer(1);
+        }
+      }
+
+      // Random block
+      if (g.blockCD <= 0 && Math.random() < 0.02) {
+        g.blockCD = 25;
+      }
+    } else if (dist < TILE * 3 && !player.dead) {
+      // Idle patrol near spawn — face player
+      g.facing = player.x < g.x ? -1 : 1;
+    }
+  }
+}
+
+// --- LOOSE FLOORS ---
+function updateLooseFloors() {
+  for (let i = looseTimers.length - 1; i >= 0; i--) {
+    const lt = looseTimers[i];
+    lt.t--;
+    if (lt.t <= 0) {
+      const tile = tileAt(lt.r, lt.c);
+      if (tile.type === T_LOOSE) {
+        tile.fallen = true;
+        spawnParticles(lt.c * TILE + OX + TILE / 2, lt.r * TILE + OY + TILE / 2, '#a86', 10);
+        // Check if player is standing on it
+        const ptc = pixToTile(player.x, player.y);
+        if (ptc.r === lt.r && ptc.c === lt.c) {
+          player.state = S_FALL;
+          player.stateT = 0;
+        }
+      }
+      looseTimers.splice(i, 1);
+    }
+  }
+}
+
+// --- ROOM TRANSITIONS ---
+function transitionRoom(dir) {
+  if (dir === 1) {
+    // Go right
+    if (roomIdx < levels[levelIdx].rooms.length - 1) {
+      roomIdx++;
+      transitionDir = 1;
+      enterRoom();
+    }
+  } else if (dir === -1) {
+    // Go left
+    if (roomIdx > 0) {
+      roomIdx--;
+      transitionDir = 0;
+      player.x = (COLS - 2) * TILE + OX + TILE / 2;
+      enterRoom();
+      player.x = (COLS - 2) * TILE + OX + TILE / 2;
+    }
+  }
+}
+
+function nextLevel() {
+  levelIdx++;
+  if (levelIdx >= levels.length) {
+    won = true;
+    return;
+  }
+  roomIdx = 0;
+  transitionDir = 0;
+  enterRoom();
+}
+
+// --- GUILLOTINE UPDATE ---
+function updateGuillotines() {
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const t = room._tiles[r][c];
+      if (t.type === T_GUILL) {
+        t.guill_t += 0.03;
+        // Check player collision when blade is down
+        const bladeDown = Math.sin(t.guill_t) > 0.3;
+        if (bladeDown) {
+          const bx = c * TILE + OX + TILE / 2;
+          const by = r * TILE + OY - TILE;
+          if (Math.abs(player.x - bx) < 18 && Math.abs(player.y - by - TILE / 2) < TILE) {
+            killPlayer();
+          }
+        }
+      }
+    }
+  }
+}
+
+// --- TIMER ---
+function updateTimer() {
+  const elapsed = (Date.now() - timerStart) / 1000;
+  timer = Math.max(0, 60 * 60 - elapsed);
+  if (timer <= 0 && !won && !gameOver) {
+    killPlayer();
+  }
+}
+
+// --- PARTICLES ---
+function spawnParticles(x, y, color, count) {
+  for (let i = 0; i < count; i++) {
+    particles.push({
+      x, y,
+      vx: (Math.random() - 0.5) * 6,
+      vy: (Math.random() - 0.5) * 6 - 2,
+      life: 20 + Math.random() * 20,
+      color
+    });
+  }
+}
+
+function updateParticles() {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const pt = particles[i];
+    pt.x += pt.vx; pt.y += pt.vy;
+    pt.vy += 0.15;
+    pt.life--;
+    if (pt.life <= 0) particles.splice(i, 1);
+  }
+}
+
+// --- MAIN UPDATE ---
+function update() {
+  if (infoOpen) return;
+  if (gameOver || won) {
+    if (popAny(['KeyR'])) {
+      player = initPlayer();
+      initGame();
+    }
+    for (const k in justPressed) justPressed[k] = false;
+    return;
+  }
+  if (titleScreen) {
+    if (popAny(['Space', 'ArrowRight', 'ArrowLeft', 'ArrowUp', 'KeyX'])) {
+      titleScreen = false;
+    }
+    frame++;
+    for (const k in justPressed) justPressed[k] = false;
+    return;
+  }
+  frame++;
+
+  updateTimer();
+  updatePlayer();
+  updateGuards();
+  updateLooseFloors();
+  updateGuillotines();
+  updateParticles();
+
+  for (const k in justPressed) justPressed[k] = false;
+}
+
+// --- DRAWING ---
+const COLORS = {
+  stone: '#4a3d30',
+  stoneLight: '#5d4e3e',
+  stoneDark: '#352a20',
+  floor: '#6b5a48',
+  floorEdge: '#8a7560',
+  wall: '#3a2d22',
+  wallAccent: '#4d3e30',
+  spike: '#888',
+  spikeTip: '#ccc',
+  gate: '#666',
+  bg: '#1a1410',
+  bgAccent: '#231c14',
+};
+
+function draw() {
+  // Background
+  ctx.fillStyle = COLORS.bg;
+  ctx.fillRect(0, 0, W, H);
+
+  if (titleScreen) { drawTitle(); return; }
+
+  drawRoom();
+  drawGuards();
+  drawPlayer_();
+  drawParticles();
+  drawHUD();
+
+  if (gameOver) drawGameOver();
+  if (won) drawWin();
+}
+
+function drawRoom() {
+  // Background pattern
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const x = c * TILE + OX;
+      const y = r * TILE + OY;
+      const t = room._tiles[r][c];
+
+      if (t.type === T_EMPTY) continue;
+
+      if (t.fallen) {
+        // Fallen floor — gap
+        ctx.fillStyle = '#0e0a06';
+        ctx.fillRect(x, y, TILE, TILE);
+        continue;
+      }
+
+      // Wall fill
+      if (t.type === T_WALL) {
+        ctx.fillStyle = COLORS.wall;
+        ctx.fillRect(x, y, TILE, TILE);
+        // Brick pattern
+        ctx.strokeStyle = COLORS.stoneDark;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x + 1, y + 1, TILE - 2, TILE / 2 - 1);
+        ctx.strokeRect(x + TILE / 4, y + TILE / 2, TILE - 2, TILE / 2 - 1);
+        continue;
+      }
+
+      // Floor surface
+      if (t.type === T_FLOOR || t.type === T_POTION || t.type === T_EXIT || t.type === T_LOOSE) {
+        // Floor top
+        ctx.fillStyle = COLORS.floor;
+        ctx.fillRect(x, y, TILE, 8);
+        ctx.fillStyle = COLORS.floorEdge;
+        ctx.fillRect(x, y, TILE, 3);
+        // Below floor — stone
+        ctx.fillStyle = COLORS.stone;
+        ctx.fillRect(x, y + 8, TILE, TILE - 8);
+        // Brick lines
+        ctx.strokeStyle = COLORS.stoneDark;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, y + TILE / 2);
+        ctx.lineTo(x + TILE, y + TILE / 2);
+        ctx.moveTo(x + TILE / 2, y + 8);
+        ctx.lineTo(x + TILE / 2, y + TILE / 2);
+        ctx.stroke();
+      }
+
+      // Loose floor indicator
+      if (t.type === T_LOOSE) {
+        // Cracked appearance
+        const shaking = looseTimers.some(lt => lt.r === r && lt.c === c);
+        if (shaking) {
+          const shakeX = (Math.random() - 0.5) * 4;
+          ctx.fillStyle = '#a86';
+          ctx.fillRect(x + shakeX, y, TILE, 3);
+        }
+        ctx.strokeStyle = '#5a4838';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x + 8, y + 2);
+        ctx.lineTo(x + 20, y + 6);
+        ctx.lineTo(x + 35, y + 3);
+        ctx.stroke();
+      }
+
+      // Spike pit
+      if (t.type === T_SPIKE) {
+        ctx.fillStyle = '#1a1410';
+        ctx.fillRect(x, y, TILE, TILE);
+        // Draw spikes
+        const spikeCount = 5;
+        for (let s = 0; s < spikeCount; s++) {
+          const sx = x + 4 + s * (TILE - 8) / (spikeCount - 1);
+          ctx.fillStyle = COLORS.spike;
+          ctx.beginPath();
+          ctx.moveTo(sx - 3, y + TILE);
+          ctx.lineTo(sx, y + 8);
+          ctx.lineTo(sx + 3, y + TILE);
+          ctx.fill();
+          ctx.fillStyle = COLORS.spikeTip;
+          ctx.beginPath();
+          ctx.moveTo(sx - 1, y + 14);
+          ctx.lineTo(sx, y + 8);
+          ctx.lineTo(sx + 1, y + 14);
+          ctx.fill();
+        }
+      }
+
+      // Gate / door
+      if (t.type === T_GATE) {
+        ctx.fillStyle = COLORS.gate;
+        ctx.fillRect(x + 4, y, TILE - 8, TILE);
+        // Bars
+        for (let b = 0; b < 4; b++) {
+          ctx.fillStyle = '#888';
+          ctx.fillRect(x + 8 + b * 10, y, 3, TILE);
+        }
+      }
+
+      // Guillotine
+      if (t.type === T_GUILL) {
+        // Base floor
+        ctx.fillStyle = COLORS.floor;
+        ctx.fillRect(x, y, TILE, 8);
+        ctx.fillStyle = COLORS.floorEdge;
+        ctx.fillRect(x, y, TILE, 3);
+        ctx.fillStyle = COLORS.stone;
+        ctx.fillRect(x, y + 8, TILE, TILE - 8);
+
+        // Blade track (frame)
+        ctx.fillStyle = '#5a4a3a';
+        ctx.fillRect(x + 4, y - TILE * 2, 6, TILE * 2);
+        ctx.fillRect(x + TILE - 10, y - TILE * 2, 6, TILE * 2);
+        // Top bar
+        ctx.fillStyle = '#6a5a4a';
+        ctx.fillRect(x, y - TILE * 2, TILE, 6);
+
+        // Blade position (oscillates)
+        const bladePos = (Math.sin(t.guill_t) + 1) / 2; // 0 to 1
+        const bladeY = y - TILE * 2 + bladePos * (TILE * 2 - 16);
+        // Blade
+        ctx.fillStyle = '#aaa';
+        ctx.fillRect(x + 10, bladeY, TILE - 20, 4);
+        // Blade edge (triangle)
+        ctx.fillStyle = '#ccc';
+        ctx.beginPath();
+        ctx.moveTo(x + 10, bladeY + 4);
+        ctx.lineTo(x + TILE / 2, bladeY + 16);
+        ctx.lineTo(x + TILE - 10, bladeY + 4);
+        ctx.fill();
+      }
+
+      // Potion
+      if (t.type === T_POTION) {
+        const bob = Math.sin(frame * 0.06) * 3;
+        const px = x + TILE / 2;
+        const py = y - 10 + bob;
+        // Flask body
+        ctx.fillStyle = '#d4f';
+        ctx.beginPath();
+        ctx.ellipse(px, py + 6, 6, 8, 0, 0, Math.PI * 2);
+        ctx.fill();
+        // Flask neck
+        ctx.fillStyle = '#b3d';
+        ctx.fillRect(px - 2, py - 4, 4, 6);
+        // Cork
+        ctx.fillStyle = '#a86';
+        ctx.fillRect(px - 3, py - 6, 6, 3);
+        // Sparkle
+        if (frame % 30 < 15) {
+          ctx.fillStyle = '#fff';
+          ctx.fillRect(px - 1, py + 2, 2, 2);
+        }
+      }
+
+      // Exit
+      if (t.type === T_EXIT) {
+        // Floor
+        ctx.fillStyle = COLORS.floor;
+        ctx.fillRect(x, y, TILE, 8);
+        // Archway
+        ctx.fillStyle = '#2a2018';
+        ctx.fillRect(x + 4, y - TILE * 2, TILE - 8, TILE * 2);
+        // Arch top
+        ctx.fillStyle = '#4a3d30';
+        ctx.beginPath();
+        ctx.arc(x + TILE / 2, y - TILE * 2 + 4, TILE / 2 - 4, Math.PI, 0);
+        ctx.fill();
+        // Inner dark
+        ctx.fillStyle = '#0a0806';
+        ctx.fillRect(x + 8, y - TILE * 2 + 8, TILE - 16, TILE * 2 - 8);
+        // Glow
+        const glow = 0.3 + Math.sin(frame * 0.04) * 0.15;
+        ctx.fillStyle = `rgba(255,220,100,${glow})`;
+        ctx.fillRect(x + 10, y - TILE * 2 + 10, TILE - 20, TILE * 2 - 10);
+        // Arrow indicator
+        ctx.fillStyle = '#ff0';
+        ctx.font = 'bold 16px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('EXIT', x + TILE / 2, y - TILE * 2 - 4);
+      }
+    }
+  }
+
+  // Room border
+  ctx.strokeStyle = '#3a2d22';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(OX - 1, OY - 1, COLS * TILE + 2, ROWS * TILE + 2);
+}
+
+function drawPlayer_() {
+  const p = player;
+  if (p.dead && p.stateT > 60) return;
+  if (p.invT > 0 && frame % 6 < 3) return;
+
+  const x = p.x;
+  const y = p.y;
+  const f = p.facing;
+
+  ctx.save();
+  ctx.translate(x, y);
+  if (f === -1) ctx.scale(-1, 1);
+
+  // Animation varies by state
+  const headY = -40;
+  const bodyY = -28;
+  const legY = -14;
+
+  if (p.state === S_DEAD) {
+    // Fallen body
+    ctx.rotate(Math.PI / 2);
+    drawCharBody('#dbb', '#c44', '#446', 0);
+    ctx.restore();
+    return;
+  }
+
+  if (p.state === S_HANG) {
+    // Hanging from ledge — arms up
+    drawCharBody('#dbb', '#c44', '#446', 0);
+    // Arms reaching up
+    ctx.fillStyle = '#dbb';
+    ctx.fillRect(-6, headY - 10, 4, 14);
+    ctx.fillRect(2, headY - 10, 4, 14);
+    ctx.restore();
+    return;
+  }
+
+  if (p.state === S_PULLUP) {
+    const t = Math.min(p.stateT / 20, 1);
+    ctx.translate(0, -(1 - t) * 20);
+    drawCharBody('#dbb', '#c44', '#446', 0);
+    ctx.restore();
+    return;
+  }
+
+  if (p.combat && p.swordDrawn) {
+    drawCharBody('#dbb', '#c44', '#446', 0);
+    // Sword
+    const swordAngle = p.attackT > 15 ? -0.5 : (p.attackT > 0 ? 0.8 : 0.2);
+    ctx.save();
+    ctx.translate(6, bodyY + 4);
+    ctx.rotate(swordAngle);
+    ctx.fillStyle = '#bbb';
+    ctx.fillRect(-1, -20, 3, 22);
+    ctx.fillStyle = '#886';
+    ctx.fillRect(-3, 0, 7, 4);
+    ctx.restore();
+
+    // Parry indicator
+    if (p.parryT > 0) {
+      ctx.fillStyle = '#ff0';
+      ctx.globalAlpha = p.parryT / 20;
+      ctx.fillRect(-10, bodyY - 2, 20, 4);
+      ctx.globalAlpha = 1;
+    }
+    ctx.restore();
+    return;
+  }
+
+  // Regular states
+  let walkCycle = 0;
+  if (p.state === S_RUN) {
+    walkCycle = Math.sin(p.walkFrame * 4);
+  } else if (p.state === S_CAREFUL) {
+    walkCycle = Math.sin(p.walkFrame * 4) * 0.4;
+  }
+
+  if (p.state === S_JUMP || p.state === S_FALL) {
+    // Jump pose
+    drawCharBody('#dbb', '#c44', '#446', 0);
+    // Legs spread
+    ctx.fillStyle = '#446';
+    ctx.fillRect(-6, legY, 4, 12);
+    ctx.fillRect(2, legY - 4, 4, 12);
+    ctx.restore();
+    return;
+  }
+
+  if (p.state === S_STUMBLE) {
+    // Off-balance pose
+    const wobble = Math.sin(p.stateT * 0.4) * 4;
+    ctx.translate(wobble, 0);
+    drawCharBody('#dbb', '#c44', '#446', 0);
+    ctx.restore();
+    return;
+  }
+
+  drawCharBody('#dbb', '#c44', '#446', walkCycle);
+  ctx.restore();
+}
+
+function drawCharBody(skin, shirt, pants, walk) {
+  const headY = -40;
+  const bodyY = -28;
+  const legY = -14;
+
+  // Head
+  ctx.fillStyle = skin;
+  ctx.fillRect(-5, headY, 10, 12);
+  // Hair
+  ctx.fillStyle = '#222';
+  ctx.fillRect(-6, headY - 2, 12, 5);
+  // Eye
+  ctx.fillStyle = '#000';
+  ctx.fillRect(1, headY + 4, 2, 2);
+
+  // Torso
+  ctx.fillStyle = shirt;
+  ctx.fillRect(-7, bodyY, 14, 14);
+  // Belt
+  ctx.fillStyle = '#886';
+  ctx.fillRect(-7, bodyY + 12, 14, 3);
+
+  // Arms
+  ctx.fillStyle = skin;
+  const armSwing = walk * 4;
+  ctx.fillRect(-10, bodyY + 2 + armSwing, 4, 10);
+  ctx.fillRect(6, bodyY + 2 - armSwing, 4, 10);
+
+  // Legs
+  ctx.fillStyle = pants;
+  const legSwing = walk * 5;
+  ctx.fillRect(-5, legY + legSwing, 4, 14);
+  ctx.fillRect(1, legY - legSwing, 4, 14);
+
+  // Feet
+  ctx.fillStyle = '#543';
+  ctx.fillRect(-6, legY + 12 + legSwing, 5, 3);
+  ctx.fillRect(0, legY + 12 - legSwing, 5, 3);
+}
+
+function drawGuards() {
+  for (const g of guards) {
+    if (g.dead) continue;
+    const x = g.x;
+    const y = g.y;
+    const f = g.facing;
+
+    ctx.save();
+    ctx.translate(x, y);
+    if (f === -1) ctx.scale(-1, 1);
+
+    // Flash when stunned
+    if (g.stunT > 0 && frame % 4 < 2) {
+      ctx.globalAlpha = 0.5;
+    }
+
+    const headY = -40;
+    const bodyY = -28;
+    const legY = -14;
+
+    // Head
+    ctx.fillStyle = '#c8a878';
+    ctx.fillRect(-5, headY, 10, 12);
+    // Helmet
+    ctx.fillStyle = '#666';
+    ctx.fillRect(-7, headY - 4, 14, 8);
+    ctx.fillRect(-8, headY + 1, 16, 3);
+    // Eye
+    ctx.fillStyle = '#000';
+    ctx.fillRect(1, headY + 5, 2, 2);
+
+    // Torso (armor)
+    ctx.fillStyle = '#555';
+    ctx.fillRect(-7, bodyY, 14, 14);
+    ctx.fillStyle = '#666';
+    ctx.fillRect(-5, bodyY + 2, 10, 10);
+
+    // Arms
+    ctx.fillStyle = '#555';
+    ctx.fillRect(-10, bodyY + 2, 4, 10);
+    ctx.fillRect(6, bodyY + 2, 4, 10);
+
+    // Sword
+    ctx.fillStyle = '#aaa';
+    const swordAngle = g.attackCD < 10 ? 0.8 : 0.2;
+    ctx.save();
+    ctx.translate(6, bodyY + 4);
+    ctx.rotate(swordAngle);
+    ctx.fillRect(-1, -18, 3, 20);
+    ctx.fillStyle = '#776';
+    ctx.fillRect(-3, 0, 7, 4);
+    ctx.restore();
+
+    // Block indicator
+    if (g.blockCD > 0) {
+      ctx.fillStyle = '#888';
+      ctx.fillRect(-12, bodyY, 4, 16);
+    }
+
+    // Legs
+    ctx.fillStyle = '#444';
+    ctx.fillRect(-5, legY, 4, 14);
+    ctx.fillRect(1, legY, 4, 14);
+    // Boots
+    ctx.fillStyle = '#333';
+    ctx.fillRect(-6, legY + 12, 5, 3);
+    ctx.fillRect(0, legY + 12, 5, 3);
+
+    ctx.globalAlpha = 1;
+    ctx.restore();
+
+    // HP bar
+    if (g.maxHp > 1) {
+      const barW = 30;
+      const barH = 4;
+      ctx.fillStyle = '#400';
+      ctx.fillRect(x - barW / 2, y - 48, barW, barH);
+      ctx.fillStyle = '#f44';
+      ctx.fillRect(x - barW / 2, y - 48, barW * (g.hp / g.maxHp), barH);
+    }
+  }
+}
+
+function drawParticles() {
+  for (const pt of particles) {
+    ctx.fillStyle = pt.color;
+    ctx.globalAlpha = Math.max(0, pt.life / 40);
+    ctx.fillRect(pt.x - 1, pt.y - 1, 3, 3);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawHUD() {
+  // Timer
+  const mins = Math.floor(timer / 60);
+  const secs = Math.floor(timer % 60);
+  const timeStr = String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
+  ctx.fillStyle = timer < 300 ? '#f44' : '#ddd';
+  ctx.font = 'bold 16px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(timeStr, W / 2, 22);
+
+  // HP (potions)
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#d4f';
+  ctx.font = '14px monospace';
+  for (let i = 0; i < player.maxHp; i++) {
+    const hx = W - 90 + i * 22;
+    if (i < player.hp) {
+      // Full potion
+      ctx.fillStyle = '#d4f';
+      ctx.beginPath();
+      ctx.ellipse(hx, 16, 5, 7, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#b3d';
+      ctx.fillRect(hx - 2, 6, 4, 5);
+    } else {
+      // Empty
+      ctx.strokeStyle = '#644';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.ellipse(hx, 16, 5, 7, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+
+  // Level / Room
+  ctx.fillStyle = '#aaa';
+  ctx.font = '13px monospace';
+  ctx.textAlign = 'right';
+  ctx.fillText('Level ' + (levelIdx + 1) + ' Room ' + (roomIdx + 1), W - 10, H - 8);
+
+  // Combat hint
+  if (player.combat) {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(W / 2 - 120, H - 32, 240, 22);
+    ctx.fillStyle = '#ff0';
+    ctx.font = '11px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('X: Strike | Z: Parry | \u2190\u2192: Move', W / 2, H - 16);
+  }
+
+  // Title badge
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(8, 8, 320, 24);
+  ctx.fillStyle = '#555';
+  ctx.font = '13px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('PLT-007 \u00B7 PALACE RUNNER  [?]', 16, 26);
+}
+
+function drawGameOver() {
+  ctx.fillStyle = 'rgba(0,0,0,0.8)';
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#f44';
+  ctx.font = 'bold 44px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('GAME OVER', W / 2, H / 2 - 30);
+  ctx.fillStyle = '#aaa';
+  ctx.font = '16px monospace';
+  if (timer <= 0) {
+    ctx.fillText('Time has run out...', W / 2, H / 2 + 10);
+  } else {
+    ctx.fillText('The prince has fallen.', W / 2, H / 2 + 10);
+  }
+  ctx.fillText('Press R to restart', W / 2, H / 2 + 40);
+}
+
+function drawWin() {
+  ctx.fillStyle = 'rgba(0,0,0,0.8)';
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#fc0';
+  ctx.font = 'bold 44px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('FREEDOM!', W / 2, H / 2 - 40);
+  ctx.fillStyle = '#ddd';
+  ctx.font = '16px monospace';
+  ctx.fillText('The prince has escaped the dungeon.', W / 2, H / 2);
+  const mins = Math.floor((60 * 60 - timer) / 60);
+  const secs = Math.floor((60 * 60 - timer) % 60);
+  ctx.fillText('Time: ' + mins + 'm ' + secs + 's', W / 2, H / 2 + 30);
+  ctx.fillStyle = '#888';
+  ctx.fillText('Press R to play again', W / 2, H / 2 + 70);
+}
+
+function drawTitle() {
+  // Background — dungeon ambiance
+  ctx.fillStyle = '#0e0a06';
+  ctx.fillRect(0, 0, W, H);
+
+  // Dungeon wall texture
+  for (let r = 0; r < 15; r++) {
+    for (let c = 0; c < 20; c++) {
+      const x = c * 40;
+      const y = r * 40;
+      ctx.fillStyle = r % 2 === 0 ? '#1a1410' : '#161008';
+      ctx.fillRect(x, y, 40, 40);
+      ctx.strokeStyle = '#0e0a06';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x, y, 40, 40);
+    }
+  }
+
+  // Torch glow
+  const glowA = 0.08 + Math.sin(frame * 0.03) * 0.03;
+  const grd = ctx.createRadialGradient(200, 250, 10, 200, 250, 200);
+  grd.addColorStop(0, `rgba(255,150,50,${glowA})`);
+  grd.addColorStop(1, 'rgba(255,150,50,0)');
+  ctx.fillStyle = grd;
+  ctx.fillRect(0, 50, 400, 400);
+  const grd2 = ctx.createRadialGradient(600, 250, 10, 600, 250, 200);
+  grd2.addColorStop(0, `rgba(255,150,50,${glowA})`);
+  grd2.addColorStop(1, 'rgba(255,150,50,0)');
+  ctx.fillStyle = grd2;
+  ctx.fillRect(400, 50, 400, 400);
+
+  // Title
+  ctx.fillStyle = '#fc0';
+  ctx.font = 'bold 48px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('PALACE RUNNER', W / 2, 180);
+
+  ctx.fillStyle = '#a86';
+  ctx.font = '16px monospace';
+  ctx.fillText('PLT-007 \u00B7 PIXEL VAULT', W / 2, 215);
+
+  // Draw prince silhouette
+  ctx.save();
+  ctx.translate(W / 2, 330);
+  ctx.fillStyle = '#c44';
+  // Body
+  ctx.fillRect(-7, -28, 14, 14);
+  // Head
+  ctx.fillStyle = '#dbb';
+  ctx.fillRect(-5, -40, 10, 12);
+  // Hair
+  ctx.fillStyle = '#222';
+  ctx.fillRect(-6, -42, 12, 5);
+  // Legs
+  ctx.fillStyle = '#446';
+  ctx.fillRect(-5, -14, 4, 14);
+  ctx.fillRect(1, -14, 4, 14);
+  // Sword
+  ctx.fillStyle = '#bbb';
+  ctx.fillRect(8, -34, 2, 22);
+  ctx.fillStyle = '#886';
+  ctx.fillRect(6, -14, 6, 4);
+  ctx.restore();
+
+  // Controls
+  ctx.fillStyle = '#aaa';
+  ctx.font = '14px monospace';
+  ctx.fillText('Arrow Keys: Run / Climb', W / 2, 400);
+  ctx.fillText('Space: Jump | Z: Careful Step / Parry', W / 2, 424);
+  ctx.fillText('X: Sword | R: Restart | ?: Info', W / 2, 448);
+
+  ctx.fillStyle = '#886';
+  ctx.font = '12px monospace';
+  ctx.fillText('Escape the dungeon before time runs out.', W / 2, 480);
+
+  // Blink
+  if (Math.sin(frame * 0.07) > 0) {
+    ctx.fillStyle = '#fc0';
+    ctx.font = 'bold 18px monospace';
+    ctx.fillText('PRESS ANY KEY TO START', W / 2, 530);
+  }
+
+  // Title badge
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(8, 8, 320, 24);
+  ctx.fillStyle = '#555';
+  ctx.font = '13px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('PLT-007 \u00B7 PALACE RUNNER  [?]', 16, 26);
+}
+
+// --- GAME LOOP ---
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+</body>
+</html>

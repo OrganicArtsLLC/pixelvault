@@ -1,0 +1,826 @@
+<!--
+PROTOTYPE: ragdoll-run
+SERIES: spt
+NUMBER: 012
+DATE: 2026-03-24
+MECHANIC: awkward body physics — Q/W control thighs, O/P control calves; goal is to run 100 meters but most players can't get past 2 meters
+ANCESTRY: QWOP (2008, Bennett Foddy), GIRP (2011, Bennett Foddy), Getting Over It (2017, Bennett Foddy)
+CONTROLS: Q — left thigh fwd / right thigh back | W — right thigh fwd / left thigh back | O — left calf fwd | P — right calf back | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 5-6 (Expert Systems to Transformer Era — deliberate difficulty through unintuitive controls; RL agents struggle with coordination)
+AI-INSIGHT: QWOP is a masterclass in difficulty through interface design rather than content. The game is trivially simple in concept but nearly impossible in execution because the control mapping violates all motor learning intuitions. RL agents can eventually solve it but require millions of episodes — mirroring how humans must build entirely new neural pathways.
+NOTES: Bennett Foddy's genius was recognizing that the gap between intention and execution IS the game.
+       The fun comes entirely from failure — most players never reach 10 meters.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPT-012 · RAGDOLL RUN</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SPT-012 · RAGDOLL RUN</h1>
+    <p><span class="tag series">SPT — Sports</span> <span class="tag">Prototype #012</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Run 100 meters using the most unintuitive controls ever designed. Good luck getting past 2 meters.</p>
+    <ul>
+      <li><kbd>Q</kbd> — Push left thigh forward, right thigh back</li>
+      <li><kbd>W</kbd> — Push right thigh forward, left thigh back</li>
+      <li><kbd>O</kbd> — Push left calf forward</li>
+      <li><kbd>P</kbd> — Push right calf back</li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <p>Tip: Try alternating Q and W rhythmically while timing O and P to straighten your legs. Or just mash keys and laugh at the result.</p>
+
+    <h2>History</h2>
+    <p><em>QWOP</em> (2008) by Bennett Foddy became a viral sensation by turning the simple act of running into an absurdly difficult challenge. Rather than pressing "right" to run, players must independently control each muscle group of a sprinter's legs using Q, W, O, and P keys.</p>
+    <p>Foddy, a philosopher and game designer at NYU, explored the idea that difficulty itself can be the primary source of entertainment. The game spawned an entire genre of "deliberately awkward control" games including <em>GIRP</em>, <em>Getting Over It with Bennett Foddy</em>, and inspired titles like <em>Surgeon Simulator</em> and <em>Octodad</em>.</p>
+    <p>Most players never complete the 100-meter dash. The world record is under 50 seconds, achieved through a precisely timed key sequence that looks nothing like natural running.</p>
+
+    <h2>AI Archaeology</h2>
+    <h3>Era 5-6 — Expert Systems to Transformer Era</h3>
+    <p>QWOP presents a fascinating challenge for reinforcement learning. The state space is continuous (joint angles, velocities, body position), and the reward signal (distance traveled) is sparse and deceptive — many local optima involve crawling, knee-walking, or falling forward repeatedly.</p>
+    <p>Deep RL agents can eventually learn to "run" in QWOP, but their solutions rarely resemble human running. They typically discover exploit gaits — knee-shuffles or controlled falls — that maximize distance without achieving the intended bipedal locomotion. This mirrors the broader challenge of sim-to-real transfer in robotics.</p>
+
+    <h3>Classification</h3>
+    <p><span class="tag">deliberate difficulty</span> <span class="tag">ragdoll physics</span> <span class="tag">awkward controls</span> <span class="tag">viral game</span> <span class="tag">muscle coordination</span></p>
+
+    <h2>Prototype Notes</h2>
+    <ul>
+      <li>Simplified 2D ragdoll with torso, two thighs, two calves, two feet</li>
+      <li>Spring-damper joints with angular limits simulate muscle resistance</li>
+      <li>Controls apply torques to joints — deliberately unintuitive mapping</li>
+      <li>Fall detection: head or torso touching ground ends the run</li>
+      <li>Distance markers on track provide sense of (minimal) progress</li>
+      <li>The challenge IS the game — most attempts end within 1 second</li>
+    </ul>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+var canvas = document.getElementById('c');
+var ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+canvas.width = 800;
+canvas.height = 600;
+
+var infoOpen = false;
+var keys = {};
+
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); return; }
+  keys[e.key.toLowerCase()] = true;
+  if (e.key.toLowerCase() === 'r') resetGame();
+});
+document.addEventListener('keyup', function(e) {
+  keys[e.key.toLowerCase()] = false;
+});
+
+// ── Physics constants ──
+var GRAVITY = 0.4;
+var GROUND_Y = 460;
+var DT = 1;
+var JOINT_SPRING = 0.08;
+var JOINT_DAMP = 0.85;
+var TORQUE_STRENGTH = 0.12;
+var FRICTION = 0.7;
+
+// ── Body parts as point masses ──
+// Each part: { x, y, vx, vy, mass }
+// Joints connect parts with angular constraints
+
+var runner = {};
+var gameState = 'title'; // title, running, fallen
+var distance = 0;
+var maxDistance = 0;
+var bestDistance = 0;
+var cameraX = 0;
+var fallTimer = 0;
+var startTime = 0;
+var runTime = 0;
+
+// Body segment lengths
+var TORSO_LEN = 50;
+var THIGH_LEN = 38;
+var CALF_LEN = 36;
+var FOOT_LEN = 16;
+var HEAD_R = 14;
+
+function createRunner() {
+  var sx = 200;
+  var sy = GROUND_Y;
+  return {
+    // Hip is the root
+    hipX: sx, hipY: sy - THIGH_LEN - CALF_LEN - FOOT_LEN + 5,
+    hipVX: 0, hipVY: 0,
+    // Torso angle from hip (0 = straight up)
+    torsoAng: -0.05, torsoAngV: 0,
+    // Left leg
+    lThighAng: 0.15, lThighAngV: 0,
+    lCalfAng: 0.1, lCalfAngV: 0,
+    // Right leg
+    rThighAng: -0.15, rThighAngV: 0,
+    rCalfAng: -0.1, rCalfAngV: 0,
+    // Foot angles (auto-managed)
+    lFootAng: 0, rFootAng: 0
+  };
+}
+
+function resetGame() {
+  runner = createRunner();
+  gameState = 'running';
+  distance = 0;
+  maxDistance = 0;
+  cameraX = 0;
+  fallTimer = 0;
+  startTime = Date.now();
+  runTime = 0;
+}
+
+// Get world positions of all body parts from angles
+function getPositions(r) {
+  var hip = { x: r.hipX, y: r.hipY };
+
+  // Torso goes up from hip
+  var shoulderX = hip.x + Math.sin(r.torsoAng) * TORSO_LEN;
+  var shoulderY = hip.y - Math.cos(r.torsoAng) * TORSO_LEN;
+  var shoulder = { x: shoulderX, y: shoulderY };
+
+  // Head on top of torso
+  var headX = shoulderX + Math.sin(r.torsoAng) * HEAD_R;
+  var headY = shoulderY - Math.cos(r.torsoAng) * HEAD_R;
+  var head = { x: headX, y: headY };
+
+  // Left thigh from hip going down
+  var lKneeX = hip.x + Math.sin(r.lThighAng) * THIGH_LEN;
+  var lKneeY = hip.y + Math.cos(r.lThighAng) * THIGH_LEN;
+  var lKnee = { x: lKneeX, y: lKneeY };
+
+  // Left calf from knee
+  var lAnkleX = lKneeX + Math.sin(r.lThighAng + r.lCalfAng) * CALF_LEN;
+  var lAnkleY = lKneeY + Math.cos(r.lThighAng + r.lCalfAng) * CALF_LEN;
+  var lAnkle = { x: lAnkleX, y: lAnkleY };
+
+  // Left foot
+  var lToeX = lAnkleX + Math.cos(r.lThighAng + r.lCalfAng) * FOOT_LEN;
+  var lToeY = lAnkleY - Math.sin(r.lThighAng + r.lCalfAng) * FOOT_LEN * 0.3 + 2;
+  var lToe = { x: lToeX, y: lToeY };
+
+  // Right thigh from hip
+  var rKneeX = hip.x + Math.sin(r.rThighAng) * THIGH_LEN;
+  var rKneeY = hip.y + Math.cos(r.rThighAng) * THIGH_LEN;
+  var rKnee = { x: rKneeX, y: rKneeY };
+
+  // Right calf from knee
+  var rAnkleX = rKneeX + Math.sin(r.rThighAng + r.rCalfAng) * CALF_LEN;
+  var rAnkleY = rKneeY + Math.cos(r.rThighAng + r.rCalfAng) * CALF_LEN;
+  var rAnkle = { x: rAnkleX, y: rAnkleY };
+
+  // Right foot
+  var rToeX = rAnkleX + Math.cos(r.rThighAng + r.rCalfAng) * FOOT_LEN;
+  var rToeY = rAnkleY - Math.sin(r.rThighAng + r.rCalfAng) * FOOT_LEN * 0.3 + 2;
+  var rToe = { x: rToeX, y: rToeY };
+
+  return { hip: hip, shoulder: shoulder, head: head,
+           lKnee: lKnee, lAnkle: lAnkle, lToe: lToe,
+           rKnee: rKnee, rAnkle: rAnkle, rToe: rToe };
+}
+
+function update() {
+  if (infoOpen) return;
+  if (gameState === 'title' || gameState === 'fallen') return;
+
+  var r = runner;
+
+  // ── Apply controls as torques ──
+  var lThighTorque = 0, rThighTorque = 0;
+  var lCalfTorque = 0, rCalfTorque = 0;
+
+  if (keys['q']) {
+    lThighTorque -= TORQUE_STRENGTH;  // left thigh forward (negative angle)
+    rThighTorque += TORQUE_STRENGTH;  // right thigh back
+  }
+  if (keys['w']) {
+    rThighTorque -= TORQUE_STRENGTH;  // right thigh forward
+    lThighTorque += TORQUE_STRENGTH;  // left thigh back
+  }
+  if (keys['o']) {
+    lCalfTorque -= TORQUE_STRENGTH * 1.2;  // left calf forward
+  }
+  if (keys['p']) {
+    rCalfTorque += TORQUE_STRENGTH * 1.2;  // right calf back
+  }
+
+  // ── Apply torques to angular velocities ──
+  r.lThighAngV += lThighTorque;
+  r.rThighAngV += rThighTorque;
+  r.lCalfAngV += lCalfTorque;
+  r.rCalfAngV += rCalfTorque;
+
+  // ── Joint springs (return to rest position) ──
+  r.lThighAngV += (-r.lThighAng * 0.01);
+  r.rThighAngV += (-r.rThighAng * 0.01);
+  r.lCalfAngV += (-r.lCalfAng * 0.02);
+  r.rCalfAngV += (-r.rCalfAng * 0.02);
+  r.torsoAngV += (-r.torsoAng * 0.03);
+
+  // ── Angular damping ──
+  r.lThighAngV *= JOINT_DAMP;
+  r.rThighAngV *= JOINT_DAMP;
+  r.lCalfAngV *= JOINT_DAMP;
+  r.rCalfAngV *= JOINT_DAMP;
+  r.torsoAngV *= JOINT_DAMP;
+
+  // ── Update angles ──
+  r.lThighAng += r.lThighAngV;
+  r.rThighAng += r.rThighAngV;
+  r.lCalfAng += r.lCalfAngV;
+  r.rCalfAng += r.rCalfAngV;
+  r.torsoAng += r.torsoAngV;
+
+  // ── Angular limits ──
+  r.lThighAng = Math.max(-1.2, Math.min(1.2, r.lThighAng));
+  r.rThighAng = Math.max(-1.2, Math.min(1.2, r.rThighAng));
+  r.lCalfAng = Math.max(-0.1, Math.min(2.2, r.lCalfAng));
+  r.rCalfAng = Math.max(-0.1, Math.min(2.2, r.rCalfAng));
+  r.torsoAng = Math.max(-1.5, Math.min(1.5, r.torsoAng));
+
+  // ── Gravity on hip ──
+  r.hipVY += GRAVITY;
+
+  // ── Torso lean affects hip horizontal motion ──
+  r.hipVX += Math.sin(r.torsoAng) * 0.15;
+
+  // ── Ground collision for feet ──
+  var pos = getPositions(r);
+  var grounded = false;
+
+  // Left foot ground contact
+  if (pos.lAnkle.y >= GROUND_Y) {
+    pos.lAnkle.y = GROUND_Y;
+    r.hipVY = Math.min(r.hipVY, -0.5);
+    r.hipVX *= FRICTION;
+    grounded = true;
+    // Push runner forward based on leg angle
+    var pushForce = Math.sin(r.lThighAng) * 0.3;
+    r.hipVX += pushForce;
+    // Torso reaction
+    r.torsoAngV -= r.lThighAngV * 0.05;
+  }
+
+  if (pos.lToe.y >= GROUND_Y) {
+    grounded = true;
+    r.hipVY = Math.min(r.hipVY, 0);
+  }
+
+  // Right foot ground contact
+  if (pos.rAnkle.y >= GROUND_Y) {
+    pos.rAnkle.y = GROUND_Y;
+    r.hipVY = Math.min(r.hipVY, -0.5);
+    r.hipVX *= FRICTION;
+    grounded = true;
+    var pushForce2 = Math.sin(r.rThighAng) * 0.3;
+    r.hipVX += pushForce2;
+    r.torsoAngV -= r.rThighAngV * 0.05;
+  }
+
+  if (pos.rToe.y >= GROUND_Y) {
+    grounded = true;
+    r.hipVY = Math.min(r.hipVY, 0);
+  }
+
+  // Knee ground contact (stumble)
+  if (pos.lKnee.y >= GROUND_Y - 2) {
+    r.hipVY = Math.min(r.hipVY, -1);
+    r.lThighAngV -= 0.05;
+    grounded = true;
+  }
+  if (pos.rKnee.y >= GROUND_Y - 2) {
+    r.hipVY = Math.min(r.hipVY, -1);
+    r.rThighAngV -= 0.05;
+    grounded = true;
+  }
+
+  // ── Update hip position ──
+  r.hipVX *= 0.99;
+  r.hipX += r.hipVX;
+  r.hipY += r.hipVY;
+
+  // Keep hip above ground minimum
+  var minHipY = GROUND_Y - THIGH_LEN * 0.3;
+  if (r.hipY > minHipY) {
+    r.hipY = minHipY;
+    r.hipVY = Math.min(r.hipVY, 0);
+  }
+
+  // Keep hip from flying too high
+  if (r.hipY < GROUND_Y - THIGH_LEN - CALF_LEN - 20) {
+    r.hipY = GROUND_Y - THIGH_LEN - CALF_LEN - 20;
+    r.hipVY = Math.max(r.hipVY, 0);
+  }
+
+  // ── Check for fall (head or shoulder touch ground) ──
+  pos = getPositions(r);
+  if (pos.head.y >= GROUND_Y - 5 || pos.shoulder.y >= GROUND_Y - 5) {
+    fallTimer++;
+    if (fallTimer > 10) {
+      gameState = 'fallen';
+      runTime = (Date.now() - startTime) / 1000;
+    }
+  } else if (r.hipY >= GROUND_Y - 10 && Math.abs(r.torsoAng) > 1.2) {
+    fallTimer++;
+    if (fallTimer > 15) {
+      gameState = 'fallen';
+      runTime = (Date.now() - startTime) / 1000;
+    }
+  } else {
+    fallTimer = Math.max(0, fallTimer - 1);
+  }
+
+  // ── Update distance ──
+  distance = (r.hipX - 200) * 0.05; // Convert pixels to meters
+  if (distance < -2) distance = -2;
+  if (distance > maxDistance) maxDistance = distance;
+  if (maxDistance > bestDistance) bestDistance = maxDistance;
+
+  // ── Camera follow ──
+  var targetCam = r.hipX - 300;
+  if (targetCam < 0) targetCam = 0;
+  cameraX += (targetCam - cameraX) * 0.08;
+
+  // ── Win condition ──
+  if (distance >= 100) {
+    gameState = 'fallen'; // reuse fallen state for win display
+    runTime = (Date.now() - startTime) / 1000;
+  }
+}
+
+function drawRunner(r) {
+  var pos = getPositions(r);
+  var ox = -cameraX;
+
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  // Draw back leg first (right, darker)
+  ctx.strokeStyle = '#8B4513';
+  ctx.lineWidth = 9;
+  // Right thigh
+  ctx.beginPath();
+  ctx.moveTo(pos.hip.x + ox, pos.hip.y);
+  ctx.lineTo(pos.rKnee.x + ox, pos.rKnee.y);
+  ctx.stroke();
+  // Right calf
+  ctx.lineWidth = 7;
+  ctx.beginPath();
+  ctx.moveTo(pos.rKnee.x + ox, pos.rKnee.y);
+  ctx.lineTo(pos.rAnkle.x + ox, pos.rAnkle.y);
+  ctx.stroke();
+  // Right foot
+  ctx.strokeStyle = '#654321';
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.moveTo(pos.rAnkle.x + ox, pos.rAnkle.y);
+  ctx.lineTo(pos.rToe.x + ox, pos.rToe.y);
+  ctx.stroke();
+
+  // Torso
+  ctx.strokeStyle = '#E8E8E8';
+  ctx.lineWidth = 12;
+  ctx.beginPath();
+  ctx.moveTo(pos.hip.x + ox, pos.hip.y);
+  ctx.lineTo(pos.shoulder.x + ox, pos.shoulder.y);
+  ctx.stroke();
+
+  // Arms (simple, hanging from shoulders)
+  ctx.strokeStyle = '#DEB887';
+  ctx.lineWidth = 5;
+  var armSwing = Math.sin(r.lThighAng * 2) * 15;
+  ctx.beginPath();
+  ctx.moveTo(pos.shoulder.x + ox, pos.shoulder.y + 3);
+  ctx.lineTo(pos.shoulder.x + ox - 8 + armSwing, pos.shoulder.y + 35);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(pos.shoulder.x + ox, pos.shoulder.y + 3);
+  ctx.lineTo(pos.shoulder.x + ox + 8 - armSwing, pos.shoulder.y + 35);
+  ctx.stroke();
+
+  // Draw front leg (left, brighter)
+  ctx.strokeStyle = '#CD853F';
+  ctx.lineWidth = 9;
+  // Left thigh
+  ctx.beginPath();
+  ctx.moveTo(pos.hip.x + ox, pos.hip.y);
+  ctx.lineTo(pos.lKnee.x + ox, pos.lKnee.y);
+  ctx.stroke();
+  // Left calf
+  ctx.lineWidth = 7;
+  ctx.beginPath();
+  ctx.moveTo(pos.lKnee.x + ox, pos.lKnee.y);
+  ctx.lineTo(pos.lAnkle.x + ox, pos.lAnkle.y);
+  ctx.stroke();
+  // Left foot
+  ctx.strokeStyle = '#8B6914';
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.moveTo(pos.lAnkle.x + ox, pos.lAnkle.y);
+  ctx.lineTo(pos.lToe.x + ox, pos.lToe.y);
+  ctx.stroke();
+
+  // Head
+  ctx.fillStyle = '#DEB887';
+  ctx.beginPath();
+  ctx.arc(pos.head.x + ox, pos.head.y, HEAD_R, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#B8860B';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Headband
+  ctx.strokeStyle = '#FF4444';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(pos.head.x + ox, pos.head.y - 2, HEAD_R + 1, -2.5, -0.6);
+  ctx.stroke();
+
+  // Shorts
+  ctx.fillStyle = '#2255AA';
+  ctx.beginPath();
+  ctx.arc(pos.hip.x + ox, pos.hip.y, 10, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawTrack() {
+  var ox = -cameraX;
+
+  // Sky gradient
+  var skyGrad = ctx.createLinearGradient(0, 0, 0, GROUND_Y);
+  skyGrad.addColorStop(0, '#87CEEB');
+  skyGrad.addColorStop(0.7, '#B0E0FF');
+  skyGrad.addColorStop(1, '#E8F4FF');
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, 800, GROUND_Y);
+
+  // Clouds
+  ctx.fillStyle = 'rgba(255,255,255,0.6)';
+  for (var c = 0; c < 5; c++) {
+    var cx = (c * 300 + 100) + ox * 0.1;
+    cx = ((cx % 1600) + 1600) % 1600 - 200;
+    ctx.beginPath();
+    ctx.arc(cx, 60 + c * 20, 30, 0, Math.PI * 2);
+    ctx.arc(cx + 25, 55 + c * 20, 25, 0, Math.PI * 2);
+    ctx.arc(cx - 20, 58 + c * 20, 22, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Track surface
+  ctx.fillStyle = '#D2691E';
+  ctx.fillRect(0, GROUND_Y, 800, 20);
+  ctx.fillStyle = '#C0581E';
+  ctx.fillRect(0, GROUND_Y + 20, 800, 120);
+
+  // Track lines
+  ctx.strokeStyle = '#FFF';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([15, 10]);
+  ctx.beginPath();
+  ctx.moveTo(0, GROUND_Y + 10);
+  ctx.lineTo(800, GROUND_Y + 10);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Lane markings on sides
+  ctx.fillStyle = '#FFF';
+  ctx.fillRect(0, GROUND_Y - 1, 800, 2);
+  ctx.fillRect(0, GROUND_Y + 138, 800, 2);
+
+  // Distance markers every 10 meters
+  for (var m = 0; m <= 100; m += 10) {
+    var mx = 200 + m * 20 + ox; // 20 pixels per meter
+    if (mx > -50 && mx < 850) {
+      // Marker post
+      ctx.fillStyle = '#FFF';
+      ctx.fillRect(mx - 1, GROUND_Y - 30, 2, 30);
+      // Distance label
+      ctx.fillStyle = '#333';
+      ctx.font = '12px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(m + 'm', mx, GROUND_Y - 35);
+    }
+  }
+
+  // Meter markers every 1 meter (small ticks)
+  for (var mm = 0; mm <= 100; mm++) {
+    var mmx = 200 + mm * 20 + ox;
+    if (mmx > -10 && mmx < 810) {
+      ctx.fillStyle = '#FFF8';
+      ctx.fillRect(mmx, GROUND_Y - 5, 1, 5);
+    }
+  }
+
+  // Start line
+  var startX = 200 + ox;
+  if (startX > -10 && startX < 810) {
+    ctx.strokeStyle = '#FFF';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(startX, GROUND_Y - 40);
+    ctx.lineTo(startX, GROUND_Y + 140);
+    ctx.stroke();
+    ctx.fillStyle = '#FFF';
+    ctx.font = 'bold 14px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('START', startX, GROUND_Y - 45);
+  }
+
+  // Finish line
+  var finX = 200 + 100 * 20 + ox;
+  if (finX > -10 && finX < 810) {
+    // Checkered pattern
+    for (var fy = 0; fy < 8; fy++) {
+      for (var fx = 0; fx < 3; fx++) {
+        ctx.fillStyle = (fy + fx) % 2 === 0 ? '#000' : '#FFF';
+        ctx.fillRect(finX - 3 + fx * 6, GROUND_Y - 40 + fy * 10, 6, 10);
+      }
+    }
+    ctx.fillStyle = '#FFF';
+    ctx.font = 'bold 14px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('FINISH', finX, GROUND_Y - 50);
+  }
+
+  // Grass below track
+  ctx.fillStyle = '#228B22';
+  ctx.fillRect(0, GROUND_Y + 140, 800, 60);
+}
+
+function draw() {
+  ctx.clearRect(0, 0, 800, 600);
+
+  if (gameState === 'title') {
+    // Title screen
+    var skyGrad = ctx.createLinearGradient(0, 0, 0, 600);
+    skyGrad.addColorStop(0, '#87CEEB');
+    skyGrad.addColorStop(1, '#E8F4FF');
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(0, 0, 800, 600);
+
+    ctx.fillStyle = '#D2691E';
+    ctx.fillRect(0, 400, 800, 200);
+
+    hudText('R U N N E R', 400, 120, '#CC2200', 72, 'center');
+    hudText('100-METER DASH', 400, 200, '#333', 24, 'center');
+
+    hudText('Q - Left thigh fwd / Right thigh back', 400, 280, '#444', 14, 'center');
+    hudText('W - Right thigh fwd / Left thigh back', 400, 302, '#444', 14, 'center');
+    hudText('O - Left calf forward', 400, 324, '#444', 14, 'center');
+    hudText('P - Right calf back', 400, 346, '#444', 14, 'center');
+
+    hudText('Press any control key to start', 400, 420, '#FFF', 18, 'center');
+    hudText('Press ? for info', 400, 450, '#AAA', 12, 'center');
+
+    if (bestDistance > 0) {
+      hudText('Best: ' + bestDistance.toFixed(1) + ' meters', 400, 500, '#333', 16, 'center');
+    }
+
+    // Check for start
+    if (keys['q'] || keys['w'] || keys['o'] || keys['p']) {
+      resetGame();
+    }
+    return;
+  }
+
+  // Draw scene
+  drawTrack();
+  drawRunner(runner);
+
+  // ── HUD ──
+  // Distance display
+  var distStr = Math.max(0, distance).toFixed(1);
+  hudText(distStr + ' metres', 400, 15, '#FFF', 28, 'center');
+
+  // Progress bar
+  var pct = Math.max(0, Math.min(1, distance / 100));
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.fillRect(200, 50, 400, 8);
+  ctx.fillStyle = pct > 0.5 ? '#4F4' : (pct > 0.1 ? '#FF0' : '#F44');
+  ctx.fillRect(200, 50, 400 * pct, 8);
+  ctx.strokeStyle = '#FFF';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(200, 50, 400, 8);
+
+  // Key indicators
+  var keyY = 570;
+  var keyLabels = ['Q', 'W', 'O', 'P'];
+  var keyStates = [keys['q'], keys['w'], keys['o'], keys['p']];
+  var keyDescs = ['L.Thigh', 'R.Thigh', 'L.Calf', 'R.Calf'];
+
+  for (var ki = 0; ki < 4; ki++) {
+    var kx = 260 + ki * 80;
+    ctx.fillStyle = keyStates[ki] ? '#FF4' : 'rgba(255,255,255,0.2)';
+    ctx.fillRect(kx - 20, keyY - 12, 40, 20);
+    ctx.strokeStyle = '#FFF';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(kx - 20, keyY - 12, 40, 20);
+    ctx.fillStyle = keyStates[ki] ? '#000' : '#888';
+    ctx.font = 'bold 14px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(keyLabels[ki], kx, keyY);
+    ctx.font = '9px monospace';
+    ctx.fillStyle = '#888';
+    ctx.fillText(keyDescs[ki], kx, keyY + 16);
+  }
+
+  ctx.textBaseline = 'top';
+
+  // Timer
+  if (gameState === 'running') {
+    runTime = (Date.now() - startTime) / 1000;
+  }
+  hudText(runTime.toFixed(1) + 's', 750, 15, '#DDD', 16, 'right');
+
+  // Best distance
+  if (bestDistance > 0) {
+    hudText('Best: ' + bestDistance.toFixed(1) + 'm', 50, 15, '#AAA', 12, 'left');
+  }
+
+  // ── Fallen state ──
+  if (gameState === 'fallen') {
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(0, 150, 800, 250);
+
+    if (distance >= 100) {
+      hudText('YOU WIN!', 400, 180, '#4F4', 48, 'center');
+      hudText('100 meters in ' + runTime.toFixed(1) + ' seconds!', 400, 240, '#FFF', 20, 'center');
+    } else {
+      var msg = '';
+      if (maxDistance < 0.5) msg = 'Instant faceplant!';
+      else if (maxDistance < 2) msg = 'Classic ragdoll distance.';
+      else if (maxDistance < 5) msg = 'Not bad! Most can\'t do that.';
+      else if (maxDistance < 10) msg = 'Impressive coordination!';
+      else if (maxDistance < 50) msg = 'Are you a ragdoll savant?!';
+      else msg = 'So close! Try again!';
+
+      hudText('FELL DOWN!', 400, 180, '#F44', 42, 'center');
+      hudText('Distance: ' + maxDistance.toFixed(1) + ' metres', 400, 235, '#FFF', 22, 'center');
+      hudText(msg, 400, 270, '#FF8', 16, 'center');
+      hudText('Time: ' + runTime.toFixed(1) + 's', 400, 300, '#AAA', 14, 'center');
+    }
+
+    hudText('Press R to retry', 400, 350, '#CCC', 16, 'center');
+  }
+}
+
+function gameLoop() {
+  update();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+// ── Canvas resize ──
+function resize() {
+  var scale = Math.min(window.innerWidth / 800, window.innerHeight / 600);
+  canvas.style.width = (800 * scale) + 'px';
+  canvas.style.height = (600 * scale) + 'px';
+}
+window.addEventListener('resize', resize);
+resize();
+
+runner = createRunner();
+gameLoop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: dpad4 ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("dpad4");
+</script>
+</body>
+</html>

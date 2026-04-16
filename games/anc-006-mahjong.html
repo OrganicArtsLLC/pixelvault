@@ -1,0 +1,637 @@
+<!--
+PROTOTYPE: mahjong
+SERIES: anc
+NUMBER: 006
+DATE: 2026-03-23
+MECHANIC: tile matching — remove matching pairs of free tiles from a layered pyramid layout until all tiles are cleared
+ANCESTRY: Mahjong (traditional Chinese), Mahjong Solitaire (1981 Activision), Shanghai (1986)
+CONTROLS: Click — select tile | H — hint | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 2 (Expert Systems — pattern matching, search)
+AI-INSIGHT: A tile is "free" only if it has no tiles on top and at least one open side. This creates a visibility-action gap — you can see tiles you can't act on. Planning requires reasoning about which removals unlock future moves. This is a constrained search problem where greedy matching often leads to dead ends.
+NOTES: Brodie Lockard created the computer version in 1981. Shanghai (1986) by Activision made it a mainstream hit. The layered tile layout creates a 2.5D spatial puzzle from 2D matching rules.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ANC-006 · MAHJONG</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #2d1f14; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: pointer; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>ANC-006 · MAHJONG</h1>
+    <p><span class="tag series">ANC — Ancient Games</span> <span class="tag">Prototype #006</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Remove all 144 tiles by matching free pairs. A tile is free if nothing sits on top of it and at least one side (left or right) is open.</p>
+    <ul>
+      <li><strong>Click</strong> a free tile to select it (highlighted in gold).</li>
+      <li><strong>Click</strong> a second matching free tile to remove both.</li>
+      <li>Seasons (S1–S4) match any other Season. Flowers (F1–F4) match any other Flower.</li>
+      <li><kbd>H</kbd> — Show a hint (flashes a valid pair)</li>
+      <li><kbd>R</kbd> — Restart with a new shuffle</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Mahjong (~1870, China) &rarr; Computer Mahjong Solitaire (1981, Brodie Lockard) &rarr; Shanghai (1986, Activision)</p>
+    <p>Traditional Mahjong is a four-player rummy-style tile game originating in mid-19th century China. The computer solitaire variant was created by Brodie Lockard, a University of Illinois student paralyzed in a gymnastics accident, who programmed the first version on the PLATO system in 1981 using a mouth-stick to type. The PLATO version spread across university networks before reaching commercial audiences.</p>
+    <p><strong>Shanghai (1986):</strong> Activision licensed the concept and released it as "Shanghai," making Mahjong Solitaire a mainstream hit and one of the best-selling puzzle games of the late 1980s. It established the turtle/pyramid layout as the canonical arrangement and spawned countless imitators. The game was particularly popular on early Macintosh computers.</p>
+    <p><strong>Cultural Impact:</strong> Mahjong Solitaire remains one of the most-played casual games worldwide, pre-installed on millions of PCs. It introduced many Western players to Mahjong tile iconography without any connection to the original four-player game.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 2 — Expert Systems (pattern matching, constrained search)</p>
+    <p><strong>The Visibility-Action Gap:</strong> Mahjong Solitaire creates a fascinating cognitive puzzle: you can see tiles you cannot act on. Unlike hidden-information games, the constraint is structural — a tile is visible but blocked. This maps directly to constraint satisfaction problems in AI.</p>
+    <p><strong>Search Complexity:</strong> The branching factor varies wildly during play. Early moves may have 20+ valid pairs; late game often narrows to 1-2. A greedy strategy (always match the first pair found) leads to dead ends roughly 10% of the time even on solvable layouts. Optimal play requires look-ahead search to avoid creating unsolvable board states.</p>
+    <p><strong>Solvability:</strong> Not all shuffles are solvable. Research shows that roughly 97-99% of random turtle layouts are solvable with perfect play, but finding the solution requires backtracking search — a classic AI technique from the expert systems era.</p>
+
+    <h2>Classification</h2>
+    <p><span class="tag">tile matching</span> <span class="tag">puzzle</span> <span class="tag">solitaire</span> <span class="tag">spatial reasoning</span> <span class="tag">constraint satisfaction</span></p>
+
+    <h2>Prototype Notes</h2>
+    <p>This prototype implements the classic turtle layout with 144 tiles (36 types × 4 copies). Tiles are rendered with a 2.5D stacked effect using offset shadows. The hint system finds valid pairs using the same freedom-check logic the player must internalize. Seasons and Flowers follow traditional Mahjong matching rules (any season matches any season).</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+canvas.width = 800;
+canvas.height = 600;
+
+// Info panel
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// Tile dimensions
+const TW = 40, TH = 52;
+const LAYER_OX = 4, LAYER_OY = 4;
+
+// Tile types: 34 regular (4 each = 136) + 4 seasons + 4 flowers = 144
+// Dots 1-9, Bamboo 1-9, Characters 1-9, Winds NSEW, Dragons RGW, Seasons S1-S4, Flowers F1-F4
+const WINDS = ['N','S','E','W'];
+const DRAGONS = ['R','G','W'];
+
+// Build tile type list
+let tileTypes = [];
+// Dots, Bamboo, Characters (9 each)
+for (let s of ['dots','bamboo','chars']) {
+  for (let v = 1; v <= 9; v++) {
+    tileTypes.push({ suit: s, value: v, id: s + v });
+  }
+}
+// Winds
+for (let w of WINDS) tileTypes.push({ suit: 'wind', value: w, id: 'wind' + w });
+// Dragons
+for (let d of DRAGONS) tileTypes.push({ suit: 'dragon', value: d, id: 'dragon' + d });
+// Seasons (match any season)
+for (let i = 1; i <= 4; i++) tileTypes.push({ suit: 'season', value: i, id: 'season' + i });
+// Flowers (match any flower)
+for (let i = 1; i <= 4; i++) tileTypes.push({ suit: 'flower', value: i, id: 'flower' + i });
+// 34 regular types: 27 suited + 4 winds + 3 dragons = 34; × 4 = 136
+// + 4 seasons + 4 flowers = 144
+
+// Define layout as array of {r, c, z} positions — classic turtle shape
+function buildTurtleLayout() {
+  let positions = [];
+  // Layer 0 (bottom) — 86 tiles
+  const L0 = [
+    // Row 0: 12 tiles
+    [0,0],[0,1],[0,2],[0,3],[0,4],[0,5],[0,6],[0,7],[0,8],[0,9],[0,10],[0,11],
+    // Row 1: 8 tiles (centered)
+    [1,2],[1,3],[1,4],[1,5],[1,6],[1,7],[1,8],[1,9],
+    // Row 2: 10 tiles
+    [2,1],[2,2],[2,3],[2,4],[2,5],[2,6],[2,7],[2,8],[2,9],[2,10],
+    // Row 3: 12 + left wing + right wing = 14
+    [3,-1],[3,0],[3,1],[3,2],[3,3],[3,4],[3,5],[3,6],[3,7],[3,8],[3,9],[3,10],[3,11],[3,12],
+    // Row 4: 12 + left wing + right wing = 14
+    [4,-1],[4,0],[4,1],[4,2],[4,3],[4,4],[4,5],[4,6],[4,7],[4,8],[4,9],[4,10],[4,11],[4,12],
+    // Row 5: 10 tiles
+    [5,1],[5,2],[5,3],[5,4],[5,5],[5,6],[5,7],[5,8],[5,9],[5,10],
+    // Row 6: 8 tiles
+    [6,2],[6,3],[6,4],[6,5],[6,6],[6,7],[6,8],[6,9],
+    // Row 7: 12 tiles
+    [7,0],[7,1],[7,2],[7,3],[7,4],[7,5],[7,6],[7,7],[7,8],[7,9],[7,10],[7,11]
+  ];
+  // L0: 12+8+10+14+14+10+8+12 = 88
+  for (let p of L0) positions.push({ r: p[0], c: p[1], z: 0 });
+
+  // Layer 1 — 36 tiles (6×6 centered)
+  const L1 = [
+    [1,3],[1,4],[1,5],[1,6],[1,7],[1,8],
+    [2,3],[2,4],[2,5],[2,6],[2,7],[2,8],
+    [3,3],[3,4],[3,5],[3,6],[3,7],[3,8],
+    [4,3],[4,4],[4,5],[4,6],[4,7],[4,8],
+    [5,3],[5,4],[5,5],[5,6],[5,7],[5,8],
+    [6,3],[6,4],[6,5],[6,6],[6,7],[6,8],
+  ];
+  for (let p of L1) positions.push({ r: p[0], c: p[1], z: 1 });
+
+  // Layer 2 — 12 tiles (4×3 centered, offset by 0.5)
+  const L2 = [
+    [2.5,4],[2.5,5],[2.5,6],[2.5,7],
+    [3.5,4],[3.5,5],[3.5,6],[3.5,7],
+    [4.5,4],[4.5,5],[4.5,6],[4.5,7],
+  ];
+  for (let p of L2) positions.push({ r: p[0], c: p[1], z: 2 });
+
+  // Layer 3 — 4 tiles (2×2)
+  const L3 = [
+    [3,5],[3,6],
+    [4,5],[4,6],
+  ];
+  for (let p of L3) positions.push({ r: p[0], c: p[1], z: 3 });
+  // 88 + 36 + 12 + 4 = 140
+
+  // Layer 4 — 1 cap tile
+  positions.push({ r: 3.5, c: 5.5, z: 4 });
+  // Wing tiles for classic turtle shape
+  positions.push({ r: 3.5, c: -2, z: 0 });   // tail (far left)
+  positions.push({ r: 3, c: 13, z: 0 });      // head top (far right)
+  positions.push({ r: 4, c: 13, z: 0 });      // head bottom (far right)
+  // Total: 141 + 3 = 144
+
+  return positions;
+}
+
+// Game state
+let tiles = [];
+let selected = null;
+let hintPair = null;
+let hintTimer = 0;
+let gameState = 'playing'; // playing, won, stuck
+let message = '';
+let messageTimer = 0;
+let removingTiles = [];
+let removeAnim = 0;
+
+function tilesMatch(a, b) {
+  if (a === b) return false;
+  let ta = a.type, tb = b.type;
+  // Seasons match any season
+  if (ta.suit === 'season' && tb.suit === 'season') return true;
+  // Flowers match any flower
+  if (ta.suit === 'flower' && tb.suit === 'flower') return true;
+  return ta.id === tb.id;
+}
+
+function isFree(tile) {
+  if (tile.removed) return false;
+  // Check if any tile is on top
+  for (let t of tiles) {
+    if (t.removed || t === tile) continue;
+    if (t.z > tile.z) {
+      // Check overlap: tile on top overlaps if within 1 unit in both r and c
+      if (Math.abs(t.r - tile.r) < 1 && Math.abs(t.c - tile.c) < 1) {
+        return false;
+      }
+    }
+  }
+  // Check left and right sides
+  let leftBlocked = false, rightBlocked = false;
+  for (let t of tiles) {
+    if (t.removed || t === tile) continue;
+    if (t.z !== tile.z) continue;
+    if (Math.abs(t.r - tile.r) < 1) {
+      let dc = t.c - tile.c;
+      if (dc >= 0.9 && dc <= 1.1) rightBlocked = true;
+      if (dc <= -0.9 && dc >= -1.1) leftBlocked = true;
+    }
+  }
+  return !leftBlocked || !rightBlocked;
+}
+
+function findValidPairs() {
+  let free = tiles.filter(t => !t.removed && isFree(t));
+  let pairs = [];
+  for (let i = 0; i < free.length; i++) {
+    for (let j = i + 1; j < free.length; j++) {
+      if (tilesMatch(free[i], free[j])) {
+        pairs.push([free[i], free[j]]);
+      }
+    }
+  }
+  return pairs;
+}
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    let j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+}
+
+function initGame() {
+  let positions = buildTurtleLayout();
+  // Should be exactly 144 positions
+
+  // Build tile pool: 34 types × 4 = 136 + 4 seasons + 4 flowers = 144
+  let pool = [];
+  // Regular types (27 suited + 4 winds + 3 dragons = 34) × 4 copies
+  for (let i = 0; i < 34; i++) {
+    for (let j = 0; j < 4; j++) {
+      pool.push(tileTypes[i]);
+    }
+  }
+  // Seasons: 4 unique (each appears once, but they all match each other)
+  // Flowers: 4 unique
+  // Wait - we have 34 regular + 4 seasons + 4 flowers = 42 types in tileTypes
+  // We need 34×4 = 136 regular + 4 seasons + 4 flowers = 144
+  // But seasons/flowers are already in tileTypes at indices 34-41
+  // Pool so far has 136. Need 8 more.
+  for (let i = 34; i < 42; i++) {
+    pool.push(tileTypes[i]);
+  }
+  // pool.length should be 144 now
+
+  shuffle(pool);
+
+  tiles = [];
+  for (let i = 0; i < positions.length; i++) {
+    tiles.push({
+      r: positions[i].r,
+      c: positions[i].c,
+      z: positions[i].z,
+      type: pool[i],
+      removed: false,
+      idx: i
+    });
+  }
+
+  selected = null;
+  hintPair = null;
+  hintTimer = 0;
+  gameState = 'playing';
+  message = '';
+  messageTimer = 0;
+  removingTiles = [];
+  removeAnim = 0;
+}
+
+// Convert grid position to pixel position
+function tileToScreen(tile) {
+  // Center the layout on canvas
+  const ox = 140, oy = 65;
+  let x = ox + (tile.c + 2) * (TW * 0.92) - tile.z * LAYER_OX;
+  let y = oy + tile.r * (TH * 0.72) - tile.z * LAYER_OY;
+  return { x, y };
+}
+
+function getTileLabel(type) {
+  if (type.suit === 'dots') return { top: type.value + '', bot: '●', color: '#1a4a8a' };
+  if (type.suit === 'bamboo') return { top: type.value + '', bot: '竹', color: '#2a7a2a' };
+  if (type.suit === 'chars') return { top: type.value + '', bot: '字', color: '#8a1a1a' };
+  if (type.suit === 'wind') {
+    const sym = { N: '北', S: '南', E: '東', W: '西' };
+    return { top: type.value, bot: sym[type.value] || type.value, color: '#333' };
+  }
+  if (type.suit === 'dragon') {
+    const col = { R: '#c22', G: '#2a2', W: '#446' };
+    const sym = { R: '中', G: '發', W: '白' };
+    return { top: type.value, bot: sym[type.value], color: col[type.value] };
+  }
+  if (type.suit === 'season') {
+    const sym = ['春','夏','秋','冬'];
+    return { top: 'S' + type.value, bot: sym[type.value - 1], color: '#885522' };
+  }
+  if (type.suit === 'flower') {
+    const sym = ['梅','蘭','竹','菊'];
+    return { top: 'F' + type.value, bot: sym[type.value - 1], color: '#884488' };
+  }
+  return { top: '?', bot: '?', color: '#333' };
+}
+
+function drawTile(tile, highlight, hintHighlight) {
+  if (tile.removed) return;
+  let { x, y } = tileToScreen(tile);
+  let free = isFree(tile);
+
+  // 3D effect: draw side faces
+  const depth = 3;
+  // Right side
+  ctx.fillStyle = '#8a7a5a';
+  ctx.beginPath();
+  ctx.moveTo(x + TW, y);
+  ctx.lineTo(x + TW + depth, y + depth);
+  ctx.lineTo(x + TW + depth, y + TH + depth);
+  ctx.lineTo(x + TW, y + TH);
+  ctx.fill();
+  // Bottom side
+  ctx.fillStyle = '#6a5a3a';
+  ctx.beginPath();
+  ctx.moveTo(x, y + TH);
+  ctx.lineTo(x + depth, y + TH + depth);
+  ctx.lineTo(x + TW + depth, y + TH + depth);
+  ctx.lineTo(x + TW, y + TH);
+  ctx.fill();
+
+  // Tile face
+  let faceColor = '#f5ecd0';
+  if (highlight) faceColor = '#ffe066';
+  else if (hintHighlight) faceColor = '#aaf0aa';
+  else if (free) faceColor = '#f8f0d8';
+  else faceColor = '#e8dfc5';
+
+  ctx.fillStyle = faceColor;
+  ctx.fillRect(x, y, TW, TH);
+
+  // Border
+  ctx.strokeStyle = highlight ? '#aa8800' : '#8a7a5a';
+  ctx.lineWidth = highlight ? 2 : 1;
+  ctx.strokeRect(x, y, TW, TH);
+
+  // Inner border for traditional look
+  ctx.strokeStyle = '#c8b888';
+  ctx.lineWidth = 0.5;
+  ctx.strokeRect(x + 2, y + 2, TW - 4, TH - 4);
+
+  // Draw label
+  let label = getTileLabel(tile.type);
+  ctx.fillStyle = label.color;
+  ctx.font = 'bold 11px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillText(label.top, x + TW / 2, y + 5);
+  ctx.font = '18px monospace';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label.bot, x + TW / 2, y + TH / 2 + 5);
+
+  // Dim non-free tiles slightly
+  if (!free && !highlight) {
+    ctx.fillStyle = 'rgba(0,0,0,0.08)';
+    ctx.fillRect(x, y, TW, TH);
+  }
+}
+
+function getClickedTile(mx, my) {
+  // Check from top layer down
+  let sorted = tiles.filter(t => !t.removed).sort((a, b) => b.z - a.z || b.r - a.r);
+  for (let tile of sorted) {
+    let { x, y } = tileToScreen(tile);
+    if (mx >= x && mx <= x + TW && my >= y && my <= y + TH) {
+      return tile;
+    }
+  }
+  return null;
+}
+
+canvas.addEventListener('click', function(e) {
+  if (infoOpen) return;
+  if (gameState !== 'playing') {
+    if (gameState === 'won' || gameState === 'stuck') {
+      initGame();
+    }
+    return;
+  }
+
+  let rect = canvas.getBoundingClientRect();
+  let scaleX = canvas.width / rect.width;
+  let scaleY = canvas.height / rect.height;
+  let mx = (e.clientX - rect.left) * scaleX;
+  let my = (e.clientY - rect.top) * scaleY;
+
+  let clicked = getClickedTile(mx, my);
+  if (!clicked) { selected = null; return; }
+
+  if (!isFree(clicked)) {
+    message = 'Tile is blocked!';
+    messageTimer = 90;
+    return;
+  }
+
+  hintPair = null;
+  hintTimer = 0;
+
+  if (!selected) {
+    selected = clicked;
+  } else if (selected === clicked) {
+    selected = null;
+  } else {
+    // Try to match
+    if (tilesMatch(selected, clicked)) {
+      selected.removed = true;
+      clicked.removed = true;
+      removingTiles = [selected, clicked];
+      removeAnim = 15;
+      selected = null;
+      // Check win
+      let remaining = tiles.filter(t => !t.removed).length;
+      if (remaining === 0) {
+        gameState = 'won';
+      } else {
+        // Check stuck
+        let pairs = findValidPairs();
+        if (pairs.length === 0) {
+          gameState = 'stuck';
+        }
+      }
+    } else {
+      message = 'Tiles don\'t match!';
+      messageTimer = 90;
+      selected = clicked;
+    }
+  }
+});
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
+    toggleInfo();
+    e.preventDefault();
+    return;
+  }
+  if (e.key === 'Escape' && infoOpen) {
+    toggleInfo();
+    e.preventDefault();
+    return;
+  }
+  if (infoOpen) return;
+
+  if (e.key === 'r' || e.key === 'R') {
+    initGame();
+  }
+  if (e.key === 'h' || e.key === 'H') {
+    let pairs = findValidPairs();
+    if (pairs.length > 0) {
+      hintPair = pairs[Math.floor(Math.random() * pairs.length)];
+      hintTimer = 120;
+      selected = null;
+    } else {
+      message = 'No valid pairs!';
+      messageTimer = 90;
+    }
+  }
+  if ([' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault();
+});
+
+function update() {
+  if (infoOpen) return;
+
+  if (messageTimer > 0) messageTimer--;
+  if (hintTimer > 0) {
+    hintTimer--;
+    if (hintTimer <= 0) hintPair = null;
+  }
+  if (removeAnim > 0) removeAnim--;
+}
+
+// Static felt texture - pre-render once
+let feltCanvas = null;
+function initFelt() {
+  feltCanvas = document.createElement('canvas');
+  feltCanvas.width = 800;
+  feltCanvas.height = 600;
+  let fctx = feltCanvas.getContext('2d');
+  fctx.fillStyle = '#2d4a2d';
+  fctx.fillRect(0, 0, 800, 600);
+  fctx.fillStyle = '#264a26';
+  for (let i = 0; i < 800; i += 3) {
+    for (let j = 0; j < 600; j += 3) {
+      if (Math.random() < 0.15) {
+        fctx.fillRect(i, j, 1, 1);
+      }
+    }
+  }
+}
+
+function drawOptimized() {
+  if (!feltCanvas) initFelt();
+  ctx.drawImage(feltCanvas, 0, 0);
+
+  // Title bar
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.fillRect(0, 0, 800, 28);
+  ctx.fillStyle = '#d4c090';
+  ctx.font = 'bold 14px monospace';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText('ANC-006 · MAHJONG', 10, 7);
+
+  let remaining = tiles.filter(t => !t.removed).length;
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#d4c090';
+  ctx.font = '13px monospace';
+  ctx.fillText('Tiles: ' + remaining + '/144', 700, 8);
+  ctx.fillText('[?] Info  [H] Hint  [R] New', 790, 8);
+
+  if (gameState === 'playing') {
+    let pairs = findValidPairs();
+    ctx.textAlign = 'center';
+    ctx.fillStyle = pairs.length > 0 ? '#8c8' : '#c44';
+    ctx.fillText('Pairs: ' + pairs.length, 400, 8);
+  }
+
+  let sortedTiles = [...tiles].sort((a, b) => {
+    if (a.z !== b.z) return a.z - b.z;
+    if (a.r !== b.r) return a.r - b.r;
+    return a.c - b.c;
+  });
+
+  for (let tile of sortedTiles) {
+    if (tile.removed) continue;
+    let isSelected = (tile === selected);
+    let isHint = hintPair && (tile === hintPair[0] || tile === hintPair[1]) && (Math.floor(hintTimer / 10) % 2 === 0);
+    drawTile(tile, isSelected, isHint);
+  }
+
+  if (messageTimer > 0 && message) {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    let mw = ctx.measureText(message).width + 30;
+    ctx.fillRect(400 - mw / 2, 570, mw, 26);
+    ctx.fillStyle = '#faa';
+    ctx.font = '14px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(message, 400, 583);
+  }
+
+  if (gameState === 'won') {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(0, 0, 800, 600);
+    ctx.fillStyle = '#ffd700';
+    ctx.font = 'bold 36px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('YOU WIN!', 400, 270);
+    ctx.font = '18px monospace';
+    ctx.fillStyle = '#ddd';
+    ctx.fillText('All tiles cleared! Click to play again.', 400, 320);
+  }
+  if (gameState === 'stuck') {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(0, 0, 800, 600);
+    ctx.fillStyle = '#ff6644';
+    ctx.font = 'bold 30px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('NO MOVES LEFT', 400, 270);
+    ctx.font = '18px monospace';
+    ctx.fillStyle = '#ddd';
+    ctx.fillText(remaining + ' tiles remain. Click to try again.', 400, 320);
+  }
+}
+
+function gameLoop() {
+  update();
+  drawOptimized();
+  requestAnimationFrame(gameLoop);
+}
+
+initGame();
+gameLoop();
+</script>
+</body>
+</html>

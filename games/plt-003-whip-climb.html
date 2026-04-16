@@ -1,0 +1,1571 @@
+<!--
+PROTOTYPE: whip-climb
+SERIES: plt
+NUMBER: 003
+DATE: 2026-03-22
+MECHANIC: whip through gothic castle with subweapons and stiff jumps
+ANCESTRY: Castlevania (1986, Konami), Ghosts 'n Goblins (1985, Capcom)
+CONTROLS: ← → — move | ↑ ↓ — stairs/crouch | Space — jump | Z — whip | X — subweapon | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — scripted enemy patterns, level design as curriculum)
+AI-INSIGHT: Castlevania's deliberate movement constraints (stiff jumps, commitment to attacks) force the player to plan actions before executing them — each input is a commitment, not a correction. This mirrors the explore-exploit tradeoff where gathering information (observing patterns) must precede action (attacking).
+NOTES: Stiff jump physics are the design — they force commitment over reaction.
+       Whip range creates a spacing game distinct from contact-based combat.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PLT-003 · WHIP CLIMB</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>PLT-003 · WHIP CLIMB</h1>
+    <p><span class="tag series">PLT — Platformer</span> <span class="tag">Prototype #003</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Guide a whip-wielding hero through a gothic castle. Destroy candles for hearts and subweapons. Defeat the boss at the end of the level.</p>
+    <ul>
+      <li><kbd>&#8592;</kbd> <kbd>&#8594;</kbd> — Move left/right</li>
+      <li><kbd>&#8593;</kbd> <kbd>&#8595;</kbd> — Go up/down stairs, crouch</li>
+      <li><kbd>Space</kbd> — Jump (stiff — limited air control)</li>
+      <li><kbd>Z</kbd> — Whip attack</li>
+      <li><kbd>X</kbd> — Use subweapon (costs hearts)</li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Stiff jumps:</strong> Once airborne, your horizontal direction is locked. Commit before you leap.</li>
+      <li><strong>Whip range:</strong> The whip reaches further than your body — use spacing to your advantage.</li>
+      <li><strong>Subweapons:</strong> Knife (straight), Axe (arcing), Holy Water (ground fire). Each costs 1 heart.</li>
+      <li><strong>Candles:</strong> Whip every candle — they drop hearts, subweapons, and points.</li>
+      <li><strong>Stairs:</strong> Press Up/Down while standing on stair tiles to climb.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Castlevania (1986, Konami) &rarr; Super Castlevania IV (1991) &rarr; Symphony of the Night (1997) &rarr; Metroidvania genre</p>
+    <p>Castlevania (1986) by Konami inverted the power fantasy. Where Mario felt nimble and responsive, Simon Belmont felt heavy and deliberate. This was not a limitation — it was the design. Every jump was a commitment. Every whip crack had startup frames. The horror came not from surprise but from being unable to change your mind once you committed to an action.</p>
+    <p>The whip created a spacing game: you could hit things further away than you could be hit, but only if you timed it right. This risk/reward calculation — stand at range and whip, or rush in and risk contact — is the mechanical heart of the game.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 3 — Knowledge Explosion (1978–1983, influence through 1986)</p>
+    <p><strong>Contemporary AI:</strong> Expert systems were dominant. Scripted behavior was the state of the art for game AI. Backpropagation had just been popularized (1986).</p>
+    <p><strong>Hidden Intelligence:</strong> Castlevania's stiff controls encode a planning constraint: each input is a commitment, not a correction. The player must observe enemy patterns, predict trajectories, and commit to actions before executing them. This is the explore-exploit tradeoff made visceral — you must gather information (observe) before acting (attack/jump). The level design functions as a curriculum: early rooms teach mechanics in low-stakes settings before combining them in deadly arrangements.</p>
+    <p><strong>The Convergence:</strong> Modern RL agents struggle with games requiring commitment-based action — most policies assume instant course correction. Castlevania-style games require planning horizons longer than single frames, closer to model-based RL or Monte Carlo Tree Search than reactive policy networks.</p>
+    <p><strong>If AI Had Designed This:</strong> Adaptive difficulty through enemy pattern modulation — varying sine wave frequencies, spawn timing, and projectile speeds to maintain a target challenge level.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: PLT — Platformer</h3>
+    <p>Castlevania is a platformer that replaces nimble movement with deliberate commitment. The whip extends the action space beyond the player's hitbox, creating a spacing mechanic unique to this lineage.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Whip-based platformer with stiff jumps and subweapons.</strong> Medium-range whip attack. Candle-breaking for pickups. Hearts as subweapon ammo. Scripted enemy patterns (sine waves, arcs). Boss encounter. Stair traversal.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Stiff jumps — does commitment-based movement create tension?</li>
+      <li>Whip range — does spacing feel distinct from contact combat?</li>
+      <li>Subweapon variety — do knife/axe/holy water feel meaningfully different?</li>
+      <li>Gothic atmosphere — does the palette sell the mood?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Scrolling level with platforms, stairs, candles, three enemy types, subweapons, and a boss fight. Stiff jump physics are intentional.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+const keys = {};
+const justPressed = {};
+window.addEventListener('keydown', e => {
+  if (infoOpen) return;
+  if (!keys[e.code]) justPressed[e.code] = true;
+  keys[e.code] = true;
+  e.preventDefault();
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+function pop(code) { if (justPressed[code]) { justPressed[code] = false; return true; } return false; }
+
+// --- CONSTANTS ---
+const GRAVITY = 0.45;
+const JUMP_VEL = -8.5;
+const MOVE_SPEED = 2.2;
+const AIR_CONTROL = 0.15; // very limited air control (stiff jumps)
+const TILE = 32;
+const LEVEL_W = 2400; // 3 screens wide
+const LEVEL_TILES_W = Math.ceil(LEVEL_W / TILE); // 75
+const LEVEL_TILES_H = Math.ceil(H / TILE); // ~19 rows, use 18 playable + 1 floor
+
+// --- LEVEL DATA ---
+// Level is defined as a grid: 0=empty, 1=stone, 2=stair, 3=candle position (empty tile, candle placed above)
+// We'll build a level procedurally from a designed layout
+
+function buildLevel() {
+  const cols = LEVEL_TILES_W;
+  const rows = 19;
+  const grid = [];
+  for (let r = 0; r < rows; r++) {
+    grid[r] = [];
+    for (let c = 0; c < cols; c++) {
+      grid[r][c] = 0;
+    }
+  }
+
+  // Floor (row 18 = bottom)
+  for (let c = 0; c < cols; c++) grid[18][c] = 1;
+
+  // --- SECTION 1: Entrance (cols 0-24) ---
+  // Ground level platforms
+  for (let c = 0; c < 25; c++) grid[17][c] = 1;
+
+  // Low platform
+  for (let c = 8; c < 14; c++) grid[14][c] = 1;
+
+  // Mid platform
+  for (let c = 3; c < 8; c++) grid[11][c] = 1;
+
+  // High platform
+  for (let c = 10; c < 18; c++) grid[11][c] = 1;
+
+  // Upper platform
+  for (let c = 5; c < 12; c++) grid[8][c] = 1;
+
+  // Stairs going up from ground to low platform (col 7)
+  grid[15][7] = 2; grid[16][7] = 2;
+
+  // Stairs from low platform up to mid (col 5)
+  grid[12][5] = 2; grid[13][5] = 2;
+
+  // Stairs from mid to upper (col 9)
+  grid[9][9] = 2; grid[10][9] = 2;
+
+  // --- SECTION 2: Castle Interior (cols 25-49) ---
+  // Ground continues
+  for (let c = 25; c < 50; c++) grid[17][c] = 1;
+
+  // Gap in floor
+  grid[17][30] = 0; grid[17][31] = 0;
+
+  // Platforms at various heights
+  for (let c = 26; c < 33; c++) grid[14][c] = 1;
+  for (let c = 35; c < 42; c++) grid[14][c] = 1;
+  for (let c = 28; c < 36; c++) grid[11][c] = 1;
+  for (let c = 38; c < 48; c++) grid[11][c] = 1;
+  for (let c = 32; c < 40; c++) grid[8][c] = 1;
+
+  // Stairs in section 2
+  grid[15][27] = 2; grid[16][27] = 2; // ground to platform
+  grid[12][30] = 2; grid[13][30] = 2; // platform up
+  grid[15][40] = 2; grid[16][40] = 2; // ground to right platform
+  grid[9][35] = 2; grid[10][35] = 2; // mid to high
+
+  // --- SECTION 3: Boss Arena (cols 50-74) ---
+  for (let c = 50; c < 75; c++) grid[17][c] = 1;
+
+  // Platforms leading to boss
+  for (let c = 50; c < 56; c++) grid[14][c] = 1;
+  for (let c = 53; c < 60; c++) grid[11][c] = 1;
+
+  // Stairs
+  grid[15][52] = 2; grid[16][52] = 2;
+  grid[12][55] = 2; grid[13][55] = 2;
+
+  // Boss arena floor (flat ground, cols 60-74)
+  // Already have ground at row 17
+
+  // Walls
+  for (let r = 0; r < 18; r++) { grid[r][0] = 1; grid[r][cols - 1] = 1; }
+  // Ceiling segments
+  for (let c = 0; c < cols; c++) grid[0][c] = 1;
+
+  // Decorative walls/pillars
+  for (let r = 8; r < 17; r++) grid[r][24] = 1; // wall between section 1 and 2 (with gap at top)
+  for (let r = 8; r < 17; r++) grid[r][49] = 1; // wall before boss arena (with gap at top)
+  // Open the doorways
+  grid[15][24] = 0; grid[16][24] = 0;
+  grid[15][49] = 0; grid[16][49] = 0;
+
+  return grid;
+}
+
+// Candle positions: {x, y (pixel coords), alive, drop}
+function buildCandles(grid) {
+  const candles = [];
+  // Drops: 'heart', 'knife', 'axe', 'holywater', 'bigHeart', 'points'
+  const drops = ['heart','heart','heart','heart','heart','bigHeart','knife','axe','holywater','points','points','heart'];
+
+  // Place candles at specific positions (hanging from ceiling or floating above platforms)
+  const positions = [
+    // Section 1
+    {c:4, r:16}, {c:10, r:16}, {c:16, r:16}, {c:20, r:16},
+    {c:6, r:10}, {c:11, r:13}, {c:14, r:10}, {c:8, r:7},
+    // Section 2
+    {c:28, r:13}, {c:32, r:16}, {c:37, r:13}, {c:44, r:16},
+    {c:30, r:10}, {c:34, r:10}, {c:40, r:10}, {c:36, r:7},
+    {c:46, r:16}, {c:42, r:13},
+    // Section 3
+    {c:52, r:13}, {c:56, r:10}, {c:54, r:16}, {c:62, r:16},
+    {c:66, r:16}, {c:70, r:16},
+  ];
+
+  for (let i = 0; i < positions.length; i++) {
+    const p = positions[i];
+    candles.push({
+      x: p.c * TILE + TILE / 2,
+      y: p.r * TILE + 4,
+      alive: true,
+      drop: drops[i % drops.length],
+      flicker: Math.random() * Math.PI * 2
+    });
+  }
+  return candles;
+}
+
+// Enemy spawn data
+function buildEnemies() {
+  return [
+    // Bats (sine wave flight)
+    { type: 'bat', spawnX: 300, spawnY: 420, x: 0, y: 0, alive: true, hp: 1, dmg: 2, t: 0, dir: 1 },
+    { type: 'bat', spawnX: 600, spawnY: 350, x: 0, y: 0, alive: true, hp: 1, dmg: 2, t: 0, dir: -1 },
+    { type: 'bat', spawnX: 1000, spawnY: 400, x: 0, y: 0, alive: true, hp: 1, dmg: 2, t: 0, dir: 1 },
+    { type: 'bat', spawnX: 1400, spawnY: 320, x: 0, y: 0, alive: true, hp: 1, dmg: 2, t: 0, dir: -1 },
+    { type: 'bat', spawnX: 1800, spawnY: 380, x: 0, y: 0, alive: true, hp: 1, dmg: 2, t: 0, dir: 1 },
+    // Skeletons (walk and throw bones)
+    { type: 'skeleton', spawnX: 450, spawnY: 0, x: 0, y: 0, alive: true, hp: 3, dmg: 3, dir: -1, throwTimer: 0, vy: 0, onGround: false },
+    { type: 'skeleton', spawnX: 900, spawnY: 0, x: 0, y: 0, alive: true, hp: 3, dmg: 3, dir: 1, throwTimer: 0, vy: 0, onGround: false },
+    { type: 'skeleton', spawnX: 1300, spawnY: 0, x: 0, y: 0, alive: true, hp: 3, dmg: 3, dir: -1, throwTimer: 0, vy: 0, onGround: false },
+    { type: 'skeleton', spawnX: 1700, spawnY: 0, x: 0, y: 0, alive: true, hp: 3, dmg: 3, dir: 1, throwTimer: 0, vy: 0, onGround: false },
+    // Medusa heads (wave from sides)
+    { type: 'medusa', spawnX: 700, spawnY: 400, x: 0, y: 0, alive: true, hp: 1, dmg: 3, t: 0, dir: -1 },
+    { type: 'medusa', spawnX: 1100, spawnY: 350, x: 0, y: 0, alive: true, hp: 1, dmg: 3, t: 0, dir: 1 },
+    { type: 'medusa', spawnX: 1600, spawnY: 420, x: 0, y: 0, alive: true, hp: 1, dmg: 3, t: 0, dir: -1 },
+    { type: 'medusa', spawnX: 2000, spawnY: 380, x: 0, y: 0, alive: true, hp: 1, dmg: 3, t: 0, dir: 1 },
+  ];
+}
+
+// --- GAME STATE ---
+let grid, candles, enemies, projectiles, pickups, particles;
+let player, camera, boss, frame;
+let gameOver, won, lives, score;
+
+function initEnemy(e) {
+  e.x = e.spawnX;
+  e.alive = true;
+  e.t = 0;
+  if (e.type === 'skeleton') {
+    // Place skeleton on nearest ground
+    const col = Math.floor(e.spawnX / TILE);
+    let groundR = 17;
+    for (let r = 0; r < 19; r++) {
+      if (grid[r] && grid[r][col] === 1) { groundR = r; break; }
+    }
+    e.y = groundR * TILE - 28;
+    e.spawnY = e.y;
+    e.vy = 0;
+    e.onGround = true;
+    e.throwTimer = 60 + Math.random() * 120;
+    e.hp = 3;
+  } else if (e.type === 'bat') {
+    e.y = e.spawnY;
+    e.hp = 1;
+  } else if (e.type === 'medusa') {
+    e.y = e.spawnY;
+    e.hp = 1;
+  }
+}
+
+function initGame() {
+  grid = buildLevel();
+  candles = buildCandles(grid);
+
+  player = {
+    x: 60, y: 17 * TILE - 30,
+    vx: 0, vy: 0,
+    w: 20, h: 30,
+    facing: 1,
+    onGround: false,
+    onStairs: false,
+    crouching: false,
+    hp: 16, maxHp: 16,
+    hearts: 5,
+    subweapon: 'knife', // 'knife', 'axe', 'holywater'
+    whipping: false,
+    whipFrame: 0,
+    whipDuration: 18,
+    invincible: 0,
+    knockback: 0,
+    knockDir: 0,
+  };
+
+  camera = { x: 0 };
+
+  enemies = buildEnemies();
+  for (const e of enemies) initEnemy(e);
+
+  projectiles = []; // player subweapons and enemy bones
+  pickups = [];     // dropped items from candles
+  particles = [];
+
+  boss = {
+    alive: true,
+    x: 2150, y: 17 * TILE - 60,
+    w: 48, h: 60,
+    hp: 24, maxHp: 24,
+    phase: 0, // 0=idle, 1=attack
+    timer: 60,
+    facing: -1,
+    invincible: 0,
+    attackPattern: 0,
+  };
+
+  frame = 0;
+  gameOver = false;
+  won = false;
+  lives = 3;
+  score = 0;
+}
+
+initGame();
+
+// --- COLLISION HELPERS ---
+function tileAt(px, py) {
+  const c = Math.floor(px / TILE);
+  const r = Math.floor(py / TILE);
+  if (r < 0 || r >= 19 || c < 0 || c >= LEVEL_TILES_W) return 1;
+  return grid[r][c];
+}
+
+function isSolid(px, py) {
+  return tileAt(px, py) === 1;
+}
+
+function isStair(px, py) {
+  return tileAt(px, py) === 2;
+}
+
+function rectOverlap(ax, ay, aw, ah, bx, by, bw, bh) {
+  return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
+}
+
+// --- PLAYER PHYSICS ---
+function updatePlayer() {
+  const p = player;
+
+  if (p.invincible > 0) p.invincible--;
+
+  // Knockback
+  if (p.knockback > 0) {
+    p.knockback--;
+    p.x += p.knockDir * 3;
+    p.vy += GRAVITY;
+    p.y += p.vy;
+    // Ground collision during knockback
+    const footY = p.y + p.h;
+    if (isSolid(p.x + 4, footY) || isSolid(p.x + p.w - 4, footY)) {
+      p.y = Math.floor(footY / TILE) * TILE - p.h;
+      p.vy = 0;
+      p.onGround = true;
+    }
+    // Wall collision
+    if (isSolid(p.x, p.y + 10) || isSolid(p.x, p.y + p.h - 4)) p.x += 3;
+    if (isSolid(p.x + p.w, p.y + 10) || isSolid(p.x + p.w, p.y + p.h - 4)) p.x -= 3;
+    return;
+  }
+
+  // Whip animation
+  if (p.whipping) {
+    p.whipFrame++;
+    if (p.whipFrame >= p.whipDuration) {
+      p.whipping = false;
+      p.whipFrame = 0;
+    }
+  }
+
+  // Stair logic
+  if (p.onStairs) {
+    p.vy = 0;
+    p.vx = 0;
+    const stairSpeed = 1.5;
+
+    if (keys['ArrowUp']) {
+      p.y -= stairSpeed;
+      p.x += stairSpeed * p.facing * 0.5;
+    } else if (keys['ArrowDown']) {
+      p.y += stairSpeed;
+      p.x -= stairSpeed * p.facing * 0.5;
+    }
+
+    // Check if still on stairs
+    const centerX = p.x + p.w / 2;
+    const footY = p.y + p.h;
+    if (!isStair(centerX, footY) && !isStair(centerX, footY - TILE)) {
+      p.onStairs = false;
+      // Snap to ground if there's ground nearby
+      if (isSolid(centerX, footY + 4)) {
+        p.y = Math.floor((footY + 4) / TILE) * TILE - p.h;
+        p.onGround = true;
+      }
+    }
+
+    // Whip on stairs
+    if (pop('KeyZ') && !p.whipping) {
+      p.whipping = true;
+      p.whipFrame = 0;
+    }
+    // Subweapon on stairs
+    if (pop('KeyX') && p.hearts > 0 && !p.whipping) {
+      fireSubweapon();
+    }
+
+    // Jump off stairs
+    if (pop('Space')) {
+      p.onStairs = false;
+      p.vy = JUMP_VEL;
+      p.onGround = false;
+    }
+    return;
+  }
+
+  // Crouch
+  p.crouching = keys['ArrowDown'] && p.onGround && !p.whipping;
+
+  // Horizontal movement (only if not whipping, or limited while whipping)
+  if (!p.whipping && !p.crouching) {
+    if (p.onGround) {
+      if (keys['ArrowLeft']) { p.vx = -MOVE_SPEED; p.facing = -1; }
+      else if (keys['ArrowRight']) { p.vx = MOVE_SPEED; p.facing = 1; }
+      else p.vx = 0;
+    } else {
+      // Stiff jump: very limited air control
+      if (keys['ArrowLeft']) p.vx = Math.max(p.vx - AIR_CONTROL, -MOVE_SPEED);
+      else if (keys['ArrowRight']) p.vx = Math.min(p.vx + AIR_CONTROL, MOVE_SPEED);
+      // No friction in air — committed direction
+    }
+  } else if (p.whipping && p.onGround) {
+    p.vx = 0; // Can't move while whipping on ground
+  }
+
+  // Jump (only from ground, stiff)
+  if (pop('Space') && p.onGround && !p.whipping) {
+    p.vy = JUMP_VEL;
+    p.onGround = false;
+    // Lock horizontal velocity at time of jump (stiff)
+    if (keys['ArrowLeft']) p.vx = -MOVE_SPEED;
+    else if (keys['ArrowRight']) p.vx = MOVE_SPEED;
+    else p.vx = 0;
+  }
+
+  // Whip attack
+  if (pop('KeyZ') && !p.whipping) {
+    p.whipping = true;
+    p.whipFrame = 0;
+  }
+
+  // Subweapon
+  if (pop('KeyX') && p.hearts > 0 && !p.whipping) {
+    fireSubweapon();
+  }
+
+  // Enter stairs
+  if (keys['ArrowUp'] || keys['ArrowDown']) {
+    const centerX = p.x + p.w / 2;
+    const footY = p.y + p.h;
+    if (keys['ArrowUp'] && isStair(centerX, footY - 2)) {
+      p.onStairs = true;
+      p.onGround = false;
+      p.vx = 0; p.vy = 0;
+      return;
+    }
+    if (keys['ArrowDown'] && (isStair(centerX, footY + 4) || isStair(centerX, footY))) {
+      p.onStairs = true;
+      p.onGround = false;
+      p.vx = 0; p.vy = 0;
+      return;
+    }
+  }
+
+  // Gravity
+  if (!p.onGround) {
+    p.vy += GRAVITY;
+    if (p.vy > 10) p.vy = 10;
+  }
+
+  // Move X
+  p.x += p.vx;
+  // Wall collisions
+  if (isSolid(p.x + 2, p.y + 4) || isSolid(p.x + 2, p.y + p.h - 4)) {
+    p.x = Math.floor((p.x + 2) / TILE) * TILE + TILE - 2;
+    p.vx = 0;
+  }
+  if (isSolid(p.x + p.w - 2, p.y + 4) || isSolid(p.x + p.w - 2, p.y + p.h - 4)) {
+    p.x = Math.floor((p.x + p.w - 2) / TILE) * TILE - p.w + 2;
+    p.vx = 0;
+  }
+
+  // Move Y
+  p.y += p.vy;
+  const footY = p.y + p.h;
+
+  // Ground collision
+  if (p.vy >= 0) {
+    if (isSolid(p.x + 4, footY) || isSolid(p.x + p.w - 4, footY)) {
+      p.y = Math.floor(footY / TILE) * TILE - p.h;
+      p.vy = 0;
+      p.onGround = true;
+    } else {
+      p.onGround = false;
+    }
+  }
+
+  // Ceiling collision
+  if (p.vy < 0) {
+    if (isSolid(p.x + 4, p.y) || isSolid(p.x + p.w - 4, p.y)) {
+      p.y = Math.floor(p.y / TILE) * TILE + TILE;
+      p.vy = 0;
+    }
+  }
+
+  // Fall into pit
+  if (p.y > H + 50) {
+    hurtPlayer(16); // instant death
+  }
+
+  // Keep in level bounds
+  if (p.x < TILE) p.x = TILE;
+  if (p.x > LEVEL_W - TILE - p.w) p.x = LEVEL_W - TILE - p.w;
+}
+
+function fireSubweapon() {
+  const p = player;
+  if (p.hearts <= 0) return;
+  p.hearts--;
+
+  const sx = p.x + p.w / 2 + p.facing * 10;
+  const sy = p.y + (p.crouching ? 16 : 8);
+
+  if (p.subweapon === 'knife') {
+    projectiles.push({ type: 'knife', x: sx, y: sy, vx: p.facing * 6, vy: 0, owner: 'player', dmg: 2, life: 120 });
+  } else if (p.subweapon === 'axe') {
+    projectiles.push({ type: 'axe', x: sx, y: sy, vx: p.facing * 3, vy: -7, owner: 'player', dmg: 3, life: 120, spin: 0 });
+  } else if (p.subweapon === 'holywater') {
+    projectiles.push({ type: 'holywater', x: sx, y: sy, vx: p.facing * 3, vy: -2, owner: 'player', dmg: 2, life: 180, burning: false });
+  }
+}
+
+function hurtPlayer(dmg) {
+  const p = player;
+  if (p.invincible > 0) return;
+  p.hp -= dmg;
+  p.invincible = 90;
+  if (p.hp <= 0) {
+    lives--;
+    if (lives <= 0) {
+      gameOver = true;
+    } else {
+      // Respawn
+      p.hp = p.maxHp;
+      p.x = Math.max(60, camera.x + 60);
+      p.y = 17 * TILE - p.h;
+      p.vx = 0; p.vy = 0;
+      p.onGround = true;
+      p.onStairs = false;
+      p.whipping = false;
+      p.invincible = 120;
+    }
+  } else {
+    // Knockback
+    p.knockback = 15;
+    p.knockDir = -p.facing;
+    p.vy = -4;
+    p.onGround = false;
+    p.onStairs = false;
+  }
+  spawnParticles(p.x + p.w / 2, p.y + p.h / 2, '#f44', 8);
+}
+
+// --- WHIP COLLISION ---
+function getWhipHitbox() {
+  const p = player;
+  if (!p.whipping) return null;
+  // Whip extends forward in an arc — use a rectangle approximation
+  // Active hit frames: 8-14 out of 18
+  if (p.whipFrame < 8 || p.whipFrame > 14) return null;
+
+  const whipLen = 55;
+  const whipH = 12;
+  const wy = p.y + (p.crouching ? 16 : 6);
+  const wx = p.facing > 0 ? p.x + p.w : p.x - whipLen;
+  return { x: wx, y: wy, w: whipLen, h: whipH };
+}
+
+// --- ENEMIES ---
+function updateEnemies() {
+  const p = player;
+
+  for (const e of enemies) {
+    if (!e.alive) continue;
+
+    // Only update enemies near player (within ~1.5 screens)
+    if (Math.abs(e.x - p.x) > W * 1.2) continue;
+
+    if (e.type === 'bat') {
+      e.t++;
+      e.x += e.dir * 2;
+      e.y = e.spawnY + Math.sin(e.t * 0.06) * 50;
+
+      // Reverse at level edges or after traveling far
+      if (Math.abs(e.x - e.spawnX) > 200) e.dir *= -1;
+    }
+
+    else if (e.type === 'skeleton') {
+      // Gravity
+      e.vy += GRAVITY;
+      e.y += e.vy;
+      const footY = e.y + 28;
+      if (isSolid(e.x + 6, footY) || isSolid(e.x + 18, footY)) {
+        e.y = Math.floor(footY / TILE) * TILE - 28;
+        e.vy = 0;
+        e.onGround = true;
+      } else {
+        e.onGround = false;
+      }
+
+      // Walk
+      if (e.onGround) {
+        e.x += e.dir * 0.8;
+        // Turn at walls or edges
+        const frontX = e.dir > 0 ? e.x + 24 : e.x;
+        if (isSolid(frontX, e.y + 14)) {
+          e.dir *= -1;
+        }
+        // Edge detection
+        if (e.onGround && !isSolid(e.x + (e.dir > 0 ? 24 : 0), footY + 4)) {
+          e.dir *= -1;
+        }
+      }
+
+      // Throw bones at player
+      e.throwTimer--;
+      if (e.throwTimer <= 0 && Math.abs(e.x - p.x) < 350) {
+        e.throwTimer = 90 + Math.random() * 60;
+        const boneDir = p.x > e.x ? 1 : -1;
+        e.dir = boneDir;
+        projectiles.push({
+          type: 'bone', x: e.x + 12, y: e.y + 4,
+          vx: boneDir * 3.5, vy: -4,
+          owner: 'enemy', dmg: 2, life: 120, spin: 0
+        });
+      }
+    }
+
+    else if (e.type === 'medusa') {
+      e.t++;
+      e.x += e.dir * 2.5;
+      e.y = e.spawnY + Math.sin(e.t * 0.04) * 40;
+
+      // Reset if gone too far off-screen
+      if (e.x < camera.x - 100 || e.x > camera.x + W + 100) {
+        e.x = e.spawnX;
+        e.t = 0;
+      }
+    }
+
+    // Whip collision
+    const whip = getWhipHitbox();
+    if (whip && rectOverlap(whip.x, whip.y, whip.w, whip.h, e.x, e.y, 24, 28)) {
+      e.hp--;
+      if (e.hp <= 0) {
+        e.alive = false;
+        score += e.type === 'skeleton' ? 200 : 100;
+        spawnParticles(e.x + 12, e.y + 14, e.type === 'skeleton' ? '#aaa' : '#8f8', 10);
+      } else {
+        spawnParticles(e.x + 12, e.y + 14, '#ff0', 4);
+      }
+    }
+
+    // Player collision
+    if (p.invincible <= 0 && p.knockback <= 0 &&
+        rectOverlap(p.x, p.y, p.w, p.h, e.x, e.y, 24, 28)) {
+      hurtPlayer(e.dmg);
+    }
+  }
+
+  // Respawn enemies that have been dead a while (off-screen only)
+  if (frame % 300 === 0) {
+    for (const e of enemies) {
+      if (!e.alive && Math.abs(e.spawnX - p.x) > W) {
+        initEnemy(e);
+      }
+    }
+  }
+}
+
+// --- BOSS ---
+function updateBoss() {
+  const p = player;
+  const b = boss;
+  if (!b.alive || won) return;
+
+  // Only active when player is near
+  if (Math.abs(b.x - p.x) > W) return;
+
+  b.facing = p.x < b.x ? -1 : 1;
+  if (b.invincible > 0) b.invincible--;
+
+  b.timer--;
+  if (b.timer <= 0) {
+    b.attackPattern = (b.attackPattern + 1) % 3;
+    b.timer = 90 + Math.random() * 60;
+
+    // Attack: shoot projectiles
+    if (b.attackPattern === 0) {
+      // Three fireballs spread
+      for (let i = -1; i <= 1; i++) {
+        projectiles.push({
+          type: 'fireball', x: b.x + 24, y: b.y + 20,
+          vx: b.facing * 3, vy: i * 1.5,
+          owner: 'enemy', dmg: 4, life: 150
+        });
+      }
+    } else if (b.attackPattern === 1) {
+      // Jump toward player
+      b.timer = 60;
+    } else {
+      // Single aimed fireball
+      const dx = p.x - b.x, dy = p.y - b.y;
+      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+      projectiles.push({
+        type: 'fireball', x: b.x + 24, y: b.y + 20,
+        vx: (dx / dist) * 4, vy: (dy / dist) * 4,
+        owner: 'enemy', dmg: 4, life: 120
+      });
+    }
+  }
+
+  // Whip collision
+  const whip = getWhipHitbox();
+  if (whip && b.invincible <= 0 && rectOverlap(whip.x, whip.y, whip.w, whip.h, b.x, b.y, b.w, b.h)) {
+    b.hp -= 2;
+    b.invincible = 20;
+    spawnParticles(b.x + b.w / 2, b.y + b.h / 2, '#f80', 8);
+    if (b.hp <= 0) {
+      b.alive = false;
+      won = true;
+      score += 3000;
+      spawnParticles(b.x + b.w / 2, b.y + b.h / 2, '#ff0', 30);
+    }
+  }
+
+  // Player collision
+  if (p.invincible <= 0 && p.knockback <= 0 &&
+      rectOverlap(p.x, p.y, p.w, p.h, b.x, b.y, b.w, b.h)) {
+    hurtPlayer(4);
+  }
+}
+
+// --- PROJECTILES ---
+function updateProjectiles() {
+  const p = player;
+
+  for (let i = projectiles.length - 1; i >= 0; i--) {
+    const pr = projectiles[i];
+    pr.life--;
+    if (pr.life <= 0) { projectiles.splice(i, 1); continue; }
+
+    pr.x += pr.vx;
+    pr.y += pr.vy;
+
+    // Gravity for arcing projectiles
+    if (pr.type === 'axe' || pr.type === 'bone') {
+      pr.vy += 0.15;
+      pr.spin = (pr.spin || 0) + 0.2;
+    }
+    if (pr.type === 'holywater') {
+      pr.vy += 0.2;
+      // Burning on ground
+      const footTile = tileAt(pr.x, pr.y + 4);
+      if (footTile === 1 && !pr.burning) {
+        pr.burning = true;
+        pr.vx = 0;
+        pr.vy = 0;
+        pr.y = Math.floor((pr.y + 4) / TILE) * TILE - 4;
+        pr.life = Math.min(pr.life, 90);
+      }
+    }
+
+    // Hit walls (remove non-burning projectiles)
+    if (!pr.burning && isSolid(pr.x, pr.y)) {
+      if (pr.type !== 'fireball') {
+        projectiles.splice(i, 1);
+        continue;
+      }
+    }
+
+    // Player projectiles hit enemies
+    if (pr.owner === 'player') {
+      for (const e of enemies) {
+        if (!e.alive) continue;
+        if (rectOverlap(pr.x - 6, pr.y - 6, 12, 12, e.x, e.y, 24, 28)) {
+          e.hp -= pr.dmg;
+          if (e.hp <= 0) {
+            e.alive = false;
+            score += e.type === 'skeleton' ? 200 : 100;
+            spawnParticles(e.x + 12, e.y + 14, '#ff0', 8);
+          }
+          if (pr.type !== 'holywater') { projectiles.splice(i, 1); break; }
+        }
+      }
+      // Hit boss
+      if (boss.alive && boss.invincible <= 0 &&
+          rectOverlap(pr.x - 6, pr.y - 6, 12, 12, boss.x, boss.y, boss.w, boss.h)) {
+        boss.hp -= pr.dmg;
+        boss.invincible = 15;
+        spawnParticles(boss.x + boss.w / 2, boss.y + boss.h / 2, '#f80', 6);
+        if (boss.hp <= 0) {
+          boss.alive = false;
+          won = true;
+          score += 3000;
+          spawnParticles(boss.x + boss.w / 2, boss.y + boss.h / 2, '#ff0', 30);
+        }
+        if (pr.type !== 'holywater') { projectiles.splice(i, 1); continue; }
+      }
+    }
+
+    // Enemy projectiles hit player
+    if (pr.owner === 'enemy' && p.invincible <= 0 && p.knockback <= 0) {
+      if (rectOverlap(p.x, p.y, p.w, p.h, pr.x - 6, pr.y - 6, 12, 12)) {
+        hurtPlayer(pr.dmg);
+        projectiles.splice(i, 1);
+        continue;
+      }
+    }
+
+    // Off-screen cleanup
+    if (pr.x < camera.x - 100 || pr.x > camera.x + W + 100 || pr.y > H + 50 || pr.y < -100) {
+      projectiles.splice(i, 1);
+    }
+  }
+}
+
+// --- CANDLES ---
+function updateCandles() {
+  const whip = getWhipHitbox();
+  if (!whip) return;
+
+  for (const c of candles) {
+    if (!c.alive) continue;
+    if (rectOverlap(whip.x, whip.y, whip.w, whip.h, c.x - 6, c.y - 6, 12, 16)) {
+      c.alive = false;
+      score += 50;
+      spawnParticles(c.x, c.y + 4, '#ff0', 6);
+
+      // Drop pickup
+      pickups.push({
+        x: c.x, y: c.y,
+        vy: -2,
+        type: c.drop,
+        life: 300
+      });
+    }
+  }
+
+  // Subweapon projectiles also break candles
+  for (const pr of projectiles) {
+    if (pr.owner !== 'player') continue;
+    for (const c of candles) {
+      if (!c.alive) continue;
+      if (rectOverlap(pr.x - 6, pr.y - 6, 12, 12, c.x - 6, c.y - 6, 12, 16)) {
+        c.alive = false;
+        score += 50;
+        spawnParticles(c.x, c.y + 4, '#ff0', 6);
+        pickups.push({ x: c.x, y: c.y, vy: -2, type: c.drop, life: 300 });
+      }
+    }
+  }
+}
+
+// --- PICKUPS ---
+function updatePickups() {
+  const p = player;
+
+  for (let i = pickups.length - 1; i >= 0; i--) {
+    const pk = pickups[i];
+    pk.life--;
+    if (pk.life <= 0) { pickups.splice(i, 1); continue; }
+
+    // Gravity
+    pk.vy += 0.3;
+    pk.y += pk.vy;
+    if (isSolid(pk.x, pk.y + 8)) {
+      pk.y = Math.floor((pk.y + 8) / TILE) * TILE - 8;
+      pk.vy = 0;
+    }
+
+    // Collect
+    if (rectOverlap(p.x, p.y, p.w, p.h, pk.x - 8, pk.y - 8, 16, 16)) {
+      if (pk.type === 'heart') {
+        p.hearts = Math.min(p.hearts + 1, 99);
+      } else if (pk.type === 'bigHeart') {
+        p.hearts = Math.min(p.hearts + 5, 99);
+      } else if (pk.type === 'knife') {
+        p.subweapon = 'knife';
+      } else if (pk.type === 'axe') {
+        p.subweapon = 'axe';
+      } else if (pk.type === 'holywater') {
+        p.subweapon = 'holywater';
+      } else if (pk.type === 'points') {
+        score += 400;
+      }
+      spawnParticles(pk.x, pk.y, '#ff0', 4);
+      pickups.splice(i, 1);
+    }
+  }
+}
+
+// --- PARTICLES ---
+function spawnParticles(x, y, color, count) {
+  for (let i = 0; i < count; i++) {
+    particles.push({
+      x, y,
+      vx: (Math.random() - 0.5) * 5,
+      vy: (Math.random() - 0.5) * 5 - 2,
+      life: 20 + Math.random() * 20,
+      color
+    });
+  }
+}
+
+function updateParticles() {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const pt = particles[i];
+    pt.x += pt.vx;
+    pt.y += pt.vy;
+    pt.vy += 0.1;
+    pt.life--;
+    if (pt.life <= 0) particles.splice(i, 1);
+  }
+}
+
+// --- CAMERA ---
+function updateCamera() {
+  const target = player.x - W / 3;
+  camera.x += (target - camera.x) * 0.1;
+  if (camera.x < 0) camera.x = 0;
+  if (camera.x > LEVEL_W - W) camera.x = LEVEL_W - W;
+}
+
+// --- MAIN UPDATE ---
+function update() {
+  if (infoOpen) return;
+  if (gameOver || won) {
+    if (pop('KeyR')) initGame();
+    return;
+  }
+  frame++;
+
+  updatePlayer();
+  updateCamera();
+  updateCandles();
+  updateEnemies();
+  updateBoss();
+  updateProjectiles();
+  updatePickups();
+  updateParticles();
+
+  // Clear justPressed
+  for (const k in justPressed) justPressed[k] = false;
+}
+
+// --- DRAWING ---
+function draw() {
+  const cx = camera.x;
+
+  // Background — dark gothic gradient
+  ctx.fillStyle = '#0a0610';
+  ctx.fillRect(0, 0, W, H);
+
+  // Background castle silhouette (parallax)
+  const bgX = cx * 0.3;
+  ctx.fillStyle = '#12081a';
+  // Distant towers
+  for (let i = 0; i < 6; i++) {
+    const tx = i * 300 - (bgX % 300) + 50;
+    const th = 120 + (i % 3) * 60;
+    ctx.fillRect(tx, H - th - 80, 40, th + 80);
+    // Turret top
+    ctx.fillRect(tx - 8, H - th - 80, 56, 15);
+    // Crenellation
+    for (let c = 0; c < 4; c++) {
+      ctx.fillRect(tx - 8 + c * 16, H - th - 95, 10, 15);
+    }
+  }
+
+  // Stars
+  ctx.fillStyle = 'rgba(200,200,255,0.4)';
+  for (let i = 0; i < 40; i++) {
+    const sx = (i * 173 + 30) % W;
+    const sy = (i * 89 + 10) % (H * 0.3);
+    const twinkle = Math.sin(frame * 0.03 + i) > 0.5 ? 1 : 0.3;
+    ctx.globalAlpha = twinkle;
+    ctx.fillRect(sx, sy, 1, 1);
+  }
+  ctx.globalAlpha = 1;
+
+  // Moon
+  ctx.fillStyle = '#443355';
+  ctx.beginPath();
+  ctx.arc(650, 60, 30, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#554466';
+  ctx.beginPath();
+  ctx.arc(650, 60, 28, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Draw tiles
+  const startCol = Math.max(0, Math.floor(cx / TILE));
+  const endCol = Math.min(LEVEL_TILES_W, Math.ceil((cx + W) / TILE) + 1);
+
+  for (let r = 0; r < 19; r++) {
+    for (let c = startCol; c < endCol; c++) {
+      const tile = grid[r][c];
+      const x = c * TILE - cx;
+      const y = r * TILE;
+
+      if (tile === 1) {
+        // Stone block
+        ctx.fillStyle = '#3a3040';
+        ctx.fillRect(x, y, TILE, TILE);
+        ctx.fillStyle = '#4a3d50';
+        ctx.fillRect(x + 1, y + 1, TILE - 2, TILE - 2);
+        // Brick lines
+        ctx.strokeStyle = '#2a2030';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, y + TILE / 2);
+        ctx.lineTo(x + TILE, y + TILE / 2);
+        ctx.moveTo(x + TILE / 2, y);
+        ctx.lineTo(x + TILE / 2, y + TILE / 2);
+        ctx.moveTo(x, y + TILE / 2);
+        ctx.lineTo(x, y + TILE);
+        ctx.stroke();
+      }
+
+      if (tile === 2) {
+        // Stairs
+        ctx.fillStyle = '#4a3d50';
+        ctx.fillRect(x, y, TILE, TILE);
+        // Stair pattern
+        ctx.fillStyle = '#5a4d60';
+        ctx.fillRect(x + 2, y + 2, TILE - 4, 6);
+        ctx.fillRect(x + 2, y + 12, TILE - 4, 6);
+        ctx.fillRect(x + 2, y + 22, TILE - 4, 6);
+        // Rail
+        ctx.strokeStyle = '#6a5a70';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x + 4, y);
+        ctx.lineTo(x + 4, y + TILE);
+        ctx.moveTo(x + TILE - 4, y);
+        ctx.lineTo(x + TILE - 4, y + TILE);
+        ctx.stroke();
+      }
+    }
+  }
+
+  // Candles
+  for (const c of candles) {
+    if (!c.alive) continue;
+    const sx = c.x - cx;
+    const sy = c.y;
+    if (sx < -20 || sx > W + 20) continue;
+
+    // Candle stick
+    ctx.fillStyle = '#887744';
+    ctx.fillRect(sx - 2, sy + 4, 4, 12);
+    // Holder
+    ctx.fillStyle = '#665533';
+    ctx.fillRect(sx - 4, sy + 12, 8, 3);
+    // Flame
+    c.flicker += 0.15;
+    const flameH = 6 + Math.sin(c.flicker) * 2;
+    ctx.fillStyle = '#ff8800';
+    ctx.beginPath();
+    ctx.ellipse(sx, sy + 2, 3, flameH, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffcc00';
+    ctx.beginPath();
+    ctx.ellipse(sx, sy + 3, 1.5, flameH * 0.6, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Pickups
+  for (const pk of pickups) {
+    const sx = pk.x - cx;
+    const sy = pk.y;
+    if (sx < -20 || sx > W + 20) continue;
+
+    if (pk.type === 'heart' || pk.type === 'bigHeart') {
+      const size = pk.type === 'bigHeart' ? 8 : 5;
+      ctx.fillStyle = pk.type === 'bigHeart' ? '#ff4444' : '#ff6666';
+      // Simple heart shape
+      ctx.beginPath();
+      ctx.arc(sx - size * 0.3, sy - size * 0.2, size * 0.45, 0, Math.PI * 2);
+      ctx.arc(sx + size * 0.3, sy - size * 0.2, size * 0.45, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(sx - size * 0.6, sy);
+      ctx.lineTo(sx, sy + size * 0.7);
+      ctx.lineTo(sx + size * 0.6, sy);
+      ctx.fill();
+    } else if (pk.type === 'knife') {
+      ctx.fillStyle = '#ccc';
+      ctx.fillRect(sx - 6, sy - 2, 12, 4);
+      ctx.fillStyle = '#886633';
+      ctx.fillRect(sx + 4, sy - 3, 4, 6);
+    } else if (pk.type === 'axe') {
+      ctx.fillStyle = '#888';
+      ctx.fillRect(sx - 2, sy - 6, 4, 12);
+      ctx.fillStyle = '#aaa';
+      ctx.beginPath();
+      ctx.arc(sx + 2, sy - 3, 5, -1, 1);
+      ctx.fill();
+    } else if (pk.type === 'holywater') {
+      ctx.fillStyle = '#4488ff';
+      ctx.fillRect(sx - 3, sy - 4, 6, 8);
+      ctx.fillStyle = '#66aaff';
+      ctx.fillRect(sx - 2, sy - 6, 4, 3);
+    } else if (pk.type === 'points') {
+      ctx.fillStyle = '#ffcc00';
+      ctx.fillRect(sx - 5, sy - 5, 10, 10);
+      ctx.fillStyle = '#ff8800';
+      ctx.fillRect(sx - 3, sy - 3, 6, 6);
+    }
+
+    // Blink when about to expire
+    if (pk.life < 60 && frame % 8 < 4) continue;
+  }
+
+  // Enemies
+  for (const e of enemies) {
+    if (!e.alive) continue;
+    const sx = e.x - cx;
+    const sy = e.y;
+    if (sx < -30 || sx > W + 30) continue;
+
+    if (e.type === 'bat') {
+      // Bat: dark body with wings
+      ctx.fillStyle = '#228833';
+      // Body
+      ctx.fillRect(sx + 8, sy + 8, 8, 12);
+      // Wings (flap)
+      const wingOff = Math.sin(e.t * 0.15) * 6;
+      ctx.fillRect(sx, sy + 10 - wingOff, 10, 5);
+      ctx.fillRect(sx + 14, sy + 10 + wingOff, 10, 5);
+      // Eyes
+      ctx.fillStyle = '#ff4444';
+      ctx.fillRect(sx + 9, sy + 10, 2, 2);
+      ctx.fillRect(sx + 13, sy + 10, 2, 2);
+    }
+
+    else if (e.type === 'skeleton') {
+      // Skeleton: white bones
+      ctx.fillStyle = '#ccccaa';
+      // Skull
+      ctx.fillRect(sx + 6, sy, 12, 10);
+      ctx.fillStyle = '#111';
+      ctx.fillRect(sx + 8, sy + 3, 3, 3); // left eye
+      ctx.fillRect(sx + 13, sy + 3, 3, 3); // right eye
+      ctx.fillRect(sx + 10, sy + 7, 4, 2); // mouth
+      // Body
+      ctx.fillStyle = '#ccccaa';
+      ctx.fillRect(sx + 9, sy + 10, 6, 10);
+      // Ribs
+      ctx.fillStyle = '#aaaa88';
+      ctx.fillRect(sx + 5, sy + 12, 14, 2);
+      ctx.fillRect(sx + 6, sy + 16, 12, 2);
+      // Legs
+      ctx.fillStyle = '#ccccaa';
+      ctx.fillRect(sx + 7, sy + 20, 4, 8);
+      ctx.fillRect(sx + 13, sy + 20, 4, 8);
+      // Arms
+      ctx.fillRect(sx + 2, sy + 12, 6, 3);
+      ctx.fillRect(sx + 16, sy + 12, 6, 3);
+    }
+
+    else if (e.type === 'medusa') {
+      // Medusa head: green, serpentine
+      ctx.fillStyle = '#44aa44';
+      ctx.beginPath();
+      ctx.arc(sx + 12, sy + 12, 10, 0, Math.PI * 2);
+      ctx.fill();
+      // Face
+      ctx.fillStyle = '#227722';
+      ctx.fillRect(sx + 7, sy + 8, 3, 3);
+      ctx.fillRect(sx + 14, sy + 8, 3, 3);
+      ctx.fillRect(sx + 9, sy + 14, 6, 2);
+      // Snakes (hair)
+      ctx.strokeStyle = '#44aa44';
+      ctx.lineWidth = 2;
+      for (let s = 0; s < 3; s++) {
+        ctx.beginPath();
+        const sx2 = sx + 6 + s * 5;
+        ctx.moveTo(sx2, sy + 2);
+        ctx.quadraticCurveTo(sx2 + Math.sin(e.t * 0.1 + s) * 4, sy - 6, sx2 + 2, sy - 10);
+        ctx.stroke();
+      }
+    }
+  }
+
+  // Boss
+  if (boss.alive) {
+    const bx = boss.x - cx;
+    const by = boss.y;
+    if (bx > -60 && bx < W + 60) {
+      // Flash when hit
+      if (boss.invincible > 0 && frame % 4 < 2) {
+        ctx.fillStyle = '#fff';
+      } else {
+        ctx.fillStyle = '#8822aa';
+      }
+      // Body
+      ctx.fillRect(bx + 8, by + 15, 32, 45);
+      // Head
+      ctx.fillStyle = boss.invincible > 0 && frame % 4 < 2 ? '#fff' : '#aa33cc';
+      ctx.fillRect(bx + 12, by, 24, 20);
+      // Horns
+      ctx.fillStyle = '#664400';
+      ctx.beginPath();
+      ctx.moveTo(bx + 12, by + 4);
+      ctx.lineTo(bx + 6, by - 14);
+      ctx.lineTo(bx + 18, by + 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(bx + 36, by + 4);
+      ctx.lineTo(bx + 42, by - 14);
+      ctx.lineTo(bx + 30, by + 2);
+      ctx.fill();
+      // Eyes
+      ctx.fillStyle = '#ff0000';
+      ctx.fillRect(bx + 16, by + 6, 5, 5);
+      ctx.fillRect(bx + 27, by + 6, 5, 5);
+      // Mouth
+      ctx.fillStyle = '#440044';
+      ctx.fillRect(bx + 18, by + 14, 12, 4);
+      // Cape
+      ctx.fillStyle = '#440066';
+      ctx.beginPath();
+      ctx.moveTo(bx + 8, by + 20);
+      ctx.lineTo(bx, by + 60);
+      ctx.lineTo(bx + 48, by + 60);
+      ctx.lineTo(bx + 40, by + 20);
+      ctx.fill();
+      // Legs
+      ctx.fillStyle = '#333';
+      ctx.fillRect(bx + 14, by + 50, 8, 10);
+      ctx.fillRect(bx + 26, by + 50, 8, 10);
+    }
+  }
+
+  // Projectiles
+  for (const pr of projectiles) {
+    const sx = pr.x - cx;
+    const sy = pr.y;
+    if (sx < -20 || sx > W + 20) continue;
+
+    if (pr.type === 'knife') {
+      ctx.fillStyle = '#ddd';
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.fillRect(-8, -2, 16, 4);
+      ctx.fillStyle = '#866';
+      ctx.fillRect(pr.vx > 0 ? -8 : 4, -3, 5, 6);
+      ctx.restore();
+    } else if (pr.type === 'axe') {
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.rotate(pr.spin || 0);
+      ctx.fillStyle = '#888';
+      ctx.fillRect(-3, -7, 6, 14);
+      ctx.fillStyle = '#aaa';
+      ctx.beginPath();
+      ctx.arc(3, -3, 5, -1.2, 1.2);
+      ctx.fill();
+      ctx.restore();
+    } else if (pr.type === 'holywater') {
+      if (pr.burning) {
+        // Blue flame on ground
+        const flameW = 20;
+        ctx.fillStyle = `rgba(50,100,255,${0.5 + Math.sin(frame * 0.3) * 0.2})`;
+        ctx.fillRect(sx - flameW / 2, sy - 8, flameW, 10);
+        ctx.fillStyle = `rgba(100,180,255,${0.3 + Math.sin(frame * 0.5) * 0.2})`;
+        ctx.fillRect(sx - flameW / 3, sy - 14, flameW * 0.6, 8);
+      } else {
+        ctx.fillStyle = '#4488ff';
+        ctx.fillRect(sx - 4, sy - 4, 8, 8);
+      }
+    } else if (pr.type === 'bone') {
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.rotate(pr.spin || 0);
+      ctx.fillStyle = '#ddddbb';
+      ctx.fillRect(-6, -2, 12, 4);
+      ctx.fillRect(-7, -3, 3, 6);
+      ctx.fillRect(4, -3, 3, 6);
+      ctx.restore();
+    } else if (pr.type === 'fireball') {
+      ctx.fillStyle = '#ff4400';
+      ctx.beginPath();
+      ctx.arc(sx, sy, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffaa00';
+      ctx.beginPath();
+      ctx.arc(sx, sy, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // Player
+  const p = player;
+  const px = p.x - cx;
+  const py = p.y;
+
+  // Invincibility flash
+  if (p.invincible > 0 && frame % 6 < 3) {
+    // Skip drawing player (flash effect)
+  } else {
+    const crouchOffset = p.crouching ? 10 : 0;
+
+    // Body
+    ctx.fillStyle = '#8B4513'; // brown
+    ctx.fillRect(px + 4, py + 4 + crouchOffset, 12, 20 - crouchOffset);
+    // Head
+    ctx.fillStyle = '#DEB887';
+    ctx.fillRect(px + 5, py + crouchOffset, 10, 8);
+    // Hair
+    ctx.fillStyle = '#8B4513';
+    ctx.fillRect(px + 4, py - 2 + crouchOffset, 12, 4);
+    // Eyes
+    ctx.fillStyle = '#fff';
+    const eyeX = p.facing > 0 ? px + 11 : px + 7;
+    ctx.fillRect(eyeX, py + 3 + crouchOffset, 2, 2);
+    // Boots
+    ctx.fillStyle = '#4a2800';
+    ctx.fillRect(px + 4, py + 24, 5, 6);
+    ctx.fillRect(px + 11, py + 24, 5, 6);
+    // Armor detail
+    ctx.fillStyle = '#A0522D';
+    ctx.fillRect(px + 6, py + 6 + crouchOffset, 8, 3);
+
+    // Whip animation
+    if (p.whipping) {
+      const whipProgress = p.whipFrame / p.whipDuration;
+      ctx.strokeStyle = '#888';
+      ctx.lineWidth = 2;
+
+      const startX = px + p.w / 2 + p.facing * 6;
+      const startY = py + 10 + crouchOffset;
+
+      if (whipProgress < 0.4) {
+        // Wind up — whip goes behind
+        const windAngle = -p.facing * (1 - whipProgress / 0.4) * 2.5;
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.quadraticCurveTo(
+          startX + Math.cos(windAngle) * 20 * -p.facing,
+          startY + Math.sin(windAngle) * 15 - 10,
+          startX + Math.cos(windAngle) * 35 * -p.facing,
+          startY + Math.sin(windAngle) * 20 - 5
+        );
+        ctx.stroke();
+      } else if (whipProgress < 0.8) {
+        // Strike — whip extends forward
+        const extend = (whipProgress - 0.4) / 0.4;
+        const whipLen = 55 * extend;
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        const tipX = startX + p.facing * whipLen;
+        const tipY = startY + Math.sin(extend * Math.PI) * -8;
+        ctx.quadraticCurveTo(
+          startX + p.facing * whipLen * 0.5,
+          startY - 12,
+          tipX, tipY
+        );
+        ctx.stroke();
+        // Whip tip
+        ctx.fillStyle = '#aaa';
+        ctx.fillRect(tipX - 2, tipY - 2, 4, 4);
+      } else {
+        // Follow through
+        const retract = (whipProgress - 0.8) / 0.2;
+        const whipLen = 55 * (1 - retract);
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(startX + p.facing * whipLen, startY + retract * 10);
+        ctx.stroke();
+      }
+    }
+  }
+
+  // Particles
+  for (const pt of particles) {
+    const sx = pt.x - cx;
+    ctx.fillStyle = pt.color;
+    ctx.globalAlpha = pt.life / 40;
+    ctx.fillRect(sx - 1, pt.y - 1, 3, 3);
+  }
+  ctx.globalAlpha = 1;
+
+  // --- HUD ---
+  // Health bar
+  ctx.fillStyle = '#222';
+  ctx.fillRect(250, 8, 200, 16);
+  ctx.fillStyle = '#111';
+  ctx.fillRect(251, 9, 198, 14);
+  const hpPct = player.hp / player.maxHp;
+  ctx.fillStyle = hpPct > 0.5 ? '#44aa44' : hpPct > 0.25 ? '#aaaa44' : '#aa4444';
+  ctx.fillRect(252, 10, 196 * hpPct, 12);
+  ctx.fillStyle = '#ddd';
+  ctx.font = '11px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('HP ' + player.hp + '/' + player.maxHp, 350, 20);
+
+  // Hearts
+  ctx.fillStyle = '#ff4444';
+  ctx.font = '14px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('\u2665 ' + player.hearts, 470, 21);
+
+  // Lives
+  ctx.fillStyle = '#ddd';
+  ctx.fillText('LIVES ' + lives, 540, 21);
+
+  // Score
+  ctx.textAlign = 'right';
+  ctx.fillText('SCORE ' + score, W - 10, 21);
+
+  // Subweapon indicator
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#aaa';
+  ctx.font = '12px monospace';
+  const subName = player.subweapon.charAt(0).toUpperCase() + player.subweapon.slice(1);
+  ctx.fillText('[' + subName + ']', 470, 36);
+
+  // Boss HP bar (when boss is near and alive)
+  if (boss.alive && Math.abs(boss.x - player.x) < W) {
+    const bHpPct = boss.hp / boss.maxHp;
+    ctx.fillStyle = '#222';
+    ctx.fillRect(W / 2 - 100, H - 30, 200, 14);
+    ctx.fillStyle = '#111';
+    ctx.fillRect(W / 2 - 99, H - 29, 198, 12);
+    ctx.fillStyle = '#cc2244';
+    ctx.fillRect(W / 2 - 98, H - 28, 196 * bHpPct, 10);
+    ctx.fillStyle = '#ddd';
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('BOSS', W / 2, H - 20);
+  }
+
+  // Game over / win overlay
+  if (gameOver || won) {
+    ctx.fillStyle = 'rgba(0,0,0,0.75)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.font = 'bold 48px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = won ? '#ffcc00' : '#ff4444';
+    ctx.fillText(won ? 'VICTORY' : 'GAME OVER', W / 2, H / 2 - 30);
+    ctx.fillStyle = '#aaa';
+    ctx.font = '18px monospace';
+    ctx.fillText('SCORE: ' + score, W / 2, H / 2 + 10);
+    ctx.fillText('R to restart', W / 2, H / 2 + 40);
+    if (won) {
+      ctx.fillStyle = '#666';
+      ctx.font = '14px monospace';
+      ctx.fillText('The dark lord has been vanquished...', W / 2, H / 2 + 70);
+    }
+  }
+
+  // Title badge
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(8, 8, 230, 28);
+  ctx.fillStyle = '#555';
+  ctx.font = '13px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('PLT-003 \u00b7 WHIP CLIMB  [?]', 16, 26);
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+</body>
+</html>

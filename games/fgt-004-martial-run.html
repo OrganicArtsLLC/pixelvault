@@ -1,0 +1,1302 @@
+<!--
+PROTOTYPE: martial-run
+SERIES: fgt
+NUMBER: 004
+DATE: 2026-03-22
+MECHANIC: cinematic stance-based martial arts with running and fighting modes
+ANCESTRY: Karateka (1984, Jordan Mechner, Broderbund), The Way of the Exploding Fist (1985, Beam Software)
+CONTROLS: Arrow keys — move/aim | Space — toggle stance | Z — punch | X — kick | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — rotoscoped animation in games)
+AI-INSIGHT: Karateka was the first game to use rotoscoped animation for fluid character movement, filmed from Jordan Mechner's karate-trained father. This human-motion-to-game-animation pipeline prefigured motion capture technology and the pose estimation systems that modern ML uses for animation.
+NOTES: The stance toggle creates a deliberate rhythm between movement and combat.
+       Approaching in fighting stance wastes time; approaching in run stance risks an unblocked hit.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FGT-004 · MARTIAL RUN</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .content {
+  max-width: 700px; margin: 40px auto; padding: 20px; line-height: 1.7;
+}
+#info-panel h2 { color: #f90; margin-bottom: 10px; }
+#info-panel h3 { color: #fc0; margin: 18px 0 6px; }
+#info-panel kbd { background: #333; padding: 2px 8px; border-radius: 3px; color: #fff; }
+#info-panel .close-btn { position: fixed; top: 15px; right: 25px; color: #f90;
+  font-size: 28px; cursor: pointer; z-index: 101; }
+</style>
+</head>
+<body>
+<canvas id="c" width="800" height="600"></canvas>
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="content">
+    <h2>FGT-004 · MARTIAL RUN</h2>
+
+    <h3>How to Play</h3>
+    <p>You are a martial artist storming a mountain fortress to rescue the princess.
+    You alternate between two stances:</p>
+    <ul>
+      <li><strong>Running Stance</strong> — press <kbd>Left</kbd>/<kbd>Right</kbd> to move.
+          You cannot attack or block, but you move fast.</li>
+      <li><strong>Fighting Stance</strong> — press <kbd>Z</kbd> to punch (fast, short range)
+          or <kbd>X</kbd> to kick (slower, longer range). Press <kbd>Up</kbd>/<kbd>Down</kbd>
+          to aim high or low. Press direction matching an incoming attack to block.</li>
+    </ul>
+    <p><kbd>Space</kbd> toggles between stances. Approach enemies in running stance,
+    then switch to fight. Defeat all 8 guards and the final boss Akuma to reach the princess.</p>
+    <p><strong>Warning:</strong> If you approach the princess in fighting stance, she will
+    kick you — just like the original game. Switch to running stance first!</p>
+
+    <h3>History &amp; Lineage</h3>
+    <p><strong>Karateka</strong> (1984) was created by Jordan Mechner for the Apple II while
+    he was still a student at Yale. It was the first game to use rotoscoped animation —
+    Mechner filmed his father (a karate practitioner) performing moves, then traced the
+    frames pixel by pixel to achieve unprecedented fluidity of motion.</p>
+    <p>The game pioneered cinematic game design: no HUD during gameplay, dramatic camera
+    angles, and a continuous scrolling approach to the fortress that told a story through
+    movement alone. Mechner would later use the same rotoscoping technique to create
+    Prince of Persia (1989).</p>
+    <p><strong>The Way of the Exploding Fist</strong> (1985, Beam Software) expanded the
+    fighting game vocabulary with multiple attack types and directional combat, influencing
+    every fighting game that followed.</p>
+
+    <h3>AI Archaeology</h3>
+    <p>Karateka's rotoscoping pipeline — filming human motion, digitizing it frame by frame,
+    and mapping it to game characters — was a manual precursor to modern motion capture.
+    Today, ML-based pose estimation (OpenPose, MediaPipe) automates what Mechner did by
+    hand: extracting skeletal keypoints from video to drive character animation.</p>
+    <p>The stance-switching mechanic is an early example of modal game AI design — the same
+    inputs produce different outputs depending on state, a pattern now fundamental to
+    state machines in game AI and robotics.</p>
+
+    <h3>Classification</h3>
+    <p><strong>Series:</strong> FGT (Fighter) — Games centered on combat mechanics.<br>
+    <strong>Prototype:</strong> fgt-004<br>
+    <strong>AI Era:</strong> 3 (Knowledge Explosion)</p>
+
+    <h3>Prototype Notes</h3>
+    <p>This prototype captures the core stance-toggle rhythm of the original. The cinematic
+    interludes (gate, eagle) are simplified but preserve the feeling of progression through
+    a fortress. The princess-kick easter egg honors one of gaming's earliest narrative
+    punchlines. Combat uses a three-zone (high/mid/low) system for attacks and blocks.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// --- CONSTANTS ---
+const W = 800, H = 600;
+const GROUND_Y = 480;
+const SKY_TOP = 60;
+
+// Color palette — warm cinematic tones
+const COL = {
+  sky: '#1a0a2e', skyGrad: '#2d1b4e', mountain: '#0f0825',
+  fortress: '#3a2810', ground: '#2a1a08', groundLine: '#4a3a18',
+  player: '#e8c840', playerDark: '#b89820',
+  enemy: '#d04030', enemyDark: '#902820',
+  boss: '#8020c0', bossDark: '#501080',
+  princess: '#f0a0c0', princessDark: '#c07090',
+  health: '#30c040', healthLost: '#401010',
+  punch: '#ffe060', kick: '#ff8040',
+  text: '#e8d8a0', textDim: '#806840',
+  gate: '#5a4a28', gateBar: '#8a7a48',
+};
+
+// --- ENEMIES DATA ---
+const ENEMY_DEFS = [
+  { name: 'Guard',    hp: 40,  atk: 6,  speed: 0.6, color: '#c04830', react: 50 },
+  { name: 'Guard',    hp: 50,  atk: 7,  speed: 0.7, color: '#c05838', react: 45 },
+  { name: 'Soldier',  hp: 55,  atk: 8,  speed: 0.8, color: '#b04040', react: 40 },
+  { name: 'Soldier',  hp: 60,  atk: 9,  speed: 0.9, color: '#a83838', react: 35 },
+  { name: 'Captain',  hp: 70,  atk: 10, speed: 1.0, color: '#903050', react: 30 },
+  { name: 'Captain',  hp: 75,  atk: 11, speed: 1.1, color: '#882848', react: 28 },
+  { name: 'Elite',    hp: 85,  atk: 12, speed: 1.2, color: '#704060', react: 24 },
+  { name: 'Elite',    hp: 90,  atk: 13, speed: 1.3, color: '#604870', react: 20 },
+  { name: 'AKUMA',    hp: 130, atk: 16, speed: 1.5, color: '#8020c0', react: 14 },
+];
+
+// --- GAME STATE ---
+let state, player, enemy, score, enemyIndex, particles, shakeTimer;
+let cameraX, worldWidth, gatePhase, gateTimer;
+let eagleX, eagleY, eagleActive, eagleTimer;
+let princessReached, princessKick, endTimer;
+let cinematicText, cinematicTimer;
+let keys = {};
+let frameCount = 0;
+
+// --- INIT ---
+function init() {
+  state = 'title';
+  score = 0;
+  enemyIndex = 0;
+  cameraX = 0;
+  worldWidth = 7200;
+  particles = [];
+  shakeTimer = 0;
+  gatePhase = 0; // 0=closed, 1=opening, 2=open
+  gateTimer = 0;
+  eagleX = -100;
+  eagleY = 100;
+  eagleActive = false;
+  eagleTimer = 0;
+  princessReached = false;
+  princessKick = false;
+  endTimer = 0;
+  cinematicText = '';
+  cinematicTimer = 0;
+  frameCount = 0;
+
+  player = {
+    x: 80, y: GROUND_Y,
+    vx: 0, vy: 0,
+    stance: 'run', // 'run' or 'fight'
+    hp: 100, maxHp: 100,
+    facing: 1,
+    attacking: false,
+    attackType: '', // 'punch' or 'kick'
+    attackZone: 1, // 0=high, 1=mid, 2=low
+    attackTimer: 0,
+    attackCooldown: 0,
+    blocking: false,
+    blockZone: 1,
+    hitTimer: 0,
+    animFrame: 0,
+    animTimer: 0,
+    dead: false,
+  };
+
+  enemy = null;
+  spawnNextEnemy();
+}
+
+function spawnNextEnemy() {
+  if (enemyIndex >= ENEMY_DEFS.length) {
+    enemy = null;
+    return;
+  }
+  const def = ENEMY_DEFS[enemyIndex];
+  const ex = Math.min(player.x + 600, worldWidth - 400);
+  enemy = {
+    x: ex, y: GROUND_Y,
+    vx: 0, vy: 0,
+    stance: 'fight',
+    hp: def.hp, maxHp: def.hp,
+    facing: -1,
+    attacking: false,
+    attackType: '',
+    attackZone: 1,
+    attackTimer: 0,
+    attackCooldown: def.react,
+    blocking: false,
+    blockZone: 1,
+    hitTimer: 0,
+    animFrame: 0,
+    animTimer: 0,
+    dead: false,
+    name: def.name,
+    atk: def.atk,
+    speed: def.speed,
+    color: def.color,
+    reactTime: def.react,
+    thinkTimer: 0,
+    actionCooldown: 0,
+    isBoss: enemyIndex === ENEMY_DEFS.length - 1,
+  };
+}
+
+// --- INPUT ---
+document.addEventListener('keydown', e => {
+  keys[e.key] = true;
+  keys[e.code] = true;
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
+    e.preventDefault();
+    toggleInfo();
+  }
+  if (e.key === 'Escape' && infoOpen) {
+    toggleInfo();
+  }
+  if (e.key === 'r' || e.key === 'R') {
+    if (state === 'dead' || state === 'win') {
+      init();
+      state = 'play';
+    }
+  }
+  if (state === 'title' && (e.key === ' ' || e.key === 'Enter')) {
+    state = 'play';
+    triggerCinematic('THE FORTRESS AWAITS...', 120);
+    gatePhase = 1;
+    gateTimer = 90;
+  }
+  if (state === 'play' && e.key === ' ') {
+    e.preventDefault();
+    if (!player.dead && !player.attacking) {
+      player.stance = player.stance === 'run' ? 'fight' : 'run';
+      player.blocking = false;
+    }
+  }
+  if (state === 'dead' || state === 'win') {
+    if (e.key === 'r' || e.key === 'R') { init(); state = 'play'; }
+  }
+  e.preventDefault();
+});
+document.addEventListener('keyup', e => {
+  keys[e.key] = false;
+  keys[e.code] = false;
+});
+
+// --- PARTICLES ---
+function spawnParticles(x, y, color, count) {
+  for (let i = 0; i < count; i++) {
+    particles.push({
+      x, y,
+      vx: (Math.random() - 0.5) * 6,
+      vy: (Math.random() - 1) * 4,
+      life: 20 + Math.random() * 20,
+      color,
+      size: 2 + Math.random() * 3,
+    });
+  }
+}
+
+function updateParticles() {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.15;
+    p.life--;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+}
+
+// --- CINEMATIC ---
+function triggerCinematic(text, duration) {
+  cinematicText = text;
+  cinematicTimer = duration;
+}
+
+function triggerEagle() {
+  eagleActive = true;
+  eagleX = cameraX - 100;
+  eagleY = 80 + Math.random() * 60;
+  eagleTimer = 0;
+}
+
+// --- COMBAT ---
+function getAttackRange(type) {
+  return type === 'punch' ? 55 : 75;
+}
+
+function getAttackDamage(type, base) {
+  return type === 'punch' ? base : Math.floor(base * 1.4);
+}
+
+function getAttackDuration(type) {
+  return type === 'punch' ? 14 : 22;
+}
+
+function getAttackCooldownTime(type) {
+  return type === 'punch' ? 18 : 28;
+}
+
+function tryAttack(attacker, defender, atkBase) {
+  if (!defender || defender.dead) return;
+  const dist = Math.abs(attacker.x - defender.x);
+  const range = getAttackRange(attacker.attackType);
+
+  if (dist < range) {
+    // Check if defender is blocking the right zone
+    if (defender.stance === 'fight' && defender.blocking && defender.blockZone === attacker.attackZone) {
+      spawnParticles(
+        (attacker.x + defender.x) / 2,
+        attacker.y - 30 - (attacker.attackZone === 0 ? 20 : attacker.attackZone === 2 ? -10 : 0),
+        '#fff', 4
+      );
+      return; // blocked!
+    }
+
+    const dmg = getAttackDamage(attacker.attackType, atkBase);
+    defender.hp -= dmg;
+    defender.hitTimer = 12;
+    shakeTimer = 6;
+    spawnParticles(
+      defender.x,
+      defender.y - 30 - (attacker.attackZone === 0 ? 20 : attacker.attackZone === 2 ? -10 : 0),
+      attacker.attackType === 'punch' ? COL.punch : COL.kick, 8
+    );
+
+    // Knockback
+    defender.x += attacker.facing * (attacker.attackType === 'kick' ? 12 : 6);
+
+    if (defender.hp <= 0) {
+      defender.hp = 0;
+      defender.dead = true;
+    }
+  }
+}
+
+// --- ENEMY AI ---
+function updateEnemyAI() {
+  if (!enemy || enemy.dead) return;
+  const dist = Math.abs(player.x - enemy.x);
+
+  enemy.facing = player.x < enemy.x ? -1 : 1;
+  enemy.thinkTimer++;
+
+  if (enemy.attackTimer > 0) return; // already attacking
+  if (enemy.actionCooldown > 0) { enemy.actionCooldown--; return; }
+
+  // If player is far, move toward them
+  if (dist > 100) {
+    enemy.x += enemy.facing * enemy.speed * 1.2;
+    enemy.animTimer++;
+    if (enemy.animTimer > 8) { enemy.animTimer = 0; enemy.animFrame = (enemy.animFrame + 1) % 4; }
+    return;
+  }
+
+  // In combat range
+  if (dist < 90) {
+    // Sometimes block
+    if (player.attacking && Math.random() < 0.4 && enemy.thinkTimer % enemy.reactTime < 4) {
+      enemy.blocking = true;
+      enemy.blockZone = player.attackZone;
+      enemy.actionCooldown = 10;
+      return;
+    } else {
+      enemy.blocking = false;
+    }
+
+    // Attack
+    if (enemy.thinkTimer % Math.max(enemy.reactTime, 8) === 0) {
+      enemy.attacking = true;
+      enemy.attackType = Math.random() < 0.5 ? 'punch' : 'kick';
+      enemy.attackZone = Math.floor(Math.random() * 3);
+      enemy.attackTimer = getAttackDuration(enemy.attackType);
+      enemy.actionCooldown = getAttackCooldownTime(enemy.attackType) + Math.floor(Math.random() * 10);
+    }
+  }
+}
+
+// --- UPDATE ---
+function update() {
+  if (infoOpen) return;
+  frameCount++;
+
+  // Cinematic timer
+  if (cinematicTimer > 0) cinematicTimer--;
+
+  // Gate animation
+  if (gatePhase === 1) {
+    gateTimer--;
+    if (gateTimer <= 0) {
+      gatePhase = 2;
+      triggerEagle();
+    }
+  }
+
+  // Eagle
+  if (eagleActive) {
+    eagleTimer++;
+    eagleX += 3.5;
+    eagleY += Math.sin(eagleTimer * 0.05) * 0.8;
+    if (eagleX > cameraX + W + 100) eagleActive = false;
+  }
+
+  // Shake
+  if (shakeTimer > 0) shakeTimer--;
+
+  updateParticles();
+
+  if (state === 'title') return;
+  if (state === 'dead') {
+    endTimer++;
+    return;
+  }
+  if (state === 'win') {
+    endTimer++;
+    return;
+  }
+
+  if (player.dead) {
+    state = 'dead';
+    endTimer = 0;
+    return;
+  }
+
+  // --- Player input ---
+  if (player.hitTimer > 0) player.hitTimer--;
+  if (player.attackTimer > 0) {
+    player.attackTimer--;
+    if (player.attackTimer === Math.floor(getAttackDuration(player.attackType) / 2)) {
+      // Hit frame — check collision
+      tryAttack(player, enemy, 10 + (player.attackType === 'kick' ? 4 : 0));
+    }
+    if (player.attackTimer <= 0) {
+      player.attacking = false;
+      player.attackCooldown = getAttackCooldownTime(player.attackType);
+    }
+  }
+  if (player.attackCooldown > 0) player.attackCooldown--;
+
+  player.blocking = false;
+
+  if (player.stance === 'run') {
+    // Running stance: arrows move
+    let moveSpeed = 2.8;
+    if (keys['ArrowRight']) { player.x += moveSpeed; player.facing = 1; }
+    if (keys['ArrowLeft']) { player.x -= moveSpeed; player.facing = -1; }
+    player.animTimer++;
+    if (player.animTimer > 6) { player.animTimer = 0; player.animFrame = (player.animFrame + 1) % 6; }
+  } else {
+    // Fighting stance: aim zone, attack
+    if (keys['ArrowUp']) player.attackZone = 0;
+    else if (keys['ArrowDown']) player.attackZone = 2;
+    else player.attackZone = 1;
+
+    // Block: press toward the enemy
+    if (enemy && !enemy.dead) {
+      const toEnemy = enemy.x > player.x ? 1 : -1;
+      if ((toEnemy > 0 && keys['ArrowRight']) || (toEnemy < 0 && keys['ArrowLeft'])) {
+        player.blocking = true;
+        player.blockZone = player.attackZone;
+      }
+    }
+
+    // Attacks
+    if (!player.attacking && player.attackCooldown <= 0) {
+      if (keys['z'] || keys['Z'] || keys['KeyZ']) {
+        player.attacking = true;
+        player.attackType = 'punch';
+        player.attackTimer = getAttackDuration('punch');
+      } else if (keys['x'] || keys['X'] || keys['KeyX']) {
+        player.attacking = true;
+        player.attackType = 'kick';
+        player.attackTimer = getAttackDuration('kick');
+      }
+    }
+
+    player.animFrame = 0;
+  }
+
+  // Clamp player
+  player.x = Math.max(20, Math.min(worldWidth - 20, player.x));
+
+  // --- Enemy update ---
+  if (enemy && !enemy.dead) {
+    if (enemy.hitTimer > 0) enemy.hitTimer--;
+    if (enemy.attackTimer > 0) {
+      enemy.attackTimer--;
+      if (enemy.attackTimer === Math.floor(getAttackDuration(enemy.attackType) / 2)) {
+        tryAttack(enemy, player, enemy.atk);
+      }
+      if (enemy.attackTimer <= 0) {
+        enemy.attacking = false;
+        enemy.actionCooldown = getAttackCooldownTime(enemy.attackType) + 5;
+      }
+    }
+    updateEnemyAI();
+  }
+
+  // Enemy defeated
+  if (enemy && enemy.dead) {
+    score += (enemyIndex + 1) * 100;
+    spawnParticles(enemy.x, enemy.y - 30, enemy.color, 20);
+    enemyIndex++;
+
+    if (enemyIndex >= ENEMY_DEFS.length) {
+      // All enemies defeated — princess ahead
+      enemy = null;
+      triggerCinematic('THE PATH IS CLEAR...', 100);
+      triggerEagle();
+    } else {
+      // Cinematic between fights
+      const msgs = [
+        'ANOTHER GUARD FALLS...',
+        'THE FORTRESS TREMBLES...',
+        'YOUR SKILL GROWS...',
+        'DEEPER INTO THE FORTRESS...',
+        'THE GUARDS GROW STRONGER...',
+        'AKUMA AWAITS...',
+        'ALMOST THERE...',
+        'THE FINAL GUARD FALLS...',
+      ];
+      triggerCinematic(msgs[Math.min(enemyIndex - 1, msgs.length - 1)], 80);
+      if (enemyIndex % 3 === 0) triggerEagle();
+      spawnNextEnemy();
+    }
+  }
+
+  // --- Princess encounter ---
+  const princessX = worldWidth - 80;
+  if (enemyIndex >= ENEMY_DEFS.length && !princessReached) {
+    if (player.x > princessX - 60) {
+      princessReached = true;
+      if (player.stance === 'fight') {
+        // She kicks you!
+        princessKick = true;
+        player.hp -= 50;
+        player.hitTimer = 30;
+        shakeTimer = 15;
+        spawnParticles(player.x, player.y - 30, '#f0a0c0', 15);
+        triggerCinematic('SHE KICKS YOU! APPROACH IN PEACE!', 150);
+        player.x -= 80;
+        princessReached = false; // let them try again
+      } else {
+        // Victory!
+        state = 'win';
+        endTimer = 0;
+        score += 1000;
+        triggerCinematic('THE PRINCESS IS SAVED!', 300);
+      }
+    }
+  }
+
+  // --- Camera ---
+  const targetCam = player.x - W * 0.35;
+  cameraX += (targetCam - cameraX) * 0.08;
+  cameraX = Math.max(0, Math.min(worldWidth - W, cameraX));
+}
+
+// --- DRAWING ---
+function drawSky() {
+  const grad = ctx.createLinearGradient(0, 0, 0, GROUND_Y);
+  grad.addColorStop(0, COL.sky);
+  grad.addColorStop(1, COL.skyGrad);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, GROUND_Y);
+
+  // Stars
+  ctx.fillStyle = '#ffffff';
+  for (let i = 0; i < 60; i++) {
+    const sx = ((i * 137 + 51) % W);
+    const sy = ((i * 91 + 23) % (GROUND_Y - 60)) + 10;
+    const twinkle = Math.sin(frameCount * 0.03 + i) > 0.7 ? 2 : 1;
+    ctx.fillRect(sx, sy, twinkle, twinkle);
+  }
+}
+
+function drawMountains() {
+  const parallax = cameraX * 0.15;
+  ctx.fillStyle = COL.mountain;
+  ctx.beginPath();
+  ctx.moveTo(0, GROUND_Y);
+  for (let x = 0; x <= W; x += 40) {
+    const wx = x + parallax;
+    const h = 80 + Math.sin(wx * 0.008) * 60 + Math.sin(wx * 0.003) * 100 + Math.cos(wx * 0.012) * 30;
+    ctx.lineTo(x, GROUND_Y - h);
+  }
+  ctx.lineTo(W, GROUND_Y);
+  ctx.closePath();
+  ctx.fill();
+
+  // Closer mountains
+  const parallax2 = cameraX * 0.3;
+  ctx.fillStyle = '#1a0f30';
+  ctx.beginPath();
+  ctx.moveTo(0, GROUND_Y);
+  for (let x = 0; x <= W; x += 30) {
+    const wx = x + parallax2;
+    const h = 40 + Math.sin(wx * 0.012) * 40 + Math.sin(wx * 0.005) * 50;
+    ctx.lineTo(x, GROUND_Y - h);
+  }
+  ctx.lineTo(W, GROUND_Y);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawGround() {
+  ctx.fillStyle = COL.ground;
+  ctx.fillRect(0, GROUND_Y, W, H - GROUND_Y);
+
+  // Ground line
+  ctx.strokeStyle = COL.groundLine;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, GROUND_Y);
+  ctx.lineTo(W, GROUND_Y);
+  ctx.stroke();
+
+  // Ground texture
+  ctx.fillStyle = '#1a0e04';
+  for (let i = 0; i < 30; i++) {
+    const gx = ((i * 97 + 13) % 900) - (cameraX * 0.9 % 900);
+    const gy = GROUND_Y + 10 + ((i * 53) % (H - GROUND_Y - 20));
+    ctx.fillRect(gx % W, gy, 3 + (i % 4), 1);
+  }
+}
+
+function drawFortressElements() {
+  // Draw fortress walls, gates, towers based on world position
+  const ox = -cameraX;
+
+  // Stone wall segments
+  ctx.fillStyle = COL.fortress;
+  for (let i = 0; i < 12; i++) {
+    const wx = 300 + i * 600;
+    const sx = wx + ox;
+    if (sx > -100 && sx < W + 100) {
+      const wallH = 80 + (i % 3) * 30;
+      ctx.fillRect(sx, GROUND_Y - wallH, 60, wallH);
+      // Battlement
+      ctx.fillStyle = '#4a3818';
+      ctx.fillRect(sx - 5, GROUND_Y - wallH - 10, 70, 10);
+      ctx.fillRect(sx + 10, GROUND_Y - wallH - 22, 15, 12);
+      ctx.fillRect(sx + 35, GROUND_Y - wallH - 22, 15, 12);
+      ctx.fillStyle = COL.fortress;
+    }
+  }
+
+  // Gate (at start)
+  const gateWorldX = 150;
+  const gsx = gateWorldX + ox;
+  if (gsx > -120 && gsx < W + 120) {
+    ctx.fillStyle = COL.gate;
+    const gateH = gatePhase === 2 ? 20 : gatePhase === 1 ? 120 - (90 - gateTimer) * 1.1 : 120;
+    ctx.fillRect(gsx, GROUND_Y - gateH, 80, gateH);
+    // Gate bars
+    ctx.strokeStyle = COL.gateBar;
+    ctx.lineWidth = 3;
+    for (let b = 0; b < 4; b++) {
+      const bx = gsx + 12 + b * 18;
+      ctx.beginPath();
+      ctx.moveTo(bx, GROUND_Y);
+      ctx.lineTo(bx, GROUND_Y - gateH);
+      ctx.stroke();
+    }
+    // Gate frame
+    ctx.fillStyle = '#5a4a20';
+    ctx.fillRect(gsx - 5, GROUND_Y - 130, 90, 15);
+    ctx.fillRect(gsx - 5, GROUND_Y - 130, 8, 130);
+    ctx.fillRect(gsx + 77, GROUND_Y - 130, 8, 130);
+  }
+
+  // Princess tower (at end)
+  const towerX = worldWidth - 200 + ox;
+  if (towerX > -200 && towerX < W + 200) {
+    ctx.fillStyle = '#4a3020';
+    ctx.fillRect(towerX, GROUND_Y - 180, 120, 180);
+    // Window
+    ctx.fillStyle = '#806020';
+    ctx.fillRect(towerX + 40, GROUND_Y - 150, 40, 50);
+    ctx.fillStyle = '#201008';
+    ctx.fillRect(towerX + 45, GROUND_Y - 145, 30, 40);
+    // Battlement
+    ctx.fillStyle = '#5a4028';
+    for (let b = 0; b < 5; b++) {
+      ctx.fillRect(towerX - 10 + b * 30, GROUND_Y - 195, 20, 18);
+    }
+    // Flag
+    const flagWave = Math.sin(frameCount * 0.06) * 5;
+    ctx.fillStyle = '#e04040';
+    ctx.beginPath();
+    ctx.moveTo(towerX + 60, GROUND_Y - 210);
+    ctx.lineTo(towerX + 90 + flagWave, GROUND_Y - 200);
+    ctx.lineTo(towerX + 60, GROUND_Y - 190);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#5a4028';
+    ctx.fillRect(towerX + 58, GROUND_Y - 215, 4, 30);
+  }
+}
+
+function drawCharacter(ch, isPlayer) {
+  const sx = ch.x - cameraX;
+  const sy = ch.y;
+  const f = ch.facing;
+  const hit = ch.hitTimer > 0 && (ch.hitTimer % 4 < 2);
+
+  if (sx < -50 || sx > W + 50) return;
+
+  ctx.save();
+  ctx.translate(sx, sy);
+  ctx.scale(f, 1);
+
+  // Body color
+  let bodyColor, limbColor;
+  if (isPlayer) {
+    bodyColor = hit ? '#fff' : COL.player;
+    limbColor = hit ? '#ccc' : COL.playerDark;
+  } else if (ch.isBoss) {
+    bodyColor = hit ? '#fff' : COL.boss;
+    limbColor = hit ? '#ccc' : COL.bossDark;
+  } else {
+    bodyColor = hit ? '#fff' : ch.color || COL.enemy;
+    limbColor = hit ? '#ccc' : COL.enemyDark;
+  }
+
+  if (ch.dead) {
+    // Fallen
+    ctx.fillStyle = bodyColor;
+    ctx.globalAlpha = 0.5;
+    ctx.fillRect(-20, -8, 40, 8);
+    ctx.globalAlpha = 1;
+    ctx.restore();
+    return;
+  }
+
+  const attackPhase = ch.attacking ? ch.attackTimer / getAttackDuration(ch.attackType) : 0;
+
+  if (ch.stance === 'run') {
+    // Running pose — animated legs
+    const legSwing = Math.sin(ch.animFrame * 1.2) * 12;
+
+    // Torso
+    ctx.fillStyle = bodyColor;
+    ctx.fillRect(-6, -50, 12, 24);
+
+    // Head
+    ctx.fillStyle = bodyColor;
+    ctx.fillRect(-5, -60, 10, 10);
+
+    // Arms pumping
+    ctx.fillStyle = limbColor;
+    ctx.fillRect(6, -48, 12, 4);
+    ctx.fillRect(-18, -42, 12, 4);
+
+    // Legs
+    ctx.fillStyle = limbColor;
+    ctx.save();
+    ctx.translate(0, -26);
+    ctx.fillRect(-3 + legSwing * 0.3, 0, 5, 18);
+    ctx.fillRect(-3 - legSwing * 0.3, 0, 5, 18);
+    ctx.restore();
+
+  } else {
+    // Fighting stance
+    // Torso — slightly crouched
+    ctx.fillStyle = bodyColor;
+    ctx.fillRect(-6, -46, 12, 22);
+
+    // Head
+    ctx.fillStyle = bodyColor;
+    ctx.fillRect(-5, -56, 10, 10);
+
+    // Legs — wide stance
+    ctx.fillStyle = limbColor;
+    ctx.fillRect(-12, -24, 6, 20);
+    ctx.fillRect(6, -24, 6, 20);
+    // Feet
+    ctx.fillRect(-14, -4, 8, 4);
+    ctx.fillRect(4, -4, 8, 4);
+
+    if (ch.attacking) {
+      const ext = Math.sin(attackPhase * Math.PI); // 0->1->0 extension
+
+      if (ch.attackType === 'punch') {
+        // Punching arm
+        const armLen = 10 + ext * 28;
+        const armY = ch.attackZone === 0 ? -50 : ch.attackZone === 2 ? -32 : -42;
+        ctx.fillStyle = ch.attacking ? (isPlayer ? COL.punch : '#ff6040') : limbColor;
+        ctx.fillRect(6, armY, armLen, 5);
+        // Fist
+        ctx.fillRect(6 + armLen - 2, armY - 1, 7, 7);
+
+        // Other arm guard
+        ctx.fillStyle = limbColor;
+        ctx.fillRect(-16, -40, 10, 4);
+      } else {
+        // Kicking leg
+        const legLen = 12 + ext * 30;
+        const legY = ch.attackZone === 0 ? -40 : ch.attackZone === 2 ? -12 : -24;
+        ctx.fillStyle = ch.attacking ? (isPlayer ? COL.kick : '#ff4020') : limbColor;
+        ctx.fillRect(6, legY, legLen, 6);
+        // Foot
+        ctx.fillRect(6 + legLen - 2, legY - 1, 8, 8);
+
+        // Arms in guard
+        ctx.fillStyle = limbColor;
+        ctx.fillRect(6, -46, 14, 4);
+        ctx.fillRect(-16, -40, 10, 4);
+      }
+    } else if (ch.blocking) {
+      // Blocking pose — arms crossed in front
+      const blockY = ch.blockZone === 0 ? -52 : ch.blockZone === 2 ? -30 : -42;
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(6, blockY, 16, 5);
+      ctx.fillRect(8, blockY - 6, 5, 16);
+      ctx.fillStyle = limbColor;
+      ctx.fillRect(-14, blockY + 2, 10, 4);
+    } else {
+      // Guard pose — ready arms
+      ctx.fillStyle = limbColor;
+      ctx.fillRect(6, -44, 14, 4);
+      ctx.fillRect(-16, -38, 10, 4);
+    }
+  }
+
+  // Stance indicator
+  if (isPlayer) {
+    ctx.fillStyle = ch.stance === 'run' ? '#40c0ff' : '#ff4040';
+    ctx.fillRect(-3, -64, 6, 3);
+  }
+
+  ctx.restore();
+}
+
+function drawPrincess() {
+  if (enemyIndex < ENEMY_DEFS.length) return;
+  const px = worldWidth - 80 - cameraX;
+  if (px < -50 || px > W + 50) return;
+
+  const sy = GROUND_Y;
+  ctx.save();
+  ctx.translate(px, sy);
+
+  // Dress
+  ctx.fillStyle = COL.princess;
+  ctx.beginPath();
+  ctx.moveTo(-12, -45);
+  ctx.lineTo(-18, -4);
+  ctx.lineTo(18, -4);
+  ctx.lineTo(12, -45);
+  ctx.closePath();
+  ctx.fill();
+
+  // Bodice
+  ctx.fillStyle = COL.princessDark;
+  ctx.fillRect(-8, -48, 16, 10);
+
+  // Head
+  ctx.fillStyle = '#f0d0b0';
+  ctx.fillRect(-5, -58, 10, 10);
+
+  // Hair
+  ctx.fillStyle = '#402010';
+  ctx.fillRect(-7, -62, 14, 8);
+  ctx.fillRect(-8, -58, 3, 14);
+  ctx.fillRect(5, -58, 3, 14);
+
+  // Crown
+  ctx.fillStyle = '#ffd700';
+  ctx.fillRect(-5, -65, 10, 4);
+  ctx.fillRect(-4, -68, 3, 3);
+  ctx.fillRect(1, -68, 3, 3);
+
+  // Animation — slight sway
+  const sway = Math.sin(frameCount * 0.04) * 2;
+  ctx.fillStyle = COL.princess;
+  ctx.fillRect(-6 + sway, -40, 4, 8); // arm
+
+  ctx.restore();
+}
+
+function drawEagle() {
+  if (!eagleActive) return;
+  const ex = eagleX - cameraX;
+  const ey = eagleY;
+  if (ex < -40 || ex > W + 40) return;
+
+  const wingPhase = Math.sin(eagleTimer * 0.12);
+  ctx.save();
+  ctx.translate(ex, ey);
+
+  // Body
+  ctx.fillStyle = '#4a3020';
+  ctx.fillRect(-8, -3, 16, 6);
+
+  // Wings
+  ctx.fillStyle = '#3a2818';
+  const wingUp = wingPhase * 12;
+  // Left wing
+  ctx.beginPath();
+  ctx.moveTo(-8, 0);
+  ctx.lineTo(-28, -wingUp);
+  ctx.lineTo(-20, 3);
+  ctx.closePath();
+  ctx.fill();
+  // Right wing
+  ctx.beginPath();
+  ctx.moveTo(8, 0);
+  ctx.lineTo(28, -wingUp);
+  ctx.lineTo(20, 3);
+  ctx.closePath();
+  ctx.fill();
+
+  // Head
+  ctx.fillStyle = '#f0e0c0';
+  ctx.fillRect(12, -5, 6, 5);
+  // Beak
+  ctx.fillStyle = '#d0a020';
+  ctx.fillRect(18, -3, 5, 3);
+
+  ctx.restore();
+}
+
+function drawHealthBar(x, y, w, h, current, max, color, label) {
+  const pct = Math.max(0, current / max);
+  ctx.fillStyle = COL.healthLost;
+  ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = pct > 0.3 ? color : '#c03030';
+  ctx.fillRect(x, y, w * pct, h);
+  ctx.strokeStyle = '#555';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x, y, w, h);
+
+  if (label) {
+    ctx.fillStyle = COL.text;
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText(label, x, y - 4);
+  }
+}
+
+function drawHUD() {
+  // Title badge
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(0, 0, W, 52);
+  ctx.fillStyle = COL.text;
+  ctx.font = '14px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('FGT-004 \u00b7 MARTIAL RUN  [?]', 10, 20);
+
+  // Score
+  ctx.textAlign = 'right';
+  ctx.fillText('SCORE: ' + score, W - 10, 20);
+
+  // Enemy counter
+  ctx.textAlign = 'center';
+  const remaining = ENEMY_DEFS.length - enemyIndex;
+  ctx.fillText('ENEMIES: ' + remaining + '/' + ENEMY_DEFS.length, W / 2, 20);
+
+  // Player health
+  drawHealthBar(10, 32, 180, 12, player.hp, player.maxHp, COL.health, null);
+  ctx.fillStyle = COL.text;
+  ctx.font = '9px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('PLAYER', 12, 42);
+
+  // Enemy health
+  if (enemy && !enemy.dead) {
+    drawHealthBar(W - 190, 32, 180, 12, enemy.hp, enemy.maxHp, '#c04040', null);
+    ctx.fillStyle = COL.text;
+    ctx.font = '9px monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText(enemy.name + (enemy.isBoss ? ' (BOSS)' : ''), W - 12, 42);
+  }
+
+  // Stance indicator
+  ctx.fillStyle = player.stance === 'run' ? '#40c0ff' : '#ff6040';
+  ctx.font = '12px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText(player.stance === 'run' ? 'RUN STANCE' : 'FIGHT STANCE', 10, H - 10);
+
+  // Attack zone indicator (fight stance)
+  if (player.stance === 'fight') {
+    const zones = ['HIGH', 'MID', 'LOW'];
+    ctx.fillStyle = '#ffc040';
+    ctx.fillText('Zone: ' + zones[player.attackZone], 140, H - 10);
+  }
+
+  // Controls hint
+  ctx.fillStyle = COL.textDim;
+  ctx.font = '10px monospace';
+  ctx.textAlign = 'right';
+  ctx.fillText('[SPACE] stance  [Z] punch  [X] kick  [?] info', W - 10, H - 10);
+}
+
+function drawCinematic() {
+  if (cinematicTimer <= 0) return;
+  const alpha = cinematicTimer > 20 ? 1 : cinematicTimer / 20;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.fillRect(0, H / 2 - 30, W, 60);
+  ctx.fillStyle = '#ffd080';
+  ctx.font = '20px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(cinematicText, W / 2, H / 2 + 7);
+  ctx.restore();
+}
+
+function drawTitle() {
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = COL.text;
+  ctx.font = '48px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('MARTIAL RUN', W / 2, 200);
+
+  ctx.font = '16px monospace';
+  ctx.fillStyle = '#b89820';
+  ctx.fillText('FGT-004 \u00b7 PROTOTYPE', W / 2, 240);
+
+  ctx.fillStyle = COL.textDim;
+  ctx.font = '14px monospace';
+  ctx.fillText('A stance-based martial arts game', W / 2, 280);
+
+  ctx.fillStyle = COL.text;
+  ctx.font = '12px monospace';
+  const controlsY = 330;
+  ctx.fillText('[SPACE] Toggle Run/Fight Stance', W / 2, controlsY);
+  ctx.fillText('[ARROWS] Move (Run) / Aim Zone (Fight)', W / 2, controlsY + 22);
+  ctx.fillText('[Z] Punch (fast)  [X] Kick (strong)', W / 2, controlsY + 44);
+  ctx.fillText('[R] Restart   [?] Info Panel', W / 2, controlsY + 66);
+
+  // Blinking start prompt
+  if (Math.floor(frameCount / 30) % 2 === 0) {
+    ctx.fillStyle = '#ffd080';
+    ctx.font = '18px monospace';
+    ctx.fillText('PRESS SPACE OR ENTER TO START', W / 2, 480);
+  }
+
+  // Fighter silhouettes — simple animated pair
+  const bobL = Math.sin(frameCount * 0.06) * 4;
+  const bobR = Math.sin(frameCount * 0.06 + Math.PI) * 4;
+
+  // Left fighter
+  ctx.fillStyle = COL.player;
+  ctx.fillRect(280, 500 + bobL, 12, -30);
+  ctx.fillRect(275, 470 + bobL, 10, 10);
+  ctx.fillRect(292, 478 + bobL, 18, 4);
+  ctx.fillStyle = COL.playerDark;
+  ctx.fillRect(274, 500 + bobL, 6, 16);
+  ctx.fillRect(288, 500 + bobL, 6, 16);
+
+  // Right fighter
+  ctx.fillStyle = COL.enemy;
+  ctx.fillRect(500, 500 + bobR, 12, -30);
+  ctx.fillRect(505, 470 + bobR, 10, 10);
+  ctx.fillRect(482, 478 + bobR, 18, 4);
+  ctx.fillStyle = COL.enemyDark;
+  ctx.fillRect(498, 500 + bobR, 6, 16);
+  ctx.fillRect(510, 500 + bobR, 6, 16);
+}
+
+function drawDead() {
+  ctx.fillStyle = 'rgba(80,0,0,0.6)';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = '#ff4040';
+  ctx.font = '40px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('DEFEATED', W / 2, 250);
+
+  ctx.fillStyle = COL.text;
+  ctx.font = '16px monospace';
+  ctx.fillText('Score: ' + score, W / 2, 300);
+  ctx.fillText('Enemies defeated: ' + enemyIndex + '/' + ENEMY_DEFS.length, W / 2, 330);
+
+  if (endTimer > 60) {
+    ctx.fillStyle = '#ffd080';
+    ctx.font = '14px monospace';
+    ctx.fillText('Press [R] to restart', W / 2, 400);
+  }
+}
+
+function drawWin() {
+  ctx.fillStyle = 'rgba(0,40,0,0.6)';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = '#ffd700';
+  ctx.font = '36px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('VICTORY!', W / 2, 200);
+
+  ctx.fillStyle = COL.princess;
+  ctx.font = '18px monospace';
+  ctx.fillText('The Princess is Rescued!', W / 2, 250);
+
+  ctx.fillStyle = COL.text;
+  ctx.font = '16px monospace';
+  ctx.fillText('Final Score: ' + score, W / 2, 300);
+  ctx.fillText('All ' + ENEMY_DEFS.length + ' enemies defeated', W / 2, 330);
+
+  if (princessKick) {
+    ctx.fillStyle = '#f090b0';
+    ctx.font = '12px monospace';
+    ctx.fillText('(She forgave you for approaching in fighting stance)', W / 2, 360);
+  }
+
+  if (endTimer > 60) {
+    ctx.fillStyle = '#ffd080';
+    ctx.font = '14px monospace';
+    ctx.fillText('Press [R] to play again', W / 2, 420);
+  }
+}
+
+// --- DRAW ---
+function draw() {
+  ctx.save();
+
+  // Screen shake
+  if (shakeTimer > 0) {
+    ctx.translate(
+      (Math.random() - 0.5) * shakeTimer * 1.5,
+      (Math.random() - 0.5) * shakeTimer * 1.5
+    );
+  }
+
+  // Background
+  drawSky();
+  drawMountains();
+  drawFortressElements();
+  drawGround();
+
+  // Eagle
+  drawEagle();
+
+  // Princess
+  drawPrincess();
+
+  // Enemy
+  if (enemy) drawCharacter(enemy, false);
+
+  // Player
+  drawCharacter(player, true);
+
+  // Particles
+  for (const p of particles) {
+    ctx.fillStyle = p.color;
+    ctx.globalAlpha = p.life / 40;
+    ctx.fillRect(p.x - cameraX, p.y, p.size, p.size);
+  }
+  ctx.globalAlpha = 1;
+
+  ctx.restore();
+
+  // HUD (not affected by shake)
+  drawHUD();
+
+  // Cinematic text
+  drawCinematic();
+
+  // Overlays
+  if (state === 'title') drawTitle();
+  if (state === 'dead') drawDead();
+  if (state === 'win') drawWin();
+}
+
+// --- MAIN LOOP ---
+init();
+
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

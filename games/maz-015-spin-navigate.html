@@ -1,0 +1,680 @@
+<!--
+PROTOTYPE: spin-navigate
+SERIES: maz
+NUMBER: 015
+DATE: 2026-03-24
+MECHANIC: rotating stick navigation — guide a constantly rotating stick (helirin) through narrow maze passages; the stick rotates automatically, you control only position
+ANCESTRY: Kuru Kuru Kururin (2001, Nintendo/Eighting, GBA — Japan/Europe only)
+CONTROLS: Arrow Keys — move helirin | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 5 (Reasoning — spatial-temporal planning around periodic rotation cycles)
+AI-INSIGHT: Rotating stick navigation creates a unique constraint satisfaction problem where the agent must plan trajectories that account for periodic geometric transformations. The continuously rotating elongated hitbox turns simple pathfinding into a time-dependent spatial reasoning challenge.
+NOTES: GBA launch title in Japan (2001), never released in North America.
+       The elegant core: simple 2D movement + automatic rotation = complex timing puzzle.
+       Eighting (now M2) co-developed with Nintendo.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MAZ-015 · SPIN NAVIGATE</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>MAZ-015 · SPIN NAVIGATE</h1>
+    <p><span class="tag series">MAZ — Maze</span> <span class="tag">Prototype #015</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Guide the Helirin — a constantly spinning stick — through maze corridors without hitting the walls!</p>
+    <ul>
+      <li><kbd>&uarr;</kbd> <kbd>&darr;</kbd> <kbd>&larr;</kbd> <kbd>&rarr;</kbd> — Move the Helirin</li>
+      <li>The stick rotates automatically — you cannot stop or control the rotation</li>
+      <li>Time your movement through narrow gaps when the stick angle is right</li>
+      <li>Touching a wall damages the Helirin — 3 hits and it's game over</li>
+      <li>Reach the goal zone to complete each maze</li>
+      <li>6 mazes of increasing difficulty</li>
+      <li><kbd>R</kbd> — Restart current maze</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+
+    <h2>History</h2>
+    <p>Kuru Kuru Kururin was a launch title for the Game Boy Advance in Japan (2001), developed by Eighting (now M2) and published by Nintendo. The game was released in Europe but never in North America. Players guide the Helirin — a spinning stick-shaped vehicle — through maze-like courses. The brilliance lies in its simplicity: you only control position while the stick rotates automatically, creating an elegant timing puzzle from basic ingredients. The sequel, Kururin Paradise, added stick-stopping mechanics, but the original's purity of design remains its hallmark. The franchise is a cult favorite among import gamers and speedrunners.</p>
+
+    <h2>AI Archaeology</h2>
+    <h3>AI Era 5 — Reasoning</h3>
+    <p>Kururin presents a fascinating challenge for AI: the continuously rotating elongated hitbox transforms simple 2D pathfinding into a time-dependent spatial reasoning problem. An AI agent must predict future stick orientations along potential paths and plan trajectories that satisfy geometric constraints at every point in time. This periodic constraint satisfaction — where the "shape" of the agent changes cyclically — connects to robotics problems involving articulated bodies moving through confined spaces, and to temporal logic planning in AI research.</p>
+
+    <h2>Classification</h2>
+    <p><span class="tag series">Series: MAZ (Maze)</span> <span class="tag">Rotating Stick</span> <span class="tag">Timing Puzzle</span> <span class="tag">Spatial Reasoning</span> <span class="tag">GBA</span></p>
+
+    <h2>Prototype Notes</h2>
+    <p>Six hand-crafted mazes progress from wide corridors to serpentine passages. The Helirin is drawn as a rainbow-striped stick with glowing endpoints. Rotation speed is constant across all levels. Camera follows the stick with the maze scrolling around it. Collision uses line-segment vs rectangle intersection for accuracy. The core challenge emerges purely from the interaction between movement and rotation.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+var C = document.getElementById('c'), X = C.getContext('2d');
+C.width = 800; C.height = 600;
+
+var infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+function resize() {
+  var s = Math.min(innerWidth / 800, innerHeight / 600);
+  C.style.width = (800 * s) + 'px';
+  C.style.height = (600 * s) + 'px';
+}
+resize();
+addEventListener('resize', resize);
+
+function hudText(text, x, y, size, color, align) {
+  X.save();
+  X.font = (size || 14) + 'px monospace';
+  X.fillStyle = color || '#fff';
+  X.textAlign = align || 'left';
+  X.textBaseline = 'top';
+  X.fillText(text, x, y);
+  X.restore();
+}
+
+// ---- MAZE DEFINITIONS ----
+// Each maze: { walls: [[x,y,w,h],...], start: {x,y}, goal: {x,y,w,h}, name: string }
+// Coordinates in world space. Camera centers on the helirin.
+
+var STICK_LEN = 60; // half-length of stick
+var STICK_W = 4;
+var ROT_SPEED = 0.018; // radians per frame (~1.03 deg)
+var MOVE_SPEED = 2.5;
+var MAX_HP = 3;
+var INV_FRAMES = 40; // invincibility after hit
+
+function makeMazes() {
+  var mazes = [];
+
+  // Maze 1: Wide corridors, gentle introduction
+  (function() {
+    var w = [];
+    // Outer boundary
+    w.push([0, 0, 600, 10]);     // top
+    w.push([0, 0, 10, 500]);     // left
+    w.push([590, 0, 10, 500]);   // right
+    w.push([0, 490, 600, 10]);   // bottom
+    // Inner walls - wide corridors
+    w.push([10, 100, 400, 10]);
+    w.push([190, 200, 400, 10]);
+    w.push([10, 300, 400, 10]);
+    w.push([190, 400, 400, 10]);
+    mazes.push({ walls: w, start: {x:50, y:50}, goal: {x:530, y:440, w:50, h:50}, name: 'WIDE TURNS' });
+  })();
+
+  // Maze 2: Zigzag corridors
+  (function() {
+    var w = [];
+    w.push([0, 0, 700, 10]);
+    w.push([0, 0, 10, 400]);
+    w.push([690, 0, 10, 400]);
+    w.push([0, 390, 700, 10]);
+    // Zigzag walls
+    w.push([10, 80, 500, 10]);
+    w.push([190, 160, 500, 10]);
+    w.push([10, 240, 500, 10]);
+    w.push([190, 320, 500, 10]);
+    mazes.push({ walls: w, start: {x:50, y:40}, goal: {x:630, y:345, w:50, h:40}, name: 'ZIGZAG' });
+  })();
+
+  // Maze 3: Narrow S-curve
+  (function() {
+    var w = [];
+    w.push([0, 0, 500, 10]);
+    w.push([0, 0, 10, 600]);
+    w.push([490, 0, 10, 600]);
+    w.push([0, 590, 500, 10]);
+    // S-curve walls making narrow passages
+    w.push([10, 100, 350, 10]);
+    w.push([80, 150, 350, 10]);
+    w.push([10, 250, 350, 10]);
+    w.push([80, 300, 350, 10]);
+    w.push([10, 400, 350, 10]);
+    w.push([80, 450, 350, 10]);
+    mazes.push({ walls: w, start: {x:50, y:50}, goal: {x:420, y:530, w:60, h:50}, name: 'S-CURVE' });
+  })();
+
+  // Maze 4: Bottleneck gates
+  (function() {
+    var w = [];
+    w.push([0, 0, 800, 10]);
+    w.push([0, 0, 10, 300]);
+    w.push([790, 0, 10, 300]);
+    w.push([0, 290, 800, 10]);
+    // Vertical gate walls with narrow openings
+    w.push([150, 10, 10, 110]);
+    w.push([150, 180, 10, 110]);
+    w.push([300, 10, 10, 130]);
+    w.push([300, 200, 10, 90]);
+    w.push([450, 10, 10, 100]);
+    w.push([450, 170, 10, 120]);
+    w.push([600, 10, 10, 120]);
+    w.push([600, 190, 10, 100]);
+    mazes.push({ walls: w, start: {x:70, y:150}, goal: {x:720, y:130, w:50, h:40}, name: 'GATES' });
+  })();
+
+  // Maze 5: Serpentine narrow
+  (function() {
+    var w = [];
+    w.push([0, 0, 600, 10]);
+    w.push([0, 0, 10, 700]);
+    w.push([590, 0, 10, 700]);
+    w.push([0, 690, 600, 10]);
+    // Tight serpentine
+    w.push([10, 70, 470, 10]);
+    w.push([110, 120, 480, 10]);
+    w.push([10, 190, 470, 10]);
+    w.push([110, 240, 480, 10]);
+    w.push([10, 310, 470, 10]);
+    w.push([110, 360, 480, 10]);
+    w.push([10, 430, 470, 10]);
+    w.push([110, 480, 480, 10]);
+    w.push([10, 550, 470, 10]);
+    w.push([110, 600, 480, 10]);
+    mazes.push({ walls: w, start: {x:50, y:35}, goal: {x:500, y:640, w:60, h:40}, name: 'SERPENTINE' });
+  })();
+
+  // Maze 6: The Gauntlet - mixed challenges
+  (function() {
+    var w = [];
+    w.push([0, 0, 900, 10]);
+    w.push([0, 0, 10, 500]);
+    w.push([890, 0, 10, 500]);
+    w.push([0, 490, 900, 10]);
+    // Complex mix
+    w.push([10, 90, 300, 10]);
+    w.push([80, 150, 300, 10]);
+    // Gate section
+    w.push([420, 10, 10, 180]);
+    w.push([420, 250, 10, 240]);
+    // Narrow corridor
+    w.push([500, 80, 380, 10]);
+    w.push([500, 140, 300, 10]);
+    w.push([500, 220, 380, 10]);
+    w.push([500, 280, 300, 10]);
+    w.push([500, 360, 380, 10]);
+    w.push([500, 420, 300, 10]);
+    mazes.push({ walls: w, start: {x:50, y:45}, goal: {x:820, y:430, w:50, h:50}, name: 'THE GAUNTLET' });
+  })();
+
+  return mazes;
+}
+
+var MAZES = makeMazes();
+
+// ---- GAME STATE ----
+var state = 'title'; // title, playing, dead, win, allclear
+var level = 0;
+var hx, hy, angle, hp, invTimer, timer;
+var camX, camY;
+var keys = {};
+
+function startLevel(n) {
+  level = n;
+  var m = MAZES[n];
+  hx = m.start.x;
+  hy = m.start.y;
+  angle = 0;
+  hp = MAX_HP;
+  invTimer = 0;
+  timer = 0;
+  state = 'playing';
+}
+
+addEventListener('keydown', function(e) {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+  keys[e.key] = true;
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].indexOf(e.key) >= 0) e.preventDefault();
+  if (e.key === 'r' || e.key === 'R') {
+    if (state === 'dead') startLevel(level);
+    else if (state === 'playing') startLevel(level);
+  }
+  if (state === 'title' && (e.key === 'Enter' || e.key === ' ')) {
+    startLevel(0);
+  }
+  if (state === 'win' && (e.key === 'Enter' || e.key === ' ')) {
+    if (level + 1 < MAZES.length) startLevel(level + 1);
+    else state = 'allclear';
+  }
+  if (state === 'allclear' && (e.key === 'Enter' || e.key === ' ')) {
+    state = 'title';
+  }
+});
+addEventListener('keyup', function(e) { keys[e.key] = false; });
+
+// ---- COLLISION ----
+// Check if a line segment intersects a rectangle
+function lineRectCollision(x1, y1, x2, y2, rx, ry, rw, rh) {
+  // Check if either endpoint is inside the rect
+  if (pointInRect(x1, y1, rx, ry, rw, rh)) return true;
+  if (pointInRect(x2, y2, rx, ry, rw, rh)) return true;
+  // Check line against each edge of the rect
+  if (lineLineCollision(x1, y1, x2, y2, rx, ry, rx + rw, ry)) return true;
+  if (lineLineCollision(x1, y1, x2, y2, rx + rw, ry, rx + rw, ry + rh)) return true;
+  if (lineLineCollision(x1, y1, x2, y2, rx, ry + rh, rx + rw, ry + rh)) return true;
+  if (lineLineCollision(x1, y1, x2, y2, rx, ry, rx, ry + rh)) return true;
+  return false;
+}
+
+function pointInRect(px, py, rx, ry, rw, rh) {
+  return px >= rx && px <= rx + rw && py >= ry && py <= ry + rh;
+}
+
+function lineLineCollision(x1, y1, x2, y2, x3, y3, x4, y4) {
+  var d = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+  if (Math.abs(d) < 0.0001) return false;
+  var t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / d;
+  var u = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / d;
+  return t >= 0 && t <= 1 && u >= 0 && u <= 1;
+}
+
+function stickEnds() {
+  var dx = Math.cos(angle) * STICK_LEN;
+  var dy = Math.sin(angle) * STICK_LEN;
+  return { x1: hx - dx, y1: hy - dy, x2: hx + dx, y2: hy + dy };
+}
+
+function checkWallCollision() {
+  var e = stickEnds();
+  var walls = MAZES[level].walls;
+  for (var i = 0; i < walls.length; i++) {
+    var w = walls[i];
+    if (lineRectCollision(e.x1, e.y1, e.x2, e.y2, w[0], w[1], w[2], w[3])) return true;
+  }
+  return false;
+}
+
+function checkGoal() {
+  var g = MAZES[level].goal;
+  return pointInRect(hx, hy, g.x, g.y, g.w, g.h);
+}
+
+// ---- UPDATE ----
+function update() {
+  if (infoOpen) return;
+  if (state !== 'playing') return;
+
+  timer++;
+  angle += ROT_SPEED;
+  if (angle > Math.PI * 2) angle -= Math.PI * 2;
+
+  if (invTimer > 0) invTimer--;
+
+  var dx = 0, dy = 0;
+  if (keys['ArrowLeft']) dx = -MOVE_SPEED;
+  if (keys['ArrowRight']) dx = MOVE_SPEED;
+  if (keys['ArrowUp']) dy = -MOVE_SPEED;
+  if (keys['ArrowDown']) dy = MOVE_SPEED;
+  // Diagonal normalize
+  if (dx !== 0 && dy !== 0) { dx *= 0.707; dy *= 0.707; }
+
+  hx += dx;
+  hy += dy;
+
+  // Wall collision
+  if (invTimer === 0 && checkWallCollision()) {
+    hp--;
+    invTimer = INV_FRAMES;
+    if (hp <= 0) state = 'dead';
+  }
+
+  // Goal check
+  if (checkGoal()) {
+    state = 'win';
+  }
+
+  // Camera smoothing
+  var tx = hx - 400, ty = hy - 300;
+  camX += (tx - camX) * 0.1;
+  camY += (ty - camY) * 0.1;
+}
+
+camX = 0; camY = 0;
+
+// ---- DRAW ----
+function drawStick() {
+  var e = stickEnds();
+  var sx1 = e.x1 - camX, sy1 = e.y1 - camY;
+  var sx2 = e.x2 - camX, sy2 = e.y2 - camY;
+
+  // Flashing when invincible
+  if (invTimer > 0 && Math.floor(invTimer / 4) % 2 === 0) return;
+
+  // Rainbow gradient along the stick
+  var grad = X.createLinearGradient(sx1, sy1, sx2, sy2);
+  grad.addColorStop(0, '#ff3333');
+  grad.addColorStop(0.17, '#ff8833');
+  grad.addColorStop(0.33, '#ffff33');
+  grad.addColorStop(0.5, '#33ff33');
+  grad.addColorStop(0.67, '#3388ff');
+  grad.addColorStop(0.83, '#8833ff');
+  grad.addColorStop(1, '#ff33ff');
+
+  X.save();
+  X.lineCap = 'round';
+  X.lineWidth = STICK_W * 2 + 2;
+  X.strokeStyle = '#fff';
+  X.beginPath();
+  X.moveTo(sx1, sy1);
+  X.lineTo(sx2, sy2);
+  X.stroke();
+
+  X.lineWidth = STICK_W * 2;
+  X.strokeStyle = grad;
+  X.beginPath();
+  X.moveTo(sx1, sy1);
+  X.lineTo(sx2, sy2);
+  X.stroke();
+
+  // Glow endpoints
+  for (var i = 0; i < 2; i++) {
+    var px = i === 0 ? sx1 : sx2;
+    var py = i === 0 ? sy1 : sy2;
+    var glow = X.createRadialGradient(px, py, 0, px, py, 12);
+    glow.addColorStop(0, 'rgba(255,255,255,0.8)');
+    glow.addColorStop(1, 'rgba(255,255,255,0)');
+    X.fillStyle = glow;
+    X.fillRect(px - 12, py - 12, 24, 24);
+  }
+  X.restore();
+}
+
+function drawMaze() {
+  var m = MAZES[level];
+  X.fillStyle = '#1a1a2e';
+  X.fillRect(0, 0, 800, 600);
+
+  // Draw walls
+  X.fillStyle = '#334';
+  for (var i = 0; i < m.walls.length; i++) {
+    var w = m.walls[i];
+    var wx = w[0] - camX, wy = w[1] - camY;
+    X.fillRect(wx, wy, w[2], w[3]);
+  }
+  // Wall highlights
+  X.fillStyle = '#556';
+  for (var i = 0; i < m.walls.length; i++) {
+    var w = m.walls[i];
+    var wx = w[0] - camX, wy = w[1] - camY;
+    X.fillRect(wx, wy, w[2], 2);
+    X.fillRect(wx, wy, 2, w[3]);
+  }
+
+  // Draw goal
+  var g = m.goal;
+  var gx = g.x - camX, gy = g.y - camY;
+  var pulse = 0.5 + 0.5 * Math.sin(timer * 0.05);
+  X.fillStyle = 'rgba(0,255,100,' + (0.3 + 0.3 * pulse) + ')';
+  X.fillRect(gx, gy, g.w, g.h);
+  X.strokeStyle = '#0f8';
+  X.lineWidth = 2;
+  X.strokeRect(gx, gy, g.w, g.h);
+  hudText('GOAL', gx + g.w / 2, gy + g.h / 2 - 7, 12, '#0f8', 'center');
+
+  // Draw start marker (faint)
+  var sx = m.start.x - camX - 8, sy = m.start.y - camY - 8;
+  X.strokeStyle = 'rgba(100,100,255,0.3)';
+  X.lineWidth = 1;
+  X.strokeRect(sx, sy, 16, 16);
+}
+
+function drawHUD() {
+  // HP hearts
+  for (var i = 0; i < MAX_HP; i++) {
+    var hpx = 20 + i * 30;
+    X.fillStyle = i < hp ? '#f44' : '#333';
+    X.font = '20px monospace';
+    X.fillText('\u2665', hpx, 28);
+  }
+
+  // Level name
+  hudText('MAZE ' + (level + 1) + ': ' + MAZES[level].name, 400, 10, 14, '#7bf', 'center');
+
+  // Timer
+  var sec = (timer / 60).toFixed(1);
+  hudText('TIME: ' + sec + 's', 750, 10, 12, '#aaa', 'right');
+
+  // Rotation indicator
+  var indX = 750, indY = 570;
+  X.strokeStyle = '#555';
+  X.lineWidth = 1;
+  X.beginPath();
+  X.arc(indX, indY, 15, 0, Math.PI * 2);
+  X.stroke();
+  var dx = Math.cos(angle) * 12;
+  var dy = Math.sin(angle) * 12;
+  X.strokeStyle = '#7bf';
+  X.lineWidth = 2;
+  X.beginPath();
+  X.moveTo(indX - dx, indY - dy);
+  X.lineTo(indX + dx, indY + dy);
+  X.stroke();
+
+  hudText('? INFO', 20, 580, 11, '#555', 'left');
+}
+
+function drawTitle() {
+  X.fillStyle = '#0a0a1a';
+  X.fillRect(0, 0, 800, 600);
+
+  // Decorative spinning stick
+  var ta = Date.now() * 0.002;
+  var tcx = 400, tcy = 250;
+  var tdx = Math.cos(ta) * 80;
+  var tdy = Math.sin(ta) * 80;
+  var grad = X.createLinearGradient(tcx - tdx, tcy - tdy, tcx + tdx, tcy + tdy);
+  grad.addColorStop(0, '#ff3333');
+  grad.addColorStop(0.25, '#ffff33');
+  grad.addColorStop(0.5, '#33ff33');
+  grad.addColorStop(0.75, '#3388ff');
+  grad.addColorStop(1, '#ff33ff');
+  X.lineCap = 'round';
+  X.lineWidth = 10;
+  X.strokeStyle = '#fff';
+  X.beginPath();
+  X.moveTo(tcx - tdx, tcy - tdy);
+  X.lineTo(tcx + tdx, tcy + tdy);
+  X.stroke();
+  X.lineWidth = 8;
+  X.strokeStyle = grad;
+  X.beginPath();
+  X.moveTo(tcx - tdx, tcy - tdy);
+  X.lineTo(tcx + tdx, tcy + tdy);
+  X.stroke();
+
+  hudText('KURU KURU KURURIN', 400, 80, 28, '#7bf', 'center');
+  hudText('Navigate the spinning Helirin through mazes', 400, 130, 14, '#aaa', 'center');
+
+  hudText('Arrow Keys — Move', 400, 370, 14, '#ddd', 'center');
+  hudText('The stick spins automatically', 400, 395, 13, '#888', 'center');
+  hudText('Don\'t touch the walls! (3 hits = game over)', 400, 420, 13, '#f88', 'center');
+
+  hudText('PRESS ENTER OR SPACE TO START', 400, 490, 16, '#ff0', 'center');
+  hudText('? — Info Panel', 400, 530, 12, '#555', 'center');
+}
+
+function drawDead() {
+  X.fillStyle = 'rgba(0,0,0,0.7)';
+  X.fillRect(0, 0, 800, 600);
+  hudText('HELIRIN DESTROYED!', 400, 220, 28, '#f44', 'center');
+  hudText('Maze ' + (level + 1) + ': ' + MAZES[level].name, 400, 270, 16, '#aaa', 'center');
+  hudText('PRESS R TO RETRY', 400, 340, 18, '#ff0', 'center');
+}
+
+function drawWin() {
+  X.fillStyle = 'rgba(0,0,0,0.7)';
+  X.fillRect(0, 0, 800, 600);
+  var sec = (timer / 60).toFixed(1);
+  hudText('MAZE COMPLETE!', 400, 200, 28, '#0f8', 'center');
+  hudText(MAZES[level].name, 400, 245, 16, '#7bf', 'center');
+  hudText('Time: ' + sec + 's   HP: ' + hp + '/' + MAX_HP, 400, 290, 16, '#ddd', 'center');
+  if (level + 1 < MAZES.length) {
+    hudText('PRESS ENTER FOR NEXT MAZE', 400, 360, 18, '#ff0', 'center');
+  } else {
+    hudText('PRESS ENTER TO CONTINUE', 400, 360, 18, '#ff0', 'center');
+  }
+}
+
+function drawAllClear() {
+  X.fillStyle = '#0a0a1a';
+  X.fillRect(0, 0, 800, 600);
+
+  var ta = Date.now() * 0.003;
+  for (var i = 0; i < 6; i++) {
+    var a = ta + i * Math.PI / 3;
+    var cx = 400 + Math.cos(a * 0.7 + i) * 120;
+    var cy = 300 + Math.sin(a * 0.9 + i) * 80;
+    var dx = Math.cos(a) * 30;
+    var dy = Math.sin(a) * 30;
+    X.lineWidth = 4;
+    X.strokeStyle = 'hsl(' + (i * 60) + ',80%,60%)';
+    X.beginPath();
+    X.moveTo(cx - dx, cy - dy);
+    X.lineTo(cx + dx, cy + dy);
+    X.stroke();
+  }
+
+  hudText('ALL MAZES COMPLETE!', 400, 180, 32, '#ff0', 'center');
+  hudText('You mastered the Helirin!', 400, 230, 16, '#0f8', 'center');
+  hudText('PRESS ENTER TO RETURN TO TITLE', 400, 400, 16, '#aaa', 'center');
+}
+
+function draw() {
+  if (state === 'title') { drawTitle(); return; }
+  if (state === 'allclear') { drawAllClear(); return; }
+
+  drawMaze();
+  drawStick();
+  drawHUD();
+
+  if (state === 'dead') drawDead();
+  if (state === 'win') drawWin();
+}
+
+// ---- MAIN LOOP ----
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

@@ -1,0 +1,578 @@
+<!--
+PROTOTYPE: sky-defense
+SERIES: fix
+NUMBER: 004
+DATE: 2026-03-22
+MECHANIC: area defense — target cursor-guided explosions to intercept incoming missiles
+ANCESTRY: Missile Command (1980, Dave Theurer, Atari), Missile Defense 3-D (1983, Sega)
+CONTROLS: Mouse — aim cursor | Left click — fire from left base | Right click — fire from right base | Middle click/Space — fire from center | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — rule-based, pre-backpropagation)
+AI-INSIGHT: Missile Command is a resource allocation problem under escalating load — defend N cities with M missiles against increasing ICBM waves. The player must decide which threats to intercept and which to sacrifice. This is the defender's dilemma formalized: limited defense resources against unlimited offense. Game theory's asymmetric warfare before the term existed in gaming.
+NOTES: Defend cities under escalating ICBM barrage — resource management meets real-time targeting.
+       Designer Dave Theurer had nightmares about nuclear war while making this game.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FIX-004 · SKY DEFENSE</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: monospace; cursor: crosshair; }
+canvas { image-rendering: pixelated; cursor: crosshair; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto; cursor: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>FIX-004 · SKY DEFENSE</h1>
+    <p><span class="tag series">FIX — Fixed Shooter</span> <span class="tag">Prototype #004</span> <span class="tag">★★★★☆</span></p>
+
+    <h2>How to Play</h2>
+    <p>Defend your 6 cities from incoming ICBMs. Click to launch counter-missiles that explode at the cursor position. Intercept enemy missiles before they reach the ground.</p>
+    <ul>
+      <li><kbd>Left click</kbd> — Fire from left base</li>
+      <li><kbd>Right click</kbd> — Fire from right base</li>
+      <li><kbd>Middle click</kbd> or <kbd>Space</kbd> — Fire from center base</li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Lead your targets:</strong> Counter-missiles take time to reach the cursor.</li>
+      <li><strong>Explosions linger:</strong> The blast radius persists — use it to catch multiple missiles.</li>
+      <li><strong>Ammo is limited:</strong> Each base has 10 missiles per wave. Use them wisely.</li>
+      <li><strong>MIRVs:</strong> Later waves have missiles that split into multiple warheads.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Missile Command (1980, Dave Theurer, Atari) → Missile Defense 3-D (1983)</p>
+    <p>Missile Command was designed by Dave Theurer at Atari during the height of Cold War nuclear anxiety. Theurer reportedly had nightmares about nuclear annihilation while developing it. The game's emotional core — watching cities you can't save get destroyed — makes it one of the few early arcade games with genuine pathos.</p>
+    <p>The trackball cursor control and explosion-radius mechanic were innovative: instead of hitting targets directly, you create blast zones that intercept. This area-denial design is still used in modern tower defense games.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 3 — Knowledge Explosion (1978–1983)</p>
+    <p><strong>Contemporary AI:</strong> Operations research was mature. Resource allocation under uncertainty was a well-studied problem. But real-time multi-target interception was beyond computational capability.</p>
+    <p><strong>Hidden Intelligence:</strong> Missile Command is a resource allocation problem under escalating load. The player must decide which threats to intercept and which cities to sacrifice. This is the defender's dilemma: limited defense vs unlimited offense. Game theory's asymmetric warfare concept, instantiated as an arcade game. The escalating waves create a curriculum of increasing difficulty — the game teaches you before it kills you.</p>
+    <p><strong>The Convergence:</strong> Modern missile defense systems (Patriot, Iron Dome) solve essentially this same problem computationally: track multiple incoming threats, allocate limited interceptors optimally, accept some targets will get through. The arcade game is a simplified simulation of the real problem.</p>
+    <p><strong>If AI Had Designed This:</strong> Optimal interception planning using the same algorithms that real missile defense systems employ — minimizing expected casualties given interceptor counts and threat trajectories.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: FIX — Fixed Shooter</h3>
+    <p>Missile Command extends the fixed-position paradigm from shooting at formation to defending an area. The player doesn't move — the cursor is the weapon.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Area defense with cursor-guided explosions.</strong> Three missile bases with limited ammo. Explosion radius as interception zone. Escalating ICBM waves. City survival as objective.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Cursor-guided explosions — does the area-denial feel satisfying?</li>
+      <li>Resource anxiety — does limited ammo create meaningful decisions?</li>
+      <li>City attachment — does losing a city feel like a loss?</li>
+      <li>Escalation — do later waves feel overwhelming in a fair way?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Mouse-controlled cursor. Three missile bases. MIRV missiles in later waves. Explosion radius interception.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+const keys = {};
+window.addEventListener('keydown', e => { if (!infoOpen) keys[e.code] = true; e.preventDefault(); });
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+// Mouse
+let mouseX = W / 2, mouseY = H / 2;
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  mouseX = (e.clientX - rect.left) * (W / rect.width);
+  mouseY = (e.clientY - rect.top) * (H / rect.height);
+});
+
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+// --- CONFIG ---
+const GROUND_Y = H - 60;
+const CITY_W = 30, CITY_H = 20;
+const BASE_AMMO = 10;
+
+// City positions
+const CITY_X = [80, 160, 260, 500, 600, 700];
+// Base positions (left, center, right)
+const BASE_X = [50, W / 2, W - 50];
+
+// --- STATE ---
+let cities, bases, icbms, counterMissiles, explosions;
+let score, wave, gameOver, waveTimer, frame;
+
+function initGame() {
+  cities = CITY_X.map(x => ({ x, alive: true }));
+  bases = BASE_X.map(x => ({ x, ammo: BASE_AMMO }));
+  icbms = [];
+  counterMissiles = [];
+  explosions = [];
+  score = 0; wave = 0; gameOver = false;
+  waveTimer = 0; frame = 0;
+  spawnWave();
+}
+
+function spawnWave() {
+  wave++;
+  const count = 6 + wave * 2;
+  const speed = 0.5 + wave * 0.15;
+
+  for (let i = 0; i < count; i++) {
+    const sx = Math.random() * W;
+    const targets = [...CITY_X, ...BASE_X];
+    const tx = targets[Math.floor(Math.random() * targets.length)];
+    const delay = Math.random() * 180;
+
+    icbms.push({
+      sx, sy: -10,
+      tx, ty: GROUND_Y,
+      x: sx, y: -10 - delay * speed,
+      speed,
+      alive: true,
+      mirv: wave > 3 && Math.random() < 0.2,
+      mirvSplit: false
+    });
+  }
+
+  // Refill bases
+  for (const b of bases) b.ammo = BASE_AMMO;
+  waveTimer = 0;
+}
+
+initGame();
+
+function fire(baseIdx) {
+  if (infoOpen || gameOver) return;
+  const base = bases[baseIdx];
+  if (base.ammo <= 0) return;
+  base.ammo--;
+
+  const dx = mouseX - base.x, dy = mouseY - GROUND_Y;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  const speed = 8;
+
+  counterMissiles.push({
+    sx: base.x, sy: GROUND_Y,
+    x: base.x, y: GROUND_Y,
+    tx: mouseX, ty: mouseY,
+    vx: (dx / dist) * speed,
+    vy: (dy / dist) * speed,
+    alive: true
+  });
+}
+
+canvas.addEventListener('mousedown', e => {
+  if (infoOpen || gameOver) return;
+  e.preventDefault();
+  if (e.button === 0) fire(0);       // left click → left base
+  else if (e.button === 2) fire(2);  // right click → right base
+  else if (e.button === 1) fire(1);  // middle → center
+});
+
+window.addEventListener('keydown', e => {
+  if (e.code === 'Space' && !infoOpen) fire(1);
+});
+
+function update() {
+  if (infoOpen) return;
+  if (gameOver) { if (keys['KeyR']) initGame(); return; }
+  frame++;
+
+  // Move ICBMs
+  for (const m of icbms) {
+    if (!m.alive) continue;
+    const dx = m.tx - m.sx, dy = m.ty - m.sy;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    m.x += (dx / dist) * m.speed;
+    m.y += (dy / dist) * m.speed;
+
+    // MIRV split
+    if (m.mirv && !m.mirvSplit && m.y > H * 0.4) {
+      m.mirvSplit = true;
+      for (let i = 0; i < 2; i++) {
+        const ntx = m.tx + (Math.random() - 0.5) * 200;
+        icbms.push({
+          sx: m.x, sy: m.y,
+          tx: Math.max(20, Math.min(W - 20, ntx)), ty: GROUND_Y,
+          x: m.x, y: m.y,
+          speed: m.speed * 1.2,
+          alive: true, mirv: false, mirvSplit: false
+        });
+      }
+    }
+
+    // Hit ground
+    if (m.y >= GROUND_Y) {
+      m.alive = false;
+      explosions.push({ x: m.x, y: GROUND_Y, r: 0, maxR: 30, growing: true, t: 0, enemy: true });
+
+      // Destroy nearby cities
+      for (const c of cities) {
+        if (c.alive && Math.abs(m.x - c.x) < CITY_W) {
+          c.alive = false;
+        }
+      }
+      // Destroy base
+      for (const b of bases) {
+        if (Math.abs(m.x - b.x) < 25) b.ammo = 0;
+      }
+    }
+  }
+
+  // Move counter-missiles
+  for (const cm of counterMissiles) {
+    if (!cm.alive) continue;
+    cm.x += cm.vx;
+    cm.y += cm.vy;
+
+    // Reached target
+    const dx = cm.x - cm.tx, dy = cm.y - cm.ty;
+    if (dx * dx + dy * dy < 100) {
+      cm.alive = false;
+      explosions.push({ x: cm.tx, y: cm.ty, r: 0, maxR: 45, growing: true, t: 0, enemy: false });
+    }
+  }
+
+  // Update explosions
+  for (const ex of explosions) {
+    ex.t++;
+    if (ex.growing) {
+      ex.r += 2;
+      if (ex.r >= ex.maxR) ex.growing = false;
+    } else {
+      ex.r -= 0.8;
+    }
+
+    // Intercept ICBMs (only player explosions)
+    if (!ex.enemy && ex.r > 0) {
+      for (const m of icbms) {
+        if (!m.alive) continue;
+        const dx = m.x - ex.x, dy = m.y - ex.y;
+        if (dx * dx + dy * dy < ex.r * ex.r) {
+          m.alive = false;
+          score += 25;
+        }
+      }
+    }
+  }
+  explosions = explosions.filter(e => e.r > 0);
+
+  // Clean dead missiles
+  icbms = icbms.filter(m => m.alive);
+  counterMissiles = counterMissiles.filter(cm => cm.alive);
+
+  // Wave complete
+  if (icbms.length === 0 && counterMissiles.length === 0 && explosions.length === 0) {
+    waveTimer++;
+    if (waveTimer > 90) {
+      // Bonus for surviving cities and remaining ammo
+      const citiesAlive = cities.filter(c => c.alive).length;
+      const ammoLeft = bases.reduce((s, b) => s + b.ammo, 0);
+      score += citiesAlive * 100 + ammoLeft * 5;
+      spawnWave();
+    }
+  }
+
+  // Game over: all cities destroyed
+  if (cities.every(c => !c.alive)) {
+    gameOver = true;
+  }
+}
+
+function draw() {
+  ctx.fillStyle = '#06060f'; ctx.fillRect(0, 0, W, H);
+
+  // Stars
+  for (let i = 0; i < 30; i++) {
+    ctx.fillStyle = `rgba(255,255,255,${0.2 + (i % 3) * 0.15})`;
+    ctx.fillRect((i * 137 + 50) % W, (i * 97 + 20) % (H * 0.5), 1, 1);
+  }
+
+  // Ground
+  ctx.fillStyle = '#2a1a08';
+  ctx.fillRect(0, GROUND_Y, W, H - GROUND_Y);
+
+  // Cities
+  for (const c of cities) {
+    if (c.alive) {
+      ctx.fillStyle = '#4488ff';
+      // Building shapes
+      ctx.fillRect(c.x - 12, GROUND_Y - CITY_H, 8, CITY_H);
+      ctx.fillRect(c.x - 2, GROUND_Y - CITY_H - 8, 10, CITY_H + 8);
+      ctx.fillRect(c.x + 10, GROUND_Y - CITY_H + 5, 6, CITY_H - 5);
+      // Windows
+      ctx.fillStyle = '#ff0';
+      for (let wy = GROUND_Y - CITY_H + 4; wy < GROUND_Y - 4; wy += 6) {
+        ctx.fillRect(c.x, wy, 3, 3);
+        ctx.fillRect(c.x + 5, wy, 3, 3);
+      }
+    } else {
+      // Rubble
+      ctx.fillStyle = '#333';
+      ctx.fillRect(c.x - 10, GROUND_Y - 6, 20, 6);
+      ctx.fillRect(c.x - 6, GROUND_Y - 10, 12, 4);
+    }
+  }
+
+  // Bases
+  for (let i = 0; i < bases.length; i++) {
+    const b = bases[i];
+    ctx.fillStyle = '#555';
+    // Pyramid shape
+    ctx.beginPath();
+    ctx.moveTo(b.x - 20, GROUND_Y);
+    ctx.lineTo(b.x + 20, GROUND_Y);
+    ctx.lineTo(b.x, GROUND_Y - 20);
+    ctx.closePath();
+    ctx.fill();
+
+    // Ammo dots
+    ctx.fillStyle = '#0f0';
+    const cols = 5;
+    for (let a = 0; a < b.ammo; a++) {
+      const ax = b.x - 12 + (a % cols) * 6;
+      const ay = GROUND_Y + 8 + Math.floor(a / cols) * 6;
+      ctx.fillRect(ax, ay, 4, 4);
+    }
+  }
+
+  // ICBM trails
+  ctx.lineWidth = 1;
+  for (const m of icbms) {
+    if (!m.alive) continue;
+    ctx.strokeStyle = '#f44';
+    ctx.beginPath();
+    ctx.moveTo(m.sx, Math.max(0, m.sy));
+    ctx.lineTo(m.x, m.y);
+    ctx.stroke();
+    // Warhead
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(m.x, m.y, 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Counter-missile trails
+  for (const cm of counterMissiles) {
+    if (!cm.alive) continue;
+    ctx.strokeStyle = '#4f4';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(cm.sx, cm.sy);
+    ctx.lineTo(cm.x, cm.y);
+    ctx.stroke();
+    ctx.fillStyle = '#ff0';
+    ctx.beginPath();
+    ctx.arc(cm.x, cm.y, 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Explosions
+  for (const ex of explosions) {
+    const alpha = Math.max(0, ex.r / ex.maxR);
+    if (ex.enemy) {
+      ctx.fillStyle = `rgba(255,100,50,${alpha * 0.5})`;
+    } else {
+      ctx.fillStyle = `rgba(255,255,100,${alpha * 0.6})`;
+    }
+    ctx.beginPath();
+    ctx.arc(ex.x, ex.y, ex.r, 0, Math.PI * 2);
+    ctx.fill();
+    // Inner ring
+    ctx.fillStyle = `rgba(255,255,255,${alpha * 0.3})`;
+    ctx.beginPath();
+    ctx.arc(ex.x, ex.y, ex.r * 0.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Cursor crosshair
+  ctx.strokeStyle = '#0f0'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(mouseX - 12, mouseY); ctx.lineTo(mouseX + 12, mouseY);
+  ctx.moveTo(mouseX, mouseY - 12); ctx.lineTo(mouseX, mouseY + 12);
+  ctx.stroke();
+
+  // HUD
+  ctx.fillStyle = '#ff6'; ctx.font = '16px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('SCORE: ' + score, 10, 26);
+  ctx.textAlign = 'center';
+  ctx.fillText('WAVE ' + wave, W / 2, 26);
+  ctx.textAlign = 'right';
+  const citiesAlive = cities.filter(c => c.alive).length;
+  ctx.fillText('CITIES: ' + citiesAlive, W - 10, 26);
+
+  // Wave clear bonus
+  if (icbms.length === 0 && waveTimer > 0 && waveTimer < 90) {
+    ctx.fillStyle = '#ff0'; ctx.font = '24px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('WAVE ' + wave + ' CLEAR', W / 2, H / 2 - 40);
+    ctx.fillStyle = '#aaa'; ctx.font = '16px monospace';
+    ctx.fillText('Cities: ' + citiesAlive + '×100   Ammo bonus', W / 2, H / 2 - 10);
+  }
+
+  // Game over
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, W, H);
+    ctx.font = 'bold 48px monospace'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#f55';
+    ctx.fillText('THE END', W / 2, H / 2 - 30);
+    ctx.fillStyle = '#aaa'; ctx.font = '20px monospace';
+    ctx.fillText('All cities destroyed', W / 2, H / 2 + 5);
+    ctx.fillText('R to restart   SCORE: ' + score, W / 2, H / 2 + 35);
+  }
+
+  // Title badge
+  ctx.fillStyle = '#1a1a1a'; ctx.fillRect(8, 8, 280, 28);
+  ctx.fillStyle = '#555'; ctx.font = '13px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('FIX-004 · MISSILE COMMAND  [?]', 16, 26);
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: dpad2+fire ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("dpad2+fire");
+</script>
+</body>
+</html>

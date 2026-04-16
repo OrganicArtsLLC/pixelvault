@@ -1,0 +1,1345 @@
+<!--
+PROTOTYPE: monster-smash
+SERIES: fgt
+NUMBER: 003
+DATE: 2026-03-22
+MECHANIC: kaiju destruction — punch buildings, eat people, dodge military
+ANCESTRY: Rampage (1986, Brian Colin, Bally Midway), King of the Monsters (1991, SNK)
+CONTROLS: Arrow keys — move/climb | Z — punch | X — eat | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — destructible environment systems)
+AI-INSIGHT: Rampage's building destruction uses a tile-based damage model where each section can be independently destroyed, creating emergent collapse patterns. This granular destruction prefigured voxel-based damage systems and physics-driven demolition in modern games.
+NOTES: Power fantasy of being the monster inverts typical arcade player-victim dynamic.
+       Building-as-health-source creates risk-reward loop in climbing.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FGT-003 · MONSTER SMASH</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #1a1a2e; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.65; }
+#info-panel h1 { color: #4af; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #1a2a3a; color: #4af; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c" width="800" height="600"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>FGT-003 · MONSTER SMASH</h1>
+    <p><span class="tag series">FGT — Fighter / Combat</span> <span class="tag">Prototype #003</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>You are George, a giant ape terrorizing the city. Destroy all buildings to advance to the next city. Eat people to restore health. Avoid military attacks.</p>
+    <ul>
+      <li><kbd>&#8592;</kbd> <kbd>&#8594;</kbd> &mdash; Walk left / right</li>
+      <li><kbd>&#8593;</kbd> &mdash; Climb building (when adjacent) / jump</li>
+      <li><kbd>&#8595;</kbd> &mdash; Climb down / drop from building</li>
+      <li><kbd>Z</kbd> &mdash; Punch (damages building section in front of you)</li>
+      <li><kbd>X</kbd> &mdash; Grab &amp; eat person in window (restores health)</li>
+      <li><kbd>R</kbd> &mdash; Restart game</li>
+      <li><kbd>?</kbd> &mdash; Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Climb to eat:</strong> People appear in windows &mdash; climb up and press X when next to one for health.</li>
+      <li><strong>Punch strategically:</strong> Destroy lower floors first to collapse upper sections for bonus points.</li>
+      <li><strong>Watch for military:</strong> Helicopters and tanks deal significant damage. Punch helicopters when close.</li>
+      <li><strong>Don&rsquo;t fall:</strong> If you&rsquo;re climbing when a floor collapses beneath you, you&rsquo;ll take fall damage.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Rampage (1986, Brian Colin, Bally Midway), King of the Monsters (1991, SNK)</p>
+    <p>Rampage was created by Brian Colin and Jeff Nauman at Bally Midway in 1986. Inspired by classic monster movies &mdash; King Kong, Godzilla, The Wolfman &mdash; it let up to three players simultaneously control giant monsters destroying a city. The game inverted the standard arcade formula: instead of defending against monsters, you WERE the monster.</p>
+    <p>The three characters &mdash; George (ape/King Kong), Lizzie (lizard/Godzilla), and Ralph (werewolf) &mdash; were humans mutated by various experiments gone wrong. When a monster&rsquo;s health reached zero, it reverted to a naked human covering itself, shuffling off screen. This dark humor was central to the game&rsquo;s appeal.</p>
+    <p>The building destruction mechanic was groundbreaking. Each building was a grid of destructible sections, each with independent hit points. Players could strategically demolish structures floor by floor, and buildings would visually crumble as sections were destroyed. This tile-based destruction model influenced countless games that followed.</p>
+    <p>King of the Monsters (1991, SNK) took the kaiju fantasy in a different direction &mdash; giant monster versus giant monster wrestling matches &mdash; but both games shared the core power fantasy of urban destruction.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 3 &mdash; Knowledge Explosion (1980&ndash;1997)</p>
+    <p><strong>Contemporary AI:</strong> In 1986, expert systems were booming and connectionism was being revived by Rumelhart and McClelland&rsquo;s PDP volumes. But no AI could handle the kind of spatial reasoning and destruction simulation that Rampage presented to players.</p>
+    <p><strong>Hidden Intelligence:</strong> Rampage&rsquo;s building destruction uses a tile-based damage model where each section can be independently destroyed, creating emergent collapse patterns. When lower floors are destroyed, upper floors become unsupported and collapse &mdash; an early physics simulation. This granular destruction prefigured voxel-based damage systems (Red Faction, 2001) and physics-driven demolition (Battlefield: Bad Company, 2008). The military AI escalates based on player threat level, creating a dynamic difficulty curve driven by the player&rsquo;s own destructive success.</p>
+    <p><strong>Modern Lens:</strong> Training an RL agent on Rampage would require understanding structural integrity, resource management (health vs. risk), multi-objective optimization (destroy buildings vs. avoid damage vs. eat civilians), and spatial reasoning about climbing positions. The game&rsquo;s destruction model is essentially a simplified finite element analysis.</p>
+
+    <h2>Classification</h2>
+    <p><strong>Series:</strong> FGT &mdash; Fighter / Combat. Rampage is classified as a fighter because the core mechanic is direct physical combat with the environment and military enemies, not maze navigation or puzzle solving. The monster&rsquo;s punching, climbing, and eating actions are all combat verbs.</p>
+    <p><strong>Related prototypes:</strong> FGT-001 (Joust) shares the height-advantage combat mechanic. SHT-002 (Berzerk) shares the military-vs-player dynamic but from opposite perspective.</p>
+
+    <h2>Prototype Notes</h2>
+    <p>This prototype focuses on the core destruction loop: punch buildings, eat people, dodge military. Buildings use a tile grid with per-section hit points and collapse physics. The military escalation is simplified to periodic spawns with increasing frequency. Single monster (George) for clarity.</p>
+    <p>Intentional simplifications: no 3-player mode, no between-level map, no bonus rounds. The prototype isolates the essential risk-reward loop of climbing (expose yourself to military fire to reach food) versus ground-level punching (safer but no healing).</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// --- CONSTANTS ---
+const GROUND_Y = 540;
+const TILE_W = 32;
+const TILE_H = 32;
+const GRAVITY = 0.5;
+const MONSTER_W = 48;
+const MONSTER_H = 56;
+const PUNCH_RANGE = 30;
+const PUNCH_COOLDOWN = 15;
+const EAT_COOLDOWN = 20;
+const MAX_HEALTH = 100;
+
+// --- GAME STATE ---
+let state, score, city, player, buildings, people, military, particles, bullets;
+let keys = {};
+let shakeTimer = 0;
+let shakeIntensity = 0;
+
+// --- BUILDING GENERATION ---
+function createBuilding(x, floors, colorBase) {
+  const tiles = [];
+  const w = 3; // 3 tiles wide
+  for (let row = 0; row < floors; row++) {
+    for (let col = 0; col < w; col++) {
+      tiles.push({
+        col, row,
+        x: x + col * TILE_W,
+        y: GROUND_Y - (row + 1) * TILE_H,
+        hp: 3,
+        maxHp: 3,
+        alive: true,
+        hasWindow: col === 0 || col === 2, // windows on sides
+        hasPerson: false,
+      });
+    }
+  }
+  // Place people in some windows
+  const windowTiles = tiles.filter(t => t.hasWindow && t.row > 0 && t.row < floors - 1);
+  const numPeople = Math.min(3, Math.floor(windowTiles.length * 0.4));
+  for (let i = 0; i < numPeople; i++) {
+    const idx = Math.floor(Math.random() * windowTiles.length);
+    windowTiles[idx].hasPerson = true;
+    windowTiles.splice(idx, 1);
+  }
+  return {
+    x, w: w * TILE_W, floors, tiles, colorBase,
+    destroyed: false,
+  };
+}
+
+function generateCity(level) {
+  buildings = [];
+  const configs = [
+    { x: 40, floors: 6 + Math.floor(Math.random() * 3) },
+    { x: 200, floors: 7 + Math.floor(Math.random() * 3) },
+    { x: 400, floors: 8 + Math.floor(Math.random() * 2) },
+    { x: 600, floors: 6 + Math.floor(Math.random() * 4) },
+  ];
+  const colors = ['#886644', '#668844', '#446688', '#886666'];
+  configs.forEach((c, i) => {
+    buildings.push(createBuilding(c.x, Math.min(c.floors + Math.floor(level / 2), 14), colors[i % colors.length]));
+  });
+}
+
+// --- PLAYER ---
+function initPlayer() {
+  return {
+    x: 380, y: GROUND_Y - MONSTER_H,
+    vx: 0, vy: 0,
+    w: MONSTER_W, h: MONSTER_H,
+    health: MAX_HEALTH,
+    facing: 1,
+    climbing: false,
+    climbBuilding: null,
+    climbCol: 0,
+    punchTimer: 0,
+    punchAnim: 0,
+    eatTimer: 0,
+    eatAnim: 0,
+    invincible: 0,
+    onGround: false,
+    hurtFlash: 0,
+  };
+}
+
+// --- MILITARY ---
+function spawnHelicopter() {
+  const fromLeft = Math.random() < 0.5;
+  military.push({
+    type: 'heli',
+    x: fromLeft ? -60 : W + 60,
+    y: 60 + Math.random() * 120,
+    vx: fromLeft ? 1.5 : -1.5,
+    hp: 2,
+    shootTimer: 60 + Math.floor(Math.random() * 60),
+    w: 50, h: 24,
+    alive: true,
+  });
+}
+
+function spawnTank() {
+  const fromLeft = Math.random() < 0.5;
+  military.push({
+    type: 'tank',
+    x: fromLeft ? -40 : W + 40,
+    y: GROUND_Y - 20,
+    vx: fromLeft ? 1.0 : -1.0,
+    hp: 3,
+    shootTimer: 80 + Math.floor(Math.random() * 40),
+    w: 44, h: 22,
+    alive: true,
+  });
+}
+
+function spawnSoldier() {
+  const fromLeft = Math.random() < 0.5;
+  military.push({
+    type: 'soldier',
+    x: fromLeft ? -10 : W + 10,
+    y: GROUND_Y - 14,
+    vx: fromLeft ? 0.7 : -0.7,
+    hp: 1,
+    shootTimer: 40 + Math.floor(Math.random() * 60),
+    w: 12, h: 16,
+    alive: true,
+  });
+}
+
+// --- PARTICLES ---
+function spawnParticles(x, y, color, count, spread) {
+  spread = spread || 4;
+  for (let i = 0; i < count; i++) {
+    particles.push({
+      x: x + (Math.random() - 0.5) * 10,
+      y: y + (Math.random() - 0.5) * 10,
+      vx: (Math.random() - 0.5) * spread * 2,
+      vy: (Math.random() - 0.5) * spread * 2 - 2,
+      life: 20 + Math.random() * 25,
+      color,
+      size: 2 + Math.random() * 3,
+    });
+  }
+}
+
+function spawnDebris(x, y) {
+  const colors = ['#aa8866', '#887755', '#665544', '#998877'];
+  for (let i = 0; i < 8; i++) {
+    particles.push({
+      x: x + Math.random() * TILE_W,
+      y: y + Math.random() * TILE_H,
+      vx: (Math.random() - 0.5) * 6,
+      vy: -Math.random() * 5 - 1,
+      life: 30 + Math.random() * 30,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      size: 3 + Math.random() * 4,
+      gravity: true,
+    });
+  }
+}
+
+// --- SCREEN SHAKE ---
+function triggerShake(intensity, duration) {
+  shakeIntensity = intensity;
+  shakeTimer = duration;
+}
+
+// --- INIT ---
+function initGame() {
+  player = initPlayer();
+  buildings = [];
+  people = [];
+  military = [];
+  particles = [];
+  bullets = [];
+  score = 0;
+  city = 1;
+  state = 'title';
+}
+
+function startCity() {
+  generateCity(city);
+  military = [];
+  bullets = [];
+  particles = [];
+  player.x = 380;
+  player.y = GROUND_Y - MONSTER_H;
+  player.vx = 0;
+  player.vy = 0;
+  player.climbing = false;
+  player.climbBuilding = null;
+  player.invincible = 60;
+  state = 'play';
+}
+
+// --- HELPERS ---
+function rectsOverlap(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x &&
+         a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+function getTileAt(bld, col, row) {
+  return bld.tiles.find(t => t.col === col && t.row === row && t.alive);
+}
+
+function getHighestAliveRow(bld, col) {
+  let highest = -1;
+  for (const t of bld.tiles) {
+    if (t.col === col && t.alive && t.row > highest) highest = t.row;
+  }
+  return highest;
+}
+
+function isBuildingDestroyed(bld) {
+  return !bld.tiles.some(t => t.alive);
+}
+
+function damagePlayerHit(amount) {
+  if (player.invincible > 0) return;
+  player.health -= amount;
+  player.hurtFlash = 10;
+  player.invincible = 20;
+  if (player.health <= 0) {
+    player.health = 0;
+    state = 'gameover';
+    spawnParticles(player.x + player.w / 2, player.y + player.h / 2, '#ff0', 20, 6);
+  }
+}
+
+// --- MILITARY SPAWN TIMER ---
+let militaryTimer = 0;
+function getMilitaryInterval() {
+  return Math.max(80, 300 - city * 30);
+}
+
+// --- UPDATE ---
+function update() {
+  if (infoOpen) return;
+  if (state !== 'play') return;
+
+  // --- Shake ---
+  if (shakeTimer > 0) shakeTimer--;
+
+  // --- Military spawn ---
+  militaryTimer++;
+  if (militaryTimer >= getMilitaryInterval()) {
+    militaryTimer = 0;
+    const r = Math.random();
+    if (r < 0.35) spawnHelicopter();
+    else if (r < 0.65) spawnTank();
+    else spawnSoldier();
+  }
+
+  // --- Player timers ---
+  player.punchTimer = Math.max(0, player.punchTimer - 1);
+  player.punchAnim = Math.max(0, player.punchAnim - 1);
+  player.eatTimer = Math.max(0, player.eatTimer - 1);
+  player.eatAnim = Math.max(0, player.eatAnim - 1);
+  player.invincible = Math.max(0, player.invincible - 1);
+  player.hurtFlash = Math.max(0, player.hurtFlash - 1);
+
+  // --- Player movement ---
+  if (player.climbing) {
+    // Climbing mode
+    const bld = player.climbBuilding;
+    if (!bld || isBuildingDestroyed(bld)) {
+      // Building gone, fall
+      player.climbing = false;
+      player.climbBuilding = null;
+      player.vy = 0;
+    } else {
+      player.vx = 0;
+      player.vy = 0;
+
+      // Climb up
+      if (keys['ArrowUp']) {
+        const nextRow = getHighestAliveRow(bld, player.climbCol);
+        const targetY = GROUND_Y - (nextRow + 1) * TILE_H;
+        if (player.y > targetY) {
+          player.y -= 2.5;
+        }
+      }
+      // Climb down
+      if (keys['ArrowDown']) {
+        player.y += 2.5;
+        if (player.y >= GROUND_Y - player.h) {
+          player.y = GROUND_Y - player.h;
+          player.climbing = false;
+          player.climbBuilding = null;
+        }
+      }
+
+      // Check if current position tile is destroyed - detach
+      const monsterRow = Math.floor((GROUND_Y - player.y - player.h / 2) / TILE_H);
+      const tile = getTileAt(bld, player.climbCol, monsterRow);
+      const tileBelow = getTileAt(bld, player.climbCol, monsterRow - 1);
+      if (!tile && !tileBelow && monsterRow > 0) {
+        player.climbing = false;
+        player.climbBuilding = null;
+        player.vy = 0;
+      }
+
+      // Clamp to building
+      const highestRow = getHighestAliveRow(bld, player.climbCol);
+      if (highestRow >= 0) {
+        const topY = GROUND_Y - (highestRow + 1) * TILE_H - player.h / 2;
+        if (player.y < topY) player.y = topY;
+      }
+    }
+  } else {
+    // Ground / air movement
+    if (keys['ArrowLeft']) {
+      player.vx = -3;
+      player.facing = -1;
+    } else if (keys['ArrowRight']) {
+      player.vx = 3;
+      player.facing = 1;
+    } else {
+      player.vx *= 0.7;
+      if (Math.abs(player.vx) < 0.2) player.vx = 0;
+    }
+
+    // Gravity
+    player.vy += GRAVITY;
+    if (player.vy > 10) player.vy = 10;
+
+    player.x += player.vx;
+    player.y += player.vy;
+
+    // Ground collision
+    player.onGround = false;
+    if (player.y >= GROUND_Y - player.h) {
+      player.y = GROUND_Y - player.h;
+      player.vy = 0;
+      player.onGround = true;
+    }
+
+    // Clamp to screen
+    if (player.x < 0) player.x = 0;
+    if (player.x + player.w > W) player.x = W - player.w;
+
+    // Try to climb building (press Up near one)
+    if (keys['ArrowUp'] && player.onGround) {
+      for (const bld of buildings) {
+        if (isBuildingDestroyed(bld)) continue;
+        // Check overlap with building
+        const px = player.x + player.w / 2;
+        if (px >= bld.x - 10 && px <= bld.x + bld.w + 10) {
+          player.climbing = true;
+          player.climbBuilding = bld;
+          // Determine which column to climb (left or right side)
+          if (px < bld.x + bld.w / 2) {
+            player.climbCol = 0;
+            player.x = bld.x - player.w / 2 + 8;
+          } else {
+            player.climbCol = 2;
+            player.x = bld.x + bld.w - player.w / 2 - 8;
+          }
+          player.facing = player.climbCol === 0 ? 1 : -1;
+          player.vy = 0;
+          break;
+        }
+      }
+      // Jump if not climbing
+      if (!player.climbing && player.onGround) {
+        player.vy = -8;
+        player.onGround = false;
+      }
+    }
+  }
+
+  // --- Punch ---
+  if (keys['z'] || keys['Z']) {
+    if (player.punchTimer <= 0) {
+      player.punchTimer = PUNCH_COOLDOWN;
+      player.punchAnim = 10;
+
+      // Calculate punch hitbox
+      const punchX = player.facing > 0 ? player.x + player.w : player.x - PUNCH_RANGE;
+      const punchY = player.y + 10;
+      const punchRect = { x: punchX, y: punchY, w: PUNCH_RANGE, h: player.h - 20 };
+
+      // Damage building tiles
+      for (const bld of buildings) {
+        for (const tile of bld.tiles) {
+          if (!tile.alive) continue;
+          const tileRect = { x: tile.x, y: tile.y, w: TILE_W, h: TILE_H };
+          if (rectsOverlap(punchRect, tileRect)) {
+            tile.hp--;
+            spawnParticles(tile.x + TILE_W / 2, tile.y + TILE_H / 2, '#cc9966', 4, 3);
+            triggerShake(2, 5);
+            if (tile.hp <= 0) {
+              tile.alive = false;
+              score += 10;
+              spawnDebris(tile.x, tile.y);
+              triggerShake(4, 8);
+
+              // Person in window killed
+              if (tile.hasPerson) {
+                tile.hasPerson = false;
+                score += 25;
+                spawnParticles(tile.x + TILE_W / 2, tile.y + TILE_H / 2, '#f44', 6, 3);
+              }
+
+              // Check collapse: if a tile has no support below, destroy it
+              collapseCheck(bld);
+            }
+          }
+        }
+        bld.destroyed = isBuildingDestroyed(bld);
+      }
+
+      // Damage military
+      for (const m of military) {
+        if (!m.alive) continue;
+        const mRect = { x: m.x, y: m.y, w: m.w, h: m.h };
+        if (rectsOverlap(punchRect, mRect)) {
+          m.hp--;
+          spawnParticles(m.x + m.w / 2, m.y + m.h / 2, '#ff8800', 6, 4);
+          if (m.hp <= 0) {
+            m.alive = false;
+            score += m.type === 'heli' ? 100 : m.type === 'tank' ? 75 : 50;
+            spawnParticles(m.x + m.w / 2, m.y + m.h / 2, '#ff4400', 12, 5);
+          }
+        }
+      }
+    }
+  }
+
+  // --- Eat person ---
+  if (keys['x'] || keys['X']) {
+    if (player.eatTimer <= 0 && player.climbing && player.climbBuilding) {
+      const bld = player.climbBuilding;
+      const monsterRow = Math.floor((GROUND_Y - player.y - player.h / 2) / TILE_H);
+      // Check adjacent tiles for people
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = 0; dc < 3; dc++) {
+          const tile = getTileAt(bld, dc, monsterRow + dr);
+          if (tile && tile.hasPerson) {
+            tile.hasPerson = false;
+            player.health = Math.min(MAX_HEALTH, player.health + 15);
+            player.eatTimer = EAT_COOLDOWN;
+            player.eatAnim = 15;
+            score += 50;
+            spawnParticles(tile.x + TILE_W / 2, tile.y + TILE_H / 2, '#4f4', 8, 3);
+            break;
+          }
+        }
+        if (player.eatAnim > 0) break;
+      }
+    }
+  }
+
+  // --- Building collapse logic is in collapseCheck ---
+
+  // --- Military update ---
+  for (const m of military) {
+    if (!m.alive) continue;
+
+    m.x += m.vx;
+
+    // Remove if off screen
+    if (m.x < -100 || m.x > W + 100) {
+      m.alive = false;
+      continue;
+    }
+
+    // Shooting
+    m.shootTimer--;
+    if (m.shootTimer <= 0) {
+      // Fire at player
+      const dx = player.x + player.w / 2 - (m.x + m.w / 2);
+      const dy = player.y + player.h / 2 - (m.y + m.h / 2);
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > 0 && dist < 500) {
+        const speed = m.type === 'heli' ? 4 : m.type === 'tank' ? 5 : 3;
+        bullets.push({
+          x: m.x + m.w / 2,
+          y: m.y + m.h / 2,
+          vx: (dx / dist) * speed,
+          vy: (dy / dist) * speed,
+          life: 120,
+          type: m.type,
+        });
+      }
+      m.shootTimer = m.type === 'heli' ? 50 + Math.floor(Math.random() * 40) :
+                     m.type === 'tank' ? 70 + Math.floor(Math.random() * 40) :
+                     30 + Math.floor(Math.random() * 40);
+    }
+
+    // Tank/soldier collision with player
+    if (m.type !== 'heli') {
+      const mRect = { x: m.x, y: m.y, w: m.w, h: m.h };
+      const pRect = { x: player.x, y: player.y, w: player.w, h: player.h };
+      if (rectsOverlap(mRect, pRect) && player.onGround) {
+        // Monster stomps ground units
+        m.alive = false;
+        score += m.type === 'tank' ? 75 : 50;
+        spawnParticles(m.x + m.w / 2, m.y + m.h / 2, '#ff4400', 10, 4);
+      }
+    }
+  }
+
+  // --- Bullets update ---
+  for (let i = bullets.length - 1; i >= 0; i--) {
+    const b = bullets[i];
+    b.x += b.vx;
+    b.y += b.vy;
+    b.life--;
+
+    if (b.life <= 0 || b.x < -10 || b.x > W + 10 || b.y < -10 || b.y > H + 10) {
+      bullets.splice(i, 1);
+      continue;
+    }
+
+    // Hit player
+    const bRect = { x: b.x - 3, y: b.y - 3, w: 6, h: 6 };
+    const pRect = { x: player.x + 5, y: player.y + 5, w: player.w - 10, h: player.h - 10 };
+    if (rectsOverlap(bRect, pRect)) {
+      const dmg = b.type === 'tank' ? 8 : b.type === 'heli' ? 6 : 4;
+      damagePlayerHit(dmg);
+      spawnParticles(b.x, b.y, '#ff0', 4, 2);
+      bullets.splice(i, 1);
+    }
+  }
+
+  // --- Particles ---
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    if (p.gravity) p.vy += 0.2;
+    else p.vy += 0.05;
+    p.vx *= 0.98;
+    p.life--;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+
+  // --- Check win condition ---
+  if (buildings.every(b => b.destroyed || isBuildingDestroyed(b))) {
+    city++;
+    score += city * 500;
+    startCity();
+  }
+
+  // --- Repopulate people in windows occasionally ---
+  if (Math.random() < 0.003) {
+    for (const bld of buildings) {
+      if (isBuildingDestroyed(bld)) continue;
+      const windowTiles = bld.tiles.filter(t => t.alive && t.hasWindow && !t.hasPerson && t.row > 0);
+      if (windowTiles.length > 0) {
+        windowTiles[Math.floor(Math.random() * windowTiles.length)].hasPerson = true;
+        break;
+      }
+    }
+  }
+}
+
+// --- COLLAPSE CHECK ---
+function collapseCheck(bld) {
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const tile of bld.tiles) {
+      if (!tile.alive) continue;
+      if (tile.row === 0) continue; // ground floor has support
+      // Check if any tile below supports this one
+      const below = getTileAt(bld, tile.col, tile.row - 1);
+      if (!below) {
+        // No support, collapse
+        tile.alive = false;
+        changed = true;
+        score += 5;
+        spawnDebris(tile.x, tile.y);
+        if (tile.hasPerson) {
+          tile.hasPerson = false;
+          score += 25;
+        }
+      }
+    }
+  }
+
+  // Check if player is climbing a section that collapsed
+  if (player.climbing && player.climbBuilding === bld) {
+    const monsterRow = Math.floor((GROUND_Y - player.y - player.h / 2) / TILE_H);
+    const tile = getTileAt(bld, player.climbCol, monsterRow);
+    const tileBelow = getTileAt(bld, player.climbCol, monsterRow - 1);
+    if (!tile && !tileBelow) {
+      player.climbing = false;
+      player.climbBuilding = null;
+      player.vy = 0;
+      damagePlayerHit(5); // fall damage
+    }
+  }
+}
+
+// --- DRAW ---
+function draw() {
+  ctx.save();
+
+  // Screen shake
+  if (shakeTimer > 0) {
+    const sx = (Math.random() - 0.5) * shakeIntensity * 2;
+    const sy = (Math.random() - 0.5) * shakeIntensity * 2;
+    ctx.translate(sx, sy);
+  }
+
+  // Sky gradient
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, H);
+  skyGrad.addColorStop(0, '#0a0a2e');
+  skyGrad.addColorStop(0.6, '#1a1a4e');
+  skyGrad.addColorStop(1, '#2a1a3e');
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Stars
+  ctx.fillStyle = '#fff';
+  for (let i = 0; i < 30; i++) {
+    const sx = ((i * 137 + 53) % W);
+    const sy = ((i * 89 + 17) % (GROUND_Y - 100));
+    const sz = (i % 3 === 0) ? 2 : 1;
+    ctx.globalAlpha = 0.3 + (i % 5) * 0.15;
+    ctx.fillRect(sx, sy, sz, sz);
+  }
+  ctx.globalAlpha = 1;
+
+  // Moon
+  ctx.fillStyle = '#dde';
+  ctx.beginPath();
+  ctx.arc(680, 60, 25, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#bbc';
+  ctx.beginPath();
+  ctx.arc(673, 55, 6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(688, 68, 4, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Ground
+  ctx.fillStyle = '#333';
+  ctx.fillRect(0, GROUND_Y, W, H - GROUND_Y);
+  ctx.fillStyle = '#444';
+  ctx.fillRect(0, GROUND_Y, W, 3);
+  // Road markings
+  ctx.fillStyle = '#555';
+  for (let i = 0; i < W; i += 40) {
+    ctx.fillRect(i, GROUND_Y + 20, 20, 3);
+  }
+
+  if (state === 'title') {
+    drawTitle();
+    ctx.restore();
+    return;
+  }
+
+  // Buildings
+  for (const bld of buildings) {
+    drawBuilding(bld);
+  }
+
+  // People falling (none in this simplified version - they're window-based)
+
+  // Military
+  for (const m of military) {
+    if (!m.alive) continue;
+    drawMilitary(m);
+  }
+
+  // Bullets
+  for (const b of bullets) {
+    ctx.fillStyle = b.type === 'tank' ? '#ff4' : '#f80';
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, b.type === 'tank' ? 4 : 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Player (monster)
+  drawMonster();
+
+  // Particles
+  for (const p of particles) {
+    ctx.globalAlpha = Math.min(1, p.life / 15);
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+  }
+  ctx.globalAlpha = 1;
+
+  // HUD
+  drawHUD();
+
+  // Game over
+  if (state === 'gameover') {
+    drawGameOver();
+  }
+
+  ctx.restore();
+}
+
+function drawTitle() {
+  // Title
+  ctx.fillStyle = '#f44';
+  ctx.font = 'bold 54px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('MONSTER SMASH', W / 2, 180);
+
+  // Subtitle
+  ctx.fillStyle = '#f90';
+  ctx.font = '18px monospace';
+  ctx.fillText('Destroy the city. Eat the people.', W / 2, 225);
+  ctx.fillText('Dodge the military.', W / 2, 250);
+
+  // Monster preview
+  drawMonsterPreview(W / 2, 350);
+
+  // Controls
+  ctx.fillStyle = '#aaa';
+  ctx.font = '15px monospace';
+  ctx.fillText('ARROWS move/climb | Z punch | X eat | R restart', W / 2, 440);
+  ctx.fillStyle = '#fff';
+  ctx.font = '18px monospace';
+  ctx.fillText('Press Z to start', W / 2, 480);
+
+  // Badge
+  ctx.fillStyle = '#666';
+  ctx.font = '14px monospace';
+  ctx.fillText('FGT-003 \u00b7 MONSTER SMASH  [?]', W / 2, 560);
+}
+
+function drawMonsterPreview(cx, cy) {
+  // Simple pixel-art George (ape)
+  ctx.fillStyle = '#884422';
+  // Body
+  ctx.fillRect(cx - 20, cy - 20, 40, 44);
+  // Head
+  ctx.fillRect(cx - 14, cy - 38, 28, 22);
+  // Eyes
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(cx - 8, cy - 32, 7, 7);
+  ctx.fillRect(cx + 1, cy - 32, 7, 7);
+  ctx.fillStyle = '#f00';
+  ctx.fillRect(cx - 5, cy - 30, 3, 4);
+  ctx.fillRect(cx + 4, cy - 30, 3, 4);
+  // Mouth
+  ctx.fillStyle = '#c33';
+  ctx.fillRect(cx - 8, cy - 22, 16, 5);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(cx - 6, cy - 22, 3, 3);
+  ctx.fillRect(cx + 3, cy - 22, 3, 3);
+  // Arms
+  ctx.fillStyle = '#884422';
+  ctx.fillRect(cx - 30, cy - 12, 12, 28);
+  ctx.fillRect(cx + 18, cy - 12, 12, 28);
+  // Hands
+  ctx.fillStyle = '#aa6644';
+  ctx.fillRect(cx - 30, cy + 12, 12, 8);
+  ctx.fillRect(cx + 18, cy + 12, 12, 8);
+  // Feet
+  ctx.fillRect(cx - 16, cy + 22, 14, 8);
+  ctx.fillRect(cx + 2, cy + 22, 14, 8);
+  // Belly
+  ctx.fillStyle = '#aa7744';
+  ctx.fillRect(cx - 12, cy - 4, 24, 20);
+}
+
+function drawBuilding(bld) {
+  for (const tile of bld.tiles) {
+    if (!tile.alive) continue;
+
+    // Damage coloring
+    const dmgRatio = tile.hp / tile.maxHp;
+    const r = parseInt(bld.colorBase.slice(1, 3), 16);
+    const g = parseInt(bld.colorBase.slice(3, 5), 16);
+    const b = parseInt(bld.colorBase.slice(5, 7), 16);
+    ctx.fillStyle = `rgb(${Math.floor(r * dmgRatio)},${Math.floor(g * dmgRatio)},${Math.floor(b * dmgRatio)})`;
+    ctx.fillRect(tile.x, tile.y, TILE_W, TILE_H);
+
+    // Edges
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillRect(tile.x, tile.y, TILE_W, 1);
+    ctx.fillRect(tile.x, tile.y, 1, TILE_H);
+
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    ctx.fillRect(tile.x + TILE_W - 1, tile.y, 1, TILE_H);
+    ctx.fillRect(tile.x, tile.y + TILE_H - 1, TILE_W, 1);
+
+    // Window
+    if (tile.hasWindow) {
+      const wx = tile.col === 0 ? tile.x + 4 : tile.x + TILE_W - 14;
+      const wy = tile.y + 6;
+      // Window frame
+      ctx.fillStyle = '#223';
+      ctx.fillRect(wx, wy, 10, 14);
+      // Window glass
+      ctx.fillStyle = tile.hasPerson ? '#ffee55' : '#334';
+      ctx.fillRect(wx + 1, wy + 1, 8, 12);
+
+      // Person in window
+      if (tile.hasPerson) {
+        ctx.fillStyle = '#fca';
+        ctx.fillRect(wx + 3, wy + 3, 4, 4); // head
+        ctx.fillStyle = '#c44';
+        ctx.fillRect(wx + 2, wy + 7, 6, 5); // body
+      }
+    }
+
+    // Center tiles get a door on ground floor
+    if (tile.row === 0 && tile.col === 1) {
+      ctx.fillStyle = '#442';
+      ctx.fillRect(tile.x + 8, tile.y + 6, 16, TILE_H - 6);
+      ctx.fillStyle = '#663';
+      ctx.fillRect(tile.x + 9, tile.y + 7, 14, TILE_H - 8);
+      // Doorknob
+      ctx.fillStyle = '#ff0';
+      ctx.fillRect(tile.x + 20, tile.y + 18, 2, 2);
+    }
+
+    // Damage cracks
+    if (dmgRatio < 1) {
+      ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      if (dmgRatio <= 0.66) {
+        ctx.moveTo(tile.x + 5, tile.y + 2);
+        ctx.lineTo(tile.x + 16, tile.y + 15);
+        ctx.lineTo(tile.x + 10, tile.y + 28);
+      }
+      if (dmgRatio <= 0.33) {
+        ctx.moveTo(tile.x + 25, tile.y + 5);
+        ctx.lineTo(tile.x + 18, tile.y + 20);
+        ctx.lineTo(tile.x + 28, tile.y + 30);
+      }
+      ctx.stroke();
+    }
+  }
+}
+
+function drawMonster() {
+  const p = player;
+  const cx = p.x + p.w / 2;
+  const cy = p.y + p.h / 2;
+  const f = p.facing;
+
+  // Hurt flash
+  if (p.hurtFlash > 0 && p.hurtFlash % 4 < 2) {
+    ctx.globalAlpha = 0.5;
+  }
+  // Invincibility flash
+  if (p.invincible > 0 && Math.floor(p.invincible / 3) % 2) {
+    ctx.globalAlpha = 0.4;
+  }
+
+  // George the ape - pixel art style
+
+  // Body
+  ctx.fillStyle = '#774422';
+  ctx.fillRect(p.x + 8, p.y + 16, 32, 32);
+
+  // Belly
+  ctx.fillStyle = '#996644';
+  ctx.fillRect(p.x + 14, p.y + 24, 20, 18);
+
+  // Head
+  ctx.fillStyle = '#774422';
+  ctx.fillRect(p.x + 10, p.y, 28, 20);
+
+  // Face
+  ctx.fillStyle = '#996644';
+  ctx.fillRect(p.x + 14, p.y + 4, 20, 14);
+
+  // Eyes
+  ctx.fillStyle = '#fff';
+  if (f > 0) {
+    ctx.fillRect(p.x + 18, p.y + 6, 6, 6);
+    ctx.fillRect(p.x + 28, p.y + 6, 6, 6);
+    ctx.fillStyle = '#f00';
+    ctx.fillRect(p.x + 21, p.y + 8, 3, 3);
+    ctx.fillRect(p.x + 31, p.y + 8, 3, 3);
+  } else {
+    ctx.fillRect(p.x + 14, p.y + 6, 6, 6);
+    ctx.fillRect(p.x + 24, p.y + 6, 6, 6);
+    ctx.fillStyle = '#f00';
+    ctx.fillRect(p.x + 14, p.y + 8, 3, 3);
+    ctx.fillRect(p.x + 24, p.y + 8, 3, 3);
+  }
+
+  // Mouth
+  if (p.eatAnim > 0) {
+    // Eating animation - open mouth
+    ctx.fillStyle = '#c22';
+    ctx.fillRect(p.x + 16, p.y + 14, 16, 6);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(p.x + 17, p.y + 14, 3, 2);
+    ctx.fillRect(p.x + 28, p.y + 14, 3, 2);
+    ctx.fillRect(p.x + 17, p.y + 18, 3, 2);
+    ctx.fillRect(p.x + 28, p.y + 18, 3, 2);
+  } else {
+    ctx.fillStyle = '#933';
+    ctx.fillRect(p.x + 18, p.y + 14, 12, 3);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(p.x + 19, p.y + 14, 3, 2);
+    ctx.fillRect(p.x + 26, p.y + 14, 3, 2);
+  }
+
+  // Arms
+  ctx.fillStyle = '#774422';
+  if (p.punchAnim > 0) {
+    // Punching animation
+    if (f > 0) {
+      // Right arm extended
+      ctx.fillRect(p.x + 36, p.y + 18, 20, 10);
+      // Fist
+      ctx.fillStyle = '#996644';
+      ctx.fillRect(p.x + 52, p.y + 16, 10, 14);
+      // Left arm normal
+      ctx.fillStyle = '#774422';
+      ctx.fillRect(p.x - 4, p.y + 20, 14, 10);
+    } else {
+      // Left arm extended
+      ctx.fillRect(p.x - 8, p.y + 18, 20, 10);
+      ctx.fillStyle = '#996644';
+      ctx.fillRect(p.x - 14, p.y + 16, 10, 14);
+      // Right arm normal
+      ctx.fillStyle = '#774422';
+      ctx.fillRect(p.x + 38, p.y + 20, 14, 10);
+    }
+  } else if (p.climbing) {
+    // Climbing arms
+    ctx.fillRect(p.x - 6, p.y + 18, 16, 10);
+    ctx.fillRect(p.x + 38, p.y + 18, 16, 10);
+    // Hands gripping
+    ctx.fillStyle = '#996644';
+    ctx.fillRect(p.x - 8, p.y + 16, 6, 14);
+    ctx.fillRect(p.x + 50, p.y + 16, 6, 14);
+  } else {
+    // Normal arms
+    ctx.fillRect(p.x - 2, p.y + 20, 12, 20);
+    ctx.fillRect(p.x + 38, p.y + 20, 12, 20);
+    // Hands
+    ctx.fillStyle = '#996644';
+    ctx.fillRect(p.x - 2, p.y + 36, 12, 6);
+    ctx.fillRect(p.x + 38, p.y + 36, 12, 6);
+  }
+
+  // Legs
+  ctx.fillStyle = '#774422';
+  if (p.climbing) {
+    ctx.fillRect(p.x + 10, p.y + 46, 12, 12);
+    ctx.fillRect(p.x + 26, p.y + 46, 12, 12);
+  } else {
+    ctx.fillRect(p.x + 10, p.y + 46, 12, 10);
+    ctx.fillRect(p.x + 26, p.y + 46, 12, 10);
+  }
+
+  // Feet
+  ctx.fillStyle = '#996644';
+  ctx.fillRect(p.x + 6, p.y + 52, 16, 4);
+  ctx.fillRect(p.x + 26, p.y + 52, 16, 4);
+
+  ctx.globalAlpha = 1;
+}
+
+function drawMilitary(m) {
+  if (m.type === 'heli') {
+    // Helicopter
+    ctx.fillStyle = '#556';
+    ctx.fillRect(m.x, m.y + 4, m.w, m.h - 4);
+    // Cockpit
+    ctx.fillStyle = '#8af';
+    ctx.fillRect(m.x + (m.vx > 0 ? m.w - 12 : 0), m.y + 6, 12, 10);
+    // Tail
+    ctx.fillStyle = '#445';
+    ctx.fillRect(m.x + (m.vx > 0 ? -10 : m.w), m.y + 8, 12, 6);
+    // Rotor
+    const rotorPhase = (Date.now() / 40) % 2;
+    ctx.fillStyle = '#999';
+    if (rotorPhase < 1) {
+      ctx.fillRect(m.x - 8, m.y, m.w + 16, 3);
+    } else {
+      ctx.fillRect(m.x + 10, m.y, m.w - 20, 3);
+    }
+    // Skids
+    ctx.fillStyle = '#444';
+    ctx.fillRect(m.x + 5, m.y + m.h, 10, 3);
+    ctx.fillRect(m.x + m.w - 15, m.y + m.h, 10, 3);
+  } else if (m.type === 'tank') {
+    // Tank body
+    ctx.fillStyle = '#454';
+    ctx.fillRect(m.x, m.y + 6, m.w, m.h - 6);
+    // Turret
+    ctx.fillStyle = '#565';
+    ctx.fillRect(m.x + 10, m.y, 24, 10);
+    // Barrel
+    const barrelDir = m.vx > 0 ? 1 : -1;
+    ctx.fillStyle = '#676';
+    ctx.fillRect(m.x + (barrelDir > 0 ? 34 : -8), m.y + 2, 12, 4);
+    // Treads
+    ctx.fillStyle = '#333';
+    ctx.fillRect(m.x - 2, m.y + m.h - 4, m.w + 4, 6);
+    // Tread detail
+    ctx.fillStyle = '#444';
+    for (let i = 0; i < 6; i++) {
+      ctx.fillRect(m.x + i * 8, m.y + m.h - 3, 4, 4);
+    }
+  } else {
+    // Soldier
+    // Head
+    ctx.fillStyle = '#fca';
+    ctx.fillRect(m.x + 2, m.y, 8, 6);
+    // Helmet
+    ctx.fillStyle = '#454';
+    ctx.fillRect(m.x + 1, m.y - 2, 10, 4);
+    // Body
+    ctx.fillStyle = '#464';
+    ctx.fillRect(m.x, m.y + 6, m.w, 8);
+    // Gun
+    ctx.fillStyle = '#555';
+    const gunDir = m.vx > 0 ? 1 : -1;
+    ctx.fillRect(m.x + (gunDir > 0 ? m.w : -6), m.y + 7, 6, 2);
+    // Legs
+    ctx.fillStyle = '#343';
+    ctx.fillRect(m.x + 1, m.y + 12, 4, 4);
+    ctx.fillRect(m.x + 7, m.y + 12, 4, 4);
+  }
+}
+
+function drawHUD() {
+  // Health bar background
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(10, 8, 204, 22);
+  // Health bar
+  const healthPct = player.health / MAX_HEALTH;
+  const hColor = healthPct > 0.5 ? '#4f4' : healthPct > 0.25 ? '#ff0' : '#f44';
+  ctx.fillStyle = hColor;
+  ctx.fillRect(12, 10, 200 * healthPct, 18);
+  // Health bar border
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(10, 8, 204, 22);
+
+  // Health text
+  ctx.fillStyle = '#fff';
+  ctx.font = '12px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('HP', 14, 23);
+
+  // Score
+  ctx.fillStyle = '#fff';
+  ctx.font = '16px monospace';
+  ctx.textAlign = 'right';
+  ctx.fillText('SCORE: ' + score, W - 15, 25);
+
+  // City
+  ctx.fillText('CITY: ' + city, W - 15, 45);
+
+  // Badge
+  ctx.fillStyle = '#888';
+  ctx.font = '12px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('FGT-003 \u00b7 MONSTER SMASH  [?]', W / 2, 18);
+
+  // Buildings remaining
+  const totalTiles = buildings.reduce((s, b) => s + b.tiles.length, 0);
+  const aliveTiles = buildings.reduce((s, b) => s + b.tiles.filter(t => t.alive).length, 0);
+  const bldPct = totalTiles > 0 ? aliveTiles / totalTiles : 0;
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(W / 2 - 102, 24, 204, 12);
+  ctx.fillStyle = '#f80';
+  ctx.fillRect(W / 2 - 100, 25, 200 * bldPct, 10);
+  ctx.strokeStyle = '#888';
+  ctx.strokeRect(W / 2 - 102, 24, 204, 12);
+  ctx.fillStyle = '#ccc';
+  ctx.font = '9px monospace';
+  ctx.fillText('BUILDINGS', W / 2, 34);
+}
+
+function drawGameOver() {
+  ctx.fillStyle = 'rgba(0,0,0,0.75)';
+  ctx.fillRect(0, 0, W, H);
+
+  // Monster shrinks back to human
+  ctx.fillStyle = '#fca';
+  ctx.fillRect(W / 2 - 6, 300, 12, 20);
+  ctx.fillRect(W / 2 - 4, 292, 8, 10);
+  // Covering self embarrassedly
+  ctx.fillStyle = '#c88';
+  ctx.fillRect(W / 2 - 8, 305, 16, 10);
+
+  ctx.fillStyle = '#f44';
+  ctx.font = 'bold 42px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('GAME OVER', W / 2, 260);
+
+  ctx.fillStyle = '#fff';
+  ctx.font = '18px monospace';
+  ctx.fillText('Score: ' + score + '  |  Cities: ' + city, W / 2, 355);
+
+  ctx.fillStyle = '#aaa';
+  ctx.font = '14px monospace';
+  ctx.fillText('George reverts to human form...', W / 2, 390);
+  ctx.fillStyle = '#ff0';
+  ctx.font = '16px monospace';
+  ctx.fillText('Press R to play again', W / 2, 430);
+}
+
+// --- INPUT ---
+document.addEventListener('keydown', e => {
+  keys[e.key] = true;
+
+  if (e.key === '?') { toggleInfo(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); return; }
+  if (e.key === 'r' || e.key === 'R') {
+    initGame();
+    startCity();
+    return;
+  }
+  if ((e.key === 'z' || e.key === 'Z') && state === 'title') {
+    startCity();
+    return;
+  }
+  // Prevent arrow key scrolling
+  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
+    e.preventDefault();
+  }
+});
+
+document.addEventListener('keyup', e => {
+  keys[e.key] = false;
+});
+
+// --- GAME LOOP ---
+initGame();
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

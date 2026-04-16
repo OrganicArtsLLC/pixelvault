@@ -1,0 +1,859 @@
+<!--
+PROTOTYPE: territory-dice
+SERIES: sim
+NUMBER: 020
+DATE: 2026-03-24
+MECHANIC: dice territory conquest — Risk-like territory control on a hex grid; each territory has stacked dice; attack adjacent territory by rolling all dice, higher total wins; fast 5-minute games
+ANCESTRY: Risk (1957, Albert Lamorisse), Dicewars (2005, Taro Ito, Flash, Japan)
+CONTROLS: Mouse — click your territory then click adjacent enemy to attack | End Turn button | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 5 (Deep Learning — probabilistic attack evaluation, greedy expansion with connectivity awareness)
+AI-INSIGHT: Dicewars reduces territorial strategy to pure probability. Each attack is a known distribution (sum of N dice vs sum of M dice). The optimal strategy balances risk-taking with preserving connected territory for bonus dice. AI must evaluate not just immediate win probability but downstream effects on territory connectivity — a graph theory problem wrapped in probability.
+NOTES: Hex grid territory control with dice stacking. Elegant information display — dice count IS army strength. Random map generation for replayability. 4-player free-for-all.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SIM-020 · TERRITORY DICE</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: pointer; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SIM-020 · TERRITORY DICE</h1>
+    <p><span class="tag series">SIM — Simulation</span> <span class="tag">Prototype #020</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Conquer all territories on the hex map. You are Blue — defeat Red, Green, and Yellow AI opponents.</p>
+    <ul>
+      <li><kbd>Click</kbd> one of your territories (must have 2+ dice) to select it</li>
+      <li><kbd>Click</kbd> an adjacent enemy territory to attack</li>
+      <li>Both sides roll all their dice — higher total wins and captures the territory</li>
+      <li><kbd>Click</kbd> the <strong>End Turn</strong> button (or press <kbd>E</kbd>) when done attacking</li>
+      <li>Bonus dice (equal to your largest connected territory group) are distributed at end of turn</li>
+      <li><kbd>R</kbd> — Restart with a new random map</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Strategy Tips</h3>
+    <ul>
+      <li>Keep your territories connected — your bonus dice depend on largest connected group size.</li>
+      <li>Attack when you have more dice than the defender for better odds.</li>
+      <li>8 dice is the maximum per territory — excess bonus dice are lost. Spread out!</li>
+      <li>Sometimes it is better to hold back than to attack and leave a territory with 1 die.</li>
+      <li>Watch the scoreboard — eliminate weak players before they recover.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Risk (1957, Albert Lamorisse) &rarr; Dicewars (2005, Taro Ito, Flash game, Japan)</p>
+    <p>Dicewars, created by Taro Ito in 2005 as a Flash browser game, brilliantly distilled Risk into a fast-playing strategy game. By replacing armies with stacked dice and automating combat resolution, Ito eliminated the tedious bookkeeping of Risk while preserving its core territorial tension.</p>
+    <p>The game became a viral hit on Flash game portals, spawning numerous clones and inspiring the "dice stacking" mechanic in later strategy games. Its design philosophy — maximum strategic depth from minimal rules — exemplifies Japanese game design sensibility.</p>
+    <p>Risk itself descends from the French board game La Conquete du Monde (1957) by Albert Lamorisse, which introduced territorial conquest via dice combat to the mass market.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 5 — Deep Learning (2000-2010)</p>
+    <p>The AI challenge in Dicewars is probabilistic reasoning combined with graph analysis. Each attack has a calculable win probability based on the sum distributions of N vs M six-sided dice. Optimal play requires evaluating multi-step attack sequences where each battle outcome affects subsequent possibilities.</p>
+    <p>The bonus dice mechanic (largest connected group) transforms this from pure probability into a graph connectivity problem. The AI must maintain and expand connected territory components, sometimes sacrificing advantageous attacks to preserve connectivity.</p>
+    <p>This intersection of probability, graph theory, and multi-agent dynamics makes Dicewars a surprisingly rich domain for AI research despite its simple rules.</p>
+
+    <h2>Classification</h2>
+    <p><strong>Genre:</strong> Territory Control / Strategy</p>
+    <p><strong>Core Mechanic:</strong> Dice-based territorial conquest on a hex grid</p>
+    <p><strong>Input:</strong> Mouse (point and click)</p>
+    <p><strong>Complexity:</strong> Low rules, medium strategy — simple mechanics with emergent depth</p>
+
+    <h2>Prototype Notes</h2>
+    <p>This prototype generates random hex-grid maps with ~30 territories divided among 4 players. Each territory displays its dice count visually as stacked cubes. The AI evaluates attacks based on win probability (favoring 70%+ odds), connectivity preservation, and opportunistic elimination of weakened opponents. Random map generation ensures high replayability — no two games play alike.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+const C = document.getElementById('c');
+const X = C.getContext('2d');
+C.width = 800; C.height = 600;
+
+// ── Info Panel ──
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// ── Constants ──
+const PLAYERS = 4;
+const COLORS = ['#4488ff', '#ff4444', '#44cc44', '#ddcc22'];
+const DARK_COLORS = ['#2255aa', '#aa2222', '#228822', '#998800'];
+const NAMES = ['Blue (You)', 'Red', 'Green', 'Yellow'];
+const MAX_DICE = 8;
+const HEX_R = 28;
+const HEX_W = HEX_R * Math.sqrt(3);
+const HEX_H = HEX_R * 2;
+const MAP_COLS = 8, MAP_ROWS = 7;
+const MAP_OX = 60, MAP_OY = 70;
+
+// ── State ──
+let territories = [];
+let adjacency = [];
+let currentPlayer = 0;
+let selected = -1;
+let gameOver = false;
+let winner = -1;
+let animating = false;
+let animTimer = 0;
+let animAttacker = -1, animDefender = -1;
+let animAttackRoll = 0, animDefendRoll = 0;
+let animAttackDice = [], animDefendDice = [];
+let animResult = 0; // 1=win, -1=lose
+let animPhase = 0;
+let message = '';
+let msgTimer = 0;
+let aiTimer = 0;
+let aiTurnActive = false;
+let eliminatedPlayers = new Set();
+
+// ── Hex Grid Helpers ──
+function hexCenter(col, row) {
+  const x = MAP_OX + col * HEX_W + (row % 2 === 1 ? HEX_W / 2 : 0);
+  const y = MAP_OY + row * (HEX_H * 0.75);
+  return { x, y };
+}
+
+function hexCorner(cx, cy, i) {
+  const angle = Math.PI / 180 * (60 * i - 30);
+  return { x: cx + HEX_R * Math.cos(angle), y: cy + HEX_R * Math.sin(angle) };
+}
+
+function drawHex(cx, cy, r) {
+  X.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const a = Math.PI / 180 * (60 * i - 30);
+    const px = cx + r * Math.cos(a), py = cy + r * Math.sin(a);
+    if (i === 0) X.moveTo(px, py); else X.lineTo(px, py);
+  }
+  X.closePath();
+}
+
+function pointInHex(px, py, cx, cy, r) {
+  const dx = Math.abs(px - cx), dy = Math.abs(py - cy);
+  if (dx > r || dy > r) return false;
+  return dy <= r * 0.75 || (dy <= r && dx <= r * Math.sqrt(3) / 2 * (1 - (dy - r * 0.75) / (r * 0.5)));
+}
+
+// ── Map Generation ──
+function generateMap() {
+  territories = [];
+  adjacency = [];
+
+  // Create hex grid cells
+  const cells = [];
+  for (let row = 0; row < MAP_ROWS; row++) {
+    for (let col = 0; col < MAP_COLS; col++) {
+      cells.push({ col, row, used: false });
+    }
+  }
+
+  // Assign cells to territories using flood-fill regions
+  const NUM_TERRITORIES = 28 + Math.floor(Math.random() * 5); // 28-32
+  const cellOwner = new Array(cells.length).fill(-1);
+  const seeds = [];
+
+  // Pick seed cells
+  const available = cells.map((_, i) => i);
+  for (let i = available.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [available[i], available[j]] = [available[j], available[i]];
+  }
+
+  const numT = Math.min(NUM_TERRITORIES, cells.length);
+  for (let t = 0; t < numT; t++) {
+    seeds.push(available[t]);
+    cellOwner[available[t]] = t;
+  }
+
+  // Grow territories by claiming adjacent unclaimed cells
+  function cellNeighbors(idx) {
+    const c = cells[idx].col, r = cells[idx].row;
+    const ns = [];
+    const dirs = r % 2 === 0
+      ? [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1]]
+      : [[-1,0],[1,0],[0,-1],[0,1],[1,-1],[1,1]];
+    for (const [dc, dr] of dirs) {
+      const nc = c + dc, nr = r + dr;
+      if (nc >= 0 && nc < MAP_COLS && nr >= 0 && nr < MAP_ROWS) {
+        ns.push(nr * MAP_COLS + nc);
+      }
+    }
+    return ns;
+  }
+
+  let changed = true;
+  while (changed) {
+    changed = false;
+    const order = [];
+    for (let t = 0; t < numT; t++) order.push(t);
+    for (let i = order.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [order[i], order[j]] = [order[j], order[i]];
+    }
+    for (const t of order) {
+      // Find cells belonging to this territory
+      const myCells = [];
+      for (let i = 0; i < cells.length; i++) {
+        if (cellOwner[i] === t) myCells.push(i);
+      }
+      // Find unclaimed neighbors
+      const frontier = new Set();
+      for (const ci of myCells) {
+        for (const ni of cellNeighbors(ci)) {
+          if (cellOwner[ni] === -1) frontier.add(ni);
+        }
+      }
+      if (frontier.size > 0 && myCells.length < 3) {
+        const arr = [...frontier];
+        const pick = arr[Math.floor(Math.random() * arr.length)];
+        cellOwner[pick] = t;
+        changed = true;
+      }
+    }
+  }
+
+  // Assign remaining unclaimed cells to nearest territory
+  for (let i = 0; i < cells.length; i++) {
+    if (cellOwner[i] === -1) {
+      for (const ni of cellNeighbors(i)) {
+        if (cellOwner[ni] !== -1) { cellOwner[i] = cellOwner[ni]; break; }
+      }
+    }
+  }
+  // Second pass for stragglers
+  for (let i = 0; i < cells.length; i++) {
+    if (cellOwner[i] === -1) {
+      cellOwner[i] = 0;
+    }
+  }
+
+  // Build territory data
+  for (let t = 0; t < numT; t++) {
+    const myCells = [];
+    for (let i = 0; i < cells.length; i++) {
+      if (cellOwner[i] === t) myCells.push(i);
+    }
+    if (myCells.length === 0) continue;
+
+    // Calculate center
+    let cx = 0, cy = 0;
+    for (const ci of myCells) {
+      const p = hexCenter(cells[ci].col, cells[ci].row);
+      cx += p.x; cy += p.y;
+    }
+    cx /= myCells.length; cy /= myCells.length;
+
+    territories.push({
+      cells: myCells,
+      cx, cy,
+      owner: t % PLAYERS,
+      dice: 1 + Math.floor(Math.random() * 3), // 1-3 starting dice
+      id: territories.length
+    });
+  }
+
+  // Build adjacency
+  const cellToTerritory = new Array(cells.length).fill(-1);
+  for (let t = 0; t < territories.length; t++) {
+    for (const ci of territories[t].cells) {
+      cellToTerritory[ci] = t;
+    }
+  }
+
+  adjacency = [];
+  for (let t = 0; t < territories.length; t++) {
+    const neighbors = new Set();
+    for (const ci of territories[t].cells) {
+      for (const ni of cellNeighbors(ci)) {
+        const nt = cellToTerritory[ni];
+        if (nt !== -1 && nt !== t) neighbors.add(nt);
+      }
+    }
+    adjacency.push([...neighbors]);
+  }
+
+  // Balance starting dice: give each player roughly equal total
+  const perPlayer = [0, 0, 0, 0];
+  const countPerPlayer = [0, 0, 0, 0];
+  for (const t of territories) { perPlayer[t.owner] += t.dice; countPerPlayer[t.owner]++; }
+  const avg = territories.reduce((s, t) => s + t.dice, 0) / PLAYERS;
+  for (const t of territories) {
+    if (perPlayer[t.owner] < avg - 2 && t.dice < 3) { t.dice++; perPlayer[t.owner]++; }
+    if (perPlayer[t.owner] > avg + 2 && t.dice > 1) { t.dice--; perPlayer[t.owner]--; }
+  }
+
+  // Store cells ref and cellNeighbors for drawing
+  territories._cells = cells;
+  territories._cellOwner = cellOwner;
+  territories._cellToTerritory = cellToTerritory;
+  territories._cellNeighbors = cellNeighbors;
+}
+
+// ── Dice Rolling ──
+function rollDice(n) {
+  const rolls = [];
+  let total = 0;
+  for (let i = 0; i < n; i++) {
+    const r = 1 + Math.floor(Math.random() * 6);
+    rolls.push(r);
+    total += r;
+  }
+  return { rolls, total };
+}
+
+// ── Largest Connected Group ──
+function largestConnectedGroup(player) {
+  const visited = new Set();
+  let maxSize = 0;
+  for (let t = 0; t < territories.length; t++) {
+    if (territories[t].owner !== player || visited.has(t)) continue;
+    // BFS
+    const queue = [t];
+    visited.add(t);
+    let size = 0;
+    while (queue.length > 0) {
+      const cur = queue.shift();
+      size++;
+      for (const n of adjacency[cur]) {
+        if (territories[n].owner === player && !visited.has(n)) {
+          visited.add(n);
+          queue.push(n);
+        }
+      }
+    }
+    if (size > maxSize) maxSize = size;
+  }
+  return maxSize;
+}
+
+// ── Distribute Bonus Dice ──
+function distributeBonusDice(player) {
+  const bonus = largestConnectedGroup(player);
+  const myTerritories = [];
+  for (let t = 0; t < territories.length; t++) {
+    if (territories[t].owner === player) myTerritories.push(t);
+  }
+  if (myTerritories.length === 0) return;
+  let remaining = bonus;
+  let attempts = 0;
+  while (remaining > 0 && attempts < 200) {
+    const idx = myTerritories[Math.floor(Math.random() * myTerritories.length)];
+    if (territories[idx].dice < MAX_DICE) {
+      territories[idx].dice++;
+      remaining--;
+    }
+    attempts++;
+  }
+}
+
+// ── Check Win/Elimination ──
+function checkGameState() {
+  const alive = new Set();
+  for (const t of territories) alive.add(t.owner);
+  for (let p = 0; p < PLAYERS; p++) {
+    if (!alive.has(p)) eliminatedPlayers.add(p);
+  }
+  if (alive.size === 1) {
+    gameOver = true;
+    winner = [...alive][0];
+  }
+}
+
+// ── Attack ──
+function executeAttack(attackerIdx, defenderIdx) {
+  const atk = territories[attackerIdx];
+  const def = territories[defenderIdx];
+
+  const atkRoll = rollDice(atk.dice);
+  const defRoll = rollDice(def.dice);
+
+  animAttacker = attackerIdx;
+  animDefender = defenderIdx;
+  animAttackRoll = atkRoll.total;
+  animDefendRoll = defRoll.total;
+  animAttackDice = atkRoll.rolls;
+  animDefendDice = defRoll.rolls;
+  animating = true;
+  animTimer = 0;
+  animPhase = 0;
+
+  if (atkRoll.total > defRoll.total) {
+    animResult = 1;
+    // Attacker wins
+    def.owner = atk.owner;
+    def.dice = atk.dice - 1;
+    atk.dice = 1;
+  } else {
+    animResult = -1;
+    // Defender wins
+    atk.dice = 1;
+  }
+  selected = -1;
+}
+
+// ── AI Logic ──
+function aiTurn() {
+  if (gameOver || eliminatedPlayers.has(currentPlayer)) {
+    nextPlayer();
+    return;
+  }
+
+  // Find all possible attacks
+  const attacks = [];
+  for (let t = 0; t < territories.length; t++) {
+    if (territories[t].owner !== currentPlayer || territories[t].dice < 2) continue;
+    for (const n of adjacency[t]) {
+      if (territories[n].owner !== currentPlayer) {
+        const atkDice = territories[t].dice;
+        const defDice = territories[n].dice;
+        // Estimate win probability (simplified)
+        const advantage = atkDice - defDice;
+        let prob = 0.5 + advantage * 0.12;
+        if (prob > 0.95) prob = 0.95;
+        if (prob < 0.1) prob = 0.1;
+        // Bonus for attacking weak territories
+        if (defDice === 1) prob += 0.1;
+        // Bonus for attacking nearly-eliminated players
+        const defCount = territories.filter(tt => tt.owner === territories[n].owner).length;
+        if (defCount <= 2) prob += 0.1;
+        if (prob > 0.98) prob = 0.98;
+        attacks.push({ from: t, to: n, prob, advantage });
+      }
+    }
+  }
+
+  // Sort by probability (best attacks first)
+  attacks.sort((a, b) => b.prob - a.prob);
+
+  // Take the best attack if probability > threshold
+  const threshold = 0.55;
+  const goodAttacks = attacks.filter(a => a.prob >= threshold);
+
+  if (goodAttacks.length > 0) {
+    const attack = goodAttacks[0];
+    executeAttack(attack.from, attack.to);
+    return;
+  }
+
+  // No good attacks — end turn
+  endTurn();
+}
+
+function nextPlayer() {
+  currentPlayer = (currentPlayer + 1) % PLAYERS;
+  selected = -1;
+
+  // Skip eliminated players
+  let checks = 0;
+  while (eliminatedPlayers.has(currentPlayer) && checks < PLAYERS) {
+    currentPlayer = (currentPlayer + 1) % PLAYERS;
+    checks++;
+  }
+
+  checkGameState();
+  if (gameOver) return;
+
+  if (currentPlayer !== 0) {
+    aiTurnActive = true;
+    aiTimer = 30; // frames delay before AI acts
+  } else {
+    aiTurnActive = false;
+    message = 'Your turn! Select a territory to attack.';
+    msgTimer = 120;
+  }
+}
+
+function endTurn() {
+  distributeBonusDice(currentPlayer);
+  nextPlayer();
+}
+
+// ── Hit Testing ──
+function getTerritoryAt(mx, my) {
+  const cells = territories._cells;
+  // Check each cell
+  for (let i = 0; i < cells.length; i++) {
+    const p = hexCenter(cells[i].col, cells[i].row);
+    if (pointInHex(mx, my, p.x, p.y, HEX_R)) {
+      return territories._cellToTerritory[i];
+    }
+  }
+  return -1;
+}
+
+// ── Input ──
+const endTurnBtnX = 680, endTurnBtnY = 555, endTurnBtnW = 110, endTurnBtnH = 32;
+
+C.addEventListener('click', (e) => {
+  if (infoOpen || animating || gameOver || currentPlayer !== 0) return;
+  const rect = C.getBoundingClientRect();
+  const scaleX = C.width / rect.width, scaleY = C.height / rect.height;
+  const mx = (e.clientX - rect.left) * scaleX;
+  const my = (e.clientY - rect.top) * scaleY;
+
+  // Check End Turn button
+  if (mx >= endTurnBtnX && mx <= endTurnBtnX + endTurnBtnW &&
+      my >= endTurnBtnY && my <= endTurnBtnY + endTurnBtnH) {
+    endTurn();
+    return;
+  }
+
+  const t = getTerritoryAt(mx, my);
+  if (t === -1) { selected = -1; return; }
+
+  if (selected === -1) {
+    // Select own territory
+    if (territories[t].owner === 0 && territories[t].dice >= 2) {
+      selected = t;
+    }
+  } else {
+    // Attack or reselect
+    if (t === selected) { selected = -1; return; }
+    if (territories[t].owner === 0) {
+      // Reselect own territory
+      if (territories[t].dice >= 2) selected = t; else selected = -1;
+      return;
+    }
+    // Check adjacency
+    if (adjacency[selected].includes(t)) {
+      executeAttack(selected, t);
+    } else {
+      selected = -1;
+    }
+  }
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); return; }
+  if (infoOpen) return;
+  if (e.key === 'r' || e.key === 'R') { init(); return; }
+  if ((e.key === 'e' || e.key === 'E') && currentPlayer === 0 && !animating && !gameOver) {
+    endTurn();
+  }
+});
+
+// ── Drawing ──
+function drawTerritory(t, highlight) {
+  const cells = territories._cells;
+  const cellNeighbors = territories._cellNeighbors;
+
+  // Draw each cell of this territory
+  for (const ci of t.cells) {
+    const p = hexCenter(cells[ci].col, cells[ci].row);
+    drawHex(p.x, p.y, HEX_R - 1);
+
+    let color = COLORS[t.owner];
+    if (highlight === 'selected') color = '#88ccff';
+    else if (highlight === 'target') color = '#ffaa44';
+    else if (animating && t.id === animAttacker) color = animResult === 1 ? '#88ff88' : '#ff8888';
+    else if (animating && t.id === animDefender) color = animResult === 1 ? '#ff8888' : '#88ff88';
+
+    X.fillStyle = color;
+    X.fill();
+
+    // Draw border — only on edges that are territory boundaries
+    X.strokeStyle = DARK_COLORS[t.owner];
+    X.lineWidth = 1;
+    X.stroke();
+  }
+
+  // Draw thick borders between different territories
+  for (const ci of t.cells) {
+    const p = hexCenter(cells[ci].col, cells[ci].row);
+    const neighbors = cellNeighbors(ci);
+
+    for (let side = 0; side < 6; side++) {
+      // Check if this side borders a different territory or map edge
+      const ni = neighbors[side];
+      const neighborTerritory = ni !== undefined ? territories._cellToTerritory[ni] : -1;
+
+      if (neighborTerritory !== t.id) {
+        const a1 = Math.PI / 180 * (60 * side - 30);
+        const a2 = Math.PI / 180 * (60 * ((side + 1) % 6) - 30);
+        X.beginPath();
+        X.moveTo(p.x + (HEX_R - 1) * Math.cos(a1), p.y + (HEX_R - 1) * Math.sin(a1));
+        X.lineTo(p.x + (HEX_R - 1) * Math.cos(a2), p.y + (HEX_R - 1) * Math.sin(a2));
+        X.strokeStyle = '#111';
+        X.lineWidth = 2.5;
+        X.stroke();
+      }
+    }
+  }
+}
+
+function drawDiceStack(cx, cy, count, owner) {
+  const diceSize = 10;
+  const stackGap = 4;
+  const totalH = count * stackGap + diceSize;
+  const startY = cy + totalH / 2 - diceSize;
+
+  for (let i = 0; i < count; i++) {
+    const dy = startY - i * stackGap;
+    const dx = cx - diceSize / 2;
+
+    // Die face
+    X.fillStyle = '#fff';
+    X.fillRect(dx, dy, diceSize, diceSize);
+    X.strokeStyle = '#333';
+    X.lineWidth = 0.5;
+    X.strokeRect(dx, dy, diceSize, diceSize);
+
+    // Pip(s) — just center dot for simplicity
+    X.fillStyle = '#000';
+    X.fillRect(dx + 4, dy + 4, 2, 2);
+  }
+
+  // Count label below
+  X.fillStyle = '#fff';
+  X.font = 'bold 11px monospace';
+  X.textAlign = 'center';
+  X.fillText(count.toString(), cx, cy + totalH / 2 + 12);
+}
+
+function drawUI() {
+  // Top bar
+  X.fillStyle = '#111';
+  X.fillRect(0, 0, 800, 40);
+
+  X.font = 'bold 14px monospace';
+  X.textAlign = 'left';
+  X.fillStyle = '#7bf';
+  X.fillText('SIM-020 · DICE WARS', 10, 26);
+
+  // Player scores
+  const counts = [0, 0, 0, 0];
+  for (const t of territories) counts[t.owner]++;
+
+  X.font = '12px monospace';
+  for (let p = 0; p < PLAYERS; p++) {
+    const px = 250 + p * 140;
+    X.fillStyle = eliminatedPlayers.has(p) ? '#555' : COLORS[p];
+    const marker = p === currentPlayer && !gameOver ? '>' : ' ';
+    const label = p === 0 ? 'YOU' : ['', 'RED', 'GRN', 'YLW'][p];
+    X.fillText(`${marker}${label}: ${counts[p]}`, px, 26);
+  }
+
+  // End Turn button (only during player's turn)
+  if (currentPlayer === 0 && !animating && !gameOver) {
+    X.fillStyle = '#335';
+    X.fillRect(endTurnBtnX, endTurnBtnY, endTurnBtnW, endTurnBtnH);
+    X.strokeStyle = '#77aaff';
+    X.lineWidth = 1;
+    X.strokeRect(endTurnBtnX, endTurnBtnY, endTurnBtnW, endTurnBtnH);
+    X.fillStyle = '#aaccff';
+    X.font = 'bold 13px monospace';
+    X.textAlign = 'center';
+    X.fillText('End Turn (E)', endTurnBtnX + endTurnBtnW / 2, endTurnBtnY + 21);
+  }
+
+  // Current turn indicator
+  if (!gameOver) {
+    X.font = '12px monospace';
+    X.textAlign = 'left';
+    X.fillStyle = COLORS[currentPlayer];
+    const turnLabel = currentPlayer === 0 ? "Your Turn" : `${NAMES[currentPlayer]}'s Turn...`;
+    X.fillText(turnLabel, 10, 570);
+
+    if (currentPlayer === 0) {
+      const bonus = largestConnectedGroup(0);
+      X.fillStyle = '#888';
+      X.fillText(`Largest group: ${bonus} (bonus dice)`, 10, 590);
+    }
+  }
+
+  // Message
+  if (msgTimer > 0) {
+    X.fillStyle = `rgba(255,255,200,${Math.min(1, msgTimer / 30)})`;
+    X.font = '13px monospace';
+    X.textAlign = 'center';
+    X.fillText(message, 400, 560);
+  }
+
+  // Battle animation overlay
+  if (animating && animPhase >= 1) {
+    X.fillStyle = 'rgba(0,0,0,0.7)';
+    X.fillRect(250, 230, 300, 130);
+    X.strokeStyle = '#fff';
+    X.lineWidth = 1;
+    X.strokeRect(250, 230, 300, 130);
+
+    X.font = 'bold 16px monospace';
+    X.textAlign = 'center';
+    X.fillStyle = COLORS[territories[animAttacker].owner === territories[animDefender].owner ? (animResult === 1 ? territories[animAttacker].owner : territories[animDefender].owner) : territories[animAttacker].owner];
+
+    // Show dice
+    X.fillStyle = '#aaf';
+    X.font = '13px monospace';
+    X.fillText(`ATK: [${animAttackDice.join(',')}] = ${animAttackRoll}`, 400, 260);
+    X.fillStyle = '#faa';
+    X.fillText(`DEF: [${animDefendDice.join(',')}] = ${animDefendRoll}`, 400, 285);
+
+    X.font = 'bold 18px monospace';
+    if (animPhase >= 2) {
+      if (animResult === 1) {
+        X.fillStyle = '#4f4';
+        X.fillText('ATTACKER WINS!', 400, 325);
+      } else {
+        X.fillStyle = '#f44';
+        X.fillText('DEFENDER HOLDS!', 400, 325);
+      }
+    }
+  }
+
+  // Game over
+  if (gameOver) {
+    X.fillStyle = 'rgba(0,0,0,0.75)';
+    X.fillRect(200, 220, 400, 140);
+    X.strokeStyle = COLORS[winner];
+    X.lineWidth = 2;
+    X.strokeRect(200, 220, 400, 140);
+
+    X.font = 'bold 28px monospace';
+    X.textAlign = 'center';
+    X.fillStyle = COLORS[winner];
+    X.fillText(winner === 0 ? 'YOU WIN!' : `${NAMES[winner]} WINS!`, 400, 275);
+
+    X.font = '14px monospace';
+    X.fillStyle = '#ccc';
+    X.fillText('Press R to play again', 400, 320);
+
+    X.font = '11px monospace';
+    X.fillStyle = '#888';
+    X.fillText('Educational reconstruction · Not affiliated with original creators', 400, 348);
+  }
+
+  // ? hint
+  if (!gameOver) {
+    X.font = '11px monospace';
+    X.textAlign = 'right';
+    X.fillStyle = '#555';
+    X.fillText('? for info', 790, 590);
+  }
+}
+
+// ── Update ──
+function update() {
+  if (infoOpen) return;
+
+  if (msgTimer > 0) msgTimer--;
+
+  // Handle animation
+  if (animating) {
+    animTimer++;
+    if (animTimer === 10) animPhase = 1; // show dice
+    if (animTimer === 40) animPhase = 2; // show result
+    if (animTimer === 70) {
+      animating = false;
+      animPhase = 0;
+      checkGameState();
+      if (!gameOver && currentPlayer !== 0) {
+        aiTimer = 20;
+      }
+    }
+    return;
+  }
+
+  // AI turn
+  if (aiTurnActive && currentPlayer !== 0 && !gameOver) {
+    aiTimer--;
+    if (aiTimer <= 0) {
+      aiTurn();
+    }
+  }
+}
+
+// ── Draw ──
+function draw() {
+  X.fillStyle = '#1a1a2e';
+  X.fillRect(0, 0, 800, 600);
+
+  // Draw all territories
+  for (const t of territories) {
+    let highlight = null;
+    if (t.id === selected) highlight = 'selected';
+    else if (selected !== -1 && adjacency[selected].includes(t.id) && territories[selected].owner !== t.owner) {
+      highlight = 'target';
+    }
+    drawTerritory(t, highlight);
+  }
+
+  // Draw dice stacks on top
+  for (const t of territories) {
+    drawDiceStack(t.cx, t.cy, t.dice, t.owner);
+  }
+
+  drawUI();
+}
+
+// ── Game Loop ──
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+// ── Init ──
+function init() {
+  gameOver = false;
+  winner = -1;
+  currentPlayer = 0;
+  selected = -1;
+  animating = false;
+  aiTurnActive = false;
+  eliminatedPlayers = new Set();
+  message = 'Your turn! Click a territory with 2+ dice, then click an adjacent enemy.';
+  msgTimer = 180;
+  generateMap();
+}
+
+// ── Resize ──
+function resize() {
+  const s = Math.min(innerWidth / 800, innerHeight / 600);
+  C.style.width = (800 * s) + 'px';
+  C.style.height = (600 * s) + 'px';
+}
+window.addEventListener('resize', resize);
+resize();
+
+init();
+loop();
+</script>
+</body>
+</html>

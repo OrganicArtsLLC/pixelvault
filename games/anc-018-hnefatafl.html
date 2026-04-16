@@ -1,0 +1,723 @@
+<!--
+PROTOTYPE: hnefatafl
+SERIES: anc
+NUMBER: 018
+DATE: 2026-03-24
+MECHANIC: asymmetric siege — King + 8 defenders start in center; 16 attackers surround; King wins by reaching a corner; attackers win by capturing the King; pieces move like rooks; capture by sandwiching
+ANCESTRY: Hnefatafl (~400 CE, Norse/Sami), Tablut (Linnaeus 1732 documentation)
+CONTROLS: Mouse — select piece/destination | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 1 (Symbolic AI — asymmetric game trees, minimax with role-aware evaluation)
+AI-INSIGHT: Hnefatafl's asymmetry makes it a fascinating AI challenge — the two sides have fundamentally different objectives, requiring distinct evaluation functions. Unlike chess where both sides optimize the same goal, here the attacker maximizes encirclement while the defender maximizes escape routes.
+NOTES: The oldest known strategy board game of Scandinavia. Played across the Viking world from
+       Ireland to Byzantium. The asymmetric design predates chess in Northern Europe by centuries.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ANC-018 · HNEFATAFL</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #1a1410; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: pointer; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+.notice { background: #1a1a2e; border: 1px solid #333; border-radius: 4px; padding: 10px 14px; margin: 12px 0; font-size: 12px; color: #aaa; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>ANC-018 · HNEFATAFL</h1>
+    <p><span class="tag series">ANC — Ancient Games</span> <span class="tag">Prototype #018</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>You command the <strong>defenders</strong> (gold pieces + the King). Your goal: escort the King to any corner square (marked with runes). The AI controls the <strong>attackers</strong> (red pieces) who must capture the King.</p>
+    <ul>
+      <li><strong>Select:</strong> Click one of your pieces to see legal moves highlighted.</li>
+      <li><strong>Move:</strong> Click a highlighted square to move there. All pieces slide like chess rooks — any distance horizontally or vertically, no jumping.</li>
+      <li><strong>Capture:</strong> Sandwich an enemy piece between two of yours (horizontally or vertically) to remove it.</li>
+      <li><strong>King Capture:</strong> The King is captured when surrounded on all 4 sides by attackers (or 3 sides + the throne).</li>
+      <li><strong>Win:</strong> Move the King to any corner square to escape and win!</li>
+      <li><kbd>R</kbd> Restart &nbsp; <kbd>?</kbd> Info Panel</li>
+    </ul>
+
+    <h2>History</h2>
+    <p>Hnefatafl ("King's Table") was the premier strategy game of the Viking world, played from at least 400 CE across Scandinavia, Iceland, Britain, and as far as Byzantium. The game predates chess in Northern Europe by centuries. When chess arrived via Arab traders around 1000 CE, Hnefatafl gradually fell out of favor, though it survived in Lapland (as Tablut) until the 18th century, when Carl Linnaeus documented its rules during his 1732 expedition.</p>
+    <p>The game's asymmetric design is its genius — one side has numbers, the other has the objective. This creates fundamentally different strategic challenges for each player, a design principle that wouldn't be rediscovered in modern game design until the 20th century.</p>
+
+    <h2>AI Archaeology</h2>
+    <h3>Classification</h3>
+    <p>Asymmetric siege game. Two-player, perfect information, zero-sum with asymmetric objectives. The defender optimizes for King escape (shortest path to corner); the attacker optimizes for encirclement (blocking escape routes while closing the net).</p>
+    <h3>AI Insight</h3>
+    <p>Hnefatafl's asymmetry makes it a fascinating AI challenge. Unlike chess where both sides optimize toward the same goal (checkmate), here the evaluation function must be fundamentally different for each side. The attacker needs a "net tightness" heuristic while the defender needs an "escape route" heuristic. This duality prefigures modern asymmetric game AI.</p>
+
+    <h2>Prototype Notes</h2>
+    <p>9x9 board (Copenhagen-style layout). Player controls defenders (King + 8 warriors). AI uses minimax with alpha-beta pruning and role-aware evaluation. Special squares: throne (center, only King may occupy after leaving), corners (King escape targets).</p>
+
+    <div class="notice">
+      <strong>Educational Notice:</strong> This is a non-commercial prototype built for study and preservation of game design history. Hnefatafl is a traditional game in the public domain, documented across centuries of Norse, Sami, and broader Scandinavian culture.
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Info Panel ──
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// ── Canvas Setup ──
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+
+function resize() {
+  const s = Math.min(innerWidth / W, innerHeight / H);
+  canvas.style.width = (W * s) + 'px';
+  canvas.style.height = (H * s) + 'px';
+}
+resize();
+addEventListener('resize', resize);
+
+// ── HUD Text Helper ──
+function hudText(text, x, y, size, color, align) {
+  ctx.save();
+  ctx.font = size + 'px monospace';
+  ctx.fillStyle = color || '#fff';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+// ── Game Constants ──
+const BOARD_SIZE = 9;
+const CELL = 56;
+const BOARD_X = (W - BOARD_SIZE * CELL) / 2;
+const BOARD_Y = (H - BOARD_SIZE * CELL) / 2 + 14;
+const EMPTY = 0, ATTACKER = 1, DEFENDER = 2, KING = 3;
+const CENTER = 4; // throne position (4,4)
+const CORNERS = [[0,0],[0,8],[8,0],[8,8]];
+
+// ── Colors ──
+const COL_BOARD_LIGHT = '#d4a862';
+const COL_BOARD_DARK = '#c49650';
+const COL_THRONE = '#8b6914';
+const COL_CORNER = '#6b4e0a';
+const COL_ATTACKER = '#c0392b';
+const COL_ATTACKER_DARK = '#922b21';
+const COL_DEFENDER = '#d4a017';
+const COL_DEFENDER_DARK = '#b8860b';
+const COL_KING = '#f1c40f';
+const COL_KING_DARK = '#d4a017';
+const COL_SELECT = 'rgba(100,200,255,0.4)';
+const COL_MOVE = 'rgba(100,255,100,0.35)';
+const COL_CORNER_HIGHLIGHT = 'rgba(255,215,0,0.25)';
+const COL_GRID = '#a07830';
+
+// ── Game State ──
+let board, selected, legalMoves, turn, gameOver, gameMsg, animating;
+let moveHistory = [];
+let aiThinking = false;
+
+function initBoard() {
+  board = Array.from({length: 9}, () => Array(9).fill(EMPTY));
+  // King in center
+  board[4][4] = KING;
+  // Defenders around king (cross pattern)
+  const defs = [[2,4],[3,4],[5,4],[6,4],[4,2],[4,3],[4,5],[4,6]];
+  defs.forEach(([r,c]) => board[r][c] = DEFENDER);
+  // Attackers on edges
+  const atks = [
+    [0,3],[0,4],[0,5],[1,4], // top
+    [8,3],[8,4],[8,5],[7,4], // bottom
+    [3,0],[4,0],[5,0],[4,1], // left
+    [3,8],[4,8],[5,8],[4,7]  // right
+  ];
+  atks.forEach(([r,c]) => board[r][c] = ATTACKER);
+  selected = null;
+  legalMoves = [];
+  turn = 'defender'; // player goes first
+  gameOver = false;
+  gameMsg = '';
+  animating = false;
+  aiThinking = false;
+  moveHistory = [];
+}
+
+initBoard();
+
+// ── Helpers ──
+function isCorner(r, c) { return CORNERS.some(([cr,cc]) => cr === r && cc === c); }
+function isThrone(r, c) { return r === CENTER && c === CENTER; }
+function isSpecial(r, c) { return isCorner(r, c) || isThrone(r, c); }
+
+function getMoves(r, c) {
+  const piece = board[r][c];
+  if (piece === EMPTY) return [];
+  const moves = [];
+  const dirs = [[-1,0],[1,0],[0,-1],[0,1]];
+  for (const [dr, dc] of dirs) {
+    let nr = r + dr, nc = c + dc;
+    while (nr >= 0 && nr < 9 && nc >= 0 && nc < 9) {
+      if (board[nr][nc] !== EMPTY) break;
+      // Only king can land on corners
+      if (isCorner(nr, nc) && piece !== KING) { nr += dr; nc += dc; continue; }
+      // Only king can re-enter throne
+      if (isThrone(nr, nc) && piece !== KING) { nr += dr; nc += dc; continue; }
+      moves.push([nr, nc]);
+      nr += dr; nc += dc;
+    }
+  }
+  return moves;
+}
+
+function isEnemy(piece, other) {
+  if (piece === ATTACKER) return other === DEFENDER || other === KING;
+  return other === ATTACKER;
+}
+
+function isFriendly(piece, other) {
+  if (piece === ATTACKER) return other === ATTACKER;
+  return other === DEFENDER || other === KING;
+}
+
+function checkCaptures(r, c) {
+  const piece = board[r][c];
+  const dirs = [[-1,0],[1,0],[0,-1],[0,1]];
+  const captured = [];
+  for (const [dr, dc] of dirs) {
+    const nr = r + dr, nc = c + dc;
+    const fr = r + 2*dr, fc = c + 2*dc;
+    if (nr < 0 || nr >= 9 || nc < 0 || nc >= 9) continue;
+    const target = board[nr][nc];
+    if (target === EMPTY) continue;
+    if (target === KING) continue; // King captured differently
+    if (!isEnemy(piece, target)) continue;
+    // Check if sandwiched
+    if (fr >= 0 && fr < 9 && fc >= 0 && fc < 9) {
+      const far = board[fr][fc];
+      if (isFriendly(piece, far) || (isThrone(fr, fc) && far === EMPTY)) {
+        captured.push([nr, nc]);
+      }
+    }
+    // Wall/corner doesn't sandwich in standard rules
+  }
+  return captured;
+}
+
+function isKingCaptured() {
+  let kr = -1, kc = -1;
+  for (let r = 0; r < 9; r++)
+    for (let c = 0; c < 9; c++)
+      if (board[r][c] === KING) { kr = r; kc = c; }
+  if (kr < 0) return false;
+  const dirs = [[-1,0],[1,0],[0,-1],[0,1]];
+  let surrounded = 0;
+  for (const [dr, dc] of dirs) {
+    const nr = kr + dr, nc = kc + dc;
+    if (nr < 0 || nr >= 9 || nc < 0 || nc >= 9) { surrounded++; continue; }
+    if (board[nr][nc] === ATTACKER) surrounded++;
+    else if (isThrone(nr, nc) && board[nr][nc] === EMPTY) surrounded++;
+  }
+  return surrounded === 4;
+}
+
+function findKing() {
+  for (let r = 0; r < 9; r++)
+    for (let c = 0; c < 9; c++)
+      if (board[r][c] === KING) return [r, c];
+  return null;
+}
+
+function makeMove(fr, fc, tr, tc) {
+  board[tr][tc] = board[fr][fc];
+  board[fr][fc] = EMPTY;
+  const caps = checkCaptures(tr, tc);
+  caps.forEach(([cr, cc]) => { board[cr][cc] = EMPTY; });
+  return caps;
+}
+
+// ── AI (Minimax with Alpha-Beta) ──
+function getAllMoves(side) {
+  const moves = [];
+  for (let r = 0; r < 9; r++) {
+    for (let c = 0; c < 9; c++) {
+      const p = board[r][c];
+      if (side === 'attacker' && p !== ATTACKER) continue;
+      if (side === 'defender' && p !== DEFENDER && p !== KING) continue;
+      const ms = getMoves(r, c);
+      for (const [tr, tc] of ms) moves.push([r, c, tr, tc]);
+    }
+  }
+  return moves;
+}
+
+function evaluate() {
+  // Check terminal states
+  const king = findKing();
+  if (!king) return -1000; // king captured = attacker wins
+  if (isCorner(king[0], king[1])) return 1000; // king escaped = defender wins
+
+  let score = 0;
+  let attackers = 0, defenders = 0;
+
+  for (let r = 0; r < 9; r++) {
+    for (let c = 0; c < 9; c++) {
+      if (board[r][c] === ATTACKER) attackers++;
+      else if (board[r][c] === DEFENDER) defenders++;
+    }
+  }
+
+  // Material
+  score += defenders * 8 - attackers * 5;
+
+  // King distance to nearest corner (lower = better for defender)
+  const [kr, kc] = king;
+  let minCornerDist = 99;
+  for (const [cr, cc] of CORNERS) {
+    const d = Math.abs(kr - cr) + Math.abs(kc - cc);
+    if (d < minCornerDist) minCornerDist = d;
+  }
+  score += (16 - minCornerDist) * 3;
+
+  // King mobility (escape routes)
+  const kingMoves = getMoves(kr, kc);
+  score += kingMoves.length * 2;
+
+  // Check if king has clear path to any corner
+  for (const [cr, cc] of CORNERS) {
+    if (kr === cr) {
+      let clear = true;
+      const minC = Math.min(kc, cc), maxC = Math.max(kc, cc);
+      for (let c = minC + 1; c < maxC; c++) {
+        if (board[kr][c] !== EMPTY) { clear = false; break; }
+      }
+      if (clear) score += 20;
+    }
+    if (kc === cc) {
+      let clear = true;
+      const minR = Math.min(kr, cr), maxR = Math.max(kr, cr);
+      for (let r = minR + 1; r < maxR; r++) {
+        if (board[r][kc] !== EMPTY) { clear = false; break; }
+      }
+      if (clear) score += 20;
+    }
+  }
+
+  // Attacker: reward surrounding king
+  const dirs = [[-1,0],[1,0],[0,-1],[0,1]];
+  let kingBlocked = 0;
+  for (const [dr, dc] of dirs) {
+    const nr = kr + dr, nc = kc + dc;
+    if (nr < 0 || nr >= 9 || nc < 0 || nc >= 9) kingBlocked++;
+    else if (board[nr][nc] === ATTACKER) kingBlocked++;
+  }
+  score -= kingBlocked * 10;
+
+  return score;
+}
+
+function minimax(depth, alpha, beta, maximizing) {
+  const king = findKing();
+  if (!king) return maximizing ? -1000 + depth : 1000 - depth;
+  if (isCorner(king[0], king[1])) return maximizing ? 1000 - depth : -1000 + depth;
+  if (depth === 0) return evaluate();
+
+  const side = maximizing ? 'defender' : 'attacker';
+  const moves = getAllMoves(side);
+  if (moves.length === 0) return evaluate();
+
+  if (maximizing) {
+    let best = -Infinity;
+    for (const [fr, fc, tr, tc] of moves) {
+      const saved = board[tr][tc];
+      const piece = board[fr][fc];
+      board[tr][tc] = piece;
+      board[fr][fc] = EMPTY;
+      const caps = checkCaptures(tr, tc);
+      const capSaved = caps.map(([cr,cc]) => [cr, cc, board[cr][cc]]);
+      caps.forEach(([cr,cc]) => { board[cr][cc] = EMPTY; });
+      const kingCap = isKingCaptured();
+
+      let val;
+      if (kingCap) val = -1000 + depth;
+      else val = minimax(depth - 1, alpha, beta, false);
+
+      capSaved.forEach(([cr,cc,v]) => { board[cr][cc] = v; });
+      board[fr][fc] = piece;
+      board[tr][tc] = saved;
+
+      best = Math.max(best, val);
+      alpha = Math.max(alpha, val);
+      if (beta <= alpha) break;
+    }
+    return best;
+  } else {
+    let best = Infinity;
+    for (const [fr, fc, tr, tc] of moves) {
+      const saved = board[tr][tc];
+      const piece = board[fr][fc];
+      board[tr][tc] = piece;
+      board[fr][fc] = EMPTY;
+      const caps = checkCaptures(tr, tc);
+      const capSaved = caps.map(([cr,cc]) => [cr, cc, board[cr][cc]]);
+      caps.forEach(([cr,cc]) => { board[cr][cc] = EMPTY; });
+      const kingCap = isKingCaptured();
+
+      let val;
+      if (kingCap) val = -1000 + depth;
+      else if (board[tr][tc] === KING && isCorner(tr, tc)) val = 1000 - depth;
+      else val = minimax(depth - 1, alpha, beta, true);
+
+      capSaved.forEach(([cr,cc,v]) => { board[cr][cc] = v; });
+      board[fr][fc] = piece;
+      board[tr][tc] = saved;
+
+      best = Math.min(best, val);
+      beta = Math.min(beta, val);
+      if (beta <= alpha) break;
+    }
+    return best;
+  }
+}
+
+function aiMove() {
+  const moves = getAllMoves('attacker');
+  if (moves.length === 0) return;
+
+  let bestScore = Infinity;
+  let bestMoves = [];
+  const depth = moves.length > 60 ? 2 : 3;
+
+  for (const [fr, fc, tr, tc] of moves) {
+    const saved = board[tr][tc];
+    const piece = board[fr][fc];
+    board[tr][tc] = piece;
+    board[fr][fc] = EMPTY;
+    const caps = checkCaptures(tr, tc);
+    const capSaved = caps.map(([cr,cc]) => [cr, cc, board[cr][cc]]);
+    caps.forEach(([cr,cc]) => { board[cr][cc] = EMPTY; });
+    const kingCap = isKingCaptured();
+
+    let val;
+    if (kingCap) val = -1000;
+    else val = minimax(depth - 1, -Infinity, Infinity, true);
+
+    capSaved.forEach(([cr,cc,v]) => { board[cr][cc] = v; });
+    board[fr][fc] = piece;
+    board[tr][tc] = saved;
+
+    if (val < bestScore) {
+      bestScore = val;
+      bestMoves = [[fr, fc, tr, tc]];
+    } else if (val === bestScore) {
+      bestMoves.push([fr, fc, tr, tc]);
+    }
+  }
+
+  if (bestMoves.length > 0) {
+    const [fr, fc, tr, tc] = bestMoves[Math.floor(Math.random() * bestMoves.length)];
+    const caps = makeMove(fr, fc, tr, tc);
+
+    // Check king captured
+    if (isKingCaptured()) {
+      gameOver = true;
+      gameMsg = 'ATTACKERS WIN — KING CAPTURED!';
+    }
+
+    turn = 'defender';
+  }
+  aiThinking = false;
+}
+
+// ── Input ──
+function cellFromMouse(mx, my) {
+  const rect = canvas.getBoundingClientRect();
+  const sx = W / rect.width, sy = H / rect.height;
+  const x = (mx - rect.left) * sx - BOARD_X;
+  const y = (my - rect.top) * sy - BOARD_Y;
+  const c = Math.floor(x / CELL);
+  const r = Math.floor(y / CELL);
+  if (r < 0 || r >= 9 || c < 0 || c >= 9) return null;
+  return [r, c];
+}
+
+canvas.addEventListener('click', (e) => {
+  if (infoOpen || gameOver || turn !== 'defender' || aiThinking) return;
+  const cell = cellFromMouse(e.clientX, e.clientY);
+  if (!cell) return;
+  const [r, c] = cell;
+
+  if (selected) {
+    // Try to move
+    const isLegal = legalMoves.some(([mr, mc]) => mr === r && mc === c);
+    if (isLegal) {
+      const [sr, sc] = selected;
+      makeMove(sr, sc, r, c);
+      selected = null;
+      legalMoves = [];
+
+      // Check king escape
+      if (board[r][c] === KING && isCorner(r, c)) {
+        gameOver = true;
+        gameMsg = 'DEFENDERS WIN — KING ESCAPED!';
+        return;
+      }
+
+      // Check if king got captured by own move consequences (shouldn't happen but safety)
+      if (isKingCaptured()) {
+        gameOver = true;
+        gameMsg = 'ATTACKERS WIN — KING CAPTURED!';
+        return;
+      }
+
+      turn = 'attacker';
+      aiThinking = true;
+      setTimeout(aiMove, 300);
+      return;
+    }
+
+    // Click own piece to reselect
+    if (board[r][c] === DEFENDER || board[r][c] === KING) {
+      selected = [r, c];
+      legalMoves = getMoves(r, c);
+      return;
+    }
+
+    // Deselect
+    selected = null;
+    legalMoves = [];
+  } else {
+    // Select
+    if (board[r][c] === DEFENDER || board[r][c] === KING) {
+      selected = [r, c];
+      legalMoves = getMoves(r, c);
+    }
+  }
+});
+
+addEventListener('keydown', (e) => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); return; }
+  if (e.key === 'r' || e.key === 'R') { initBoard(); return; }
+});
+
+// ── Drawing ──
+function drawBoard() {
+  // Board background
+  ctx.fillStyle = '#2a1f0e';
+  ctx.fillRect(BOARD_X - 4, BOARD_Y - 4, BOARD_SIZE * CELL + 8, BOARD_SIZE * CELL + 8);
+
+  for (let r = 0; r < 9; r++) {
+    for (let c = 0; c < 9; c++) {
+      const x = BOARD_X + c * CELL;
+      const y = BOARD_Y + r * CELL;
+
+      // Cell background
+      if (isThrone(r, c)) {
+        ctx.fillStyle = COL_THRONE;
+      } else if (isCorner(r, c)) {
+        ctx.fillStyle = COL_CORNER;
+      } else {
+        ctx.fillStyle = (r + c) % 2 === 0 ? COL_BOARD_LIGHT : COL_BOARD_DARK;
+      }
+      ctx.fillRect(x, y, CELL, CELL);
+
+      // Grid lines
+      ctx.strokeStyle = COL_GRID;
+      ctx.lineWidth = 0.5;
+      ctx.strokeRect(x, y, CELL, CELL);
+
+      // Corner runes / markers
+      if (isCorner(r, c)) {
+        ctx.fillStyle = COL_CORNER_HIGHLIGHT;
+        ctx.fillRect(x, y, CELL, CELL);
+        ctx.save();
+        ctx.font = '20px monospace';
+        ctx.fillStyle = '#d4a017';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('\u2726', x + CELL/2, y + CELL/2);
+        ctx.restore();
+      }
+
+      // Throne marker
+      if (isThrone(r, c) && board[r][c] !== KING) {
+        ctx.save();
+        ctx.font = '18px monospace';
+        ctx.fillStyle = 'rgba(255,215,0,0.3)';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('+', x + CELL/2, y + CELL/2);
+        ctx.restore();
+      }
+    }
+  }
+
+  // Highlight selected
+  if (selected) {
+    const [sr, sc] = selected;
+    ctx.fillStyle = COL_SELECT;
+    ctx.fillRect(BOARD_X + sc * CELL, BOARD_Y + sr * CELL, CELL, CELL);
+  }
+
+  // Highlight legal moves
+  for (const [mr, mc] of legalMoves) {
+    ctx.fillStyle = COL_MOVE;
+    ctx.fillRect(BOARD_X + mc * CELL, BOARD_Y + mr * CELL, CELL, CELL);
+  }
+}
+
+function drawPiece(r, c, type) {
+  const x = BOARD_X + c * CELL + CELL / 2;
+  const y = BOARD_Y + r * CELL + CELL / 2;
+  const radius = CELL * 0.36;
+
+  ctx.save();
+  if (type === ATTACKER) {
+    // Red attacker piece
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = COL_ATTACKER;
+    ctx.fill();
+    ctx.strokeStyle = COL_ATTACKER_DARK;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // Shield pattern
+    ctx.beginPath();
+    ctx.moveTo(x - 6, y - 6);
+    ctx.lineTo(x + 6, y - 6);
+    ctx.lineTo(x + 6, y + 6);
+    ctx.lineTo(x - 6, y + 6);
+    ctx.closePath();
+    ctx.strokeStyle = '#e74c3c';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  } else if (type === DEFENDER) {
+    // Gold defender piece
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = COL_DEFENDER;
+    ctx.fill();
+    ctx.strokeStyle = COL_DEFENDER_DARK;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // Cross pattern
+    ctx.beginPath();
+    ctx.moveTo(x, y - 7);
+    ctx.lineTo(x, y + 7);
+    ctx.moveTo(x - 7, y);
+    ctx.lineTo(x + 7, y);
+    ctx.strokeStyle = '#f0d060';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  } else if (type === KING) {
+    // King — larger, brighter
+    ctx.beginPath();
+    ctx.arc(x, y, radius + 2, 0, Math.PI * 2);
+    ctx.fillStyle = COL_KING;
+    ctx.fill();
+    ctx.strokeStyle = COL_KING_DARK;
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+    // Crown symbol
+    ctx.font = '16px monospace';
+    ctx.fillStyle = '#8b4513';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('\u265A', x, y + 1);
+  }
+  ctx.restore();
+}
+
+function drawPieces() {
+  for (let r = 0; r < 9; r++) {
+    for (let c = 0; c < 9; c++) {
+      if (board[r][c] !== EMPTY) {
+        drawPiece(r, c, board[r][c]);
+      }
+    }
+  }
+}
+
+function drawHUD() {
+  // Title
+  hudText('HNEFATAFL', W / 2, 20, 20, '#d4a017', 'center');
+
+  // Turn indicator
+  const turnMsg = gameOver ? gameMsg : (turn === 'defender' ? 'YOUR TURN (Defenders)' : 'AI THINKING...');
+  const turnCol = gameOver ? (gameMsg.includes('DEFENDERS') ? '#f1c40f' : '#e74c3c') : (turn === 'defender' ? '#d4a017' : '#c0392b');
+  hudText(turnMsg, W / 2, H - 16, 14, turnCol, 'center');
+
+  // Piece counts
+  let atkCount = 0, defCount = 0;
+  for (let r = 0; r < 9; r++)
+    for (let c = 0; c < 9; c++) {
+      if (board[r][c] === ATTACKER) atkCount++;
+      else if (board[r][c] === DEFENDER || board[r][c] === KING) defCount++;
+    }
+  hudText('ATK: ' + atkCount, 20, 20, 13, '#c0392b', 'left');
+  hudText('DEF: ' + defCount, W - 20, 20, 13, '#d4a017', 'right');
+
+  // Controls hint
+  hudText('[?] Info  [R] Restart', W / 2, H - 36, 11, '#666', 'center');
+
+  // Game over overlay
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(0, 0, W, H);
+    hudText(gameMsg, W / 2, H / 2 - 10, 22, turnCol, 'center');
+    hudText('Press R to play again', W / 2, H / 2 + 20, 14, '#aaa', 'center');
+  }
+}
+
+// ── Game Loop ──
+function update() {
+  if (infoOpen) return;
+}
+
+function draw() {
+  ctx.fillStyle = '#1a1410';
+  ctx.fillRect(0, 0, W, H);
+  drawBoard();
+  drawPieces();
+  drawHUD();
+}
+
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

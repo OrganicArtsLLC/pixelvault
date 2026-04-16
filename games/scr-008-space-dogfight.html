@@ -1,0 +1,976 @@
+<!--
+PROTOTYPE: space-dogfight
+SERIES: scr
+NUMBER: 008
+DATE: 2026-03-22
+MECHANIC: space combat dogfight from cockpit view with radar and targeting
+ANCESTRY: Wing Commander (1990, Chris Roberts, Origin Systems), Star Wars (1983, Atari)
+CONTROLS: Arrow keys — pitch/yaw | Space — fire lasers | M — fire missile | T — target next | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — cinematic AI with scripted behaviors and state machines)
+AI-INSIGHT: Wing Commander's enemy fighters used behavior trees with personality parameters — some enemies would flee when damaged, others would kamikaze. Combined with wingman AI that responded to commands, it created one of gaming's first believable multi-agent combat simulations.
+NOTES: Cockpit-view space shooter. Target and destroy enemy fighters.
+       Radar display, shields, multiple weapon systems.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SCR-008 · SPACE DOGFIGHT</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SCR-008 · SPACE DOGFIGHT</h1>
+    <p><span class="tag series">SCR — Scrolling Shooter</span> <span class="tag">Prototype #008</span> <span class="tag">★★★★☆</span></p>
+
+    <h2>How to Play</h2>
+    <p>Engage enemy fighters in cockpit-view space combat. Destroy all hostiles in each wave to advance. Manage shields and missiles carefully.</p>
+    <ul>
+      <li><kbd>↑</kbd> <kbd>↓</kbd> — Pitch (look up/down)</li>
+      <li><kbd>←</kbd> <kbd>→</kbd> — Yaw (turn left/right)</li>
+      <li><kbd>Space</kbd> — Fire lasers</li>
+      <li><kbd>M</kbd> — Fire missile (must have target lock)</li>
+      <li><kbd>T</kbd> — Target next enemy</li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Target lock:</strong> Press T to cycle targets. The reticle tracks your selected enemy.</li>
+      <li><strong>Missiles:</strong> Limited supply — save them for tough enemies or when you have a clear lock.</li>
+      <li><strong>Shields:</strong> Front and rear shields absorb damage separately. They recharge slowly over time.</li>
+      <li><strong>Radar:</strong> The circular display shows enemy positions relative to you. Green dot is forward.</li>
+      <li><strong>Lead your shots:</strong> Lasers travel fast but enemies move — aim slightly ahead of crossing targets.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Star Wars (1983, Atari) → Wing Commander (1990, Origin) → X-Wing (1993) → FreeSpace (1998)</p>
+    <p>Wing Commander (1990) by Chris Roberts transformed space combat games from wireframe abstractions into cinematic experiences. It introduced narrative-driven missions, wingman commands, and enemy AI with distinct personalities — some pilots fled when damaged, others fought to the death.</p>
+    <p>The cockpit-view space shooter lineage starts with Atari's Star Wars (1983), which used first-person vector graphics to simulate the Death Star trench run. Wing Commander added bitmap graphics, multiple weapon systems, shield management, and a branching campaign that responded to player performance.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 3 — Knowledge Explosion (1980–1993)</p>
+    <p><strong>Contemporary AI:</strong> Expert systems peak. Neural networks begin resurgence. Behavior trees emerge in game AI.</p>
+    <p><strong>Hidden Intelligence:</strong> Wing Commander's enemy fighters used behavior trees with personality parameters — aggression, cowardice, skill level. A Dralthi pilot might break off an attack run when shields dropped below 30%, while a Gratha would press the attack. This created emergent combat narratives from parameterized state machines — each dogfight felt different because enemy behavior varied.</p>
+    <p><strong>The Convergence:</strong> The multi-agent combat simulation (player + wingman vs. enemy squadron) anticipates modern multi-agent reinforcement learning. Each agent has partial observability, distinct capabilities, and must coordinate — the same structure used in modern cooperative AI research (OpenAI Five, DeepMind's StarCraft II).</p>
+    <p><strong>If AI Had Designed This:</strong> Adaptive enemy squadrons that learn player tactics across missions. If the player always attacks from behind, enemies would start deploying rear-guard formations. Dynamic difficulty through emergent tactical adaptation rather than stat scaling.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: SCR — Scrolling Shooter</h3>
+    <p>Wing Commander extends the scrolling shooter into 3D space with cockpit-view combat, radar navigation, and multi-system management (shields, weapons, targeting).</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Cockpit-view space dogfighting with targeting and shield management.</strong> First-person perspective. Radar for spatial awareness. Multiple weapon systems. Enemy AI with behavioral variety. Wave-based missions.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Cockpit immersion — does the HUD and starfield create a sense of being in a fighter?</li>
+      <li>Targeting system — does cycling targets and tracking enemies feel tactical?</li>
+      <li>Shield management — does front/rear shield damage create positioning decisions?</li>
+      <li>Enemy variety — do different AI behaviors create distinct combat encounters?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Pseudo-3D cockpit view with scaling enemies. Circular radar. Front/rear shields. Laser and missile weapons. Wave-based combat with increasing difficulty. Enemy AI with flee/attack/strafe behaviors.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+const keys = {};
+window.addEventListener('keydown', e => { if (!infoOpen) keys[e.code] = true; e.preventDefault(); });
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+// --- MATH HELPERS ---
+const PI = Math.PI, TAU = PI * 2;
+function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
+function angleDiff(a, b) { let d = b - a; while (d > PI) d -= TAU; while (d < -PI) d += TAU; return d; }
+function rnd(lo, hi) { return lo + Math.random() * (hi - lo); }
+
+// --- VIEWPORT ---
+const VIEW_W = 640, VIEW_H = 420;
+const VIEW_X = (W - VIEW_W) / 2, VIEW_Y = 30;
+const FOV = 1.2; // field of view in radians
+const FOCAL = (VIEW_W / 2) / Math.tan(FOV / 2);
+
+// --- STARS ---
+const STAR_COUNT = 200;
+let stars = [];
+function initStars() {
+  stars = [];
+  for (let i = 0; i < STAR_COUNT; i++) {
+    stars.push({ az: rnd(0, TAU), el: rnd(-PI/2, PI/2), b: rnd(0.3, 1) });
+  }
+}
+
+// --- STATE ---
+let playerYaw, playerPitch, score, lives, wave, missiles, shieldF, shieldR;
+let enemies, lasers, eLasers, explosions, targetIdx, frame, gameOver, waveTimer, waveMsg;
+let laserCooldown, missileCooldown, killsThisWave, totalKillsWave;
+
+const MAX_SHIELD = 100;
+const SHIELD_REGEN = 0.02;
+const LASER_DMG = 12;
+const MISSILE_DMG = 50;
+const LASER_RATE = 10;
+const MISSILE_RATE = 30;
+const LASER_SPEED = 18;
+const LASER_RANGE = 600;
+
+function spawnWave(w) {
+  const count = 3 + Math.min(w, 4);
+  totalKillsWave = count;
+  killsThisWave = 0;
+  for (let i = 0; i < count; i++) {
+    const az = rnd(0, TAU);
+    const el = rnd(-0.4, 0.4);
+    const dist = rnd(250, 500);
+    enemies.push(makeEnemy(az, el, dist, w));
+  }
+  waveTimer = 180;
+  waveMsg = 'WAVE ' + w + ' — ' + count + ' HOSTILES INCOMING';
+}
+
+function makeEnemy(az, el, dist, w) {
+  // personality: 0=cautious, 1=normal, 2=aggressive
+  const personality = Math.floor(Math.random() * 3);
+  const hp = 30 + w * 5;
+  return {
+    az, el, dist,
+    vaz: 0, vel: 0,
+    hp, maxHp: hp,
+    personality,
+    state: 'approach', // approach, strafe, flee, attack
+    stateTimer: 60 + Math.floor(Math.random() * 60),
+    shootTimer: 40 + Math.floor(Math.random() * 40),
+    alive: true
+  };
+}
+
+function initGame() {
+  playerYaw = 0; playerPitch = 0;
+  score = 0; lives = 3; wave = 0; missiles = 6;
+  shieldF = MAX_SHIELD; shieldR = MAX_SHIELD;
+  enemies = []; lasers = []; eLasers = []; explosions = [];
+  targetIdx = -1; frame = 0; gameOver = false;
+  laserCooldown = 0; missileCooldown = 0;
+  initStars();
+  wave = 1;
+  spawnWave(wave);
+}
+
+initGame();
+
+// --- PROJECT TO SCREEN ---
+function project(az, el, dist) {
+  const relAz = angleDiff(playerYaw, az);
+  const relEl = angleDiff(playerPitch, el);
+  if (Math.abs(relAz) > FOV * 0.8 || Math.abs(relEl) > FOV * 0.8) return null;
+  const sx = VIEW_X + VIEW_W / 2 + relAz * FOCAL;
+  const sy = VIEW_Y + VIEW_H / 2 - relEl * FOCAL;
+  const scale = FOCAL / Math.max(dist, 10);
+  return { sx, sy, scale, relAz, relEl };
+}
+
+function isOnScreen(az, el) {
+  const relAz = angleDiff(playerYaw, az);
+  const relEl = angleDiff(playerPitch, el);
+  return Math.abs(relAz) < FOV * 0.7 && Math.abs(relEl) < FOV * 0.7;
+}
+
+// --- UPDATE ---
+function update() {
+  if (infoOpen) return;
+  if (gameOver) { if (keys['KeyR']) initGame(); return; }
+  frame++;
+
+  // Player look
+  const turnSpd = 0.03;
+  if (keys['ArrowLeft']) playerYaw -= turnSpd;
+  if (keys['ArrowRight']) playerYaw += turnSpd;
+  if (keys['ArrowUp']) playerPitch += turnSpd;
+  if (keys['ArrowDown']) playerPitch -= turnSpd;
+  playerPitch = clamp(playerPitch, -PI / 3, PI / 3);
+  // Normalize yaw
+  while (playerYaw > PI) playerYaw -= TAU;
+  while (playerYaw < -PI) playerYaw += TAU;
+
+  // Shield regen
+  shieldF = Math.min(MAX_SHIELD, shieldF + SHIELD_REGEN);
+  shieldR = Math.min(MAX_SHIELD, shieldR + SHIELD_REGEN);
+
+  // Laser cooldown
+  if (laserCooldown > 0) laserCooldown--;
+  if (missileCooldown > 0) missileCooldown--;
+
+  // Fire lasers
+  if (keys['Space'] && laserCooldown <= 0) {
+    laserCooldown = LASER_RATE;
+    lasers.push({ az: playerYaw, el: playerPitch, dist: 0, life: LASER_RANGE, side: -1 });
+    lasers.push({ az: playerYaw, el: playerPitch, dist: 0, life: LASER_RANGE, side: 1 });
+  }
+
+  // Fire missile
+  if (keys['KeyM'] && missileCooldown <= 0 && missiles > 0 && targetIdx >= 0) {
+    const tgt = enemies[targetIdx];
+    if (tgt && tgt.alive) {
+      missileCooldown = MISSILE_RATE;
+      missiles--;
+      lasers.push({ az: tgt.az, el: tgt.el, dist: 0, life: 800, missile: true, target: targetIdx });
+    }
+  }
+
+  // Target next
+  if (keys['KeyT']) {
+    keys['KeyT'] = false;
+    cycleTarget();
+  }
+
+  // Move lasers
+  lasers = lasers.filter(l => {
+    if (l.missile) {
+      // Missile homes toward target
+      const tgt = enemies[l.target];
+      if (tgt && tgt.alive) {
+        const daz = angleDiff(l.az, tgt.az);
+        const del = angleDiff(l.el, tgt.el);
+        l.az += daz * 0.08;
+        l.el += del * 0.08;
+      }
+      l.dist += 8;
+    } else {
+      l.dist += LASER_SPEED;
+    }
+    l.life -= l.missile ? 8 : LASER_SPEED;
+    if (l.life <= 0) return false;
+
+    // Hit test against enemies
+    for (let i = 0; i < enemies.length; i++) {
+      const e = enemies[i];
+      if (!e.alive) continue;
+      const daz = Math.abs(angleDiff(l.az, e.az));
+      const del = Math.abs(angleDiff(l.el, e.el));
+      const hitRadius = 30 / Math.max(e.dist, 10);
+      const distDiff = Math.abs(l.dist - e.dist);
+      if (daz < hitRadius && del < hitRadius && distDiff < 40) {
+        const dmg = l.missile ? MISSILE_DMG : LASER_DMG;
+        e.hp -= dmg;
+        if (e.hp <= 0) {
+          e.alive = false;
+          score += l.missile ? 100 : 150;
+          killsThisWave++;
+          explosions.push({ az: e.az, el: e.el, dist: e.dist, timer: 40 });
+          if (targetIdx === i) cycleTarget();
+        } else {
+          // Damaged — might flee
+          if (e.personality === 0 && e.hp < e.maxHp * 0.4) {
+            e.state = 'flee';
+            e.stateTimer = 120;
+          }
+        }
+        return false;
+      }
+    }
+    return true;
+  });
+
+  // Enemy AI
+  for (let i = 0; i < enemies.length; i++) {
+    const e = enemies[i];
+    if (!e.alive) continue;
+
+    e.stateTimer--;
+    if (e.stateTimer <= 0) {
+      // State transition
+      const r = Math.random();
+      if (e.personality === 2) {
+        // Aggressive — mostly attack
+        e.state = r < 0.6 ? 'attack' : 'strafe';
+      } else if (e.personality === 0) {
+        // Cautious — strafe and flee
+        e.state = r < 0.3 ? 'attack' : r < 0.7 ? 'strafe' : 'flee';
+      } else {
+        // Normal
+        e.state = r < 0.4 ? 'attack' : r < 0.7 ? 'strafe' : 'approach';
+      }
+      e.stateTimer = 60 + Math.floor(Math.random() * 90);
+    }
+
+    // Execute state
+    const moveSpd = 0.012 + wave * 0.002;
+    switch (e.state) {
+      case 'approach':
+        e.dist -= 1.5;
+        e.az += Math.sin(frame * 0.02 + i) * 0.005;
+        break;
+      case 'attack':
+        // Fly toward player
+        e.dist -= 2.5;
+        e.az += angleDiff(e.az, playerYaw) * 0.02;
+        e.el += angleDiff(e.el, playerPitch) * 0.02;
+        break;
+      case 'strafe':
+        e.az += moveSpd * (i % 2 === 0 ? 1 : -1);
+        e.el += Math.sin(frame * 0.03 + i * 2) * 0.008;
+        break;
+      case 'flee':
+        e.dist += 2;
+        e.az += moveSpd * 0.5;
+        break;
+    }
+
+    // Keep distance in range
+    if (e.dist < 60) { e.dist = 60; e.state = 'strafe'; e.stateTimer = 40; }
+    if (e.dist > 700) { e.dist = 700; e.state = 'approach'; e.stateTimer = 40; }
+
+    // Enemy shooting
+    e.shootTimer--;
+    if (e.shootTimer <= 0 && e.dist < 500) {
+      e.shootTimer = 30 + Math.floor(Math.random() * 40) - wave * 3;
+      if (e.shootTimer < 15) e.shootTimer = 15;
+      // Fire at player with some inaccuracy
+      const acc = 0.08 - Math.min(wave * 0.005, 0.04);
+      eLasers.push({
+        az: playerYaw + rnd(-acc, acc),
+        el: playerPitch + rnd(-acc, acc),
+        fromAz: e.az, fromEl: e.el,
+        dist: e.dist,
+        life: e.dist
+      });
+    }
+  }
+
+  // Move enemy lasers (they travel toward player)
+  eLasers = eLasers.filter(l => {
+    l.dist -= 12;
+    l.life -= 12;
+    if (l.life <= 0) return false;
+    // Hit player?
+    if (l.dist <= 10) {
+      // Determine front or rear hit
+      const relAz = Math.abs(angleDiff(playerYaw, l.fromAz));
+      if (relAz < PI / 2) {
+        // Hit from front
+        shieldF -= 8 + wave * 2;
+      } else {
+        shieldR -= 8 + wave * 2;
+      }
+      if (shieldF < 0 || shieldR < 0) {
+        die();
+      }
+      return false;
+    }
+    return true;
+  });
+
+  // Explosions
+  explosions = explosions.filter(ex => { ex.timer--; return ex.timer > 0; });
+
+  // Wave clear check
+  if (killsThisWave >= totalKillsWave && enemies.every(e => !e.alive)) {
+    wave++;
+    if (wave <= 8) {
+      missiles = Math.min(missiles + 3, 12);
+      shieldF = MAX_SHIELD;
+      shieldR = MAX_SHIELD;
+      targetIdx = -1;
+      spawnWave(wave);
+    } else {
+      // Victory
+      gameOver = true;
+      waveMsg = 'VICTORY — ALL WAVES CLEARED';
+      waveTimer = 9999;
+    }
+  }
+
+  // Wave timer
+  if (waveTimer > 0) waveTimer--;
+}
+
+function cycleTarget() {
+  const alive = [];
+  for (let i = 0; i < enemies.length; i++) {
+    if (enemies[i].alive) alive.push(i);
+  }
+  if (alive.length === 0) { targetIdx = -1; return; }
+  const cur = alive.indexOf(targetIdx);
+  targetIdx = alive[(cur + 1) % alive.length];
+}
+
+function die() {
+  lives--;
+  shieldF = MAX_SHIELD;
+  shieldR = MAX_SHIELD;
+  if (lives <= 0) gameOver = true;
+}
+
+// --- DRAW ---
+function draw() {
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+
+  // Viewport clip region
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(VIEW_X, VIEW_Y, VIEW_W, VIEW_H);
+  ctx.clip();
+
+  // Starfield
+  for (const s of stars) {
+    const p = project(s.az, s.el, 1000);
+    if (!p) continue;
+    const bright = Math.floor(s.b * 255);
+    ctx.fillStyle = 'rgb(' + bright + ',' + bright + ',' + bright + ')';
+    const sz = s.b > 0.7 ? 2 : 1;
+    ctx.fillRect(p.sx, p.sy, sz, sz);
+  }
+
+  // Enemies (sorted by distance, far first)
+  const sortedEnemies = [];
+  for (let i = 0; i < enemies.length; i++) {
+    if (enemies[i].alive) sortedEnemies.push(i);
+  }
+  sortedEnemies.sort((a, b) => enemies[b].dist - enemies[a].dist);
+
+  for (const idx of sortedEnemies) {
+    const e = enemies[idx];
+    const p = project(e.az, e.el, e.dist);
+    if (!p) continue;
+
+    const sz = Math.max(4, 40 * p.scale);
+
+    // Enemy fighter shape
+    const isTarget = idx === targetIdx;
+    const hpPct = e.hp / e.maxHp;
+
+    // Body color based on personality
+    const colors = ['#4af', '#a4f', '#f44'];
+    ctx.fillStyle = colors[e.personality];
+
+    // Diamond/fighter shape
+    ctx.beginPath();
+    ctx.moveTo(p.sx, p.sy - sz);
+    ctx.lineTo(p.sx + sz * 1.2, p.sy + sz * 0.3);
+    ctx.lineTo(p.sx + sz * 0.3, p.sy + sz);
+    ctx.lineTo(p.sx - sz * 0.3, p.sy + sz);
+    ctx.lineTo(p.sx - sz * 1.2, p.sy + sz * 0.3);
+    ctx.closePath();
+    ctx.fill();
+
+    // Cockpit
+    ctx.fillStyle = '#0af';
+    ctx.beginPath();
+    ctx.arc(p.sx, p.sy, sz * 0.25, 0, TAU);
+    ctx.fill();
+
+    // Engine glow
+    ctx.fillStyle = e.state === 'flee' ? '#ff0' : '#f80';
+    ctx.fillRect(p.sx - sz * 0.2, p.sy + sz * 0.8, sz * 0.4, sz * 0.3);
+
+    // Targeting reticle
+    if (isTarget) {
+      ctx.strokeStyle = '#0f0';
+      ctx.lineWidth = 2;
+      const rs = sz + 12;
+      // Corner brackets
+      ctx.beginPath();
+      ctx.moveTo(p.sx - rs, p.sy - rs); ctx.lineTo(p.sx - rs + 10, p.sy - rs);
+      ctx.moveTo(p.sx - rs, p.sy - rs); ctx.lineTo(p.sx - rs, p.sy - rs + 10);
+      ctx.moveTo(p.sx + rs, p.sy - rs); ctx.lineTo(p.sx + rs - 10, p.sy - rs);
+      ctx.moveTo(p.sx + rs, p.sy - rs); ctx.lineTo(p.sx + rs, p.sy - rs + 10);
+      ctx.moveTo(p.sx - rs, p.sy + rs); ctx.lineTo(p.sx - rs + 10, p.sy + rs);
+      ctx.moveTo(p.sx - rs, p.sy + rs); ctx.lineTo(p.sx - rs, p.sy + rs - 10);
+      ctx.moveTo(p.sx + rs, p.sy + rs); ctx.lineTo(p.sx + rs - 10, p.sy + rs);
+      ctx.moveTo(p.sx + rs, p.sy + rs); ctx.lineTo(p.sx + rs, p.sy + rs - 10);
+      ctx.stroke();
+
+      // HP bar under target
+      ctx.fillStyle = '#300';
+      ctx.fillRect(p.sx - 20, p.sy + rs + 4, 40, 4);
+      ctx.fillStyle = hpPct > 0.5 ? '#0f0' : hpPct > 0.25 ? '#ff0' : '#f00';
+      ctx.fillRect(p.sx - 20, p.sy + rs + 4, 40 * hpPct, 4);
+    }
+  }
+
+  // Player lasers
+  for (const l of lasers) {
+    if (l.missile) {
+      const p = project(l.az, l.el, l.dist);
+      if (!p) continue;
+      ctx.fillStyle = '#f80';
+      ctx.beginPath();
+      ctx.arc(p.sx, p.sy, 4, 0, TAU);
+      ctx.fill();
+      ctx.fillStyle = '#ff0';
+      ctx.beginPath();
+      ctx.arc(p.sx, p.sy, 2, 0, TAU);
+      ctx.fill();
+    } else {
+      const p = project(l.az, l.el, l.dist);
+      if (!p) continue;
+      ctx.fillStyle = '#0ff';
+      const bsz = Math.max(2, 6 * p.scale);
+      ctx.fillRect(p.sx - 1 + l.side * 20 * (1 - l.dist / LASER_RANGE), p.sy - bsz, 2, bsz * 2);
+    }
+  }
+
+  // Enemy lasers
+  for (const l of eLasers) {
+    const p = project(l.az, l.el, l.dist);
+    if (!p) continue;
+    ctx.fillStyle = '#f44';
+    const bsz = Math.max(2, 5 * (FOCAL / Math.max(l.dist, 10)));
+    ctx.fillRect(p.sx - 1, p.sy - bsz, 3, bsz * 2);
+  }
+
+  // Explosions
+  for (const ex of explosions) {
+    const p = project(ex.az, ex.el, ex.dist);
+    if (!p) continue;
+    const t = 1 - ex.timer / 40;
+    const r = 20 + t * 50;
+    const alpha = 1 - t;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = '#f80';
+    ctx.beginPath(); ctx.arc(p.sx, p.sy, r * p.scale, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#ff0';
+    ctx.beginPath(); ctx.arc(p.sx, p.sy, r * 0.6 * p.scale, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(p.sx, p.sy, r * 0.3 * p.scale, 0, TAU); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  // Crosshair
+  ctx.strokeStyle = 'rgba(0,255,0,0.5)';
+  ctx.lineWidth = 1;
+  const cx = VIEW_X + VIEW_W / 2, cy = VIEW_Y + VIEW_H / 2;
+  ctx.beginPath();
+  ctx.moveTo(cx - 20, cy); ctx.lineTo(cx - 8, cy);
+  ctx.moveTo(cx + 8, cy); ctx.lineTo(cx + 20, cy);
+  ctx.moveTo(cx, cy - 20); ctx.lineTo(cx, cy - 8);
+  ctx.moveTo(cx, cy + 8); ctx.lineTo(cx, cy + 20);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(cx, cy, 3, 0, TAU);
+  ctx.stroke();
+
+  ctx.restore(); // end clip
+
+  // --- COCKPIT FRAME ---
+  drawCockpit();
+
+  // --- HUD ---
+  drawHUD();
+
+  // Wave message
+  if (waveTimer > 0) {
+    ctx.fillStyle = '#0ff';
+    ctx.font = 'bold 20px monospace';
+    ctx.textAlign = 'center';
+    ctx.globalAlpha = Math.min(1, waveTimer / 30);
+    ctx.fillText(waveMsg, W / 2, VIEW_Y + 40);
+    ctx.globalAlpha = 1;
+  }
+
+  // Game over
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, W, H);
+    ctx.font = 'bold 48px monospace'; ctx.textAlign = 'center';
+    if (wave > 8) {
+      ctx.fillStyle = '#0f0';
+      ctx.fillText('VICTORY', W / 2, H / 2 - 20);
+    } else {
+      ctx.fillStyle = '#f55';
+      ctx.fillText('GAME OVER', W / 2, H / 2 - 20);
+    }
+    ctx.fillStyle = '#aaa'; ctx.font = '18px monospace';
+    ctx.fillText('R to restart   SCORE: ' + score + '   WAVE: ' + wave, W / 2, H / 2 + 24);
+  }
+
+  // Title badge
+  ctx.fillStyle = '#1a1a1a'; ctx.fillRect(8, 8, 310, 22);
+  ctx.fillStyle = '#555'; ctx.font = '13px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('SCR-008 · SPACE DOGFIGHT  [?]', 16, 24);
+}
+
+function drawCockpit() {
+  // Cockpit border frame
+  ctx.strokeStyle = '#334';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(VIEW_X - 2, VIEW_Y - 2, VIEW_W + 4, VIEW_H + 4);
+
+  // Bottom panel (instrument area)
+  const panelY = VIEW_Y + VIEW_H + 4;
+  const panelH = H - panelY - 4;
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0, panelY, W, panelH);
+
+  // Panel border
+  ctx.strokeStyle = '#334';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, panelY); ctx.lineTo(W, panelY);
+  ctx.stroke();
+
+  // Side panels
+  ctx.fillStyle = '#0a0a0a';
+  ctx.fillRect(0, VIEW_Y, VIEW_X - 2, VIEW_H);
+  ctx.fillRect(VIEW_X + VIEW_W + 2, VIEW_Y, W - VIEW_X - VIEW_W - 2, VIEW_H);
+
+  // Cockpit struts (angled lines from corners)
+  ctx.strokeStyle = '#2a2a30';
+  ctx.lineWidth = 6;
+  // Left strut
+  ctx.beginPath();
+  ctx.moveTo(0, 0); ctx.lineTo(VIEW_X, VIEW_Y);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(0, panelY + panelH); ctx.lineTo(VIEW_X, VIEW_Y + VIEW_H);
+  ctx.stroke();
+  // Right strut
+  ctx.beginPath();
+  ctx.moveTo(W, 0); ctx.lineTo(VIEW_X + VIEW_W, VIEW_Y);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(W, panelY + panelH); ctx.lineTo(VIEW_X + VIEW_W, VIEW_Y + VIEW_H);
+  ctx.stroke();
+
+  // Top panel
+  ctx.fillStyle = '#0a0a0a';
+  ctx.fillRect(0, 0, W, VIEW_Y - 2);
+}
+
+function drawHUD() {
+  const panelY = VIEW_Y + VIEW_H + 8;
+
+  ctx.font = '12px monospace';
+
+  // --- RADAR (left instrument) ---
+  const radarCX = 120, radarCY = panelY + 68, radarR = 58;
+  ctx.strokeStyle = '#0a3';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(radarCX, radarCY, radarR, 0, TAU); ctx.stroke();
+  ctx.beginPath(); ctx.arc(radarCX, radarCY, radarR / 2, 0, TAU); ctx.stroke();
+  // Cross lines
+  ctx.beginPath();
+  ctx.moveTo(radarCX - radarR, radarCY); ctx.lineTo(radarCX + radarR, radarCY);
+  ctx.moveTo(radarCX, radarCY - radarR); ctx.lineTo(radarCX, radarCY + radarR);
+  ctx.stroke();
+
+  // Player center dot
+  ctx.fillStyle = '#0f0';
+  ctx.fillRect(radarCX - 2, radarCY - 2, 4, 4);
+
+  // Forward direction indicator
+  ctx.fillStyle = '#080';
+  ctx.fillRect(radarCX - 1, radarCY - radarR + 2, 2, 6);
+
+  // Enemy dots on radar
+  for (let i = 0; i < enemies.length; i++) {
+    const e = enemies[i];
+    if (!e.alive) continue;
+    const relAz = angleDiff(playerYaw, e.az);
+    const relEl = angleDiff(playerPitch, e.el);
+    const radarDist = Math.min(e.dist / 700, 1) * radarR * 0.9;
+    const rx = radarCX + Math.sin(relAz) * radarDist;
+    const ry = radarCY - Math.cos(relAz) * radarDist * Math.cos(relEl);
+
+    ctx.fillStyle = i === targetIdx ? '#ff0' : '#f44';
+    ctx.fillRect(rx - 2, ry - 2, 4, 4);
+  }
+
+  // Radar label
+  ctx.fillStyle = '#0a3';
+  ctx.textAlign = 'center';
+  ctx.fillText('RADAR', radarCX, panelY + 6);
+
+  // --- SHIELDS (left-center) ---
+  const shieldX = 260, shieldY = panelY + 10;
+  ctx.fillStyle = '#08a';
+  ctx.textAlign = 'center';
+  ctx.fillText('SHIELDS', shieldX, shieldY);
+
+  // Front shield bar
+  ctx.fillStyle = '#555';
+  ctx.fillText('FWD', shieldX, shieldY + 18);
+  ctx.fillStyle = '#223';
+  ctx.fillRect(shieldX - 50, shieldY + 22, 100, 12);
+  const fPct = shieldF / MAX_SHIELD;
+  ctx.fillStyle = fPct > 0.5 ? '#0af' : fPct > 0.25 ? '#fa0' : '#f00';
+  ctx.fillRect(shieldX - 50, shieldY + 22, 100 * fPct, 12);
+
+  // Rear shield bar
+  ctx.fillStyle = '#555';
+  ctx.fillText('AFT', shieldX, shieldY + 50);
+  ctx.fillStyle = '#223';
+  ctx.fillRect(shieldX - 50, shieldY + 54, 100, 12);
+  const rPct = shieldR / MAX_SHIELD;
+  ctx.fillStyle = rPct > 0.5 ? '#0af' : rPct > 0.25 ? '#fa0' : '#f00';
+  ctx.fillRect(shieldX - 50, shieldY + 54, 100 * rPct, 12);
+
+  // Shield numeric
+  ctx.fillStyle = '#08a';
+  ctx.font = '11px monospace';
+  ctx.fillText(Math.floor(shieldF) + '%', shieldX + 70, shieldY + 33);
+  ctx.fillText(Math.floor(shieldR) + '%', shieldX + 70, shieldY + 65);
+  ctx.font = '12px monospace';
+
+  // --- WEAPONS (center) ---
+  const weapX = W / 2, weapY = panelY + 10;
+  ctx.fillStyle = '#fa0';
+  ctx.textAlign = 'center';
+  ctx.fillText('WEAPONS', weapX, weapY);
+
+  // Laser status
+  ctx.fillStyle = laserCooldown > 0 ? '#440' : '#0f0';
+  ctx.fillText('LASER: ' + (laserCooldown > 0 ? 'CHARGING' : 'READY'), weapX, weapY + 24);
+
+  // Missile count
+  ctx.fillStyle = missiles > 0 ? '#f80' : '#400';
+  ctx.fillText('MISSILES: ' + missiles, weapX, weapY + 44);
+
+  // Missile pips
+  for (let i = 0; i < 12; i++) {
+    ctx.fillStyle = i < missiles ? '#f80' : '#221';
+    ctx.fillRect(weapX - 48 + i * 8, weapY + 50, 6, 8);
+  }
+
+  // --- TARGET INFO (right-center) ---
+  const tgtX = 560, tgtY = panelY + 10;
+  ctx.fillStyle = '#0f0';
+  ctx.textAlign = 'center';
+  ctx.fillText('TARGET', tgtX, tgtY);
+
+  if (targetIdx >= 0 && enemies[targetIdx] && enemies[targetIdx].alive) {
+    const tgt = enemies[targetIdx];
+    const names = ['LIGHT', 'MEDIUM', 'HEAVY'];
+    ctx.fillStyle = '#0a0';
+    ctx.fillText(names[tgt.personality] + ' FIGHTER', tgtX, tgtY + 20);
+
+    // Target HP bar
+    const tHpPct = tgt.hp / tgt.maxHp;
+    ctx.fillStyle = '#223';
+    ctx.fillRect(tgtX - 50, tgtY + 26, 100, 10);
+    ctx.fillStyle = tHpPct > 0.5 ? '#0f0' : tHpPct > 0.25 ? '#ff0' : '#f00';
+    ctx.fillRect(tgtX - 50, tgtY + 26, 100 * tHpPct, 10);
+
+    // Distance
+    ctx.fillStyle = '#0a0';
+    ctx.fillText('DIST: ' + Math.floor(tgt.dist), tgtX, tgtY + 54);
+
+    // State
+    const stateNames = { approach: 'CLOSING', attack: 'ATTACKING', strafe: 'EVASIVE', flee: 'RETREATING' };
+    ctx.fillStyle = tgt.state === 'attack' ? '#f44' : tgt.state === 'flee' ? '#ff0' : '#0a0';
+    ctx.fillText(stateNames[tgt.state] || tgt.state.toUpperCase(), tgtX, tgtY + 70);
+  } else {
+    ctx.fillStyle = '#333';
+    ctx.fillText('NO TARGET', tgtX, tgtY + 30);
+    ctx.fillText('PRESS T', tgtX, tgtY + 50);
+  }
+
+  // --- SCORE / WAVE / LIVES (right instrument) ---
+  const statX = 700, statY = panelY + 10;
+  ctx.fillStyle = '#aaa';
+  ctx.textAlign = 'center';
+  ctx.fillText('SCORE', statX, statY);
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 16px monospace';
+  ctx.fillText('' + score, statX, statY + 22);
+  ctx.font = '12px monospace';
+
+  ctx.fillStyle = '#aaa';
+  ctx.fillText('WAVE ' + wave + '/8', statX, statY + 44);
+
+  // Lives as ship icons
+  ctx.fillStyle = '#aaa';
+  ctx.fillText('LIVES', statX, statY + 62);
+  for (let i = 0; i < lives; i++) {
+    ctx.fillStyle = '#0af';
+    ctx.beginPath();
+    const lx = statX - 15 + i * 16;
+    const ly = statY + 74;
+    ctx.moveTo(lx, ly - 6);
+    ctx.lineTo(lx + 6, ly + 4);
+    ctx.lineTo(lx, ly + 1);
+    ctx.lineTo(lx - 6, ly + 4);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // --- Off-screen target indicators ---
+  if (targetIdx >= 0 && enemies[targetIdx] && enemies[targetIdx].alive) {
+    const tgt = enemies[targetIdx];
+    if (!isOnScreen(tgt.az, tgt.el)) {
+      const relAz = angleDiff(playerYaw, tgt.az);
+      const relEl = angleDiff(playerPitch, tgt.el);
+      const angle = Math.atan2(-relEl, relAz);
+      const edgeX = VIEW_X + VIEW_W / 2 + Math.cos(angle) * (VIEW_W / 2 - 20);
+      const edgeY = VIEW_Y + VIEW_H / 2 + Math.sin(angle) * (VIEW_H / 2 - 20);
+      const eX = clamp(edgeX, VIEW_X + 10, VIEW_X + VIEW_W - 10);
+      const eY = clamp(edgeY, VIEW_Y + 10, VIEW_Y + VIEW_H - 10);
+
+      ctx.fillStyle = '#0f0';
+      ctx.beginPath();
+      ctx.moveTo(eX + Math.cos(angle) * 10, eY + Math.sin(angle) * 10);
+      ctx.lineTo(eX + Math.cos(angle + 2.5) * 8, eY + Math.sin(angle + 2.5) * 8);
+      ctx.lineTo(eX + Math.cos(angle - 2.5) * 8, eY + Math.sin(angle - 2.5) * 8);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  // Shield hit flash
+  if (shieldF < MAX_SHIELD * 0.95 && frame % 4 < 2 && shieldF < MAX_SHIELD * 0.3) {
+    ctx.fillStyle = 'rgba(255,0,0,0.1)';
+    ctx.fillRect(VIEW_X, VIEW_Y, VIEW_W, VIEW_H);
+  }
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

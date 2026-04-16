@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pixel Vault — A Playable Museum of Game Mechanics</title>
+<meta name="description" content="410 playable HTML5 game prototypes spanning 5,000 years of play. Educational game museum. Free to play.">
+<meta name="robots" content="index, follow">
+
+<!-- Security: strict CSP allowing only our domains + ad networks (when enabled) -->
+<meta http-equiv="Content-Security-Policy"
+  content="default-src 'self';
+           script-src 'self' 'unsafe-inline' https://pagead2.googlesyndication.com https://www.googletagmanager.com;
+           style-src 'self' 'unsafe-inline';
+           img-src 'self' data: https:;
+           frame-src 'self';
+           connect-src 'self' https://www.google-analytics.com https://analytics.google.com;
+           font-src 'self';">
+
+<!-- Open Graph -->
+<meta property="og:title" content="Pixel Vault — Playable Game Museum">
+<meta property="og:description" content="410 playable HTML5 game prototypes. Free. No install. Educational.">
+<meta property="og:type" content="website">
+
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg: #0a0a0a; --surface: #151515; --border: #2a2a2a;
+  --text: #ccc; --accent: #7bf; --gold: #f90;
+  --safe: #4f6; --warn: #fa0; --danger: #f42;
+}
+html { -webkit-font-smoothing: antialiased; }
+body { background: var(--bg); color: var(--text); font-family: 'SF Mono','Consolas',monospace; font-size: 13px; }
+
+/* Header */
+.header { background: #111; border-bottom: 1px solid var(--border); padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; }
+.header h1 { color: var(--accent); font-size: 16px; }
+.header nav { display: flex; gap: 16px; font-size: 12px; }
+.header nav a { color: #888; text-decoration: none; }
+.header nav a:hover { color: var(--accent); }
+
+/* Layout */
+.layout { display: flex; height: calc(100vh - 45px); }
+
+/* Sidebar */
+.sidebar { width: 280px; background: var(--surface); border-right: 1px solid var(--border); overflow-y: auto; flex-shrink: 0; }
+.sidebar .filters { padding: 12px; border-bottom: 1px solid var(--border); }
+.sidebar .filters select, .sidebar .filters input {
+  width: 100%; margin-bottom: 6px; background: #222; border: 1px solid #444;
+  color: var(--text); padding: 5px 8px; border-radius: 3px; font-family: inherit; font-size: 12px;
+}
+.game-list { list-style: none; }
+.game-item { padding: 8px 12px; border-bottom: 1px solid #1a1a1a; cursor: pointer; }
+.game-item:hover { background: #1a1a1a; }
+.game-item.active { background: #1a2a1a; border-left: 3px solid var(--safe); }
+.game-item .title { font-size: 11px; font-weight: bold; color: #ddd; }
+.game-item .meta { font-size: 10px; color: #777; margin-top: 2px; }
+
+/* Main content */
+.main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; position: relative; }
+
+/* Game frame */
+.game-container { position: relative; }
+.game-frame { width: 800px; height: 600px; border: 2px solid var(--border); border-radius: 4px; background: #000; }
+
+/* Ad zones (empty by default — filled by monetization config) */
+.ad-zone { display: none; background: var(--surface); border: 1px dashed #333; border-radius: 4px; }
+.ad-zone.active { display: block; }
+.ad-sidebar-left, .ad-sidebar-right { width: 160px; min-height: 600px; }
+.ad-banner { width: 728px; max-width: 100%; height: 90px; margin-top: 12px; }
+
+/* Info bar below game */
+.info-bar { display: flex; gap: 16px; padding: 8px 0; font-size: 11px; color: #888; }
+.info-bar .stat { display: flex; align-items: center; gap: 4px; }
+
+/* Rate limit overlay */
+.rate-limit-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.9); z-index: 200; align-items: center; justify-content: center; }
+.rate-limit-overlay.active { display: flex; }
+.rate-limit-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  padding: 30px; max-width: 400px; text-align: center; }
+.rate-limit-box h2 { color: var(--accent); margin-bottom: 12px; }
+
+/* Disclaimer bar */
+.disclaimer { background: #1a1a0a; border-top: 1px solid #333; padding: 6px 20px; font-size: 10px; color: #888; text-align: center; }
+.disclaimer a { color: var(--accent); }
+
+/* Welcome screen */
+.welcome { text-align: center; max-width: 500px; }
+.welcome h2 { color: var(--accent); font-size: 20px; margin-bottom: 12px; }
+.welcome p { color: #999; line-height: 1.6; margin-bottom: 8px; }
+.welcome .count { color: var(--gold); font-size: 24px; font-weight: bold; }
+
+@media (max-width: 1200px) {
+  .ad-sidebar-left, .ad-sidebar-right { display: none !important; }
+}
+@media (max-width: 900px) {
+  .sidebar { width: 220px; }
+  .game-frame { width: 100%; height: auto; aspect-ratio: 4/3; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Pixel Vault</h1>
+  <nav>
+    <a href="#" id="nav-games">Games</a>
+    <a href="disclaimer.html">About & Legal</a>
+    <a href="https://joshuaayson.com" target="_blank" rel="noopener">Blog</a>
+  </nav>
+</div>
+
+<div class="layout">
+  <div class="sidebar">
+    <div class="filters">
+      <select id="filter-track">
+        <option value="all">All Tracks</option>
+        <option value="prototypes">Archetypes</option>
+        <option value="ai-archaeology">AI Archaeology</option>
+        <option value="ai-evolution">AI Evolution</option>
+      </select>
+      <select id="filter-series">
+        <option value="all">All Series</option>
+      </select>
+      <input type="text" id="filter-search" placeholder="Search games...">
+    </div>
+    <ul class="game-list" id="game-list"></ul>
+  </div>
+
+  <div class="main">
+    <!-- Ad zone: left sidebar (hidden by default) -->
+    <div class="ad-zone ad-sidebar-left" id="ad-left"></div>
+
+    <div class="game-container">
+      <!-- Welcome screen (shown before first game) -->
+      <div class="welcome" id="welcome">
+        <h2>Pixel Vault</h2>
+        <p class="count" id="game-count">...</p>
+        <p>Playable HTML5 game prototypes spanning 5,000 years of play.</p>
+        <p>Select a game from the sidebar to begin.</p>
+        <p style="color:#555;font-size:10px;margin-top:20px;">
+          Educational reconstruction. Press ? in any game for history and controls.
+        </p>
+      </div>
+
+      <!-- Game iframe (hidden until game selected) -->
+      <iframe class="game-frame" id="game-frame" style="display:none"
+              sandbox="allow-scripts allow-same-origin"
+              loading="lazy"></iframe>
+
+      <!-- Info bar -->
+      <div class="info-bar" id="info-bar" style="display:none">
+        <span class="stat" id="stat-name"></span>
+        <span class="stat">Press <kbd style="background:#333;padding:1px 4px;border-radius:2px">?</kbd> for info</span>
+        <span class="stat" id="stat-track" style="padding:1px 6px;border-radius:3px;font-size:10px"></span>
+      </div>
+
+      <!-- Lineage panel (shows related games) -->
+      <div id="lineage-panel" style="display:none;padding:8px 0;font-size:11px;max-width:800px">
+        <div id="lineage-parents" style="display:none;margin-bottom:6px">
+          <span style="color:#888">Based on: </span>
+          <span id="lineage-parent-links"></span>
+        </div>
+        <div id="lineage-children" style="display:none">
+          <span style="color:#888">Inspired: </span>
+          <span id="lineage-child-links"></span>
+        </div>
+      </div>
+
+      <!-- Ad zone: bottom banner (hidden by default) -->
+      <div class="ad-zone ad-banner" id="ad-banner"></div>
+    </div>
+
+    <!-- Ad zone: right sidebar (hidden by default) -->
+    <div class="ad-zone ad-sidebar-right" id="ad-right"></div>
+  </div>
+</div>
+
+<!-- Rate limit overlay (hidden by default) -->
+<div class="rate-limit-overlay" id="rate-limit">
+  <div class="rate-limit-box">
+    <h2>You've been playing a lot!</h2>
+    <p id="rate-limit-message"></p>
+    <button onclick="dismissRateLimit()" style="margin-top:16px;padding:8px 24px;background:#234;color:#7bf;border:1px solid #345;border-radius:4px;cursor:pointer;font-family:inherit">Continue Playing</button>
+  </div>
+</div>
+
+<!-- Disclaimer bar -->
+<div class="disclaimer" id="disclaimer">
+  Educational game museum by <a href="https://joshuaayson.com">OA LLC</a>.
+  Games are original educational reconstructions, not affiliated with original creators.
+  <a href="disclaimer.html">Legal & Attribution</a>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// PIXEL VAULT PUBLIC GALLERY
+// The monetization wrapper. Game files are NEVER modified.
+// All ads, analytics, metering, and premium logic lives HERE.
+// ═══════════════════════════════════════════════════════════════
+
+let config = null;
+let games = [];
+let currentGame = null;
+let playCount = 0;
+
+// ── Config loading ──
+async function loadConfig() {
+  try {
+    // Try local config first (staging), then public/config/ (dev)
+    let resp;
+    try { resp = await fetch('config/monetization-config.json?t=' + Date.now()); }
+    catch { resp = await fetch('../public/config/monetization-config.json?t=' + Date.now()); }
+    config = await resp.json();
+  } catch {
+    // Default: everything off
+    config = { ads: { enabled: false }, rateLimit: { enabled: false },
+               analytics: { enabled: false }, content: { disclaimerEnabled: true } };
+  }
+}
+
+// ── Analytics (only when enabled) ──
+function initAnalytics() {
+  if (!config.analytics?.enabled || !config.analytics?.ga4MeasurementId) return;
+
+  const script = document.createElement('script');
+  script.async = true;
+  script.src = `https://www.googletagmanager.com/gtag/js?id=${config.analytics.ga4MeasurementId}`;
+  document.head.appendChild(script);
+
+  window.dataLayer = window.dataLayer || [];
+  window.gtag = function() { dataLayer.push(arguments); };
+  gtag('js', new Date());
+  gtag('config', config.analytics.ga4MeasurementId, { send_page_view: true });
+}
+
+function trackEvent(name, params) {
+  if (!config.analytics?.enabled || !window.gtag) return;
+  gtag('event', name, params);
+}
+
+// ── Ad loading (only when enabled) ──
+function initAds() {
+  if (!config.ads?.enabled) return;
+
+  if (config.ads.provider === 'adsense' && config.ads.adsenseClientId) {
+    const script = document.createElement('script');
+    script.async = true;
+    script.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js';
+    script.dataset.adClient = config.ads.adsenseClientId;
+    script.crossOrigin = 'anonymous';
+    document.head.appendChild(script);
+  }
+
+  // Activate ad zones based on config
+  if (config.ads.sidebar?.enabled) {
+    document.getElementById('ad-left').classList.add('active');
+    document.getElementById('ad-right').classList.add('active');
+  }
+  if (config.ads.banner?.enabled) {
+    document.getElementById('ad-banner').classList.add('active');
+  }
+}
+
+// ── Rate limiting (only when enabled) ──
+function checkPlayQuota() {
+  if (!config.rateLimit?.enabled) return { allowed: true };
+
+  const today = new Date().toISOString().slice(0, 10);
+  const key = `pv-plays-${today}`;
+  let count = 0;
+  try { count = parseInt(localStorage.getItem(key) || '0'); } catch {}
+
+  const limit = config.rateLimit.freeGamesPerDay || 20;
+
+  if (count >= limit) {
+    const exempt = config.rateLimit.exemptGames || [];
+    if (currentGame && exempt.includes(currentGame.id)) return { allowed: true };
+
+    return {
+      allowed: config.rateLimit.softWall,
+      remaining: 0,
+      message: config.rateLimit.softWall
+        ? `You've played ${count} games today! That's awesome. Consider supporting us for unlimited play.`
+        : `Daily limit reached (${limit} games). Come back tomorrow or upgrade for unlimited access.`
+    };
+  }
+
+  try { localStorage.setItem(key, String(count + 1)); } catch {}
+  return { allowed: true, remaining: limit - count - 1 };
+}
+
+function showRateLimit(message) {
+  document.getElementById('rate-limit-message').textContent = message;
+  document.getElementById('rate-limit').classList.add('active');
+  trackEvent('rate_limit_shown', { play_count: playCount });
+}
+
+function dismissRateLimit() {
+  document.getElementById('rate-limit').classList.remove('active');
+}
+
+// ── Game loading ──
+async function loadGames() {
+  try {
+    // Try local manifest first (staging build), then parent dir (dev repo)
+    let manifest;
+    try {
+      const resp = await fetch('manifest.json?t=' + Date.now());
+      manifest = await resp.json();
+    } catch {
+      const resp = await fetch('../manifest.json?t=' + Date.now());
+      manifest = await resp.json();
+    }
+    games = manifest.prototypes || [];
+    document.getElementById('game-count').textContent = `${games.length} games`;
+
+    // Populate series filter
+    const seriesSet = new Set(games.map(g => (g.series || '?').toUpperCase()));
+    const sel = document.getElementById('filter-series');
+    [...seriesSet].sort().forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s.toLowerCase(); opt.textContent = s;
+      sel.appendChild(opt);
+    });
+
+    renderGameList();
+  } catch (e) {
+    document.getElementById('game-count').textContent = 'Error loading games';
+  }
+}
+
+function getFilteredGames() {
+  const track = document.getElementById('filter-track').value;
+  const series = document.getElementById('filter-series').value;
+  const search = document.getElementById('filter-search').value.toLowerCase();
+
+  return games.filter(g => {
+    const file = g.file || '';
+    const gTrack = file.startsWith('ai-archaeology') ? 'ai-archaeology'
+                 : file.startsWith('ai-evolution') ? 'ai-evolution' : 'prototypes';
+    if (track !== 'all' && gTrack !== track) return false;
+    if (series !== 'all' && (g.series || '') !== series) return false;
+    if (search && !(g.name || '').toLowerCase().includes(search) && !(g.id || '').toLowerCase().includes(search)) return false;
+    return true;
+  });
+}
+
+function renderGameList() {
+  const filtered = getFilteredGames();
+  const list = document.getElementById('game-list');
+  list.innerHTML = '';
+  filtered.forEach(g => {
+    const li = document.createElement('li');
+    li.className = 'game-item' + (currentGame === g ? ' active' : '');
+    const name = (g.name || g.id || '?').replace(/-/g, ' ');
+    const series = (g.series || '?').toUpperCase();
+    li.innerHTML = `<div class="title">${series}-${String(g.number||0).padStart(3,'0')} ${name}</div>
+                    <div class="meta">${(g.mechanic||'').substring(0, 60)}...</div>`;
+    li.addEventListener('click', () => playGame(g));
+    list.appendChild(li);
+  });
+}
+
+function playGame(game) {
+  // Rate limit check
+  const quota = checkPlayQuota();
+  if (!quota.allowed) {
+    showRateLimit(quota.message);
+    return;
+  }
+
+  currentGame = game;
+  playCount++;
+
+  // Resolve game file path — works in staging (games/) and dev (../)
+  const file = game.stagingFile || game.file || '';
+  let gamePath;
+  if (file.startsWith('games/')) {
+    gamePath = file; // staging build
+  } else {
+    gamePath = '../' + file; // dev repo (public/ is a subdirectory)
+  }
+
+  // Load game in iframe
+  document.getElementById('welcome').style.display = 'none';
+  const frame = document.getElementById('game-frame');
+  frame.style.display = 'block';
+  frame.src = gamePath + '?t=' + Date.now();
+
+  // Update info bar
+  document.getElementById('info-bar').style.display = 'flex';
+  const name = (game.name || game.id || '?').replace(/-/g, ' ');
+  document.getElementById('stat-name').textContent =
+    `${(game.series||'').toUpperCase()}-${String(game.number||0).padStart(3,'0')} ${name}`;
+
+  // Track label
+  const trackLabel = document.getElementById('stat-track');
+  const track = game.track || 'archetype';
+  trackLabel.textContent = track === 'ai-archaeology' ? 'AI ARCHAEOLOGY' : track === 'ai-evolution' ? 'AI EVOLUTION' : 'ARCHETYPE';
+  trackLabel.style.background = track === 'ai-archaeology' ? '#142' : track === 'ai-evolution' ? '#213' : '#222';
+  trackLabel.style.color = track === 'ai-archaeology' ? '#4f6' : track === 'ai-evolution' ? '#c7f' : '#888';
+
+  // Update lineage panel
+  updateLineagePanel(game);
+
+  // Track play event
+  trackEvent('game_play', {
+    game_id: game.id,
+    series: game.series,
+    play_number: playCount
+  });
+
+  // Highlight in sidebar
+  renderGameList();
+}
+
+// ── Lineage display ──
+function updateLineagePanel(game) {
+  const panel = document.getElementById('lineage-panel');
+  const parentsDiv = document.getElementById('lineage-parents');
+  const childrenDiv = document.getElementById('lineage-children');
+  const parentLinks = document.getElementById('lineage-parent-links');
+  const childLinks = document.getElementById('lineage-child-links');
+
+  const parents = game.parentIds || [];
+  const children = game.childIds || [];
+
+  if (parents.length === 0 && children.length === 0) {
+    panel.style.display = 'none';
+    return;
+  }
+
+  panel.style.display = 'block';
+
+  // Parent links
+  if (parents.length > 0) {
+    parentsDiv.style.display = 'block';
+    parentLinks.innerHTML = parents.map(pid => {
+      const parent = games.find(g => g.id === pid);
+      if (!parent) return `<span style="color:#666">${pid}</span>`;
+      const pname = (parent.name || pid).replace(/-/g, ' ');
+      return `<a href="#" style="color:#4f6;text-decoration:none;margin-right:8px" onclick="event.preventDefault();playGame(games.find(g=>g.id==='${pid}'))">${(parent.series||'').toUpperCase()}-${String(parent.number||0).padStart(3,'0')} ${pname}</a>`;
+    }).join('');
+  } else {
+    parentsDiv.style.display = 'none';
+  }
+
+  // Child links
+  if (children.length > 0) {
+    childrenDiv.style.display = 'block';
+    childLinks.innerHTML = children.map(cid => {
+      const child = games.find(g => g.id === cid);
+      if (!child) return `<span style="color:#666">${cid}</span>`;
+      const cname = (child.name || cid).replace(/-/g, ' ');
+      const trackColor = (child.track === 'ai-archaeology') ? '#4f6' : (child.track === 'ai-evolution') ? '#c7f' : '#7bf';
+      const trackLabel = (child.track === 'ai-archaeology') ? '[AI]' : (child.track === 'ai-evolution') ? '[EVO]' : '';
+      return `<a href="#" style="color:${trackColor};text-decoration:none;margin-right:8px" onclick="event.preventDefault();playGame(games.find(g=>g.id==='${cid}'))">${trackLabel} ${(child.series||'').toUpperCase()}-${String(child.number||0).padStart(3,'0')} ${cname}</a>`;
+    }).join('');
+  } else {
+    childrenDiv.style.display = 'none';
+  }
+}
+
+// ── Filter listeners ──
+['filter-track', 'filter-series'].forEach(id => {
+  document.getElementById(id).addEventListener('change', renderGameList);
+});
+document.getElementById('filter-search').addEventListener('input', renderGameList);
+
+// ── Init ──
+async function init() {
+  await loadConfig();
+  initAnalytics();
+  initAds();
+  await loadGames();
+
+  // Hide disclaimer if disabled
+  if (!config.content?.disclaimerEnabled) {
+    document.getElementById('disclaimer').style.display = 'none';
+  }
+}
+
+init();
+</script>
+</body>
+</html>

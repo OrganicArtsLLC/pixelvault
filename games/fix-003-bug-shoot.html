@@ -1,0 +1,608 @@
+<!--
+PROTOTYPE: bug-shoot
+SERIES: fix
+NUMBER: 003
+DATE: 2026-03-22
+MECHANIC: trackball shooter — destroy segmented centipede while mushroom field reshapes
+ANCESTRY: Centipede (1981, Dona Bailey/Ed Logg, Atari), Millipede (1982, Atari)
+CONTROLS: Arrow keys or WASD — move | Space — shoot | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — rule-based, pre-backpropagation)
+AI-INSIGHT: Player actions reshape the battlefield — every shot that hits a centipede segment spawns a mushroom, making future paths less predictable. This is implicit environment co-design between player and game system, decades before the concept of environment shaping in RL.
+NOTES: Dona Bailey was one of the first women to design an arcade game.
+       The mushroom field is the real design — it turns every action into a terrain modification.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FIX-003 · BUG SHOOT</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>FIX-003 · BUG SHOOT</h1>
+    <p><span class="tag series">FIX — Fixed Shooter</span> <span class="tag">Prototype #003</span> <span class="tag">★★★★☆</span></p>
+
+    <h2>How to Play</h2>
+    <p>Shoot the centipede as it winds through the mushroom field. Each hit splits it into segments and spawns a new mushroom. Clear all segments to advance.</p>
+    <ul>
+      <li><kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd> or <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> — Move (in bottom zone)</li>
+      <li><kbd>Space</kbd> — Shoot (auto-fire when held)</li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Mushrooms redirect:</strong> The centipede turns down one row when it hits a mushroom or wall edge.</li>
+      <li><strong>Splitting:</strong> Hitting a middle segment creates two independent centipedes and a mushroom.</li>
+      <li><strong>Spider:</strong> A spider bounces around the bottom zone — dangerous but high-value target.</li>
+      <li><strong>Clear mushrooms:</strong> Shoot mushrooms (3 hits) to create cleaner paths.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Centipede (1981, Dona Bailey/Ed Logg, Atari) → Millipede (1982, Atari)</p>
+    <p>Centipede was designed by Dona Bailey and Ed Logg at Atari — Bailey was one of the first women to design an arcade game. It introduced the trackball for fluid analog control and the concept of a battlefield that the player reshapes through play.</p>
+    <p>The mushroom field is the real design innovation. Every destroyed centipede segment leaves a mushroom, which changes future centipede paths. The player is simultaneously fighting enemies and sculpting the terrain they'll fight on next. This feedback loop creates emergent complexity from simple rules.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 3 — Knowledge Explosion (1978–1983)</p>
+    <p><strong>Contemporary AI:</strong> Rule-based systems. No concept of environment modification in AI decision-making.</p>
+    <p><strong>Hidden Intelligence:</strong> The mushroom-spawning mechanic is implicit environment co-design. The player's actions reshape the obstacle field, which changes enemy behavior, which changes optimal player strategy. This is a closed-loop system where agent actions modify the environment's transition function — a concept RL researchers wouldn't formalize until reward shaping and environment design became subfields.</p>
+    <p><strong>The Convergence:</strong> Modern sim-to-real transfer and domain randomization are about training agents in varying environments. Centipede's mushroom field is a player-modified environment that creates natural domain variation within a single game.</p>
+    <p><strong>If AI Had Designed This:</strong> Procedurally optimized mushroom density to maintain the ideal tension between path predictability and chaos.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: FIX — Fixed Shooter</h3>
+    <p>Player restricted to a zone, shooting upward at descending threats. Centipede extends the series with terrain modification and segmented enemies.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Trackball shooter with environment reshaping.</strong> Segmented enemy that splits on hit. Mushroom field as persistent, player-modified obstacle grid. Spider as secondary threat in player zone.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Centipede pathing through mushrooms (does it feel organic?)</li>
+      <li>Segment splitting (does it create satisfying chaos?)</li>
+      <li>Mushroom accumulation (does terrain modification feel consequential?)</li>
+      <li>Spider pressure (does it create urgency in the player zone?)</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Simplified trackball movement mapped to keyboard. 30×25 tile grid. Centipede winds through mushroom field with proper splitting behavior.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+const keys = {};
+window.addEventListener('keydown', e => { if (!infoOpen) keys[e.code] = true; e.preventDefault(); });
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+// --- GRID ---
+const COLS = 30, ROWS = 25, TILE = 20;
+const OX = (W - COLS * TILE) / 2, OY = (H - ROWS * TILE) / 2;
+const PLAYER_ZONE = 5; // bottom N rows for player movement
+
+// --- STATE ---
+let mushrooms, centipedes, bullets, player, spider, score, lives, wave, gameOver, frame;
+
+function initGame() {
+  score = 0; lives = 3; wave = 0; gameOver = false; frame = 0;
+  mushrooms = Array.from({ length: ROWS }, () => new Uint8Array(COLS));
+  bullets = [];
+  spider = null;
+  spawnMushrooms();
+  spawnWave();
+  player = { x: W / 2, y: OY + (ROWS - 2) * TILE };
+}
+
+function spawnMushrooms() {
+  for (let r = 2; r < ROWS - PLAYER_ZONE; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (Math.random() < 0.06) mushrooms[r][c] = 3; // 3 HP
+    }
+  }
+}
+
+function spawnWave() {
+  wave++;
+  centipedes = [];
+  const len = Math.max(4, 12 - wave);
+  centipedes.push({
+    segs: Array.from({ length: len }, (_, i) => ({
+      col: COLS - 1 - i, row: 0, alive: true
+    })),
+    dir: -1, dropping: false, targetRow: 0
+  });
+}
+
+initGame();
+
+function mushroomAt(col, row) {
+  if (row < 0 || row >= ROWS || col < 0 || col >= COLS) return false;
+  return mushrooms[row][col] > 0;
+}
+
+// --- CENTIPEDE MOVEMENT ---
+function moveCentipedes() {
+  for (const centi of centipedes) {
+    if (!centi.segs.some(s => s.alive)) continue;
+    const head = centi.segs[0];
+    if (!head.alive) {
+      // Find new head
+      const idx = centi.segs.findIndex(s => s.alive);
+      if (idx < 0) continue;
+      centi.segs = centi.segs.slice(idx);
+    }
+
+    const h = centi.segs[0];
+
+    if (centi.dropping) {
+      h.row++;
+      if (h.row >= centi.targetRow) {
+        centi.dropping = false;
+        centi.dir = -centi.dir;
+      }
+    } else {
+      const nextCol = h.col + centi.dir;
+      if (nextCol < 0 || nextCol >= COLS || mushroomAt(nextCol, h.row)) {
+        centi.dropping = true;
+        centi.targetRow = h.row + 1;
+      } else {
+        h.col = nextCol;
+      }
+    }
+
+    // Clamp
+    h.row = Math.min(h.row, ROWS - 1);
+
+    // Trail body segments
+    for (let i = centi.segs.length - 1; i > 0; i--) {
+      if (!centi.segs[i].alive) continue;
+      const prev = centi.segs[i - 1];
+      centi.segs[i].col = prev.col;
+      centi.segs[i].row = prev.row;
+    }
+
+    // If head reaches bottom, reverse upward (simplified wrapping)
+    if (h.row >= ROWS - 1) {
+      centi.dir = -centi.dir;
+      h.row = ROWS - 1;
+    }
+  }
+}
+
+let moveTimer = 0;
+const MOVE_INTERVAL = 4;
+
+function update() {
+  if (infoOpen) return;
+  if (gameOver) { if (keys['KeyR']) initGame(); return; }
+  frame++;
+
+  // Player movement
+  const spd = 5;
+  if (keys['ArrowLeft'] || keys['KeyA']) player.x -= spd;
+  if (keys['ArrowRight'] || keys['KeyD']) player.x += spd;
+  if (keys['ArrowUp'] || keys['KeyW']) player.y -= spd;
+  if (keys['ArrowDown'] || keys['KeyS']) player.y += spd;
+
+  // Clamp to player zone
+  player.x = Math.max(OX + TILE / 2, Math.min(OX + COLS * TILE - TILE / 2, player.x));
+  const minY = OY + (ROWS - PLAYER_ZONE) * TILE;
+  player.y = Math.max(minY, Math.min(OY + ROWS * TILE - TILE / 2, player.y));
+
+  // Auto-fire
+  if (keys['Space'] && frame % 5 === 0) {
+    bullets.push({ x: player.x, y: player.y - TILE / 2, vy: -10 });
+  }
+
+  // Move bullets
+  bullets = bullets.filter(b => {
+    b.y += b.vy;
+    if (b.y < OY) return false;
+
+    // Hit mushroom
+    const mc = Math.floor((b.x - OX) / TILE);
+    const mr = Math.floor((b.y - OY) / TILE);
+    if (mc >= 0 && mc < COLS && mr >= 0 && mr < ROWS && mushrooms[mr][mc] > 0) {
+      mushrooms[mr][mc]--;
+      if (mushrooms[mr][mc] <= 0) score += 1;
+      return false;
+    }
+
+    // Hit centipede segment
+    for (const centi of centipedes) {
+      for (let i = 0; i < centi.segs.length; i++) {
+        const s = centi.segs[i];
+        if (!s.alive) continue;
+        const sx = OX + s.col * TILE + TILE / 2;
+        const sy = OY + s.row * TILE + TILE / 2;
+        if (Math.abs(b.x - sx) < TILE / 2 && Math.abs(b.y - sy) < TILE / 2) {
+          s.alive = false;
+          score += 10;
+          // Spawn mushroom at kill location
+          if (s.row >= 0 && s.row < ROWS && s.col >= 0 && s.col < COLS) {
+            mushrooms[s.row][s.col] = 3;
+          }
+          // Split centipede: segments after this one become a new centipede
+          if (i < centi.segs.length - 1) {
+            const newSegs = centi.segs.slice(i + 1).filter(seg => seg.alive);
+            if (newSegs.length > 0) {
+              centipedes.push({
+                segs: newSegs,
+                dir: -centi.dir,
+                dropping: false,
+                targetRow: newSegs[0].row
+              });
+              centi.segs = centi.segs.slice(0, i + 1);
+            }
+          }
+          return false;
+        }
+      }
+    }
+
+    // Hit spider
+    if (spider) {
+      const dx = b.x - spider.x, dy = b.y - spider.y;
+      if (dx * dx + dy * dy < 200) {
+        score += 600;
+        spider = null;
+        return false;
+      }
+    }
+
+    return true;
+  });
+
+  // Move centipedes
+  moveTimer++;
+  if (moveTimer >= MOVE_INTERVAL) {
+    moveTimer = 0;
+    moveCentipedes();
+  }
+
+  // Check centipede-player collision
+  for (const centi of centipedes) {
+    for (const s of centi.segs) {
+      if (!s.alive) continue;
+      const sx = OX + s.col * TILE + TILE / 2;
+      const sy = OY + s.row * TILE + TILE / 2;
+      const dx = player.x - sx, dy = player.y - sy;
+      if (dx * dx + dy * dy < TILE * TILE * 0.6) {
+        lives--;
+        if (lives <= 0) { gameOver = true; return; }
+        player.x = W / 2;
+        player.y = OY + (ROWS - 2) * TILE;
+        return;
+      }
+    }
+  }
+
+  // Spider
+  if (!spider && Math.random() < 0.003) {
+    spider = {
+      x: Math.random() < 0.5 ? OX : OX + COLS * TILE,
+      y: OY + (ROWS - PLAYER_ZONE + 1) * TILE,
+      vx: (Math.random() < 0.5 ? 1 : -1) * 3,
+      vy: 0, bounceTimer: 0
+    };
+  }
+  if (spider) {
+    spider.bounceTimer++;
+    if (spider.bounceTimer % 20 === 0) {
+      spider.vy = (Math.random() - 0.5) * 6;
+      spider.vx += (Math.random() - 0.5) * 2;
+    }
+    spider.x += spider.vx;
+    spider.y += spider.vy;
+
+    // Destroy mushrooms near spider
+    const sc = Math.floor((spider.x - OX) / TILE);
+    const sr = Math.floor((spider.y - OY) / TILE);
+    if (sc >= 0 && sc < COLS && sr >= 0 && sr < ROWS) mushrooms[sr][sc] = 0;
+
+    // Clamp and despawn
+    const minSY = OY + (ROWS - PLAYER_ZONE - 2) * TILE;
+    const maxSY = OY + ROWS * TILE;
+    spider.y = Math.max(minSY, Math.min(maxSY, spider.y));
+    if (spider.x < OX - 40 || spider.x > OX + COLS * TILE + 40) spider = null;
+
+    // Spider-player collision
+    if (spider) {
+      const dx = player.x - spider.x, dy = player.y - spider.y;
+      if (dx * dx + dy * dy < TILE * TILE * 0.7) {
+        lives--;
+        if (lives <= 0) { gameOver = true; return; }
+        player.x = W / 2;
+        player.y = OY + (ROWS - 2) * TILE;
+        spider = null;
+        return;
+      }
+    }
+  }
+
+  // Wave clear check
+  const allDead = centipedes.every(c => c.segs.every(s => !s.alive));
+  if (allDead) spawnWave();
+}
+
+// --- DRAW ---
+function draw() {
+  ctx.fillStyle = '#0a0a12'; ctx.fillRect(0, 0, W, H);
+
+  // Player zone shading
+  ctx.fillStyle = '#0f0f1a';
+  ctx.fillRect(OX, OY + (ROWS - PLAYER_ZONE) * TILE, COLS * TILE, PLAYER_ZONE * TILE);
+
+  // Mushrooms
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (mushrooms[r][c] > 0) {
+        const hp = mushrooms[r][c];
+        const alpha = 0.4 + 0.2 * hp;
+        ctx.fillStyle = `rgba(100,200,80,${alpha})`;
+        const mx = OX + c * TILE, my = OY + r * TILE;
+        // Mushroom cap
+        ctx.beginPath();
+        ctx.arc(mx + TILE / 2, my + TILE / 2 - 2, TILE / 2 - 3, Math.PI, 0);
+        ctx.fill();
+        // Stem
+        ctx.fillRect(mx + TILE / 2 - 3, my + TILE / 2 - 2, 6, TILE / 2);
+      }
+    }
+  }
+
+  // Centipedes
+  for (const centi of centipedes) {
+    for (let i = centi.segs.length - 1; i >= 0; i--) {
+      const s = centi.segs[i];
+      if (!s.alive) continue;
+      const sx = OX + s.col * TILE + TILE / 2;
+      const sy = OY + s.row * TILE + TILE / 2;
+      const isHead = i === 0;
+
+      ctx.fillStyle = isHead ? '#ff4444' : '#44cc44';
+      ctx.beginPath();
+      ctx.arc(sx, sy, TILE / 2 - 2, 0, Math.PI * 2);
+      ctx.fill();
+
+      if (isHead) {
+        // Eyes
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(sx - 3, sy - 3, 2, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(sx + 3, sy - 3, 2, 0, Math.PI * 2); ctx.fill();
+        // Antennae
+        ctx.strokeStyle = '#ff6666'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(sx - 4, sy - 7); ctx.lineTo(sx - 8, sy - 12); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(sx + 4, sy - 7); ctx.lineTo(sx + 8, sy - 12); ctx.stroke();
+      } else {
+        // Body segment detail
+        ctx.fillStyle = '#2a8a2a';
+        ctx.beginPath();
+        ctx.arc(sx, sy, TILE / 4 - 1, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Legs
+      if (frame % 10 < 5) {
+        ctx.strokeStyle = isHead ? '#cc3333' : '#338833'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(sx - 6, sy + 3); ctx.lineTo(sx - 10, sy + 8); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(sx + 6, sy + 3); ctx.lineTo(sx + 10, sy + 8); ctx.stroke();
+      } else {
+        ctx.strokeStyle = isHead ? '#cc3333' : '#338833'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(sx - 7, sy + 1); ctx.lineTo(sx - 10, sy + 6); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(sx + 7, sy + 1); ctx.lineTo(sx + 10, sy + 6); ctx.stroke();
+      }
+    }
+  }
+
+  // Spider
+  if (spider) {
+    ctx.fillStyle = '#dd44dd';
+    ctx.beginPath();
+    ctx.arc(spider.x, spider.y, 10, 0, Math.PI * 2);
+    ctx.fill();
+    // Legs
+    ctx.strokeStyle = '#aa33aa'; ctx.lineWidth = 1.5;
+    for (let a = 0; a < 4; a++) {
+      const angle = (a / 4) * Math.PI + frame * 0.1;
+      ctx.beginPath();
+      ctx.moveTo(spider.x, spider.y);
+      ctx.lineTo(spider.x + Math.cos(angle) * 14, spider.y + Math.sin(angle) * 10);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(spider.x, spider.y);
+      ctx.lineTo(spider.x - Math.cos(angle) * 14, spider.y + Math.sin(angle) * 10);
+      ctx.stroke();
+    }
+  }
+
+  // Player
+  ctx.fillStyle = '#44aaff';
+  ctx.beginPath();
+  ctx.moveTo(player.x, player.y - TILE / 2);
+  ctx.lineTo(player.x - TILE / 3, player.y + TILE / 3);
+  ctx.lineTo(player.x + TILE / 3, player.y + TILE / 3);
+  ctx.closePath();
+  ctx.fill();
+
+  // Bullets
+  ctx.fillStyle = '#fff';
+  for (const b of bullets) {
+    ctx.fillRect(b.x - 1, b.y, 2, 8);
+  }
+
+  // HUD
+  ctx.fillStyle = '#44cc44'; ctx.font = '16px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('SCORE: ' + score, 10, 26);
+  ctx.textAlign = 'center';
+  ctx.fillText('WAVE ' + wave, W / 2, 26);
+  ctx.textAlign = 'right';
+  ctx.fillText('LIVES: ' + lives, W - 10, 26);
+
+  // Game over
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, W, H);
+    ctx.font = 'bold 48px monospace'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#f55';
+    ctx.fillText('GAME OVER', W / 2, H / 2 - 20);
+    ctx.fillStyle = '#aaa'; ctx.font = '18px monospace';
+    ctx.fillText('R to restart   SCORE: ' + score, W / 2, H / 2 + 24);
+  }
+
+  // Title badge
+  ctx.fillStyle = '#1a1a1a'; ctx.fillRect(8, 8, 230, 28);
+  ctx.fillStyle = '#555'; ctx.font = '13px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('FIX-003 · BUG SHOOT  [?]', 16, 26);
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: twin-stick ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("twin-stick");
+</script>
+</body>
+</html>

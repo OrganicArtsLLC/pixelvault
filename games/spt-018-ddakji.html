@@ -1,0 +1,933 @@
+<!--
+PROTOTYPE: ddakji
+SERIES: spt
+NUMBER: 018
+DATE: 2026-03-24
+MECHANIC: paper card slamming — slam your folded paper card onto opponent's card to flip it over; angle and power determine success; physics of card flipping
+ANCESTRY: Ddakji (딱지, traditional Korean children's street game), Menko (Japan), Pog (1990s, Hawaii)
+CONTROLS: Click+Drag — set angle and power | Release — slam card | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Expert Systems — angle/power optimization for flip probability)
+AI-INSIGHT: Ddakji's flip mechanic is a fascinating physics puzzle where air displacement and impact force combine. The optimal slam angle creates maximum air pressure under the target card's edge. An expert system can model the probability curve but the real-world chaos of paper aerodynamics makes perfect play impossible — a satisfying blend of skill and chance.
+NOTES: Traditional Korean children's street game, made globally famous by Squid Game (2021).
+       Two players take turns trying to flip each other's folded paper cards.
+       The satisfying SLAP of card-on-ground is the defining sensory experience.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPT-018 · DDAKJI</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SPT-018 · DDAKJI (딱지)</h1>
+    <p><span class="tag series">SPT — Sports</span> <span class="tag">Prototype #018</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Slam your folded paper card onto the ground next to your opponent's card to flip it over. Best of 5 rounds.</p>
+    <ul>
+      <li><kbd>Click+Drag</kbd> — Set angle and power (drag down and toward the target card)</li>
+      <li><kbd>Release</kbd> — Slam your card</li>
+      <li><kbd>R</kbd> — Restart match</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Distance matters:</strong> Slam close to the edge of the opponent's card for best flip chance.</li>
+      <li><strong>Power balance:</strong> Too weak won't generate enough air pressure; too strong and your card bounces away.</li>
+      <li><strong>Sweet spot:</strong> Aim for the near edge of the opponent's card — the air pocket underneath lifts it.</li>
+      <li><strong>Watch the indicator:</strong> The arc shows your slam trajectory. Green zone = good flip probability.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Ddakji (딱지, traditional Korea) &#8594; Menko (Japan, Edo period) &#8594; Pogs (1990s)</p>
+    <p>Ddakji is a traditional Korean children's street game played with folded paper cards. Two thick square cards are made by interlocking two strips of paper or cardboard. Players take turns slamming their card onto the opponent's card resting on the ground. If the target card flips over from the impact and air pressure, the slammer wins that card.</p>
+    <p>The game became globally famous through its appearance in the first episode of <em>Squid Game</em> (2021), where the recruiter (Gong Yoo) challenges strangers to play ddakji for money. The scene perfectly captures the game's blend of skill, luck, and the visceral satisfaction of the slam.</p>
+    <p>Similar games exist across Asia: Japan's Menko uses thicker cardboard discs, and the 1990s Pog craze in the West used milk cap discs with a heavier slammer.</p>
+
+    <h2>AI Archaeology</h2>
+    <p>The flip probability in ddakji depends on a complex interplay of factors: slam distance from the target's edge, impact angle, card weight/stiffness, surface friction, and the air pocket created under the target card. An expert system can model the optimal slam parameters, but real-world paper physics introduces enough chaos that perfect play remains elusive. The AI opponent in this prototype uses a probability curve fitted to these parameters.</p>
+
+    <h2>Classification</h2>
+    <p><strong>Series:</strong> SPT (Sports) — physical dexterity games with real-world counterparts</p>
+    <p><strong>AI Era:</strong> 3 — Expert Systems (angle and power optimization)</p>
+    <p><strong>Mechanic:</strong> Paper card slamming with physics-based flip determination</p>
+
+    <h2>Prototype Notes</h2>
+    <p>This prototype simulates the core ddakji experience: the tension of lining up your slam, the satisfying SLAP sound, and the anticipation of watching whether the target card flips. The physics model approximates air displacement and edge lifting. Best of 5 format with alternating turns against an AI opponent.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This is an interactive educational sketch — a simplified reconstruction meant to illustrate game-design principles and historical context. It is not a commercial product and is not affiliated with or endorsed by any rights holders. All commentary is provided for research and criticism under fair-use principles.</p>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+
+// Resize
+function resize() {
+  const s = Math.min(innerWidth / W, innerHeight / H);
+  canvas.style.width = (W * s) + 'px';
+  canvas.style.height = (H * s) + 'px';
+}
+resize();
+addEventListener('resize', resize);
+
+// Info panel
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// Audio
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function playSound(type) {
+  const now = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  const noise = audioCtx.createBufferSource();
+
+  if (type === 'slap') {
+    // Satisfying paper slap — noise burst + low thump
+    const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.15, audioCtx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (audioCtx.sampleRate * 0.03));
+    }
+    noise.buffer = buf;
+    const nGain = audioCtx.createGain();
+    nGain.gain.setValueAtTime(0.6, now);
+    noise.connect(nGain).connect(audioCtx.destination);
+    noise.start(now);
+    // Low thump
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(80, now);
+    osc.frequency.exponentialRampToValueAtTime(30, now + 0.1);
+    gain.gain.setValueAtTime(0.4, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start(now); osc.stop(now + 0.15);
+    return;
+  }
+  if (type === 'flip') {
+    // Whoosh + paper flutter
+    const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.3, audioCtx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) {
+      const t = i / audioCtx.sampleRate;
+      data[i] = (Math.random() * 2 - 1) * Math.sin(t * 20) * Math.exp(-t * 8) * 0.3;
+    }
+    noise.buffer = buf;
+    noise.connect(audioCtx.destination);
+    noise.start(now);
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(400, now);
+    osc.frequency.exponentialRampToValueAtTime(800, now + 0.15);
+    osc.frequency.exponentialRampToValueAtTime(200, now + 0.3);
+    gain.gain.setValueAtTime(0.15, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start(now); osc.stop(now + 0.3);
+    return;
+  }
+  if (type === 'miss') {
+    // Dull thud
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(60, now);
+    osc.frequency.exponentialRampToValueAtTime(20, now + 0.2);
+    gain.gain.setValueAtTime(0.3, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start(now); osc.stop(now + 0.2);
+    return;
+  }
+  if (type === 'win') {
+    [0, 0.12, 0.24].forEach((d, i) => {
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = 'square';
+      o.frequency.value = [523, 659, 784][i];
+      g.gain.setValueAtTime(0.12, now + d);
+      g.gain.exponentialRampToValueAtTime(0.01, now + d + 0.15);
+      o.connect(g).connect(audioCtx.destination);
+      o.start(now + d); o.stop(now + d + 0.15);
+    });
+    return;
+  }
+  if (type === 'lose') {
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(300, now);
+    osc.frequency.exponentialRampToValueAtTime(100, now + 0.4);
+    gain.gain.setValueAtTime(0.15, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start(now); osc.stop(now + 0.4);
+  }
+}
+
+// Card colors
+const PLAYER_COLORS = ['#e63946', '#457b9d']; // red/blue
+const AI_COLORS = ['#f4a261', '#2a9d8f']; // orange/teal
+
+// Game state
+let state, playerScore, aiScore, roundNum, turn, phase;
+let targetCard, slamCard;
+let dragStart, dragEnd, isDragging;
+let slamAnim, flipAnim;
+let message, messageTimer;
+let matchOver;
+
+function initGame() {
+  playerScore = 0;
+  aiScore = 0;
+  roundNum = 1;
+  turn = 'player'; // player goes first
+  phase = 'ready'; // ready, aiming, slamming, flipping, result, ai-thinking, ai-slamming
+  matchOver = false;
+  message = '';
+  messageTimer = 0;
+  isDragging = false;
+  dragStart = null;
+  dragEnd = null;
+  slamAnim = null;
+  flipAnim = null;
+  resetRound();
+}
+
+function resetRound() {
+  // Target card sits on ground center
+  targetCard = {
+    x: W / 2,
+    y: 340,
+    size: 70,
+    rotation: 0,
+    faceUp: true,
+    flipProgress: 0,
+    flipping: false,
+    colors: turn === 'player' ? AI_COLORS : PLAYER_COLORS
+  };
+  // Slam card held by current player
+  slamCard = {
+    x: W / 2,
+    y: turn === 'player' ? 520 : 160,
+    size: 65,
+    rotation: 0,
+    visible: true,
+    colors: turn === 'player' ? PLAYER_COLORS : AI_COLORS
+  };
+  phase = turn === 'player' ? 'ready' : 'ai-thinking';
+  slamAnim = null;
+  flipAnim = null;
+  if (turn !== 'player') {
+    aiThinkTimer = 60 + Math.random() * 40;
+  }
+}
+
+let aiThinkTimer = 0;
+
+// Calculate flip probability based on slam position and power
+function calcFlipChance(slamX, slamY, power) {
+  const dx = slamX - targetCard.x;
+  const dy = slamY - targetCard.y;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  const edgeDist = dist - targetCard.size * 0.5;
+
+  // Sweet spot: land just at the edge of the target card
+  // Distance factor: best when edgeDist is between -10 and 15
+  let distFactor;
+  if (edgeDist < -30) distFactor = 0.1; // too far on top
+  else if (edgeDist < -10) distFactor = 0.3 + (edgeDist + 30) * 0.02;
+  else if (edgeDist < 15) distFactor = 0.7 + (1 - Math.abs(edgeDist - 2) / 15) * 0.3;
+  else if (edgeDist < 40) distFactor = 0.5 - (edgeDist - 15) * 0.015;
+  else distFactor = 0.05;
+
+  // Power factor: moderate power is best (0.5-0.8)
+  let powerFactor;
+  if (power < 0.2) powerFactor = 0.2;
+  else if (power < 0.5) powerFactor = 0.4 + (power - 0.2) * 1.5;
+  else if (power < 0.8) powerFactor = 0.85 + (power - 0.5) * 0.5;
+  else powerFactor = 0.9 - (power - 0.8) * 1.5;
+
+  return Math.max(0.05, Math.min(0.95, distFactor * powerFactor));
+}
+
+// Input
+addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); return; }
+  if (e.key === 'r' || e.key === 'R') { initGame(); return; }
+});
+
+canvas.addEventListener('mousedown', e => {
+  if (infoOpen) return;
+  if (phase !== 'ready' || turn !== 'player') return;
+  const rect = canvas.getBoundingClientRect();
+  const sx = (e.clientX - rect.left) * W / rect.width;
+  const sy = (e.clientY - rect.top) * H / rect.height;
+  isDragging = true;
+  dragStart = { x: sx, y: sy };
+  dragEnd = { x: sx, y: sy };
+  phase = 'aiming';
+});
+
+canvas.addEventListener('mousemove', e => {
+  if (!isDragging) return;
+  const rect = canvas.getBoundingClientRect();
+  dragEnd = {
+    x: (e.clientX - rect.left) * W / rect.width,
+    y: (e.clientY - rect.top) * H / rect.height
+  };
+});
+
+canvas.addEventListener('mouseup', e => {
+  if (!isDragging || phase !== 'aiming') { isDragging = false; return; }
+  isDragging = false;
+  const rect = canvas.getBoundingClientRect();
+  dragEnd = {
+    x: (e.clientX - rect.left) * W / rect.width,
+    y: (e.clientY - rect.top) * H / rect.height
+  };
+
+  // Calculate slam vector
+  const dx = dragEnd.x - dragStart.x;
+  const dy = dragEnd.y - dragStart.y;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  if (dist < 10) { phase = 'ready'; return; }
+
+  const power = Math.min(dist / 200, 1);
+  const angle = Math.atan2(dy, dx);
+
+  // Target position for slam (where card lands)
+  const landX = slamCard.x + Math.cos(angle) * dist * 0.8;
+  const landY = slamCard.y + Math.sin(angle) * dist * 0.8;
+
+  startSlam(landX, landY, power);
+});
+
+// Touch support
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  if (infoOpen) return;
+  if (phase !== 'ready' || turn !== 'player') return;
+  const rect = canvas.getBoundingClientRect();
+  const t = e.touches[0];
+  const sx = (t.clientX - rect.left) * W / rect.width;
+  const sy = (t.clientY - rect.top) * H / rect.height;
+  isDragging = true;
+  dragStart = { x: sx, y: sy };
+  dragEnd = { x: sx, y: sy };
+  phase = 'aiming';
+}, { passive: false });
+
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (!isDragging) return;
+  const rect = canvas.getBoundingClientRect();
+  const t = e.touches[0];
+  dragEnd = {
+    x: (t.clientX - rect.left) * W / rect.width,
+    y: (t.clientY - rect.top) * H / rect.height
+  };
+}, { passive: false });
+
+canvas.addEventListener('touchend', e => {
+  e.preventDefault();
+  if (!isDragging || phase !== 'aiming') { isDragging = false; return; }
+  isDragging = false;
+  const dx = dragEnd.x - dragStart.x;
+  const dy = dragEnd.y - dragStart.y;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  if (dist < 10) { phase = 'ready'; return; }
+  const power = Math.min(dist / 200, 1);
+  const angle = Math.atan2(dy, dx);
+  const landX = slamCard.x + Math.cos(angle) * dist * 0.8;
+  const landY = slamCard.y + Math.sin(angle) * dist * 0.8;
+  startSlam(landX, landY, power);
+}, { passive: false });
+
+function startSlam(landX, landY, power) {
+  phase = 'slamming';
+  const startX = slamCard.x;
+  const startY = slamCard.y;
+  slamAnim = {
+    startX, startY,
+    endX: landX, endY: landY,
+    power,
+    t: 0,
+    duration: 15,
+    peakHeight: 80 + power * 60
+  };
+}
+
+function startAISlam() {
+  // AI picks a target near the edge of player's card
+  const edgeAngle = Math.random() * Math.PI * 2;
+  const edgeDist = targetCard.size * 0.4 + (Math.random() - 0.3) * 20;
+  const landX = targetCard.x + Math.cos(edgeAngle) * edgeDist;
+  const landY = targetCard.y + Math.sin(edgeAngle) * edgeDist;
+  const power = 0.5 + Math.random() * 0.35;
+
+  phase = 'ai-slamming';
+  slamAnim = {
+    startX: slamCard.x,
+    startY: slamCard.y,
+    endX: landX, endY: landY,
+    power,
+    t: 0,
+    duration: 18,
+    peakHeight: 100 + power * 50
+  };
+}
+
+function update() {
+  if (infoOpen) return;
+
+  if (messageTimer > 0) {
+    messageTimer--;
+    if (messageTimer === 0) {
+      message = '';
+      if (!matchOver) {
+        resetRound();
+      }
+    }
+    return;
+  }
+
+  // AI thinking
+  if (phase === 'ai-thinking') {
+    aiThinkTimer--;
+    if (aiThinkTimer <= 0) {
+      startAISlam();
+    }
+    return;
+  }
+
+  // Slam animation
+  if (phase === 'slamming' || phase === 'ai-slamming') {
+    if (slamAnim) {
+      slamAnim.t++;
+      const p = slamAnim.t / slamAnim.duration;
+
+      if (p >= 1) {
+        // Card has landed
+        slamCard.x = slamAnim.endX;
+        slamCard.y = slamAnim.endY;
+
+        playSound('slap');
+
+        const flipChance = calcFlipChance(slamAnim.endX, slamAnim.endY, slamAnim.power);
+        const flipped = Math.random() < flipChance;
+
+        if (flipped) {
+          phase = 'flipping';
+          flipAnim = { t: 0, duration: 30 };
+          targetCard.flipping = true;
+        } else {
+          playSound('miss');
+          // Miss — show result
+          showResult(false);
+        }
+        slamAnim = null;
+      } else {
+        // Animate card flying in an arc
+        const easedP = p;
+        slamCard.x = slamAnim.startX + (slamAnim.endX - slamAnim.startX) * easedP;
+        slamCard.y = slamAnim.startY + (slamAnim.endY - slamAnim.startY) * easedP
+                     - Math.sin(easedP * Math.PI) * slamAnim.peakHeight;
+        slamCard.rotation = easedP * Math.PI * 0.5;
+      }
+    }
+    return;
+  }
+
+  // Flip animation
+  if (phase === 'flipping') {
+    if (flipAnim) {
+      flipAnim.t++;
+      const p = flipAnim.t / flipAnim.duration;
+      targetCard.flipProgress = p;
+
+      if (flipAnim.t === 5) playSound('flip');
+
+      if (p >= 1) {
+        targetCard.faceUp = !targetCard.faceUp;
+        targetCard.flipProgress = 0;
+        targetCard.flipping = false;
+        flipAnim = null;
+        showResult(true);
+      }
+    }
+    return;
+  }
+}
+
+function showResult(flipped) {
+  const isPlayerTurn = turn === 'player';
+  if (flipped) {
+    if (isPlayerTurn) {
+      playerScore++;
+      message = 'FLIP! You win round ' + roundNum + '!';
+      playSound('win');
+    } else {
+      aiScore++;
+      message = 'FLIP! Opponent wins round ' + roundNum + '!';
+      playSound('lose');
+    }
+  } else {
+    message = (isPlayerTurn ? 'Miss!' : 'Opponent misses!') + ' No flip.';
+  }
+
+  roundNum++;
+  phase = 'result';
+
+  // Check match end
+  if (playerScore >= 3 || aiScore >= 3 || roundNum > 5) {
+    if (playerScore > aiScore) {
+      message = 'YOU WIN THE MATCH! ' + playerScore + '-' + aiScore;
+      matchOver = true;
+      playSound('win');
+    } else if (aiScore > playerScore) {
+      message = 'OPPONENT WINS! ' + aiScore + '-' + playerScore;
+      matchOver = true;
+      playSound('lose');
+    } else if (roundNum > 5) {
+      message = 'DRAW! ' + playerScore + '-' + aiScore;
+      matchOver = true;
+    }
+  }
+
+  // Switch turns
+  turn = isPlayerTurn ? 'ai' : 'player';
+  messageTimer = matchOver ? 180 : 90;
+}
+
+// Drawing
+function drawCard(x, y, size, rotation, colors, flipProgress, label) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rotation);
+
+  // 3D flip effect
+  let scaleX = 1;
+  if (flipProgress > 0) {
+    scaleX = Math.abs(Math.cos(flipProgress * Math.PI));
+    ctx.scale(scaleX, 1);
+  }
+
+  const hs = size / 2;
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.fillRect(-hs + 3, -hs + 3, size, size);
+
+  // Card body — ddakji pattern (interlocking squares)
+  ctx.fillStyle = colors[0];
+  ctx.fillRect(-hs, -hs, size, size);
+
+  // Inner pattern — folded paper look
+  const inner = size * 0.35;
+  ctx.fillStyle = colors[1];
+  // Four triangular folds meeting in center
+  ctx.beginPath();
+  ctx.moveTo(-hs, -hs);
+  ctx.lineTo(0, -inner);
+  ctx.lineTo(hs, -hs);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(hs, -hs);
+  ctx.lineTo(inner, 0);
+  ctx.lineTo(hs, hs);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(hs, hs);
+  ctx.lineTo(0, inner);
+  ctx.lineTo(-hs, hs);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(-hs, hs);
+  ctx.lineTo(-inner, 0);
+  ctx.lineTo(-hs, -hs);
+  ctx.closePath();
+  ctx.fill();
+
+  // Center diamond
+  ctx.fillStyle = colors[0];
+  ctx.beginPath();
+  ctx.moveTo(0, -inner);
+  ctx.lineTo(inner, 0);
+  ctx.lineTo(0, inner);
+  ctx.lineTo(-inner, 0);
+  ctx.closePath();
+  ctx.fill();
+
+  // Border
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(-hs, -hs, size, size);
+
+  // Fold lines
+  ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(-hs, -hs); ctx.lineTo(hs, hs);
+  ctx.moveTo(hs, -hs); ctx.lineTo(-hs, hs);
+  ctx.stroke();
+
+  if (label) {
+    ctx.fillStyle = '#fff';
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(label, 0, hs + 14);
+  }
+
+  ctx.restore();
+}
+
+function drawGround() {
+  // Concrete/asphalt ground
+  ctx.fillStyle = '#4a4a4a';
+  ctx.fillRect(0, 250, W, 350);
+
+  // Ground texture — subtle lines
+  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+  ctx.lineWidth = 1;
+  for (let y = 260; y < 600; y += 12) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(W, y);
+    ctx.stroke();
+  }
+
+  // Play area circle
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([8, 4]);
+  ctx.beginPath();
+  ctx.arc(W / 2, 370, 120, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function drawAimGuide() {
+  if (phase !== 'aiming' || !dragStart || !dragEnd) return;
+
+  const dx = dragEnd.x - dragStart.x;
+  const dy = dragEnd.y - dragStart.y;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  const power = Math.min(dist / 200, 1);
+  const angle = Math.atan2(dy, dx);
+
+  // Predicted landing spot
+  const landX = slamCard.x + Math.cos(angle) * dist * 0.8;
+  const landY = slamCard.y + Math.sin(angle) * dist * 0.8;
+
+  // Calculate flip probability for color coding
+  const flipChance = calcFlipChance(landX, landY, power);
+
+  // Draw trajectory arc
+  ctx.strokeStyle = flipChance > 0.6 ? '#4f4' : flipChance > 0.3 ? '#ff0' : '#f44';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  for (let i = 0; i <= 20; i++) {
+    const p = i / 20;
+    const px = slamCard.x + (landX - slamCard.x) * p;
+    const py = slamCard.y + (landY - slamCard.y) * p - Math.sin(p * Math.PI) * (80 + power * 60);
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Landing indicator
+  ctx.strokeStyle = flipChance > 0.6 ? '#4f4' : flipChance > 0.3 ? '#ff0' : '#f44';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(landX, landY, 15, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Power bar
+  const barX = 30, barY = 300, barW = 12, barH = 200;
+  ctx.fillStyle = '#222';
+  ctx.fillRect(barX, barY, barW, barH);
+  const filled = power * barH;
+  const barColor = power < 0.3 ? '#4f4' : power < 0.7 ? '#ff0' : '#f44';
+  ctx.fillStyle = barColor;
+  ctx.fillRect(barX, barY + barH - filled, barW, filled);
+  ctx.strokeStyle = '#666';
+  ctx.strokeRect(barX, barY, barW, barH);
+  ctx.fillStyle = '#aaa';
+  ctx.font = '10px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('PWR', barX + barW / 2, barY - 5);
+  ctx.fillText(Math.round(power * 100) + '%', barX + barW / 2, barY + barH + 14);
+
+  // Flip chance display
+  ctx.fillStyle = flipChance > 0.6 ? '#4f4' : flipChance > 0.3 ? '#ff0' : '#f44';
+  ctx.font = '14px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('Flip: ' + Math.round(flipChance * 100) + '%', landX, landY - 22);
+}
+
+function drawHUD() {
+  // Score
+  ctx.fillStyle = '#ddd';
+  ctx.font = '18px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('YOU: ' + playerScore, 20, 30);
+  ctx.textAlign = 'right';
+  ctx.fillText('OPP: ' + aiScore, W - 20, 30);
+
+  // Round
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#888';
+  ctx.font = '14px monospace';
+  const rnd = matchOver ? 'MATCH OVER' : 'Round ' + Math.min(roundNum, 5) + ' / 5';
+  ctx.fillText(rnd, W / 2, 25);
+
+  // Best of 5 dots
+  for (let i = 0; i < 5; i++) {
+    const dx = W / 2 - 40 + i * 20;
+    ctx.beginPath();
+    ctx.arc(dx, 42, 5, 0, Math.PI * 2);
+    if (i < playerScore) {
+      ctx.fillStyle = '#e63946';
+      ctx.fill();
+    } else if (i < playerScore + aiScore) {
+      ctx.fillStyle = '#f4a261';
+      ctx.fill();
+    } else {
+      ctx.strokeStyle = '#555';
+      ctx.stroke();
+    }
+  }
+
+  // Turn indicator
+  if (!matchOver && phase !== 'result') {
+    ctx.fillStyle = '#ff0';
+    ctx.font = '14px monospace';
+    ctx.textAlign = 'center';
+    if (turn === 'player' && phase === 'ready') {
+      ctx.fillText('YOUR TURN — Click and drag to slam!', W / 2, H - 20);
+    } else if (turn === 'ai' && phase === 'ai-thinking') {
+      ctx.fillText('Opponent is thinking...', W / 2, H - 20);
+    }
+  }
+
+  // Message
+  if (message) {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(W / 2 - 200, H / 2 - 30, 400, 60);
+    ctx.strokeStyle = '#ff0';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(W / 2 - 200, H / 2 - 30, 400, 60);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 18px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(message, W / 2, H / 2 + 7);
+    if (matchOver) {
+      ctx.fillStyle = '#aaa';
+      ctx.font = '12px monospace';
+      ctx.fillText('Press R to play again', W / 2, H / 2 + 30);
+    }
+  }
+
+  // Info hint
+  ctx.fillStyle = '#555';
+  ctx.font = '11px monospace';
+  ctx.textAlign = 'right';
+  ctx.fillText('[?] info', W - 10, H - 8);
+}
+
+function drawBackground() {
+  // Sky gradient
+  const grad = ctx.createLinearGradient(0, 0, 0, 250);
+  grad.addColorStop(0, '#1a1a2e');
+  grad.addColorStop(1, '#16213e');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, 250);
+
+  // Buildings silhouette (street game setting)
+  ctx.fillStyle = '#111';
+  const buildings = [
+    { x: 0, w: 80, h: 120 },
+    { x: 90, w: 60, h: 90 },
+    { x: 160, w: 100, h: 140 },
+    { x: 300, w: 70, h: 100 },
+    { x: 400, w: 120, h: 160 },
+    { x: 550, w: 80, h: 110 },
+    { x: 650, w: 90, h: 130 },
+    { x: 740, w: 80, h: 95 },
+  ];
+  buildings.forEach(b => {
+    ctx.fillRect(b.x, 250 - b.h, b.w, b.h);
+    // Windows
+    ctx.fillStyle = 'rgba(255,200,50,0.15)';
+    for (let wy = 250 - b.h + 10; wy < 245; wy += 18) {
+      for (let wx = b.x + 8; wx < b.x + b.w - 8; wx += 16) {
+        if (Math.random() > 0.3) ctx.fillRect(wx, wy, 8, 10);
+      }
+    }
+    ctx.fillStyle = '#111';
+  });
+}
+
+// Slam impact particles
+let particles = [];
+
+function spawnImpactParticles(x, y) {
+  for (let i = 0; i < 12; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 2 + Math.random() * 4;
+    particles.push({
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed - 2,
+      life: 20 + Math.random() * 15,
+      maxLife: 35,
+      size: 2 + Math.random() * 3,
+      color: Math.random() > 0.5 ? '#fff' : '#ff0'
+    });
+  }
+}
+
+function updateParticles() {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.15;
+    p.life--;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+}
+
+function drawParticles() {
+  particles.forEach(p => {
+    const alpha = p.life / p.maxLife;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+  });
+  ctx.globalAlpha = 1;
+}
+
+// Track if we need to spawn particles on slam landing
+let slamLanded = false;
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+
+  drawBackground();
+  drawGround();
+
+  // Target card (the one on the ground)
+  drawCard(targetCard.x, targetCard.y, targetCard.size, targetCard.rotation,
+           targetCard.colors, targetCard.flipProgress, null);
+
+  // Slam card (in hand or flying)
+  if (slamCard.visible) {
+    // During slam, draw shadow on ground
+    if (phase === 'slamming' || phase === 'ai-slamming') {
+      const groundY = slamAnim ? slamAnim.endY : slamCard.y;
+      ctx.globalAlpha = 0.2;
+      ctx.fillStyle = '#000';
+      ctx.beginPath();
+      ctx.ellipse(slamCard.x, groundY, slamCard.size * 0.4, slamCard.size * 0.15, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    drawCard(slamCard.x, slamCard.y, slamCard.size, slamCard.rotation,
+             slamCard.colors, 0, null);
+  }
+
+  drawParticles();
+  drawAimGuide();
+  drawHUD();
+
+  // Labels
+  if (phase === 'ready' || phase === 'aiming') {
+    ctx.fillStyle = '#aaa';
+    ctx.font = '11px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText("Opponent's card", targetCard.x, targetCard.y - targetCard.size / 2 - 10);
+    ctx.fillText('Your card', slamCard.x, slamCard.y + slamCard.size / 2 + 18);
+  }
+  if (phase === 'ai-thinking') {
+    ctx.fillStyle = '#aaa';
+    ctx.font = '11px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('Your card', targetCard.x, targetCard.y - targetCard.size / 2 - 10);
+    ctx.fillText("Opponent's card", slamCard.x, slamCard.y + slamCard.size / 2 + 18);
+  }
+
+  // Title at top
+  ctx.fillStyle = '#7bf';
+  ctx.font = 'bold 13px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('DDAKJI (딱지)', W / 2, H - 50);
+}
+
+// Main loop
+let prevSlamPhase = '';
+function loop() {
+  prevSlamPhase = phase;
+  update();
+  updateParticles();
+
+  // Spawn particles when slam lands
+  if ((prevSlamPhase === 'slamming' || prevSlamPhase === 'ai-slamming') &&
+      phase !== prevSlamPhase && phase !== 'slamming' && phase !== 'ai-slamming') {
+    spawnImpactParticles(slamCard.x, slamCard.y);
+  }
+
+  draw();
+  requestAnimationFrame(loop);
+}
+
+initGame();
+loop();
+</script>
+</body>
+</html>

@@ -1,0 +1,1042 @@
+<!--
+PROTOTYPE: frontier-trek
+SERIES: sim
+NUMBER: 003
+DATE: 2026-03-22
+MECHANIC: resource management journey with random events and survival decisions
+ANCESTRY: The Oregon Trail (1971/1985, Don Rawitsch, MECC), The Yukon Trail (1994, MECC)
+CONTROLS: 1-5 — menu choices | Space — continue | H — hunt | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — Monte Carlo simulation of journey outcomes)
+AI-INSIGHT: Oregon Trail pioneered educational simulation — using random event generation and resource depletion models to teach decision-making under uncertainty. The game's event system is essentially a simplified Monte Carlo simulation where each day samples from probability distributions.
+NOTES: Travel from Independence to Oregon. Manage food, health, pace.
+       Random events: disease, broken wheels, river crossings, hunting.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SIM-003 · FRONTIER TREK</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SIM-003 · FRONTIER TREK</h1>
+    <p><span class="tag series">SIM — Simulation</span> <span class="tag">Prototype #003</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Lead your party of five from Independence, Missouri to Oregon City. Manage supplies, health, and pace across 2000 miles of frontier.</p>
+    <ul>
+      <li><kbd>1</kbd>-<kbd>5</kbd> &mdash; Select menu choices</li>
+      <li><kbd>Space</kbd> &mdash; Continue / advance</li>
+      <li><kbd>H</kbd> &mdash; Hunt for food (costs bullets)</li>
+      <li><kbd>R</kbd> &mdash; Restart after game over</li>
+      <li><kbd>?</kbd> &mdash; Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Pace:</strong> Grueling is fast but drains health. Steady is safest.</li>
+      <li><strong>Food:</strong> Hunt often. Starvation kills quickly.</li>
+      <li><strong>Rivers:</strong> Fording is free but risky when deep. Ferry is safe but costs money.</li>
+      <li><strong>Forts:</strong> Buy supplies when you can afford them.</li>
+      <li><strong>Party:</strong> Once someone dies, they're gone. Keep health above zero.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> The Oregon Trail (1971, Don Rawitsch) &rarr; MECC Apple II version (1985) &rarr; Oregon Trail II (1995)</p>
+    <p>Originally created by student teacher Don Rawitsch in 1971 as a text-only teletype game. MECC's 1985 Apple II version became the definitive educational game of a generation. Its resource management, random events, and decision-making under uncertainty taught millions of children about pioneer life.</p>
+    <p>"You have died of dysentery" became one of gaming's most iconic phrases, illustrating how the game's random event system could create memorable narratives from simple probability tables.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 3 &mdash; Knowledge Explosion (1980&ndash;1990)</p>
+    <p><strong>Contemporary AI:</strong> Early Monte Carlo methods and simulation modeling were being applied to operations research and logistics.</p>
+    <p><strong>Hidden Intelligence:</strong> Oregon Trail's event system is a Monte Carlo simulation. Each day, the game samples from probability distributions for weather, disease, accidents, and encounters. Resource depletion follows deterministic curves modified by stochastic events. The player makes decisions under uncertainty with incomplete information &mdash; a multi-armed bandit problem where each choice (pace, rations, route) has hidden payoff distributions.</p>
+    <p><strong>The Convergence:</strong> The game's journey structure maps directly to sequential decision processes. Each landmark is a state, each choice is an action, and survival probability is the reward signal. This is a Markov Decision Process before the term was common in game design.</p>
+    <p><strong>If AI Had Designed This:</strong> Adaptive difficulty &mdash; adjusting event probabilities based on current resources to maintain tension. A reinforcement learning agent could learn optimal supply ratios and pacing strategies.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: SIM &mdash; Simulation</h3>
+    <p>Oregon Trail is the foundational resource-management journey simulation. All subsequent "manage supplies across a journey" games trace lineage here.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Resource management under stochastic events along a fixed route.</strong> Buy supplies, set pace, hunt for food, make river crossing decisions, survive random events. Party health as aggregate survival metric.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Resource tension &mdash; do supply decisions feel consequential?</li>
+      <li>Event variety &mdash; does each journey feel different?</li>
+      <li>Pace trade-off &mdash; is the speed-vs-health decision meaningful?</li>
+      <li>Hunting &mdash; does the mini-game break up the text simulation?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Text-heavy simulation rendered entirely on canvas. Hunting mini-game provides action breaks. Random events sampled from probability tables. Five party members with individual health tracking.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+const keys = {};
+let lastKey = '';
+window.addEventListener('keydown', e => {
+  if (!infoOpen) { keys[e.code] = true; lastKey = e.code; }
+  if (!['F5','F11','F12'].includes(e.key)) e.preventDefault();
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+// --- CONSTANTS ---
+const TOTAL_DIST = 2040;
+const NAMES = ['You','Sara','Ben','Mary','Tom'];
+const MONTHS = ['Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+// Landmarks: [distance, name, type] type: 0=nothing, 1=fort, 2=river, 3=town
+const MARKS = [
+  [0,'Independence, MO',3],[102,'Kansas R. Crossing',2],[304,'Ft. Kearney',1],
+  [554,'Chimney Rock',0],[640,'Ft. Laramie',1],[830,'Independence Rock',0],
+  [932,'South Pass',0],[989,'Ft. Bridger',1],[1170,'Soda Springs',0],
+  [1229,'Ft. Hall',1],[1393,'Snake R. Crossing',2],[1537,'Ft. Boise',1],
+  [1632,'Blue Mountains',0],[1740,'The Dalles',2],[1907,'Ft. Vancouver',1],
+  [2040,'Oregon City!',3]
+];
+
+// --- STATE ---
+let S; // game state
+const ST = {TITLE:0,SHOP:1,TRAVEL:2,EVENT:3,HUNT:4,RIVER:5,FORT:6,DEAD:7,WIN:8,TOWN:9};
+
+function initGame() {
+  S = {
+    mode: ST.TITLE, day: 1, month: 0, dist: 0,
+    food: 0, bullets: 0, oxen: 0, parts: 0, clothes: 0, money: 700,
+    pace: 1, rations: 2, // 0=rest,1=steady,2=strenu,3=gruel
+    party: NAMES.map(n => ({name:n, hp:100, alive:true})),
+    msg: [], markIdx: 0, shopPhase: 0, shopCart: [0,0,0,0,0],
+    eventMsg: '', eventChoices: null, eventCB: null,
+    huntTimer: 0, huntAnimals: [], huntBullets: [], huntScore: 0,
+    huntAimX: 400, huntAimY: 300, huntDone: false,
+    riverDepth: 0, weather: 0, daysNoFood: 0,
+    frame: 0, cooldown: 0
+  };
+}
+initGame();
+
+function alive() { return S.party.filter(p => p.alive); }
+function rng(n) { return Math.floor(Math.random() * n); }
+function clamp(v,a,b) { return v < a ? a : v > b ? b : v; }
+
+// --- SHOP ---
+const SHOP_ITEMS = ['Oxen','Food (lb)','Bullets','Spare Parts','Clothing'];
+const SHOP_COST = [40, 0.2, 2, 10, 10];
+const SHOP_UNIT = [1, 50, 20, 1, 1];
+const SHOP_MAX = [10, 1000, 200, 5, 5];
+
+function finishShop() {
+  S.oxen = Math.max(2, S.shopCart[0]);
+  S.food = S.shopCart[1] * 50;
+  S.bullets = S.shopCart[2] * 20;
+  S.parts = S.shopCart[3];
+  S.clothes = S.shopCart[4];
+  S.mode = ST.TRAVEL;
+}
+
+// --- TRAVEL ---
+function nextMark() {
+  for (let i = 0; i < MARKS.length; i++) {
+    if (MARKS[i][0] > S.dist) return i;
+  }
+  return MARKS.length - 1;
+}
+
+function advanceDay() {
+  if (S.pace === 0) { S.day++; healParty(2); consumeFood(); return; }
+  const spd = [0, 12 + rng(6), 18 + rng(6), 24 + rng(8)][S.pace];
+  const oxMod = S.oxen >= 4 ? 1 : S.oxen >= 2 ? 0.8 : 0.5;
+  const miles = Math.floor(spd * oxMod);
+  S.dist = Math.min(S.dist + miles, TOTAL_DIST);
+  S.day++;
+  if (S.day > 30) { S.day = 1; S.month++; }
+  consumeFood();
+
+  // Health effects from pace
+  if (S.pace >= 2) {
+    alive().forEach(p => { p.hp -= (S.pace - 1) * rng(3); });
+  }
+  // Weather (cold months)
+  if (S.month >= 6) {
+    S.weather = rng(3);
+    if (S.weather === 2) {
+      alive().forEach(p => { p.hp -= S.clothes > 0 ? rng(2) : 3 + rng(3); });
+      S.msg.push('Cold weather!');
+    }
+  }
+  // Heal slightly
+  healParty(1);
+  // Check landmark
+  const ni = nextMark();
+  if (ni !== S.markIdx && S.dist >= MARKS[ni - 1 < 0 ? 0 : ni - 1][0]) {
+    const m = MARKS[ni - 1 < 0 ? 0 : ni - 1];
+    if (S.dist >= m[0] && ni - 1 >= S.markIdx) {
+      S.markIdx = ni;
+      const mk = MARKS[S.markIdx - 1];
+      if (mk[2] === 1) { triggerFort(mk); return; }
+      if (mk[2] === 2) { triggerRiver(mk); return; }
+      if (mk[2] === 3 && S.dist >= TOTAL_DIST) { S.mode = ST.WIN; return; }
+      S.msg.push('Reached ' + mk[1]);
+    }
+  }
+  // Random event
+  if (rng(100) < 35) triggerEvent();
+  // Check deaths
+  checkDeaths();
+  if (S.dist >= TOTAL_DIST) S.mode = ST.WIN;
+}
+
+function consumeFood() {
+  const ap = alive().length;
+  const eat = [0, 2, 3, 1][S.rations] * ap;
+  S.food -= eat;
+  if (S.food < 0) {
+    S.food = 0;
+    S.daysNoFood++;
+    alive().forEach(p => { p.hp -= 5 + S.daysNoFood * 2; });
+    S.msg.push('No food! Party starving!');
+  } else {
+    S.daysNoFood = 0;
+    if (S.rations === 3) alive().forEach(p => { p.hp -= rng(2); });
+  }
+}
+
+function healParty(amt) {
+  alive().forEach(p => { p.hp = Math.min(100, p.hp + amt); });
+}
+
+function checkDeaths() {
+  S.party.forEach(p => {
+    if (p.alive && p.hp <= 0) {
+      p.alive = false; p.hp = 0;
+      S.msg.push(p.name + ' has died.');
+    }
+  });
+  if (alive().length === 0) S.mode = ST.DEAD;
+}
+
+// --- EVENTS ---
+const DISEASES = ['dysentery','typhoid','cholera','measles','snakebite','fever'];
+const EVENTS = [
+  () => { const d = DISEASES[rng(DISEASES.length)]; const p = alive()[rng(alive().length)];
+    p.hp -= 15 + rng(20); return p.name + ' has ' + d + '!'; },
+  () => { if (S.parts > 0) { S.parts--; return 'Broken wheel! Used spare part.'; }
+    S.dist = Math.max(0, S.dist - 10); return 'Broken wheel! Lost days.'; },
+  () => { const l = 10 + rng(30); S.food = Math.max(0, S.food - l);
+    return 'Thief stole ' + l + ' lb food!'; },
+  () => { if (S.oxen > 1) { S.oxen--; return 'An ox has died.'; }
+    return 'Ox is sick but survived.'; },
+  () => { const f = 15 + rng(30); S.food += f; return 'Found wild berries! +' + f + ' lb food.'; },
+  () => { S.bullets += 10; return 'Found abandoned supplies: +10 bullets.'; },
+  () => { const p = alive()[rng(alive().length)]; p.hp -= 5 + rng(10);
+    return p.name + ' fell and got injured.'; },
+  () => { const p = alive()[rng(alive().length)]; p.hp -= 10 + rng(15);
+    return p.name + ' bitten by a snake!'; },
+  () => { return 'Beautiful day on the trail.'; },
+  () => { S.dist = Math.max(0, S.dist - 5 - rng(10)); return 'Bad weather! Lost progress.'; },
+  () => { if (S.clothes > 0) { S.clothes--; return 'Clothing lost in storm!'; }
+    alive().forEach(p => { p.hp -= 3; }); return 'Storm! No spare clothes.'; },
+];
+
+function triggerEvent() {
+  const ev = EVENTS[rng(EVENTS.length)];
+  const msg = ev();
+  S.eventMsg = msg;
+  S.mode = ST.EVENT;
+}
+
+// --- RIVER ---
+function triggerRiver(mk) {
+  S.riverDepth = 2 + rng(5); // feet
+  S.eventMsg = 'You reached ' + mk[1] + '.\nRiver depth: ' + S.riverDepth + ' ft.';
+  S.eventChoices = ['1) Ford the river','2) Caulk & float','3) Pay ferry ($20)'];
+  S.mode = ST.RIVER;
+}
+
+function riverChoice(c) {
+  if (c === 1) { // ford
+    if (S.riverDepth > 4 && rng(100) < 40) {
+      const loss = 20 + rng(40); S.food = Math.max(0, S.food - loss);
+      S.eventMsg = 'River too deep! Lost ' + loss + ' lb food.';
+      if (rng(100) < 20) { const p = alive()[rng(alive().length)]; p.hp -= 30;
+        S.eventMsg += ' ' + p.name + ' nearly drowned!'; }
+    } else { S.eventMsg = 'Forded the river safely.'; }
+  } else if (c === 2) { // caulk
+    if (rng(100) < 25) {
+      S.eventMsg = 'Wagon tipped! Lost some supplies.';
+      S.food = Math.max(0, S.food - 15); S.bullets = Math.max(0, S.bullets - 5);
+    } else { S.eventMsg = 'Floated across safely!'; }
+  } else { // ferry
+    if (S.money >= 20) { S.money -= 20; S.eventMsg = 'Paid for ferry. Safe crossing.'; }
+    else { S.eventMsg = 'Not enough money! Must ford.'; riverChoice(1); return; }
+  }
+  S.eventChoices = null;
+  S.mode = ST.EVENT;
+  checkDeaths();
+}
+
+// --- FORT ---
+const FORT_ITEMS = ['Food (50 lb)','Bullets (20)','Spare Part','Clothing','Oxen'];
+const FORT_COST = [15, 5, 15, 15, 50];
+
+function triggerFort(mk) {
+  S.eventMsg = 'Arrived at ' + mk[1] + '.\nYou can buy supplies.';
+  S.mode = ST.FORT;
+}
+
+function fortBuy(c) {
+  const cost = FORT_COST[c];
+  if (S.money < cost) { S.eventMsg = 'Not enough money! ($' + S.money + ')'; return; }
+  S.money -= cost;
+  if (c === 0) S.food += 50;
+  else if (c === 1) S.bullets += 20;
+  else if (c === 2) S.parts++;
+  else if (c === 3) S.clothes++;
+  else if (c === 4) S.oxen++;
+  S.eventMsg = 'Bought ' + FORT_ITEMS[c] + '. Money: $' + S.money;
+}
+
+// --- HUNTING ---
+function startHunt() {
+  if (S.bullets < 1) { S.msg.push('No bullets!'); return; }
+  S.mode = ST.HUNT; S.huntTimer = 600; S.huntAnimals = []; S.huntBullets = [];
+  S.huntScore = 0; S.huntAimX = 400; S.huntAimY = 300; S.huntDone = false;
+  spawnAnimals();
+}
+
+function spawnAnimals() {
+  const types = [{name:'Squirrel',size:8,food:5,spd:3,pts:1},
+    {name:'Rabbit',size:10,food:8,spd:4,pts:1},
+    {name:'Deer',size:20,food:40,spd:2,pts:2},
+    {name:'Buffalo',size:30,food:80,spd:1,pts:3}];
+  for (let i = 0; i < 4 + rng(4); i++) {
+    const t = types[rng(types.length)];
+    S.huntAnimals.push({
+      x: 100 + rng(600), y: 150 + rng(350), vx: (rng(2)?1:-1)*t.spd*(0.5+Math.random()),
+      vy: (Math.random()-0.5)*t.spd, ...t, alive: true
+    });
+  }
+}
+
+function huntShoot() {
+  if (S.bullets < 1 || S.huntDone) return;
+  S.bullets--;
+  S.huntBullets.push({x:S.huntAimX, y:S.huntAimY, timer:10});
+  // Check hits
+  S.huntAnimals.forEach(a => {
+    if (!a.alive) return;
+    const dx = a.x - S.huntAimX, dy = a.y - S.huntAimY;
+    if (Math.sqrt(dx*dx+dy*dy) < a.size + 5) {
+      a.alive = false; S.huntScore += a.food;
+    }
+  });
+}
+
+function updateHunt() {
+  if (S.huntDone) return;
+  S.huntTimer--;
+  if (S.huntTimer <= 0) { S.huntDone = true; }
+  // Move aim with keys
+  const as = 5;
+  if (keys['ArrowLeft'] || keys['KeyA']) S.huntAimX -= as;
+  if (keys['ArrowRight'] || keys['KeyD']) S.huntAimX += as;
+  if (keys['ArrowUp'] || keys['KeyW']) S.huntAimY -= as;
+  if (keys['ArrowDown'] || keys['KeyS']) S.huntAimY += as;
+  S.huntAimX = clamp(S.huntAimX, 20, W-20);
+  S.huntAimY = clamp(S.huntAimY, 100, H-20);
+  // Move animals
+  S.huntAnimals.forEach(a => {
+    if (!a.alive) return;
+    a.x += a.vx; a.y += a.vy;
+    if (a.x < 20 || a.x > W-20) a.vx *= -1;
+    if (a.y < 140 || a.y > H-30) a.vy *= -1;
+    if (rng(60) === 0) { a.vx = (rng(2)?1:-1)*a.spd*(0.5+Math.random()); a.vy = (Math.random()-0.5)*a.spd; }
+  });
+  // Bullet flash decay
+  S.huntBullets = S.huntBullets.filter(b => { b.timer--; return b.timer > 0; });
+}
+
+// --- DRAWING ---
+function drawText(txt, x, y, color, size, align) {
+  ctx.fillStyle = color || '#ccc';
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.fillText(txt, x, y);
+}
+
+function drawBox(x, y, w, h, border, fill) {
+  ctx.fillStyle = fill || '#111';
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = border || '#555';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x, y, w, h);
+}
+
+function drawTrailMap() {
+  const mapY = 50, mapH = 30;
+  // Trail line
+  ctx.strokeStyle = '#553';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(60, mapY + mapH/2);
+  ctx.lineTo(740, mapY + mapH/2);
+  ctx.stroke();
+  // Landmarks
+  MARKS.forEach((m, i) => {
+    const lx = 60 + (m[0] / TOTAL_DIST) * 680;
+    ctx.fillStyle = m[2] === 1 ? '#f80' : m[2] === 2 ? '#48f' : m[2] === 3 ? '#4f4' : '#666';
+    ctx.fillRect(lx - 2, mapY + mapH/2 - 4, 4, 8);
+  });
+  // Wagon position
+  const wx = 60 + (S.dist / TOTAL_DIST) * 680;
+  ctx.fillStyle = '#ff0';
+  // Tiny wagon
+  ctx.fillRect(wx - 6, mapY + mapH/2 - 8, 12, 6);
+  ctx.fillRect(wx - 4, mapY + mapH/2 - 14, 8, 7);
+  ctx.fillStyle = '#a80';
+  ctx.fillRect(wx - 2, mapY + mapH/2 - 2, 4, 4);
+  // Labels
+  drawText('Independence', 40, mapY - 5, '#686', 10, 'left');
+  drawText('Oregon City', 700, mapY - 5, '#686', 10, 'right');
+}
+
+function drawWagonScene() {
+  const gY = 430;
+  // Sky gradient effect
+  ctx.fillStyle = '#112';
+  ctx.fillRect(0, 90, W, gY - 90);
+  // Ground
+  ctx.fillStyle = '#342';
+  ctx.fillRect(0, gY, W, H - gY);
+  // Horizon details
+  ctx.fillStyle = '#231';
+  for (let i = 0; i < 8; i++) {
+    const bx = (i * 120 + S.frame * 0.3) % (W + 60) - 30;
+    ctx.beginPath();
+    ctx.moveTo(bx - 30, gY);
+    ctx.lineTo(bx, gY - 15 - (i%3)*8);
+    ctx.lineTo(bx + 30, gY);
+    ctx.fill();
+  }
+  // Wagon body
+  const wagonX = 340;
+  ctx.fillStyle = '#854';
+  ctx.fillRect(wagonX, gY - 40, 80, 30);
+  // Canopy
+  ctx.fillStyle = '#ddb';
+  ctx.beginPath();
+  ctx.moveTo(wagonX + 5, gY - 40);
+  ctx.quadraticCurveTo(wagonX + 40, gY - 75, wagonX + 75, gY - 40);
+  ctx.fill();
+  ctx.strokeStyle = '#886';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  // Wheels
+  ctx.strokeStyle = '#654';
+  ctx.lineWidth = 3;
+  [wagonX + 15, wagonX + 65].forEach(cx => {
+    ctx.beginPath();
+    ctx.arc(cx, gY - 5, 10, 0, Math.PI * 2);
+    ctx.stroke();
+    // Spokes
+    for (let a = 0; a < 4; a++) {
+      const ang = a * Math.PI/2 + S.frame * 0.05;
+      ctx.beginPath();
+      ctx.moveTo(cx, gY - 5);
+      ctx.lineTo(cx + Math.cos(ang)*8, gY - 5 + Math.sin(ang)*8);
+      ctx.stroke();
+    }
+  });
+  // Oxen
+  ctx.fillStyle = '#986';
+  ctx.fillRect(wagonX - 30, gY - 30, 25, 20);
+  ctx.fillRect(wagonX - 28, gY - 36, 10, 8);
+  if (S.oxen > 2) {
+    ctx.fillRect(wagonX - 60, gY - 28, 25, 18);
+    ctx.fillRect(wagonX - 58, gY - 34, 10, 8);
+  }
+}
+
+function drawStatusBar() {
+  drawBox(10, 480, 780, 110, '#444', '#0a0a0a');
+  const paces = ['Resting','Steady','Strenuous','Grueling'];
+  const rats = ['None','Bare bones','Moderate','Well fed'];
+  const col1 = 25, col2 = 220, col3 = 430, col4 = 620;
+  const row1 = 498, row2 = 514, row3 = 530, row4 = 546, row5 = 562, row6 = 578;
+
+  drawText('Date: ' + MONTHS[S.month] + ' ' + S.day, col1, row1, '#8b8');
+  drawText('Miles: ' + S.dist + '/' + TOTAL_DIST, col1, row2, '#8b8');
+  drawText('Pace: ' + paces[S.pace], col1, row3, '#cc8');
+  drawText('Rations: ' + rats[S.rations], col1, row4, '#cc8');
+
+  drawText('Food: ' + S.food + ' lb', col2, row1, S.food < 50 ? '#f55' : '#8b8');
+  drawText('Bullets: ' + S.bullets, col2, row2, '#8b8');
+  drawText('Money: $' + S.money, col2, row3, '#8b8');
+
+  drawText('Oxen: ' + S.oxen, col3, row1, S.oxen < 2 ? '#f55' : '#8b8');
+  drawText('Parts: ' + S.parts, col3, row2, '#8b8');
+  drawText('Clothes: ' + S.clothes, col3, row3, '#8b8');
+
+  // Next landmark
+  const ni = nextMark();
+  if (ni < MARKS.length) {
+    const nm = MARKS[ni];
+    drawText('Next: ' + nm[1], col1, row5, '#aaf');
+    drawText((nm[0] - S.dist) + ' miles away', col1, row6, '#77a');
+  }
+
+  // Party health
+  drawText('Party:', col4, row1, '#da8');
+  S.party.forEach((p, i) => {
+    const c = p.alive ? (p.hp > 50 ? '#4c4' : p.hp > 25 ? '#cc4' : '#f44') : '#555';
+    drawText(p.name + (p.alive ? ' ' + p.hp + '%' : ' DEAD'), col4, row2 + i * 16, c, 12);
+  });
+}
+
+// --- MAIN UPDATE ---
+function update() {
+  if (infoOpen) return;
+  S.frame++;
+  if (S.cooldown > 0) { S.cooldown--; lastKey = ''; return; }
+  const lk = lastKey;
+  lastKey = '';
+
+  switch (S.mode) {
+    case ST.TITLE:
+      if (lk === 'Space' || lk === 'Enter') { S.mode = ST.SHOP; S.shopPhase = 0; S.cooldown = 10; }
+      break;
+
+    case ST.SHOP:
+      if (lk === 'Digit1') { S.shopCart[S.shopPhase] = Math.min(S.shopCart[S.shopPhase]+1, SHOP_MAX[S.shopPhase]); }
+      if (lk === 'Digit2') { S.shopCart[S.shopPhase] = Math.max(S.shopCart[S.shopPhase]-1, 0); }
+      if (lk === 'Digit3' || lk === 'Space') {
+        S.shopPhase++;
+        if (S.shopPhase >= 5) {
+          // Calculate total cost
+          let cost = 0;
+          for (let i = 0; i < 5; i++) cost += S.shopCart[i] * SHOP_COST[i] * SHOP_UNIT[i];
+          if (cost > S.money) { S.shopPhase = 0; S.msg = ['Over budget! Re-select.']; }
+          else { S.money -= cost; finishShop(); S.cooldown = 10; }
+        }
+      }
+      break;
+
+    case ST.TRAVEL:
+      S.msg = [];
+      if (lk === 'Digit1') { S.pace = (S.pace + 1) % 4; }
+      if (lk === 'Digit2') { S.rations = (S.rations + 1) % 4; }
+      if (lk === 'Digit3' || lk === 'KeyH') { startHunt(); S.cooldown = 10; break; }
+      if (lk === 'Space') { advanceDay(); S.cooldown = 5; }
+      break;
+
+    case ST.EVENT:
+      if (lk === 'Space') { S.mode = ST.TRAVEL; S.cooldown = 10; }
+      break;
+
+    case ST.RIVER:
+      if (lk === 'Digit1') { riverChoice(1); S.cooldown = 10; }
+      if (lk === 'Digit2') { riverChoice(2); S.cooldown = 10; }
+      if (lk === 'Digit3') { riverChoice(3); S.cooldown = 10; }
+      break;
+
+    case ST.FORT:
+      if (lk === 'Digit1') fortBuy(0);
+      if (lk === 'Digit2') fortBuy(1);
+      if (lk === 'Digit3') fortBuy(2);
+      if (lk === 'Digit4') fortBuy(3);
+      if (lk === 'Digit5') fortBuy(4);
+      if (lk === 'Space') { S.mode = ST.TRAVEL; S.cooldown = 10; }
+      break;
+
+    case ST.HUNT:
+      updateHunt();
+      if (lk === 'Space' && !S.huntDone) huntShoot();
+      if (S.huntDone && lk === 'Space') {
+        S.food += S.huntScore;
+        S.msg = ['Hunt: +' + S.huntScore + ' lb food'];
+        S.mode = ST.TRAVEL; S.day++; S.cooldown = 10;
+      }
+      break;
+
+    case ST.DEAD:
+    case ST.WIN:
+      if (lk === 'KeyR') initGame();
+      break;
+  }
+}
+
+function draw() {
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, H);
+
+  switch (S.mode) {
+    case ST.TITLE: drawTitle(); break;
+    case ST.SHOP: drawShop(); break;
+    case ST.TRAVEL: drawTravelScreen(); break;
+    case ST.EVENT: drawEventScreen(); break;
+    case ST.RIVER: drawRiverScreen(); break;
+    case ST.FORT: drawFortScreen(); break;
+    case ST.HUNT: drawHuntScreen(); break;
+    case ST.DEAD: drawDeathScreen(); break;
+    case ST.WIN: drawWinScreen(); break;
+  }
+
+  // Title badge
+  ctx.fillStyle = '#1a1a1a'; ctx.fillRect(8, 8, 290, 28);
+  ctx.fillStyle = '#555'; ctx.font = '13px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('SIM-003 \u00b7 FRONTIER TREK  [?]', 16, 26);
+}
+
+function drawTitle() {
+  drawBox(150, 120, 500, 360, '#4a3', '#0a0a05');
+  drawText('THE OREGON TRAIL', W/2, 180, '#4c4', 28, 'center');
+  drawText('2040 Miles to the Promised Land', W/2, 215, '#686', 14, 'center');
+
+  // ASCII wagon
+  const lines = [
+    '        ___________',
+    '       /           \\',
+    '   ===|  ~~MECC~~  |===',
+    '   |  |_____________|  |',
+    '   |__[O]_________[O]__|',
+  ];
+  lines.forEach((l,i) => drawText(l, W/2, 260 + i*18, '#684', 14, 'center'));
+
+  drawText('The year is 1848.', W/2, 370, '#aa8', 14, 'center');
+  drawText('Your family must travel 2000 miles', W/2, 392, '#aa8', 14, 'center');
+  drawText('from Independence, Missouri', W/2, 410, '#aa8', 14, 'center');
+  drawText('to Oregon City, Oregon.', W/2, 428, '#aa8', 14, 'center');
+
+  drawText('Press SPACE to begin', W/2, 465, '#ff0', 16, 'center');
+}
+
+function drawShop() {
+  drawBox(100, 80, 600, 440, '#a84', '#0a0a05');
+  drawText('GENERAL STORE - Independence, MO', W/2, 115, '#fa4', 18, 'center');
+  drawText('Budget: $' + S.money, W/2, 140, '#4c4', 14, 'center');
+
+  // Show all items and current selections
+  for (let i = 0; i < 5; i++) {
+    const cur = i === S.shopPhase;
+    const y = 180 + i * 50;
+    const qty = S.shopCart[i];
+    const unitCost = SHOP_COST[i] * SHOP_UNIT[i];
+    const totalCost = qty * unitCost;
+
+    drawText(SHOP_ITEMS[i], 140, y, cur ? '#ff0' : '#aaa', cur ? 16 : 14);
+    drawText('Qty: ' + qty + ' (' + SHOP_UNIT[i] + ' each)', 400, y, cur ? '#ff0' : '#888', 14);
+    drawText('$' + totalCost.toFixed(0), 620, y, cur ? '#ff0' : '#888', 14);
+
+    if (cur) {
+      drawText('\u25b6', 122, y, '#ff0', 14);
+    }
+    if (i < S.shopPhase) {
+      drawText('\u2713', 122, y, '#4c4', 14);
+    }
+  }
+
+  // Total
+  let total = 0;
+  for (let i = 0; i < 5; i++) total += S.shopCart[i] * SHOP_COST[i] * SHOP_UNIT[i];
+  drawText('Total: $' + total.toFixed(0) + ' / $' + S.money, W/2, 450, total > S.money ? '#f44' : '#4c4', 16, 'center');
+
+  if (S.shopPhase < 5) {
+    drawText('1) Add more   2) Remove   3) Next item', W/2, 490, '#cc8', 14, 'center');
+  }
+  if (S.msg.length > 0) drawText(S.msg[0], W/2, 510, '#f55', 14, 'center');
+}
+
+function drawTravelScreen() {
+  drawTrailMap();
+  drawWagonScene();
+  drawStatusBar();
+
+  // Menu
+  drawText('1) Change pace   2) Change rations   3) Hunt   SPACE) Travel', W/2, 470, '#cc8', 13, 'center');
+
+  // Messages
+  S.msg.forEach((m, i) => {
+    drawText(m, W/2, 105 + i * 18, '#fa4', 14, 'center');
+  });
+}
+
+function drawEventScreen() {
+  drawTrailMap();
+  drawWagonScene();
+  drawStatusBar();
+
+  // Event overlay
+  drawBox(150, 180, 500, 120, '#a44', '#111');
+  // Split multiline messages
+  const lines = S.eventMsg.split('\n');
+  lines.forEach((l, i) => {
+    drawText(l, W/2, 220 + i * 22, '#fa4', 16, 'center');
+  });
+  drawText('Press SPACE to continue', W/2, 280, '#888', 13, 'center');
+}
+
+function drawRiverScreen() {
+  // River scene
+  ctx.fillStyle = '#112';
+  ctx.fillRect(0, 50, W, 350);
+  // River
+  ctx.fillStyle = '#234a68';
+  ctx.fillRect(0, 280, W, 120);
+  // Water ripples
+  ctx.strokeStyle = '#3a6a90';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 12; i++) {
+    const rx = (i * 80 + S.frame * 0.5) % (W + 40) - 20;
+    ctx.beginPath();
+    ctx.moveTo(rx, 310 + (i%3)*20);
+    ctx.quadraticCurveTo(rx+20, 305 + (i%3)*20, rx+40, 310 + (i%3)*20);
+    ctx.stroke();
+  }
+  // Banks
+  ctx.fillStyle = '#342';
+  ctx.fillRect(0, 400, W, 200);
+
+  drawBox(150, 120, 500, 250, '#48f', '#0a0a15');
+  const lines = S.eventMsg.split('\n');
+  lines.forEach((l,i) => {
+    drawText(l, W/2, 155 + i*22, '#8bf', 16, 'center');
+  });
+
+  if (S.eventChoices) {
+    S.eventChoices.forEach((c,i) => {
+      drawText(c, W/2, 220 + i*28, '#ff0', 15, 'center');
+    });
+  }
+
+  drawStatusBar();
+}
+
+function drawFortScreen() {
+  // Fort scene
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0, 50, W, 350);
+  // Fort building
+  ctx.fillStyle = '#543';
+  ctx.fillRect(280, 250, 240, 120);
+  ctx.fillRect(260, 240, 280, 15);
+  // Door
+  ctx.fillStyle = '#321';
+  ctx.fillRect(380, 310, 40, 60);
+  // Flag
+  ctx.fillStyle = '#a44';
+  ctx.fillRect(400, 200, 30, 15);
+  ctx.strokeStyle = '#654';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(400, 200); ctx.lineTo(400, 240); ctx.stroke();
+  // Ground
+  ctx.fillStyle = '#342';
+  ctx.fillRect(0, 370, W, 230);
+
+  drawBox(130, 100, 540, 260, '#f80', '#0a0a05');
+  drawText(S.eventMsg, W/2, 130, '#fa4', 15, 'center');
+
+  FORT_ITEMS.forEach((item, i) => {
+    drawText((i+1) + ') ' + item + ' - $' + FORT_COST[i], 200, 170 + i*28, '#cc8', 14);
+  });
+  drawText('Money: $' + S.money, W/2, 330, '#4c4', 14, 'center');
+  drawText('SPACE) Leave fort', W/2, 350, '#888', 13, 'center');
+
+  drawStatusBar();
+}
+
+function drawHuntScreen() {
+  // Sky
+  ctx.fillStyle = '#223';
+  ctx.fillRect(0, 0, W, 430);
+  // Ground
+  ctx.fillStyle = '#342';
+  ctx.fillRect(0, 430, W, 170);
+  // Trees
+  ctx.fillStyle = '#253';
+  for (let i = 0; i < 6; i++) {
+    const tx = 60 + i * 130;
+    ctx.beginPath();
+    ctx.moveTo(tx, 430); ctx.lineTo(tx+20, 350); ctx.lineTo(tx+40, 430);
+    ctx.fill();
+  }
+
+  // HUD
+  drawBox(10, 10, 200, 60, '#555');
+  drawText('HUNTING', 20, 35, '#fa4', 16);
+  drawText('Bullets: ' + S.bullets, 20, 55, '#8b8', 13);
+  drawText('Time: ' + Math.ceil(S.huntTimer/60) + 's', 130, 35, '#cc8', 13);
+  drawText('Food: +' + S.huntScore + ' lb', 130, 55, '#4c4', 13);
+
+  // Animals
+  S.huntAnimals.forEach(a => {
+    if (!a.alive) return;
+    ctx.fillStyle = a.name === 'Buffalo' ? '#654' : a.name === 'Deer' ? '#a86' : '#987';
+    if (a.size >= 20) {
+      // Large animal (deer/buffalo)
+      ctx.fillRect(a.x - a.size/2, a.y - a.size/3, a.size, a.size*0.6);
+      ctx.fillRect(a.x + (a.vx > 0 ? a.size/2-4 : -a.size/2), a.y - a.size/2, 6, a.size/3);
+      // Legs
+      ctx.fillRect(a.x - a.size/3, a.y + a.size*0.25, 4, 8);
+      ctx.fillRect(a.x + a.size/4, a.y + a.size*0.25, 4, 8);
+    } else {
+      // Small animal
+      ctx.fillRect(a.x - a.size/2, a.y - a.size/2, a.size, a.size);
+    }
+    // Label
+    drawText(a.name, a.x, a.y - a.size/2 - 5, '#888', 10, 'center');
+  });
+
+  // Bullet flashes
+  S.huntBullets.forEach(b => {
+    ctx.fillStyle = '#ff0';
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, 6 + b.timer, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  // Crosshair
+  ctx.strokeStyle = '#f44';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(S.huntAimX - 15, S.huntAimY); ctx.lineTo(S.huntAimX - 5, S.huntAimY);
+  ctx.moveTo(S.huntAimX + 5, S.huntAimY); ctx.lineTo(S.huntAimX + 15, S.huntAimY);
+  ctx.moveTo(S.huntAimX, S.huntAimY - 15); ctx.lineTo(S.huntAimX, S.huntAimY - 5);
+  ctx.moveTo(S.huntAimX, S.huntAimY + 5); ctx.lineTo(S.huntAimX, S.huntAimY + 15);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(S.huntAimX, S.huntAimY, 12, 0, Math.PI*2);
+  ctx.stroke();
+
+  if (S.huntDone) {
+    drawBox(200, 200, 400, 120, '#4c4', '#111');
+    drawText('HUNT OVER!', W/2, 240, '#4c4', 22, 'center');
+    drawText('Food gained: ' + S.huntScore + ' lb', W/2, 270, '#cc8', 16, 'center');
+    drawText('Press SPACE to continue', W/2, 300, '#888', 13, 'center');
+  } else {
+    drawText('WASD/Arrows: aim | SPACE: shoot', W/2, H - 15, '#888', 12, 'center');
+  }
+}
+
+function drawDeathScreen() {
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0, 0, W, H);
+
+  // Tombstone
+  ctx.fillStyle = '#555';
+  ctx.beginPath();
+  ctx.moveTo(340, 400); ctx.lineTo(340, 230);
+  ctx.quadraticCurveTo(400, 180, 460, 230);
+  ctx.lineTo(460, 400);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#444';
+  ctx.fillRect(330, 400, 140, 20);
+
+  drawText('HERE LIES', 400, 260, '#222', 14, 'center');
+  drawText('YOUR PARTY', 400, 280, '#222', 16, 'center');
+  drawText(S.dist + ' miles', 400, 310, '#333', 13, 'center');
+  drawText('from home', 400, 328, '#333', 13, 'center');
+
+  // Grass
+  ctx.fillStyle = '#243';
+  ctx.fillRect(0, 420, W, 180);
+
+  drawText('GAME OVER', W/2, 140, '#f44', 36, 'center');
+  drawText('You traveled ' + S.dist + ' of ' + TOTAL_DIST + ' miles.', W/2, 460, '#aa8', 16, 'center');
+  drawText('Press R to try again', W/2, 500, '#888', 14, 'center');
+}
+
+function drawWinScreen() {
+  ctx.fillStyle = '#0a1a0a';
+  ctx.fillRect(0, 0, W, H);
+
+  // Mountains
+  ctx.fillStyle = '#1a3a1a';
+  ctx.beginPath();
+  ctx.moveTo(0, 350); ctx.lineTo(150, 200); ctx.lineTo(300, 300);
+  ctx.lineTo(450, 180); ctx.lineTo(600, 280); ctx.lineTo(750, 220);
+  ctx.lineTo(800, 300); ctx.lineTo(800, 400); ctx.lineTo(0, 400);
+  ctx.fill();
+  // Green valley
+  ctx.fillStyle = '#253';
+  ctx.fillRect(0, 380, W, 220);
+
+  drawText('CONGRATULATIONS!', W/2, 100, '#4f4', 32, 'center');
+  drawText('You have reached Oregon City!', W/2, 145, '#8c8', 18, 'center');
+
+  const survivors = alive();
+  drawText(survivors.length + ' of 5 party members survived.', W/2, 190, '#cc8', 16, 'center');
+
+  survivors.forEach((p, i) => {
+    drawText(p.name + ' - Health: ' + p.hp + '%', W/2, 225 + i * 22, '#4c4', 14, 'center');
+  });
+
+  const dead = S.party.filter(p => !p.alive);
+  if (dead.length > 0) {
+    drawText('Lost along the way:', W/2, 230 + survivors.length * 22 + 15, '#a66', 13, 'center');
+    dead.forEach((p, i) => {
+      drawText(p.name, W/2, 252 + survivors.length * 22 + i * 20 + 15, '#866', 13, 'center');
+    });
+  }
+
+  drawText('Remaining supplies:', W/2, 420, '#aa8', 14, 'center');
+  drawText('Food: ' + S.food + ' lb | Bullets: ' + S.bullets + ' | Money: $' + S.money, W/2, 445, '#886', 13, 'center');
+  drawText('Distance: ' + TOTAL_DIST + ' miles in ' + (S.month * 30 + S.day) + ' days', W/2, 470, '#886', 13, 'center');
+
+  const score = survivors.length * 200 + S.food + S.bullets * 2 + S.money;
+  drawText('SCORE: ' + score, W/2, 510, '#ff0', 22, 'center');
+  drawText('Press R to play again', W/2, 550, '#888', 14, 'center');
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

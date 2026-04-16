@@ -1,0 +1,1093 @@
+<!--
+PROTOTYPE: empire-builder
+SERIES: sim
+NUMBER: 004
+DATE: 2026-03-22
+MECHANIC: 4X turn-based strategy — explore, expand, exploit, exterminate on a world map
+ANCESTRY: Civilization (1991, Sid Meier, MicroProse), Empire (1977, Walter Bright)
+CONTROLS: Arrow keys/Mouse — scroll map | Click — select/move unit | B — build city | T — end turn | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 4 (Statistical Learning — multi-objective AI opponents with economic modeling)
+AI-INSIGHT: Civilization's AI must balance exploration, expansion, economic development, military production, and diplomacy simultaneously — a multi-objective optimization problem that mirrors the challenges of real-world resource allocation that operations research had been studying for decades.
+NOTES: Turn-based 4X strategy. Build cities, research tech, train units.
+       Simplified but captures explore-expand-exploit-exterminate loop.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SIM-004 · EMPIRE BUILDER</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: crosshair; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SIM-004 · EMPIRE BUILDER</h1>
+    <p><span class="tag series">SIM — Simulation</span> <span class="tag">Prototype #004</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Build an empire from a single settler. Found cities, research technologies, train military units, and conquer or out-tech your AI rival.</p>
+    <ul>
+      <li><kbd>Arrow keys</kbd> or right-click drag — Scroll the map</li>
+      <li><kbd>Click</kbd> — Select unit or city; click tile to move/attack</li>
+      <li><kbd>B</kbd> — Build city (settler selected on valid tile)</li>
+      <li><kbd>T</kbd> — End turn</li>
+      <li><kbd>1</kbd>-<kbd>4</kbd> — Build unit in selected city (1=Settler, 2=Warrior, 3=Archer, 4=Horseman)</li>
+      <li><kbd>R</kbd> — Restart game</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Settle early:</strong> Found your first city quickly on grassland or plains for best production.</li>
+      <li><strong>Explore:</strong> Send warriors to reveal the fog of war and find good city sites.</li>
+      <li><strong>Tech up:</strong> Technologies unlock better units and increase city output. Research is automatic each turn.</li>
+      <li><strong>Gold:</strong> Cities generate gold. Use it to rush-buy units (click the gold cost in city view).</li>
+      <li><strong>Victory:</strong> Conquer all enemy cities OR research all 6 technologies first.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Empire (1977, Walter Bright) &rarr; Civilization (1991, Sid Meier) &rarr; Civilization II (1996) &rarr; Alpha Centauri (1999)</p>
+    <p>Sid Meier's Civilization (1991) synthesized board game mechanics (Risk, Diplomacy), Walter Bright's Empire, and SimCity's city management into the definitive 4X strategy game. The "one more turn" compulsion loop — where each turn reveals new possibilities — became one of gaming's most addictive feedback mechanisms.</p>
+    <p>The original ran on a 80x50 map with 14 civilizations and a tech tree of 72 advances. This prototype distills the core loop: settle, build, research, conquer.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 4 — Statistical Learning (1990-2000)</p>
+    <p><strong>Contemporary AI:</strong> Neural networks resurging, genetic algorithms, multi-objective optimization entering practical use.</p>
+    <p><strong>Hidden Intelligence:</strong> Civilization's AI must simultaneously optimize across competing objectives: military strength, economic growth, technological progress, territorial expansion, and diplomatic relationships. This is a multi-objective optimization problem that operations research had been formalizing for decades, but Meier implemented it as a set of competing heuristic priorities — essentially a hand-tuned Pareto frontier.</p>
+    <p><strong>The Convergence:</strong> The tech tree is a directed acyclic graph of prerequisites — identical in structure to the dependency graphs used in project scheduling (PERT/CPM). The AI's challenge of choosing an optimal path through this graph anticipates modern planning algorithms.</p>
+    <p><strong>If AI Had Designed This:</strong> Procedurally balanced maps using constraint satisfaction, AI opponents trained via self-play (as AlphaStar later achieved for StarCraft), and dynamically adjusted difficulty using player modeling.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: SIM — Simulation</h3>
+    <p>Civilization is the quintessential 4X strategy simulation — managing an entire civilization's growth across millennia through exploration, expansion, exploitation, and extermination.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>4X turn-based strategy with tech tree progression.</strong> Procedural map. City founding and management. Unit production and movement. Technology research. AI rival civilization. Fog of war.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Settle decision — does choosing where to build a city feel consequential?</li>
+      <li>Tech progression — does unlocking new capabilities create a sense of growth?</li>
+      <li>Expansion pressure — does the AI rival create urgency to expand?</li>
+      <li>One more turn — does the turn structure create compulsive engagement?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Simplified 4X with 30x20 tile map, 4 unit types, 6 technologies, fog of war, and one AI opponent. Captures the core explore-expand-exploit-exterminate loop in under 50KB.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+// --- CONSTANTS ---
+const MW = 30, MH = 20, TS = 28; // map width, height, tile size
+const VP_W = 600, VP_H = 560; // viewport for map
+const SB_X = 604, SB_W = 192; // sidebar
+const HUD_Y = 0, HUD_H = 36;
+// Terrain: 0=water,1=grass,2=plains,3=forest,4=desert,5=mountain
+const TNAMES = ['Water','Grass','Plains','Forest','Desert','Mountain'];
+const TCOLS = ['#1a5fb4','#4a2','#ba3','#173','#da0','#888'];
+const TFOOD = [0,3,2,2,1,0], TPROD = [0,1,2,1,0,3], TGOLD = [0,1,1,0,2,0];
+const TWALK = [0,1,1,1,1,0]; // walkable
+// Units: 0=settler,1=warrior,2=archer,3=horseman
+const UNAMES = ['Settler','Warrior','Archer','Horseman'];
+const USTR = [0,3,2,4]; // combat strength
+const UHPMAX = [5,10,8,12];
+const UMOVE = [2,2,2,3];
+const UCOST = [30,15,20,30]; // production cost
+const UGOLD = [60,30,40,60]; // gold rush cost
+const USYM = ['S','W','A','H']; // symbol
+const UCOL_P = ['#ff0','#f80','#f44','#4ff']; // player unit colors
+const UCOL_E = ['#ff0','#f80','#f44','#4ff']; // enemy uses same but w/ different border
+// Techs: id, name, cost (turns), prereq, effect description
+const TECHS = [
+  {id:0,n:'Agriculture',c:6,p:-1,d:'+1 food in cities'},
+  {id:1,n:'Bronze Working',c:8,p:-1,d:'Unlock Warrior'},
+  {id:2,n:'Writing',c:10,p:0,d:'+2 research/turn'},
+  {id:3,n:'Construction',c:12,p:1,d:'+1 production in cities'},
+  {id:4,n:'Iron Working',c:14,p:1,d:'Unlock Horseman'},
+  {id:5,n:'Navigation',c:16,p:2,d:'Units cross water'}
+];
+
+// --- GAME STATE ---
+let map, fog, units, cities, sel, camX, camY, turn, gold, eGold;
+let techProg, techDone, eTechProg, eTechDone, curTech, eCurTech;
+let msg, msgT, phase, winner, selCity;
+let animFrame = 0;
+
+function rng(s) {
+  let v = s | 0;
+  return function() { v = (v * 16807 + 0) % 2147483647; return (v - 1) / 2147483646; };
+}
+
+function genMap() {
+  const r = rng(Date.now());
+  map = [];
+  // Generate with noise-ish approach
+  for (let y = 0; y < MH; y++) {
+    map[y] = [];
+    for (let x = 0; x < MW; x++) {
+      // Water around edges
+      if (x === 0 || y === 0 || x === MW-1 || y === MH-1) { map[y][x] = 0; continue; }
+      // Some water in interior
+      let v = r();
+      if (v < 0.12) map[y][x] = 0;
+      else if (v < 0.35) map[y][x] = 1; // grass
+      else if (v < 0.55) map[y][x] = 2; // plains
+      else if (v < 0.72) map[y][x] = 3; // forest
+      else if (v < 0.85) map[y][x] = 4; // desert
+      else map[y][x] = 5; // mountain
+    }
+  }
+  // Ensure start areas are walkable
+  for (let dy = -1; dy <= 1; dy++)
+    for (let dx = -1; dx <= 1; dx++) {
+      let y1 = 3 + dy, x1 = 3 + dx;
+      let y2 = MH - 4 + dy, x2 = MW - 4 + dx;
+      if (map[y1]) map[y1][x1] = 1;
+      if (map[y2]) map[y2][x2] = 2;
+    }
+}
+
+function initGame() {
+  genMap();
+  fog = [];
+  for (let y = 0; y < MH; y++) { fog[y] = []; for (let x = 0; x < MW; x++) fog[y][x] = 0; }
+  units = [];
+  cities = [];
+  // Player starts with settler + warrior at top-left area
+  units.push({t:0,x:3,y:3,hp:UHPMAX[0],mv:UMOVE[0],owner:0});
+  units.push({t:1,x:4,y:3,hp:UHPMAX[1],mv:UMOVE[1],owner:0});
+  // AI starts with settler + warrior at bottom-right
+  units.push({t:0,x:MW-4,y:MH-4,hp:UHPMAX[0],mv:UMOVE[0],owner:1});
+  units.push({t:1,x:MW-5,y:MH-4,hp:UHPMAX[1],mv:UMOVE[1],owner:1});
+  sel = null; selCity = null;
+  camX = 0; camY = 0;
+  turn = 1; gold = [30, 30]; // [player, AI]
+  techDone = [[], []]; techProg = [0, 0];
+  curTech = [0, 1]; // player researches Agriculture first, AI researches Bronze Working
+  msg = 'Found your empire! Select settler, press B to build.';
+  msgT = 180;
+  phase = 'play'; winner = -1;
+  revealFog(3, 3, 0); revealFog(4, 3, 0);
+}
+
+function revealFog(cx, cy, owner) {
+  if (owner !== 0) return; // only reveal for player
+  for (let dy = -3; dy <= 3; dy++)
+    for (let dx = -3; dx <= 3; dx++) {
+      let nx = cx + dx, ny = cy + dy;
+      if (nx >= 0 && nx < MW && ny >= 0 && ny < MH && dx*dx+dy*dy <= 10)
+        fog[ny][nx] = 1;
+    }
+}
+
+function canWalk(x, y, owner) {
+  if (x < 0 || x >= MW || y < 0 || y >= MH) return false;
+  let t = map[y][x];
+  if (t === 0) return techDone[owner].includes(5); // water needs Navigation
+  if (t === 5) return false; // mountain impassable
+  return true;
+}
+
+function unitAt(x, y, owner) {
+  return units.find(u => u.x === x && u.y === y && u.owner === owner);
+}
+
+function anyUnitAt(x, y) {
+  return units.find(u => u.x === x && u.y === y);
+}
+
+function cityAt(x, y, owner) {
+  if (owner !== undefined) return cities.find(c => c.x === x && c.y === y && c.owner === owner);
+  return cities.find(c => c.x === x && c.y === y);
+}
+
+function showMsg(s) { msg = s; msgT = 150; }
+
+function buildCity(u) {
+  if (u.t !== 0) { showMsg('Only settlers can build cities.'); return; }
+  let t = map[u.y][u.x];
+  if (t === 0 || t === 5) { showMsg('Cannot build here.'); return; }
+  if (cityAt(u.x, u.y)) { showMsg('City already here.'); return; }
+  let nm = u.owner === 0 ?
+    ['Rome','Athens','Babylon','Memphis','Delhi','Beijing','London','Paris'][cities.filter(c=>c.owner===0).length % 8] :
+    ['Xanadu','Mordor','Darkholm','Ironkeep','Ashfort','Grimwall','Duskburg','Voidgate'][cities.filter(c=>c.owner===1).length % 8];
+  cities.push({x:u.x,y:u.y,owner:u.owner,name:nm,pop:1,food:0,prod:0,building:-1,prodProg:0});
+  // Remove settler
+  units.splice(units.indexOf(u), 1);
+  if (sel === u) sel = null;
+  revealFog(u.x, u.y, u.owner);
+  if (u.owner === 0) showMsg(nm + ' founded!');
+}
+
+function combat(att, def) {
+  let as = USTR[att.t] + Math.random() * 2;
+  let ds = USTR[def.t] + Math.random() * 2;
+  // Bonus for techs
+  if (att.owner === 0 && techDone[0].includes(4)) as += 1;
+  if (att.owner === 1 && techDone[1].includes(4)) as += 1;
+  if (def.owner === 0 && techDone[0].includes(4)) ds += 1;
+  if (def.owner === 1 && techDone[1].includes(4)) ds += 1;
+  // Archer defense bonus
+  if (def.t === 2) ds += 1;
+  // Terrain bonus for defender
+  let terr = map[def.y][def.x];
+  if (terr === 3) ds += 1; // forest
+  let dmgToDef = Math.max(1, Math.round(as - ds * 0.3 + 1));
+  let dmgToAtt = Math.max(1, Math.round(ds - as * 0.3));
+  def.hp -= dmgToDef;
+  att.hp -= dmgToAtt;
+  let result = '';
+  if (def.hp <= 0) {
+    result = UNAMES[att.t] + ' defeats ' + UNAMES[def.t] + '!';
+    // Check if defending a city
+    let dc = cityAt(def.x, def.y, def.owner);
+    if (dc && !units.find(u => u.x === dc.x && u.y === dc.y && u.owner === dc.owner && u !== def)) {
+      dc.owner = att.owner;
+      result += ' ' + dc.name + ' captured!';
+    }
+    units.splice(units.indexOf(def), 1);
+    att.x = def.x; att.y = def.y; // move to tile
+    att.mv = 0;
+  }
+  if (att.hp <= 0) {
+    result = UNAMES[def.t] + ' repels ' + UNAMES[att.t] + '!';
+    units.splice(units.indexOf(att), 1);
+    if (sel === att) sel = null;
+  }
+  return result;
+}
+
+function moveUnit(u, tx, ty) {
+  if (u.mv <= 0) { showMsg('No moves left.'); return false; }
+  let dx = tx - u.x, dy = ty - u.y;
+  if (Math.abs(dx) > 1 || Math.abs(dy) > 1) { showMsg('Too far. Move one tile at a time.'); return false; }
+  if (!canWalk(tx, ty, u.owner)) { showMsg('Impassable terrain.'); return false; }
+  // Check for enemy
+  let enemy = units.find(e => e.x === tx && e.y === ty && e.owner !== u.owner);
+  if (enemy) {
+    if (u.t === 0) { showMsg('Settlers cannot attack.'); return false; }
+    let r = combat(u, enemy);
+    showMsg(r);
+    revealFog(tx, ty, u.owner);
+    checkVictory();
+    return true;
+  }
+  // Check friendly unit blocking
+  if (unitAt(tx, ty, u.owner)) { showMsg('Tile occupied.'); return false; }
+  u.x = tx; u.y = ty; u.mv--;
+  revealFog(tx, ty, u.owner);
+  return true;
+}
+
+function cityOutput(c) {
+  let t = map[c.y][c.x];
+  let f = TFOOD[t] + c.pop;
+  let p = TPROD[t] + c.pop;
+  let g = TGOLD[t] + c.pop * 2;
+  // Tech bonuses
+  if (techDone[c.owner].includes(0)) f += 1; // agriculture
+  if (techDone[c.owner].includes(3)) p += 1; // construction
+  // Surrounding tiles bonus
+  for (let dy = -1; dy <= 1; dy++)
+    for (let dx = -1; dx <= 1; dx++) {
+      if (dx === 0 && dy === 0) continue;
+      let nx = c.x + dx, ny = c.y + dy;
+      if (nx >= 0 && nx < MW && ny >= 0 && ny < MH) {
+        let st = map[ny][nx];
+        f += Math.floor(TFOOD[st] * 0.3);
+        p += Math.floor(TPROD[st] * 0.3);
+        g += Math.floor(TGOLD[st] * 0.3);
+      }
+    }
+  return {f, p, g};
+}
+
+function processCityTurn(c) {
+  let o = cityOutput(c);
+  gold[c.owner] += o.g;
+  // Food -> population growth
+  c.food += o.f;
+  let needed = c.pop * 8 + 10;
+  if (c.food >= needed) { c.food = 0; c.pop = Math.min(c.pop + 1, 12); }
+  // Production
+  if (c.building >= 0) {
+    c.prodProg += o.p;
+    if (c.prodProg >= UCOST[c.building]) {
+      // Spawn unit
+      let sx = c.x, sy = c.y;
+      if (anyUnitAt(sx, sy)) {
+        // Find adjacent empty
+        let found = false;
+        for (let dy = -1; dy <= 1 && !found; dy++)
+          for (let dx = -1; dx <= 1 && !found; dx++) {
+            if (dx === 0 && dy === 0) continue;
+            if (canWalk(c.x+dx, c.y+dy, c.owner) && !anyUnitAt(c.x+dx, c.y+dy)) {
+              sx = c.x+dx; sy = c.y+dy; found = true;
+            }
+          }
+        if (!found) { c.prodProg = UCOST[c.building]; return; } // wait
+      }
+      units.push({t:c.building,x:sx,y:sy,hp:UHPMAX[c.building],mv:0,owner:c.owner});
+      if (c.owner === 0) showMsg(c.name + ' built ' + UNAMES[c.building] + '!');
+      c.building = -1; c.prodProg = 0;
+    }
+  }
+}
+
+function researchTurn(owner) {
+  let rpt = 1; // base
+  if (techDone[owner].includes(2)) rpt += 2; // writing bonus
+  rpt += cities.filter(c => c.owner === owner).length; // +1 per city
+  techProg[owner] += rpt;
+  let ct = curTech[owner];
+  if (ct >= 0 && ct < TECHS.length) {
+    let tech = TECHS[ct];
+    if (tech.p >= 0 && !techDone[owner].includes(tech.p)) return; // prereq not met
+    if (techProg[owner] >= tech.c) {
+      techDone[owner].push(ct);
+      techProg[owner] = 0;
+      if (owner === 0) showMsg('Discovered ' + tech.n + '!');
+      // Pick next tech
+      pickNextTech(owner);
+    }
+  }
+}
+
+function pickNextTech(owner) {
+  for (let i = 0; i < TECHS.length; i++) {
+    if (techDone[owner].includes(i)) continue;
+    if (TECHS[i].p >= 0 && !techDone[owner].includes(TECHS[i].p)) continue;
+    curTech[owner] = i;
+    return;
+  }
+  curTech[owner] = -1; // all done
+}
+
+function checkVictory() {
+  // Check conquest: all enemy cities captured
+  let pc = cities.filter(c => c.owner === 0).length;
+  let ec = cities.filter(c => c.owner === 1).length;
+  if (ec === 0 && pc > 0 && turn > 1) {
+    // Also no enemy settlers
+    if (!units.find(u => u.owner === 1 && u.t === 0)) {
+      phase = 'over'; winner = 0; showMsg('VICTORY! You conquered the world!');
+    }
+  }
+  if (pc === 0 && ec > 0 && turn > 3) {
+    if (!units.find(u => u.owner === 0 && u.t === 0)) {
+      phase = 'over'; winner = 1; showMsg('DEFEAT! Your empire has fallen.');
+    }
+  }
+  // Tech victory
+  if (techDone[0].length === 6) { phase = 'over'; winner = 0; showMsg('VICTORY! Scientific supremacy!'); }
+  if (techDone[1].length === 6) { phase = 'over'; winner = 1; showMsg('DEFEAT! Enemy achieved supremacy.'); }
+}
+
+function endTurn() {
+  // Process player cities
+  cities.forEach(c => { if (c.owner === 0) processCityTurn(c); });
+  // Research
+  researchTurn(0);
+  // AI turn
+  aiTurn();
+  // Process AI cities
+  cities.forEach(c => { if (c.owner === 1) processCityTurn(c); });
+  researchTurn(1);
+  // Refresh moves
+  units.forEach(u => { u.mv = UMOVE[u.t]; });
+  turn++;
+  checkVictory();
+}
+
+// --- AI ---
+function aiTurn() {
+  let aiUnits = units.filter(u => u.owner === 1);
+  let aiCities = cities.filter(c => c.owner === 1);
+  let pCities = cities.filter(c => c.owner === 0);
+
+  // AI settlers: build city if no city nearby
+  aiUnits.filter(u => u.t === 0).forEach(u => {
+    let t = map[u.y][u.x];
+    if (t !== 0 && t !== 5 && !cityAt(u.x, u.y)) {
+      let nearCity = aiCities.find(c => Math.abs(c.x-u.x) + Math.abs(c.y-u.y) < 5);
+      if (!nearCity || aiCities.length === 0) {
+        buildCity(u);
+        return;
+      }
+    }
+    // Move settler away from existing cities
+    aiMoveExplore(u);
+  });
+
+  // AI military: attack nearby enemies or explore
+  aiUnits.filter(u => u.t > 0).forEach(u => {
+    u.mv = UMOVE[u.t];
+    let moved = false;
+    // Look for nearby player units/cities to attack
+    let bestTarget = null, bestDist = 999;
+    // Find nearest player unit
+    units.filter(e => e.owner === 0).forEach(e => {
+      let d = Math.abs(e.x - u.x) + Math.abs(e.y - u.y);
+      if (d < bestDist) { bestDist = d; bestTarget = {x:e.x, y:e.y}; }
+    });
+    // Or nearest player city
+    pCities.forEach(c => {
+      let d = Math.abs(c.x - u.x) + Math.abs(c.y - u.y);
+      if (d < bestDist) { bestDist = d; bestTarget = {x:c.x, y:c.y}; }
+    });
+
+    // Move toward target
+    let steps = UMOVE[u.t];
+    while (steps > 0 && u.mv > 0) {
+      if (bestTarget && bestDist <= 12) {
+        let dx = Math.sign(bestTarget.x - u.x);
+        let dy = Math.sign(bestTarget.y - u.y);
+        // Try primary direction, then secondary
+        let tried = false;
+        for (let [mx, my] of [[dx, dy], [dx, 0], [0, dy]]) {
+          if (mx === 0 && my === 0) continue;
+          let nx = u.x + mx, ny = u.y + my;
+          if (canWalk(nx, ny, 1)) {
+            let enemy = units.find(e => e.x === nx && e.y === ny && e.owner === 0);
+            if (enemy) { combat(u, enemy); checkVictory(); tried = true; break; }
+            if (!anyUnitAt(nx, ny)) {
+              u.x = nx; u.y = ny; u.mv--;
+              tried = true; break;
+            }
+          }
+        }
+        if (!tried) steps = 0;
+      } else {
+        aiMoveExplore(u);
+      }
+      steps--;
+    }
+  });
+
+  // AI city production
+  aiCities.forEach(c => {
+    if (c.building < 0) {
+      // Decide what to build
+      let numUnits = aiUnits.filter(u => u.t > 0).length;
+      let numSettlers = aiUnits.filter(u => u.t === 0).length;
+      if (aiCities.length < 3 && numSettlers === 0 && turn > 2) {
+        c.building = 0; c.prodProg = 0; // settler
+      } else if (techDone[1].includes(4) && Math.random() < 0.3) {
+        c.building = 3; c.prodProg = 0; // horseman
+      } else if (techDone[1].includes(1) || turn > 5) {
+        c.building = Math.random() < 0.4 ? 2 : 1; c.prodProg = 0; // archer or warrior
+      } else {
+        c.building = 1; c.prodProg = 0; // warrior
+      }
+    }
+  });
+
+  // AI rush-buy if rich
+  aiCities.forEach(c => {
+    if (c.building >= 0 && gold[1] >= UGOLD[c.building] * 1.5) {
+      if (Math.random() < 0.3) {
+        gold[1] -= UGOLD[c.building];
+        c.prodProg = UCOST[c.building]; // will complete this turn
+      }
+    }
+  });
+}
+
+function aiMoveExplore(u) {
+  if (u.mv <= 0) return;
+  // Move in a semi-random direction
+  let dirs = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,1],[1,-1],[-1,-1]];
+  // Prefer toward center if near edge
+  dirs.sort(() => Math.random() - 0.5);
+  for (let [dx, dy] of dirs) {
+    let nx = u.x + dx, ny = u.y + dy;
+    if (canWalk(nx, ny, 1) && !anyUnitAt(nx, ny)) {
+      u.x = nx; u.y = ny; u.mv--; return;
+    }
+  }
+}
+
+initGame();
+
+// --- INPUT ---
+const keys = {};
+let mouseX = 0, mouseY = 0, mouseDown = false, rightDown = false;
+let dragStartX = 0, dragStartY = 0, camDragX = 0, camDragY = 0;
+
+window.addEventListener('keydown', e => {
+  if (infoOpen) return;
+  keys[e.code] = true;
+  if (phase === 'over') { if (e.code === 'KeyR') initGame(); e.preventDefault(); return; }
+  if (e.code === 'KeyR') { initGame(); e.preventDefault(); return; }
+  if (e.code === 'KeyT') { endTurn(); e.preventDefault(); return; }
+  if (e.code === 'KeyB') {
+    if (sel && sel.owner === 0 && sel.t === 0) buildCity(sel);
+    e.preventDefault(); return;
+  }
+  // Number keys for city production
+  if (selCity && selCity.owner === 0) {
+    let n = -1;
+    if (e.code === 'Digit1') n = 0;
+    if (e.code === 'Digit2') n = 1;
+    if (e.code === 'Digit3') n = 2;
+    if (e.code === 'Digit4') n = 3;
+    if (n >= 0) {
+      // Check tech requirements
+      if (n === 3 && !techDone[0].includes(4)) { showMsg('Need Iron Working for Horseman.'); }
+      else { selCity.building = n; selCity.prodProg = 0; showMsg(selCity.name + ' now building ' + UNAMES[n]); }
+      e.preventDefault(); return;
+    }
+  }
+  // Scroll with arrows
+  if (e.code === 'ArrowLeft') { camX = Math.max(0, camX - 2); e.preventDefault(); }
+  if (e.code === 'ArrowRight') { camX = Math.min(MW - Math.floor(VP_W / TS), camX + 2); e.preventDefault(); }
+  if (e.code === 'ArrowUp') { camY = Math.max(0, camY - 2); e.preventDefault(); }
+  if (e.code === 'ArrowDown') { camY = Math.min(MH - Math.floor(VP_H / TS), camY + 2); e.preventDefault(); }
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+canvas.addEventListener('mousedown', e => {
+  const rect = canvas.getBoundingClientRect();
+  const sx = W / rect.width, sy = H / rect.height;
+  mouseX = (e.clientX - rect.left) * sx;
+  mouseY = (e.clientY - rect.top) * sy;
+  if (e.button === 2) {
+    rightDown = true;
+    dragStartX = mouseX; dragStartY = mouseY;
+    camDragX = camX; camDragY = camY;
+    return;
+  }
+  mouseDown = true;
+  handleClick(mouseX, mouseY);
+});
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  const sx = W / rect.width, sy = H / rect.height;
+  mouseX = (e.clientX - rect.left) * sx;
+  mouseY = (e.clientY - rect.top) * sy;
+  if (rightDown) {
+    let dx = (dragStartX - mouseX) / TS;
+    let dy = (dragStartY - mouseY) / TS;
+    camX = Math.max(0, Math.min(MW - Math.floor(VP_W / TS), camDragX + dx));
+    camY = Math.max(0, Math.min(MH - Math.floor(VP_H / TS), camDragY + dy));
+  }
+});
+canvas.addEventListener('mouseup', e => { if (e.button === 2) rightDown = false; mouseDown = false; });
+
+function handleClick(mx, my) {
+  if (infoOpen || phase === 'over') return;
+  // Map click
+  if (mx < VP_W && my > HUD_H && my < HUD_H + VP_H) {
+    let tx = Math.floor((mx) / TS + camX);
+    let ty = Math.floor((my - HUD_H) / TS + camY);
+    if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) return;
+
+    // If we have a selected unit and click adjacent tile, try to move
+    if (sel && sel.owner === 0) {
+      let dx = tx - sel.x, dy = ty - sel.y;
+      if (Math.abs(dx) <= 1 && Math.abs(dy) <= 1 && (dx !== 0 || dy !== 0)) {
+        moveUnit(sel, tx, ty);
+        return;
+      }
+    }
+
+    // Select unit on tile
+    let u = unitAt(tx, ty, 0);
+    if (u) { sel = u; selCity = null; return; }
+
+    // Select city
+    let c = cityAt(tx, ty, 0);
+    if (c) { selCity = c; sel = null; return; }
+
+    // Clicking enemy or empty deselects
+    sel = null; selCity = null;
+    return;
+  }
+
+  // Sidebar clicks
+  if (mx >= SB_X && selCity && selCity.owner === 0) {
+    // Rush buy button area
+    if (my > 320 && my < 350 && selCity.building >= 0) {
+      let cost = UGOLD[selCity.building];
+      if (gold[0] >= cost) {
+        gold[0] -= cost;
+        selCity.prodProg = UCOST[selCity.building];
+        showMsg('Rush-bought ' + UNAMES[selCity.building] + '!');
+      } else {
+        showMsg('Not enough gold! Need ' + cost + 'g.');
+      }
+    }
+    // Production selection buttons
+    if (my > 350 && my < 450) {
+      let idx = Math.floor((my - 355) / 22);
+      if (idx >= 0 && idx <= 3) {
+        if (idx === 3 && !techDone[0].includes(4)) { showMsg('Need Iron Working.'); return; }
+        selCity.building = idx; selCity.prodProg = 0;
+        showMsg(selCity.name + ' building ' + UNAMES[idx]);
+      }
+    }
+  }
+}
+
+// --- DRAW ---
+function draw() {
+  ctx.fillStyle = '#111'; ctx.fillRect(0, 0, W, H);
+  animFrame++;
+
+  drawMap();
+  drawSidebar();
+  drawHUD();
+
+  // Messages
+  if (msgT > 0) {
+    msgT--;
+    let a = Math.min(1, msgT / 30);
+    ctx.globalAlpha = a;
+    ctx.fillStyle = '#000'; ctx.fillRect(100, H - 44, 400, 28);
+    ctx.strokeStyle = '#fa0'; ctx.strokeRect(100, H - 44, 400, 28);
+    ctx.fillStyle = '#ff0'; ctx.font = '12px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(msg, 300, H - 26);
+    ctx.globalAlpha = 1;
+  }
+
+  // Victory/defeat overlay
+  if (phase === 'over') {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, W, H);
+    ctx.font = 'bold 36px monospace'; ctx.textAlign = 'center';
+    ctx.fillStyle = winner === 0 ? '#4f4' : '#f44';
+    ctx.fillText(winner === 0 ? 'VICTORY!' : 'DEFEAT', W / 2, H / 2 - 30);
+    ctx.fillStyle = '#ddd'; ctx.font = '16px monospace';
+    ctx.fillText(msg, W / 2, H / 2 + 10);
+    ctx.fillStyle = '#888'; ctx.font = '14px monospace';
+    ctx.fillText('Turn ' + turn + '  |  Press R to restart', W / 2, H / 2 + 50);
+  }
+
+  // Title badge
+  ctx.fillStyle = '#1a1a1a'; ctx.fillRect(8, 8, 270, 28);
+  ctx.fillStyle = '#555'; ctx.font = '13px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('SIM-004 \u00b7 EMPIRE BUILDER  [?]', 16, 26);
+}
+
+function drawMap() {
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, HUD_H, VP_W, VP_H);
+  ctx.clip();
+
+  for (let sy = 0; sy < Math.ceil(VP_H / TS) + 1; sy++) {
+    for (let sx = 0; sx < Math.ceil(VP_W / TS) + 1; sx++) {
+      let tx = Math.floor(camX) + sx;
+      let ty = Math.floor(camY) + sy;
+      if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) continue;
+      let px = sx * TS - (camX % 1) * TS;
+      let py = sy * TS + HUD_H - (camY % 1) * TS;
+
+      if (!fog[ty][tx]) {
+        ctx.fillStyle = '#0a0a0a'; ctx.fillRect(px, py, TS, TS);
+        continue;
+      }
+
+      // Terrain
+      let t = map[ty][tx];
+      ctx.fillStyle = TCOLS[t];
+      ctx.fillRect(px, py, TS, TS);
+
+      // Terrain details
+      if (t === 3) { // forest - little trees
+        ctx.fillStyle = '#0a3';
+        ctx.fillRect(px + 5, py + 4, 3, 8);
+        ctx.fillRect(px + 18, py + 8, 3, 7);
+        ctx.fillStyle = '#060';
+        ctx.beginPath(); ctx.arc(px + 6, py + 4, 5, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(px + 19, py + 8, 4, 0, Math.PI * 2); ctx.fill();
+      } else if (t === 5) { // mountain
+        ctx.fillStyle = '#aaa';
+        ctx.beginPath(); ctx.moveTo(px + 14, py + 3); ctx.lineTo(px + 4, py + TS - 3); ctx.lineTo(px + 24, py + TS - 3); ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.moveTo(px + 14, py + 3); ctx.lineTo(px + 10, py + 10); ctx.lineTo(px + 18, py + 10); ctx.fill();
+      } else if (t === 0) { // water waves
+        ctx.strokeStyle = '#2a7fd4'; ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(px + 3, py + 10 + Math.sin(animFrame * 0.05 + tx) * 2);
+        ctx.quadraticCurveTo(px + 14, py + 7 + Math.sin(animFrame * 0.05 + tx) * 2, px + 25, py + 10 + Math.sin(animFrame * 0.05 + tx + 1) * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(px + 5, py + 18 + Math.sin(animFrame * 0.05 + tx + 2) * 2);
+        ctx.quadraticCurveTo(px + 14, py + 15 + Math.sin(animFrame * 0.05 + tx + 2) * 2, px + 23, py + 18 + Math.sin(animFrame * 0.05 + tx + 3) * 2);
+        ctx.stroke();
+      } else if (t === 4) { // desert dots
+        ctx.fillStyle = '#c90';
+        for (let i = 0; i < 4; i++) ctx.fillRect(px + 5 + i * 6, py + 12 + (i % 2) * 4, 2, 2);
+      }
+
+      // Grid lines
+      ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 1;
+      ctx.strokeRect(px, py, TS, TS);
+    }
+  }
+
+  // Draw cities
+  for (let c of cities) {
+    if (!fog[c.y][c.x]) continue;
+    let px = (c.x - camX) * TS;
+    let py = (c.y - camY) * TS + HUD_H;
+    let col = c.owner === 0 ? '#4af' : '#f44';
+    // City base
+    ctx.fillStyle = col;
+    ctx.fillRect(px + 3, py + 6, TS - 6, TS - 9);
+    // Towers
+    ctx.fillRect(px + 2, py + 3, 5, 5);
+    ctx.fillRect(px + TS - 7, py + 3, 5, 5);
+    // Gate
+    ctx.fillStyle = '#000';
+    ctx.fillRect(px + TS / 2 - 3, py + TS - 7, 6, 5);
+    // Pop number
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('' + c.pop, px + TS / 2, py + 16);
+    // City name
+    ctx.fillStyle = col; ctx.font = '9px monospace';
+    ctx.fillText(c.name, px + TS / 2, py - 1);
+  }
+
+  // Draw units
+  for (let u of units) {
+    if (u.owner === 1 && !fog[u.y][u.x]) continue;
+    let px = (u.x - camX) * TS;
+    let py = (u.y - camY) * TS + HUD_H;
+    let isPlayer = u.owner === 0;
+    let isSelected = u === sel;
+
+    // Selection highlight
+    if (isSelected) {
+      ctx.strokeStyle = '#ff0'; ctx.lineWidth = 2;
+      ctx.strokeRect(px + 1, py + 1, TS - 2, TS - 2);
+      // Move range indicator
+      if (u.mv > 0) {
+        ctx.strokeStyle = 'rgba(255,255,0,0.3)'; ctx.lineWidth = 1;
+        for (let dy = -1; dy <= 1; dy++)
+          for (let dx = -1; dx <= 1; dx++) {
+            if (dx === 0 && dy === 0) continue;
+            let nx = u.x + dx, ny = u.y + dy;
+            if (canWalk(nx, ny, 0)) {
+              let mpx = (nx - camX) * TS, mpy = (ny - camY) * TS + HUD_H;
+              ctx.strokeRect(mpx + 2, mpy + 2, TS - 4, TS - 4);
+            }
+          }
+      }
+    }
+
+    // Unit body
+    let bgCol = isPlayer ? '#226' : '#622';
+    ctx.fillStyle = bgCol;
+    ctx.fillRect(px + 4, py + 4, TS - 8, TS - 8);
+    ctx.fillStyle = UCOL_P[u.t];
+    ctx.font = 'bold 16px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(USYM[u.t], px + TS / 2, py + TS / 2 + 5);
+
+    // Owner indicator
+    ctx.fillStyle = isPlayer ? '#4f4' : '#f44';
+    ctx.fillRect(px + 4, py + TS - 6, TS - 8, 3);
+
+    // HP bar if damaged
+    if (u.hp < UHPMAX[u.t]) {
+      let hpPct = u.hp / UHPMAX[u.t];
+      ctx.fillStyle = '#300'; ctx.fillRect(px + 4, py + 2, TS - 8, 3);
+      ctx.fillStyle = hpPct > 0.5 ? '#0f0' : '#f80';
+      ctx.fillRect(px + 4, py + 2, (TS - 8) * hpPct, 3);
+    }
+  }
+
+  ctx.restore();
+}
+
+function drawSidebar() {
+  // Sidebar background
+  ctx.fillStyle = '#151515'; ctx.fillRect(SB_X, 0, SB_W, H);
+  ctx.strokeStyle = '#333'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(SB_X, 0); ctx.lineTo(SB_X, H); ctx.stroke();
+
+  ctx.textAlign = 'left'; ctx.fillStyle = '#888'; ctx.font = '11px monospace';
+  let y = 44;
+
+  // Turn info
+  ctx.fillStyle = '#7bf'; ctx.font = 'bold 12px monospace';
+  ctx.fillText('Turn ' + turn, SB_X + 8, y); y += 16;
+  ctx.fillStyle = '#ff0'; ctx.font = '11px monospace';
+  ctx.fillText('Gold: ' + gold[0], SB_X + 8, y); y += 14;
+
+  // Tech progress
+  ctx.fillStyle = '#f80'; ctx.font = 'bold 11px monospace';
+  ctx.fillText('RESEARCH', SB_X + 8, y); y += 14;
+  if (curTech[0] >= 0 && curTech[0] < TECHS.length) {
+    let t = TECHS[curTech[0]];
+    ctx.fillStyle = '#ddd'; ctx.font = '10px monospace';
+    ctx.fillText(t.n, SB_X + 8, y); y += 12;
+    // Progress bar
+    let pct = techProg[0] / t.c;
+    ctx.fillStyle = '#333'; ctx.fillRect(SB_X + 8, y, SB_W - 20, 8);
+    ctx.fillStyle = '#4a4'; ctx.fillRect(SB_X + 8, y, (SB_W - 20) * Math.min(1, pct), 8);
+    y += 14;
+  } else {
+    ctx.fillStyle = '#4f4'; ctx.font = '10px monospace';
+    ctx.fillText('All researched!', SB_X + 8, y); y += 14;
+  }
+
+  // Techs done
+  ctx.fillStyle = '#888'; ctx.font = '10px monospace';
+  for (let i = 0; i < TECHS.length; i++) {
+    let done = techDone[0].includes(i);
+    ctx.fillStyle = done ? '#4f4' : '#444';
+    ctx.fillText((done ? '\u2713 ' : '  ') + TECHS[i].n, SB_X + 8, y);
+    y += 12;
+  }
+  y += 8;
+
+  // Selected unit info
+  if (sel && sel.owner === 0) {
+    ctx.fillStyle = '#f80'; ctx.font = 'bold 11px monospace';
+    ctx.fillText('UNIT', SB_X + 8, y); y += 14;
+    ctx.fillStyle = '#ddd'; ctx.font = '11px monospace';
+    ctx.fillText(UNAMES[sel.t], SB_X + 8, y); y += 14;
+    ctx.fillStyle = '#aaa'; ctx.font = '10px monospace';
+    ctx.fillText('HP: ' + sel.hp + '/' + UHPMAX[sel.t], SB_X + 8, y); y += 12;
+    ctx.fillText('Moves: ' + sel.mv + '/' + UMOVE[sel.t], SB_X + 8, y); y += 12;
+    ctx.fillText('Str: ' + USTR[sel.t], SB_X + 8, y); y += 12;
+    if (sel.t === 0) {
+      ctx.fillStyle = '#ff0'; ctx.font = '10px monospace';
+      ctx.fillText('Press B to build city', SB_X + 8, y); y += 12;
+    }
+    let terr = map[sel.y][sel.x];
+    ctx.fillStyle = '#666';
+    ctx.fillText('On: ' + TNAMES[terr], SB_X + 8, y); y += 14;
+  }
+
+  // Selected city info
+  if (selCity && selCity.owner === 0) {
+    let c = selCity;
+    let o = cityOutput(c);
+    ctx.fillStyle = '#4af'; ctx.font = 'bold 11px monospace';
+    ctx.fillText('CITY: ' + c.name, SB_X + 8, y); y += 14;
+    ctx.fillStyle = '#ddd'; ctx.font = '10px monospace';
+    ctx.fillText('Pop: ' + c.pop, SB_X + 8, y); y += 12;
+    ctx.fillText('Food: +' + o.f + ' (' + c.food + '/' + (c.pop * 8 + 10) + ')', SB_X + 8, y); y += 12;
+    ctx.fillText('Prod: +' + o.p, SB_X + 8, y); y += 12;
+    ctx.fillText('Gold: +' + o.g + '/turn', SB_X + 8, y); y += 14;
+
+    // Current production
+    if (c.building >= 0) {
+      ctx.fillStyle = '#fa0'; ctx.font = '10px monospace';
+      ctx.fillText('Building: ' + UNAMES[c.building], SB_X + 8, y); y += 12;
+      let bpct = c.prodProg / UCOST[c.building];
+      ctx.fillStyle = '#333'; ctx.fillRect(SB_X + 8, y, SB_W - 20, 8);
+      ctx.fillStyle = '#a60'; ctx.fillRect(SB_X + 8, y, (SB_W - 20) * Math.min(1, bpct), 8);
+      y += 14;
+      // Rush buy
+      let cost = UGOLD[c.building];
+      ctx.fillStyle = gold[0] >= cost ? '#ff0' : '#844';
+      ctx.fillText('Rush: ' + cost + 'g (click)', SB_X + 8, y); y += 16;
+    } else {
+      ctx.fillStyle = '#888';
+      ctx.fillText('No production set', SB_X + 8, y); y += 14;
+    }
+
+    // Build options
+    ctx.fillStyle = '#f80'; ctx.font = 'bold 10px monospace';
+    ctx.fillText('BUILD (press 1-4):', SB_X + 8, y); y += 14;
+    for (let i = 0; i < 4; i++) {
+      let locked = (i === 3 && !techDone[0].includes(4));
+      ctx.fillStyle = locked ? '#555' : (c.building === i ? '#ff0' : '#aaa');
+      ctx.font = '10px monospace';
+      let label = (i + 1) + '. ' + UNAMES[i] + ' (' + UCOST[i] + 'p)';
+      if (locked) label += ' [locked]';
+      ctx.fillText(label, SB_X + 8, y); y += 14;
+    }
+  }
+
+  // Bottom: score summary
+  let by = H - 60;
+  ctx.fillStyle = '#333';
+  ctx.fillRect(SB_X, by - 4, SB_W, 64);
+  ctx.fillStyle = '#7bf'; ctx.font = 'bold 10px monospace';
+  ctx.fillText('YOUR EMPIRE', SB_X + 8, by + 8);
+  ctx.fillStyle = '#aaa'; ctx.font = '10px monospace';
+  let pc = cities.filter(c => c.owner === 0).length;
+  let pu = units.filter(u => u.owner === 0).length;
+  ctx.fillText('Cities: ' + pc + '  Units: ' + pu, SB_X + 8, by + 22);
+  ctx.fillText('Techs: ' + techDone[0].length + '/6', SB_X + 8, by + 34);
+  // Enemy info
+  let ec = cities.filter(c => c.owner === 1).length;
+  ctx.fillStyle = '#f66';
+  ctx.fillText('Enemy: ' + ec + ' cities', SB_X + 8, by + 48);
+}
+
+function drawHUD() {
+  // Top bar
+  ctx.fillStyle = '#111'; ctx.fillRect(0, 0, VP_W, HUD_H);
+  ctx.strokeStyle = '#333';
+  ctx.beginPath(); ctx.moveTo(0, HUD_H); ctx.lineTo(VP_W, HUD_H); ctx.stroke();
+
+  // End turn button area
+  ctx.fillStyle = '#333'; ctx.fillRect(VP_W - 110, 4, 105, 28);
+  ctx.strokeStyle = '#fa0'; ctx.strokeRect(VP_W - 110, 4, 105, 28);
+  ctx.fillStyle = '#fa0'; ctx.font = 'bold 13px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('END TURN (T)', VP_W - 57, 23);
+  ctx.textAlign = 'left';
+
+  // Bottom map bar - minimap
+  ctx.fillStyle = '#111'; ctx.fillRect(0, H - 4, VP_W, 4);
+}
+
+function update() {
+  if (infoOpen) return;
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

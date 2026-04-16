@@ -1,0 +1,1086 @@
+<!--
+PROTOTYPE: text-adventure
+SERIES: adv
+NUMBER: 001
+DATE: 2026-03-22
+MECHANIC: parse text commands to explore rooms and solve puzzles
+ANCESTRY: Zork (1977, Infocom), Colossal Cave Adventure (1976, Crowther/Woods)
+CONTROLS: Type commands + Enter — interact | R (at game over) — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 2 (Expert Systems — rule-based parsing and world state)
+AI-INSIGHT: Text adventures are the original natural language interfaces — Zork's parser was a rule-based expert system that mapped English verbs to world-state mutations, predating modern NLU by decades. The game world is a knowledge graph traversed by symbolic reasoning.
+NOTES: The text parser is the mechanic — the game is about language as interface.
+       Room descriptions create world through words alone.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ADV-001 · TEXT ADVENTURE</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>ADV-001 · TEXT ADVENTURE</h1>
+    <p><span class="tag series">ADV — Adventure Games</span> <span class="tag">Prototype #001</span> <span class="tag">★★★★☆</span></p>
+
+    <h2>How to Play</h2>
+    <p>Type commands to explore a world made entirely of words. Navigate rooms, collect items, solve puzzles, and gather five treasures to win.</p>
+    <ul>
+      <li>Type a command and press <kbd>Enter</kbd> to act</li>
+      <li><kbd>R</kbd> at game over — Restart</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Commands</h3>
+    <ul>
+      <li><strong>Movement:</strong> go north, south, east, west, up, down (or just n, s, e, w, u, d)</li>
+      <li><strong>Look:</strong> look — redisplay the current room</li>
+      <li><strong>Take/Get:</strong> take lamp — pick up an item</li>
+      <li><strong>Drop:</strong> drop lamp — leave an item in the room</li>
+      <li><strong>Inventory:</strong> inventory (or i) — see what you carry</li>
+      <li><strong>Examine:</strong> examine sword — look closely at an item</li>
+      <li><strong>Use:</strong> use key, use sword — use an item contextually</li>
+      <li><strong>Open:</strong> open door, open mailbox — interact with objects</li>
+      <li><strong>Help:</strong> help — list available commands</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Colossal Cave Adventure (1976) → Zork (1977) → Infocom (1979-1989) → modern interactive fiction</p>
+    <p>Zork began as a mainframe game at MIT, written by Tim Anderson, Marc Blank, Bruce Daniels, and Dave Lebling on a PDP-10. It was the successor to Will Crowther and Don Woods' Colossal Cave Adventure, the first text adventure.</p>
+    <p>What made Zork special was its parser. While Adventure understood two-word commands, Zork could parse complex sentences: "put the jewel-encrusted egg in the trophy case." This was natural language processing in 1977 — years before the term "NLP" entered common use.</p>
+    <p>Infocom commercialized Zork and built a dynasty of text adventures, each pushing the parser and world model further. The company's philosophy: the best graphics are in the player's imagination.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 2 — Expert Systems (1965-1979)</p>
+    <p><strong>Contemporary AI:</strong> Zork's parser was a rule-based expert system. It tokenized input, identified verbs and nouns, resolved ambiguity ("which door?"), and mapped commands to world-state changes. This is the same architecture as contemporary expert systems in medicine and engineering.</p>
+    <p><strong>Hidden Intelligence:</strong> The game world is a knowledge graph — rooms are nodes, exits are edges, items have properties and affordances. The parser performs symbolic reasoning: "unlock door" requires checking (has key?) AND (door locked?) AND (in correct room?). This is predicate logic applied to interactive narrative.</p>
+    <p><strong>The Convergence:</strong> Modern LLMs can now play Zork-style games by generating commands from room descriptions. The wheel has turned — AI went from being the game's parser to being the game's player. The text adventure is the original Turing test for language understanding.</p>
+    <p><strong>If AI Had Designed This:</strong> An LLM-designed text adventure would have infinite rooms generated on the fly, but would lose the hand-crafted puzzle design that makes Zork satisfying. The constraint of 12 rooms forces elegant puzzle interconnection.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: ADV — Adventure Games</h3>
+    <p>Games where exploration and puzzle-solving through a world model are the core mechanics.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Text parser navigation with inventory puzzles.</strong> Type natural language commands. The parser interprets intent. The world responds. No graphics — pure language as interface.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Parser feel — does typing commands feel powerful or frustrating?</li>
+      <li>Room descriptions — do words alone create a sense of place?</li>
+      <li>Puzzle logic — do item-based puzzles feel fair and discoverable?</li>
+      <li>Terminal aesthetic — does the green-on-black canvas evoke the era?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. A 12-room text adventure with a two-word parser, inventory system, and 5-treasure win condition. All rendering is canvas-based monospace text — no DOM elements for gameplay. The classic terminal feel is deliberate homage.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+// --- TEXT ADVENTURE ENGINE ---
+const LINE_H = 18;
+const CHAR_W = 9.6;
+const MAX_COLS = 68;
+const MAX_LINES = 28;
+const LEFT_PAD = 20;
+const TOP_PAD = 44;
+const TEXT_COLOR = '#33ff33';
+const DIM_COLOR = '#1a8a1a';
+const BRIGHT_COLOR = '#88ff88';
+const WARN_COLOR = '#ffaa00';
+const DANGER_COLOR = '#ff4444';
+
+let inputBuffer = '';
+let outputLines = [];
+let cursorBlink = 0;
+let gameOver = false;
+let gameWon = false;
+let currentRoom = 'west_of_house';
+let inventory = [];
+let roomStates = {};
+let trollDefeated = false;
+let doorUnlocked = false;
+let lampLit = false;
+let leafletRead = false;
+let moveCount = 0;
+
+// --- ROOMS ---
+const rooms = {
+  west_of_house: {
+    name: 'West of House',
+    desc: 'You are standing in an open field west of a white house, with a boarded front door. There is a small mailbox here. A path leads north and south around the house, and a forest stretches to the west.',
+    exits: { north: 'north_of_house', south: 'behind_house', west: 'forest' },
+    items: ['mailbox'],
+    fixed: ['mailbox']
+  },
+  north_of_house: {
+    name: 'North of House',
+    desc: 'You are facing the north side of a white house. There is no door here, and all the windows are boarded up. A narrow path leads west and east around the house.',
+    exits: { west: 'west_of_house', east: 'behind_house' },
+    items: [],
+    fixed: []
+  },
+  behind_house: {
+    name: 'Behind House',
+    desc: 'You are behind the white house. A path leads around the house to the north and south. In one corner of the house there is a small window which is slightly ajar. To the east is a dense forest.',
+    exits: { north: 'north_of_house', south: 'west_of_house', west: 'kitchen', east: 'forest' },
+    items: [],
+    fixed: []
+  },
+  forest: {
+    name: 'Forest',
+    desc: 'This is a dimly lit forest, with large trees all around you. Shafts of pale light filter through the dense canopy above. Paths lead in several directions, but they all look the same.',
+    exits: { north: 'forest', east: 'west_of_house', south: 'forest', west: 'forest' },
+    items: [],
+    fixed: []
+  },
+  kitchen: {
+    name: 'Kitchen',
+    desc: 'You are in the kitchen of the white house. A table seems to have been used recently for the preparation of food. On one side of the room is a stairway leading up. A dark passage leads to the west, and a doorway opens to the east.',
+    exits: { east: 'behind_house', west: 'living_room', up: 'living_room' },
+    items: ['knife'],
+    fixed: []
+  },
+  living_room: {
+    name: 'Living Room',
+    desc: 'You are in the living room of the white house. There is a large trophy case here, its glass doors slightly ajar. A sword is mounted above the fireplace mantle. Stairs lead down to the kitchen, and a dark stairway descends into the cellar.',
+    exits: { east: 'kitchen', down: 'cellar' },
+    items: ['sword'],
+    fixed: ['trophy_case']
+  },
+  cellar: {
+    name: 'Cellar',
+    desc: 'You are in a dark and damp cellar with a narrow passageway leading north, and stone steps climbing up to the living room. The air smells of earth and age. The walls are rough-hewn stone.',
+    exits: { up: 'living_room', north: 'maze' },
+    items: [],
+    fixed: []
+  },
+  maze: {
+    name: 'Maze of Twisty Passages',
+    desc: 'You are in a maze of twisty little passages, all alike. The walls are carved from ancient rock. A passage leads south, and a larger opening leads east — but a large troll blocks the way, snarling and brandishing a cudgel.',
+    exits: { south: 'cellar', east: 'troll_room' },
+    items: [],
+    fixed: []
+  },
+  troll_room: {
+    name: 'Troll Room',
+    desc: 'This is a small room with passages leading north and west. The walls are scored with claw marks. A faint breeze carries the smell of incense from the north.',
+    exits: { west: 'maze', north: 'temple' },
+    items: [],
+    fixed: []
+  },
+  temple: {
+    name: 'Ancient Temple',
+    desc: 'You are in a vast ancient temple. Massive stone columns support a ceiling lost in shadow. An altar of black obsidian stands at the center, and upon it rests a golden chalice that gleams even in the dim light. Passages lead south and east.',
+    exits: { south: 'troll_room', east: 'underground_river' },
+    items: ['gold_chalice'],
+    fixed: ['altar']
+  },
+  underground_river: {
+    name: 'Underground River',
+    desc: 'You are on the shore of an underground river. The water is dark and swift, disappearing into a low tunnel to the north. On the rocky shore lies a jeweled egg, half-buried in sand. A passage leads west, and rough steps lead down.',
+    exits: { west: 'temple', down: 'treasure_room' },
+    items: ['jeweled_egg'],
+    fixed: []
+  },
+  treasure_room: {
+    name: 'Treasure Room',
+    desc: 'This is a large chamber filled with the glitter of precious things. Decades of accumulated wealth lie scattered across the floor. Among the debris you can see a flawless diamond and a platinum bar. A rough stairway climbs up.',
+    exits: { up: 'underground_river', east: 'cave' },
+    items: ['diamond', 'platinum_bar'],
+    fixed: []
+  },
+  cave: {
+    name: 'Cave',
+    desc: 'placeholder',
+    exits: { west: 'treasure_room' },
+    items: ['lamp'],
+    fixed: ['ledge']
+  }
+};
+
+// Item definitions
+const itemDefs = {
+  mailbox: {
+    name: 'mailbox',
+    desc: 'A small mailbox with a flag. It appears to be closed.',
+    canTake: false,
+    openable: true,
+    contains: 'leaflet'
+  },
+  leaflet: {
+    name: 'leaflet',
+    desc: 'A crumpled leaflet. Upon closer inspection, you notice an ancient coin wedged between its folds.',
+    canTake: true
+  },
+  ancient_coin: {
+    name: 'ancient coin',
+    desc: 'A tarnished bronze coin with strange markings. Despite its age, it has a certain weight and presence that marks it as valuable.',
+    canTake: true,
+    treasure: true
+  },
+  knife: {
+    name: 'knife',
+    desc: 'A sturdy kitchen knife with a worn wooden handle. Sharp, but not much of a weapon.',
+    canTake: true
+  },
+  sword: {
+    name: 'sword',
+    desc: 'An elvish sword of great antiquity. Its blade glows with a faint blue light. Strange runes are etched along the fuller.',
+    canTake: true
+  },
+  gold_chalice: {
+    name: 'gold chalice',
+    desc: 'A magnificent chalice of solid gold, encrusted with rubies. It is warm to the touch, as if holding an inner fire.',
+    canTake: true,
+    treasure: true
+  },
+  jeweled_egg: {
+    name: 'jeweled egg',
+    desc: 'A beautiful egg made of alabaster, studded with sapphires and emeralds in an intricate pattern. It is surprisingly heavy.',
+    canTake: true,
+    treasure: true
+  },
+  diamond: {
+    name: 'diamond',
+    desc: 'A flawless diamond the size of a walnut. It catches even the faintest light and scatters it into prismatic rainbows.',
+    canTake: true,
+    treasure: true
+  },
+  platinum_bar: {
+    name: 'platinum bar',
+    desc: 'A bar of pure platinum, stamped with the seal of the Great Underground Empire. It is extremely heavy.',
+    canTake: true,
+    treasure: true
+  },
+  lamp: {
+    name: 'lamp',
+    desc: 'A battered brass lantern. It appears to be functional — a wick and reservoir of oil are visible through the glass.',
+    canTake: true
+  },
+  trophy_case: {
+    name: 'trophy case',
+    desc: 'A large glass-fronted trophy case, clearly designed for the display of treasures. It is the centerpiece of the living room.',
+    canTake: false
+  },
+  altar: {
+    name: 'altar',
+    desc: 'An altar of polished black obsidian. Ancient symbols are carved into its surface — prayers in a forgotten language.',
+    canTake: false
+  },
+  ledge: {
+    name: 'ledge',
+    desc: 'A narrow stone ledge protruding from the cave wall, just within reach.',
+    canTake: false
+  }
+};
+
+const TREASURES = ['gold_chalice', 'jeweled_egg', 'diamond', 'platinum_bar', 'ancient_coin'];
+
+function initGame() {
+  inputBuffer = '';
+  outputLines = [];
+  gameOver = false;
+  gameWon = false;
+  currentRoom = 'west_of_house';
+  inventory = [];
+  trollDefeated = false;
+  doorUnlocked = false;
+  lampLit = false;
+  leafletRead = false;
+  moveCount = 0;
+
+  // Reset room states — deep clone items
+  roomStates = {};
+  for (const id in rooms) {
+    roomStates[id] = { items: [...rooms[id].items], visited: false, mailboxOpen: false, caveFirstVisit: true };
+  }
+
+  addLine('ZORK', BRIGHT_COLOR);
+  addLine('A text adventure in the tradition of the', DIM_COLOR);
+  addLine('Great Underground Empire.', DIM_COLOR);
+  addLine('', TEXT_COLOR);
+  addLine('Type HELP for a list of commands.', DIM_COLOR);
+  addLine('', TEXT_COLOR);
+  enterRoom(currentRoom, true);
+}
+
+function wrapText(text) {
+  const words = text.split(' ');
+  const lines = [];
+  let line = '';
+  for (const word of words) {
+    if (line.length + word.length + 1 > MAX_COLS) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = line ? line + ' ' + word : word;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+function addLine(text, color) {
+  if (!text) { outputLines.push({ text: '', color: color || TEXT_COLOR }); return; }
+  const wrapped = wrapText(text);
+  for (const l of wrapped) {
+    outputLines.push({ text: l, color: color || TEXT_COLOR });
+  }
+}
+
+function trimOutput() {
+  // Keep a reasonable buffer — show last MAX_LINES minus 2 (for input line)
+  const maxKeep = 200;
+  if (outputLines.length > maxKeep) {
+    outputLines = outputLines.slice(outputLines.length - maxKeep);
+  }
+}
+
+function getVisibleLines() {
+  const viewable = MAX_LINES - 2; // reserve 2 lines for input
+  const start = Math.max(0, outputLines.length - viewable);
+  return outputLines.slice(start);
+}
+
+function getRoomItems(roomId) {
+  return roomStates[roomId].items.filter(id => !(rooms[roomId].fixed || []).includes(id));
+}
+
+function getFixedItems(roomId) {
+  return rooms[roomId].fixed || [];
+}
+
+function getCaveDesc() {
+  if (lampLit || roomStates.cave.caveFirstVisit) {
+    return 'You are in a natural cave. The walls are covered in ancient formations — stalactites hang from the ceiling like stone fangs. A brass lamp sits on a narrow ledge. A passage leads west.';
+  }
+  return 'It is pitch dark. You are likely to be eaten by a grue.';
+}
+
+function enterRoom(roomId, firstEntry) {
+  currentRoom = roomId;
+  const room = rooms[roomId];
+  const state = roomStates[roomId];
+
+  // Special: cave darkness
+  if (roomId === 'cave') {
+    addLine(room.name, BRIGHT_COLOR);
+    addLine(getCaveDesc(), TEXT_COLOR);
+
+    if (!lampLit && !state.caveFirstVisit) {
+      addLine('', TEXT_COLOR);
+      addLine('In the darkness, something sinister approaches...', DANGER_COLOR);
+      addLine('You have been eaten by a grue.', DANGER_COLOR);
+      addLine('', TEXT_COLOR);
+      addLine('*** You have died ***', DANGER_COLOR);
+      addLine('Press R to restart.', DIM_COLOR);
+      gameOver = true;
+      return;
+    }
+
+    if (state.caveFirstVisit) {
+      state.caveFirstVisit = false;
+      addLine('', TEXT_COLOR);
+      addLine('(A faint phosphorescence on the walls provides', DIM_COLOR);
+      addLine('just enough light to see — for now.)', DIM_COLOR);
+    }
+  } else {
+    addLine(room.name, BRIGHT_COLOR);
+    addLine(room.desc, TEXT_COLOR);
+  }
+
+  // Show items on ground
+  const groundItems = getRoomItems(roomId);
+  if (groundItems.length > 0) {
+    for (const id of groundItems) {
+      const def = itemDefs[id];
+      if (def) addLine('There is a ' + def.name + ' here.', WARN_COLOR);
+    }
+  }
+
+  // Show exits
+  const exitNames = Object.keys(room.exits);
+  addLine('Exits: ' + exitNames.join(', '), DIM_COLOR);
+  addLine('', TEXT_COLOR);
+
+  state.visited = true;
+}
+
+function findItem(name, searchList) {
+  name = name.toLowerCase().trim();
+  // Exact match
+  for (const id of searchList) {
+    const def = itemDefs[id];
+    if (def && def.name.toLowerCase() === name) return id;
+  }
+  // Partial match
+  for (const id of searchList) {
+    const def = itemDefs[id];
+    if (def && (def.name.toLowerCase().includes(name) || id.toLowerCase().includes(name.replace(/\s+/g, '_')))) return id;
+  }
+  // Single-word match on id
+  for (const id of searchList) {
+    if (id.toLowerCase().includes(name.replace(/\s+/g, '_'))) return id;
+  }
+  return null;
+}
+
+function processCommand(raw) {
+  const input = raw.trim().toLowerCase();
+  if (!input) return;
+
+  addLine('> ' + raw, DIM_COLOR);
+  moveCount++;
+
+  if (gameOver) {
+    addLine('The adventure is over. Press R to restart.', DIM_COLOR);
+    return;
+  }
+
+  const parts = input.split(/\s+/);
+  let verb = parts[0];
+  let noun = parts.slice(1).join(' ');
+
+  // Direction shortcuts
+  const dirMap = { n: 'north', s: 'south', e: 'east', w: 'west', u: 'up', d: 'down' };
+  if (dirMap[verb] && !noun) { verb = 'go'; noun = dirMap[input]; }
+  if (['north','south','east','west','up','down'].includes(verb) && !noun) { noun = verb; verb = 'go'; }
+
+  // Command aliases
+  if (verb === 'get' || verb === 'pick') verb = 'take';
+  if (verb === 'i') { verb = 'inventory'; }
+  if (verb === 'l') { verb = 'look'; }
+  if (verb === 'x') { verb = 'examine'; }
+  if (verb === 'move') verb = 'go';
+
+  const room = rooms[currentRoom];
+  const state = roomStates[currentRoom];
+  const allRoomItems = [...state.items, ...getFixedItems(currentRoom)];
+
+  switch (verb) {
+    case 'help': {
+      addLine('Available commands:', BRIGHT_COLOR);
+      addLine('  go <direction>  - move (n/s/e/w/u/d)', TEXT_COLOR);
+      addLine('  look            - examine surroundings', TEXT_COLOR);
+      addLine('  take <item>     - pick up an item', TEXT_COLOR);
+      addLine('  drop <item>     - drop an item', TEXT_COLOR);
+      addLine('  inventory       - check your inventory', TEXT_COLOR);
+      addLine('  examine <item>  - look at an item closely', TEXT_COLOR);
+      addLine('  open <item>     - open something', TEXT_COLOR);
+      addLine('  use <item>      - use an item', TEXT_COLOR);
+      addLine('  read <item>     - read something', TEXT_COLOR);
+      addLine('  score           - check your score', TEXT_COLOR);
+      addLine('  help            - this list', TEXT_COLOR);
+      addLine('', TEXT_COLOR);
+      break;
+    }
+
+    case 'look': {
+      if (noun) {
+        // Treat "look at X" as examine
+        if (noun.startsWith('at ')) noun = noun.slice(3);
+        processExamine(noun, allRoomItems);
+      } else {
+        enterRoom(currentRoom, false);
+      }
+      break;
+    }
+
+    case 'go': {
+      if (!noun) { addLine('Go where?', TEXT_COLOR); break; }
+      const dir = dirMap[noun] || noun;
+      const dest = room.exits[dir];
+      if (!dest) {
+        addLine("You can't go that way.", TEXT_COLOR);
+        break;
+      }
+      // Troll blocks east from maze
+      if (currentRoom === 'maze' && dir === 'east' && !trollDefeated) {
+        addLine('The troll blocks your way with a snarl, swinging', TEXT_COLOR);
+        addLine('his cudgel menacingly. You cannot pass.', TEXT_COLOR);
+        addLine('', TEXT_COLOR);
+        if (!inventory.includes('sword')) {
+          addLine('Perhaps you need a weapon...', DIM_COLOR);
+        } else {
+          addLine('You have a sword. Perhaps you could USE it.', DIM_COLOR);
+        }
+        addLine('', TEXT_COLOR);
+        break;
+      }
+      enterRoom(dest, false);
+      break;
+    }
+
+    case 'take': {
+      if (!noun) { addLine('Take what?', TEXT_COLOR); break; }
+      const itemId = findItem(noun, state.items);
+      if (!itemId) {
+        addLine("You don't see that here.", TEXT_COLOR);
+        break;
+      }
+      const def = itemDefs[itemId];
+      if (!def || !def.canTake) {
+        addLine("You can't take that.", TEXT_COLOR);
+        break;
+      }
+      inventory.push(itemId);
+      state.items = state.items.filter(i => i !== itemId);
+      addLine('Taken.', TEXT_COLOR);
+      addLine('', TEXT_COLOR);
+      break;
+    }
+
+    case 'drop': {
+      if (!noun) { addLine('Drop what?', TEXT_COLOR); break; }
+      const itemId = findItem(noun, inventory);
+      if (!itemId) {
+        addLine("You're not carrying that.", TEXT_COLOR);
+        break;
+      }
+      inventory = inventory.filter(i => i !== itemId);
+      state.items.push(itemId);
+      addLine('Dropped.', TEXT_COLOR);
+      addLine('', TEXT_COLOR);
+
+      // Check win: all treasures in living room trophy case area
+      checkWinCondition();
+      break;
+    }
+
+    case 'inventory': {
+      if (inventory.length === 0) {
+        addLine('You are empty-handed.', TEXT_COLOR);
+      } else {
+        addLine('You are carrying:', BRIGHT_COLOR);
+        for (const id of inventory) {
+          const def = itemDefs[id];
+          addLine('  ' + (def ? def.name : id), TEXT_COLOR);
+        }
+      }
+      addLine('', TEXT_COLOR);
+      break;
+    }
+
+    case 'examine': {
+      if (!noun) { addLine('Examine what?', TEXT_COLOR); break; }
+      processExamine(noun, allRoomItems);
+      break;
+    }
+
+    case 'open': {
+      if (!noun) { addLine('Open what?', TEXT_COLOR); break; }
+      if (noun === 'mailbox' && currentRoom === 'west_of_house') {
+        if (state.mailboxOpen) {
+          addLine('The mailbox is already open.', TEXT_COLOR);
+        } else {
+          state.mailboxOpen = true;
+          if (!state.items.includes('leaflet') && !inventory.includes('leaflet')) {
+            state.items.push('leaflet');
+          }
+          addLine('Opening the mailbox reveals a leaflet.', TEXT_COLOR);
+        }
+        addLine('', TEXT_COLOR);
+        break;
+      }
+      if (noun === 'door' && currentRoom === 'north_of_house') {
+        addLine('The door is locked and boarded from the inside.', TEXT_COLOR);
+        addLine('', TEXT_COLOR);
+        break;
+      }
+      if (noun === 'window' && currentRoom === 'behind_house') {
+        addLine('The window is slightly ajar. You can enter', TEXT_COLOR);
+        addLine('through it to the west.', TEXT_COLOR);
+        addLine('', TEXT_COLOR);
+        break;
+      }
+      if ((noun === 'trophy case' || noun === 'case') && currentRoom === 'living_room') {
+        addLine('The trophy case is already open, awaiting', TEXT_COLOR);
+        addLine('treasures to be placed within.', TEXT_COLOR);
+        addLine('', TEXT_COLOR);
+        break;
+      }
+      if (noun === 'egg' || noun === 'jeweled egg') {
+        addLine("The egg doesn't open. It seems to be solid.", TEXT_COLOR);
+        addLine('', TEXT_COLOR);
+        break;
+      }
+      addLine("You can't open that.", TEXT_COLOR);
+      addLine('', TEXT_COLOR);
+      break;
+    }
+
+    case 'use': {
+      if (!noun) { addLine('Use what?', TEXT_COLOR); break; }
+      const useItem = findItem(noun, inventory);
+      if (!useItem) {
+        addLine("You're not carrying that.", TEXT_COLOR);
+        addLine('', TEXT_COLOR);
+        break;
+      }
+      // Sword vs troll
+      if (useItem === 'sword' && currentRoom === 'maze' && !trollDefeated) {
+        trollDefeated = true;
+        addLine('You swing the elvish sword at the troll!', BRIGHT_COLOR);
+        addLine('The blade glows brilliant blue as it strikes.', TEXT_COLOR);
+        addLine('The troll staggers back, howling in pain,', TEXT_COLOR);
+        addLine('and flees into the darkness. The passage', TEXT_COLOR);
+        addLine('east is now clear.', TEXT_COLOR);
+        addLine('', TEXT_COLOR);
+        // Update maze description
+        rooms.maze.desc = 'You are in a maze of twisty little passages, all alike. The walls are carved from ancient rock. A passage leads south, and a larger opening to the east — the troll has fled, leaving deep claw marks in the stone.';
+        break;
+      }
+      // Lamp
+      if (useItem === 'lamp') {
+        lampLit = !lampLit;
+        addLine(lampLit ? 'The lamp is now lit, casting a warm glow.' : 'You extinguish the lamp.', TEXT_COLOR);
+        addLine('', TEXT_COLOR);
+        break;
+      }
+      // Knife
+      if (useItem === 'knife' && currentRoom === 'maze' && !trollDefeated) {
+        addLine('You wave the kitchen knife at the troll.', TEXT_COLOR);
+        addLine('He laughs, knocks it from your hand, and', TEXT_COLOR);
+        addLine('crushes it underfoot. You need a real weapon.', DANGER_COLOR);
+        inventory = inventory.filter(i => i !== 'knife');
+        addLine('', TEXT_COLOR);
+        break;
+      }
+      addLine("You can't figure out how to use that here.", TEXT_COLOR);
+      addLine('', TEXT_COLOR);
+      break;
+    }
+
+    case 'read': {
+      if (!noun) { addLine('Read what?', TEXT_COLOR); break; }
+      if ((noun === 'leaflet') && (inventory.includes('leaflet') || state.items.includes('leaflet'))) {
+        if (!leafletRead) {
+          leafletRead = true;
+          addLine('The leaflet reads:', BRIGHT_COLOR);
+          addLine('"WELCOME TO ZORK!"', TEXT_COLOR);
+          addLine('"Your quest: collect the five lost treasures"', TEXT_COLOR);
+          addLine('"and return them to the trophy case in the"', TEXT_COLOR);
+          addLine('"living room of the white house."', TEXT_COLOR);
+          addLine('', TEXT_COLOR);
+          addLine('An ancient coin falls from the leaflet!', WARN_COLOR);
+          if (inventory.includes('leaflet')) {
+            inventory.push('ancient_coin');
+          } else {
+            state.items.push('ancient_coin');
+          }
+        } else {
+          addLine('The leaflet describes the treasures of the', TEXT_COLOR);
+          addLine('Great Underground Empire and the glory that', TEXT_COLOR);
+          addLine('awaits those who collect them.', TEXT_COLOR);
+        }
+        addLine('', TEXT_COLOR);
+        break;
+      }
+      addLine("There's nothing to read here.", TEXT_COLOR);
+      addLine('', TEXT_COLOR);
+      break;
+    }
+
+    case 'score': {
+      let treasuresFound = 0;
+      let treasuresPlaced = 0;
+      for (const t of TREASURES) {
+        if (inventory.includes(t)) treasuresFound++;
+        if (roomStates.living_room.items.includes(t)) { treasuresFound++; treasuresPlaced++; }
+      }
+      addLine('Score: ' + treasuresPlaced + '/5 treasures in trophy case.', BRIGHT_COLOR);
+      addLine('You are carrying ' + treasuresFound + ' treasure(s).', TEXT_COLOR);
+      addLine('Moves: ' + moveCount, TEXT_COLOR);
+      addLine('', TEXT_COLOR);
+      break;
+    }
+
+    case 'attack':
+    case 'kill':
+    case 'fight':
+    case 'hit': {
+      if (currentRoom === 'maze' && !trollDefeated) {
+        if (inventory.includes('sword')) {
+          // Redirect to use sword
+          processCommand('use sword');
+          moveCount--; // Don't double-count
+          return;
+        } else {
+          addLine('You have no weapon! The troll knocks you', TEXT_COLOR);
+          addLine('senseless with his cudgel.', TEXT_COLOR);
+          addLine('', TEXT_COLOR);
+          addLine('*** You have died ***', DANGER_COLOR);
+          addLine('Press R to restart.', DIM_COLOR);
+          gameOver = true;
+        }
+      } else {
+        addLine('There is nothing here to attack.', TEXT_COLOR);
+        addLine('', TEXT_COLOR);
+      }
+      break;
+    }
+
+    case 'wait': {
+      addLine('Time passes.', TEXT_COLOR);
+      addLine('', TEXT_COLOR);
+      break;
+    }
+
+    case 'xyzzy': {
+      addLine('A hollow voice says "Fool."', TEXT_COLOR);
+      addLine('', TEXT_COLOR);
+      break;
+    }
+
+    case 'plugh': {
+      addLine('Nothing happens. Wrong game.', DIM_COLOR);
+      addLine('', TEXT_COLOR);
+      break;
+    }
+
+    default: {
+      addLine("I don't understand that command.", TEXT_COLOR);
+      addLine('Type HELP for a list of commands.', DIM_COLOR);
+      addLine('', TEXT_COLOR);
+      break;
+    }
+  }
+
+  trimOutput();
+}
+
+function processExamine(noun, allRoomItems) {
+  // Check inventory and room items
+  const inInv = findItem(noun, inventory);
+  const inRoom = findItem(noun, allRoomItems);
+  const itemId = inInv || inRoom;
+
+  if (itemId) {
+    const def = itemDefs[itemId];
+    if (def) {
+      addLine(def.desc, TEXT_COLOR);
+      if (itemId === 'mailbox' && roomStates[currentRoom].mailboxOpen) {
+        const hasLeaflet = roomStates[currentRoom].items.includes('leaflet');
+        addLine(hasLeaflet ? 'It is open, with a leaflet inside.' : 'It is open and empty.', TEXT_COLOR);
+      }
+    } else {
+      addLine('You see nothing special.', TEXT_COLOR);
+    }
+  } else {
+    // Check for room features
+    if (noun === 'self' || noun === 'me' || noun === 'myself') {
+      addLine('You are an adventurer of some renown, though', TEXT_COLOR);
+      addLine('looking a bit worse for wear at the moment.', TEXT_COLOR);
+    } else if (noun === 'house' && (currentRoom === 'west_of_house' || currentRoom === 'north_of_house' || currentRoom === 'behind_house')) {
+      addLine('The house is a beautiful colonial-style home,', TEXT_COLOR);
+      addLine('painted white, though the paint is peeling.', TEXT_COLOR);
+    } else if (noun === 'troll' && currentRoom === 'maze' && !trollDefeated) {
+      addLine('A large troll with wickedly sharp claws and', TEXT_COLOR);
+      addLine('terrible fangs. He carries a blood-stained', TEXT_COLOR);
+      addLine('cudgel and looks very unfriendly.', TEXT_COLOR);
+    } else {
+      addLine("You don't see that here.", TEXT_COLOR);
+    }
+  }
+  addLine('', TEXT_COLOR);
+}
+
+function checkWinCondition() {
+  if (currentRoom !== 'living_room') return;
+  let placed = 0;
+  for (const t of TREASURES) {
+    if (roomStates.living_room.items.includes(t)) placed++;
+  }
+  if (placed >= 5) {
+    addLine('', TEXT_COLOR);
+    addLine('As you place the last treasure in the trophy', BRIGHT_COLOR);
+    addLine('case, a brilliant light fills the room!', BRIGHT_COLOR);
+    addLine('', TEXT_COLOR);
+    addLine('*** CONGRATULATIONS ***', BRIGHT_COLOR);
+    addLine('', TEXT_COLOR);
+    addLine('You have collected all five treasures of the', TEXT_COLOR);
+    addLine('Great Underground Empire and returned them to', TEXT_COLOR);
+    addLine('the trophy case. Your quest is complete!', TEXT_COLOR);
+    addLine('', TEXT_COLOR);
+    addLine('Final score: 5/5 treasures in ' + moveCount + ' moves.', WARN_COLOR);
+    addLine('', TEXT_COLOR);
+    addLine('Press R to play again.', DIM_COLOR);
+    gameOver = true;
+    gameWon = true;
+  }
+}
+
+// --- INPUT HANDLING ---
+window.addEventListener('keydown', e => {
+  if (infoOpen) return;
+
+  // R to restart when game over
+  if (gameOver && (e.key === 'r' || e.key === 'R') && !e.ctrlKey) {
+    initGame();
+    e.preventDefault();
+    return;
+  }
+
+  if (gameOver) return;
+
+  if (e.key === 'Enter') {
+    processCommand(inputBuffer);
+    inputBuffer = '';
+    e.preventDefault();
+  } else if (e.key === 'Backspace') {
+    inputBuffer = inputBuffer.slice(0, -1);
+    e.preventDefault();
+  } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && e.key !== '?') {
+    if (inputBuffer.length < MAX_COLS - 4) {
+      inputBuffer += e.key;
+    }
+    e.preventDefault();
+  }
+});
+
+// --- UPDATE & DRAW ---
+function update() {
+  if (infoOpen) return;
+  cursorBlink = (cursorBlink + 1) % 60;
+}
+
+function draw() {
+  // Black background
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, H);
+
+  // Scanline effect (subtle)
+  ctx.fillStyle = 'rgba(0,255,0,0.015)';
+  for (let y = 0; y < H; y += 3) {
+    ctx.fillRect(0, y, W, 1);
+  }
+
+  // Border glow
+  ctx.strokeStyle = 'rgba(51,255,51,0.15)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(6, 6, W - 12, H - 12);
+
+  // Title badge
+  ctx.fillStyle = '#0a0a0a';
+  ctx.fillRect(8, 8, 250, 28);
+  ctx.strokeStyle = 'rgba(51,255,51,0.3)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(8, 8, 250, 28);
+  ctx.fillStyle = '#1a8a1a';
+  ctx.font = '13px monospace';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('ADV-001 \u00b7 CAVE QUEST  [?]', 16, 22);
+
+  // Output lines
+  ctx.textBaseline = 'top';
+  ctx.font = '14px monospace';
+  const visible = getVisibleLines();
+  for (let i = 0; i < visible.length; i++) {
+    const line = visible[i];
+    ctx.fillStyle = line.color;
+    ctx.fillText(line.text, LEFT_PAD, TOP_PAD + i * LINE_H);
+  }
+
+  // Input line
+  const inputY = TOP_PAD + (MAX_LINES - 2) * LINE_H + 4;
+
+  // Separator line
+  ctx.strokeStyle = 'rgba(51,255,51,0.25)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(LEFT_PAD, inputY - 4);
+  ctx.lineTo(W - LEFT_PAD, inputY - 4);
+  ctx.stroke();
+
+  // Prompt and input text
+  ctx.fillStyle = TEXT_COLOR;
+  ctx.font = '14px monospace';
+  const promptText = '> ' + inputBuffer;
+  ctx.fillText(promptText, LEFT_PAD, inputY);
+
+  // Blinking cursor
+  if (cursorBlink < 35 && !gameOver) {
+    const cursorX = LEFT_PAD + (promptText.length) * CHAR_W;
+    ctx.fillStyle = TEXT_COLOR;
+    ctx.fillRect(cursorX, inputY, CHAR_W, LINE_H - 2);
+  }
+
+  // Status bar at very bottom
+  ctx.fillStyle = 'rgba(51,255,51,0.15)';
+  ctx.fillRect(0, H - 22, W, 22);
+  ctx.fillStyle = DIM_COLOR;
+  ctx.font = '11px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText(rooms[currentRoom].name, LEFT_PAD, H - 16);
+  ctx.textAlign = 'center';
+
+  let treasureCount = 0;
+  for (const t of TREASURES) {
+    if (roomStates.living_room.items.includes(t)) treasureCount++;
+  }
+  ctx.fillText('Treasures: ' + treasureCount + '/5', W / 2, H - 16);
+
+  ctx.textAlign = 'right';
+  ctx.fillText('Moves: ' + moveCount, W - LEFT_PAD, H - 16);
+
+  ctx.textBaseline = 'alphabetic';
+}
+
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+initGame();
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

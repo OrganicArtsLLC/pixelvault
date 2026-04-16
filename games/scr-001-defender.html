@@ -1,0 +1,557 @@
+<!--
+PROTOTYPE: defender
+SERIES: scr
+NUMBER: 001
+DATE: 2026-03-22
+MECHANIC: horizontal scroll + protect — free horizontal scroll, shoot aliens, protect humans on ground
+ANCESTRY: Defender (1981), Gradius (1985), R-Type (1987)
+CONTROLS: Left/Right — move | Up/Down — altitude | Space — shoot | Z — smart bomb | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — rule-based, pre-backpropagation)
+AI-INSIGHT: Invented the world-larger-than-screen problem — a playable POMDP in 1981. The minimap is dimensionality reduction: compressing full world state into an interpretable summary, exactly what autoencoders (1986) and attention mechanisms (2017) do.
+NOTES: Defender invented the free-scrolling world larger than the screen. The minimap is the second invention.
+       Protecting civilians introduces moral weight — losing them changes the threat calculus.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SCR-001 · WAVE GUARD</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SCR-001 · WAVE GUARD</h1>
+    <p><span class="tag series">SCR — Scroll Shooter</span> <span class="tag">Prototype #001</span> <span class="tag">★★★★☆</span></p>
+
+    <h2>How to Play</h2>
+    <p>Protect 10 humans on the ground from alien abduction. Destroy all aliens to clear the sector. If all humans die, surviving aliens mutate into deadly swarmers.</p>
+    <ul>
+      <li><kbd>←</kbd> <kbd>→</kbd> — Fly left/right (momentum-based)</li>
+      <li><kbd>↑</kbd> <kbd>↓</kbd> — Change altitude</li>
+      <li><kbd>Space</kbd> — Shoot (rapid fire laser)</li>
+      <li><kbd>Z</kbd> — Smart bomb (destroys all on-screen enemies, limited supply)</li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Minimap:</strong> The scanner bar at the bottom shows the entire 3200px world. Your position is the bright dot.</li>
+      <li><strong>Abduction:</strong> Landers grab humans and carry them up. Shoot the lander to save the human (they’ll fall back down).</li>
+      <li><strong>Mutants:</strong> If a lander reaches the top with a human, it becomes a fast-moving mutant.</li>
+      <li><strong>Smart bombs:</strong> Save them for emergencies when swarmed.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Defender (1981) → Gradius (1985) → R-Type (1987)</p>
+    <p>Defender (1981) by Eugene Jarvis at Williams Electronics was considered too complex for arcades. It had 5 buttons and a joystick. Players hated it at first. Then they mastered it and it became one of the highest-grossing arcade games ever.</p>
+    <p>Two massive innovations: (1) The game world was <em>larger than the screen</em>, requiring free scrolling — a first in arcade games. (2) The <strong>minimap</strong> (scanner) was invented specifically for this game to give players awareness of threats beyond the viewport.</p>
+    <p>The civilian protection mechanic added moral weight: losing humans changes the strategic equation. This “protect someone other than yourself” pattern appears in escort missions, base defense, and tower defense games to this day.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 3 — Knowledge Explosion (1978–1983)</p>
+    <p><strong>Contemporary AI:</strong> Limited to discrete, fully observable environments. No concept of partial observability in practical systems. The POMDP framework existed theoretically (1965) but wasn't practically solved.</p>
+    <p><strong>Hidden Intelligence:</strong> Defender invented the world-larger-than-screen problem — partial observability at arcade speed. The minimap is a dimensionality reduction technique: compressing the full world state into a small, interpretable summary. This is exactly what autoencoders (1986) and attention mechanisms (2017) do in AI. Eugene Jarvis solved it with pure design intuition.</p>
+    <p><strong>The Convergence:</strong> POMDPs (Partially Observable Markov Decision Processes) were formalized in 1965 but not practically solved until the 1990s. Defender built a playable POMDP in 1981 and solved the information-display problem through game design before AI had the mathematical tools.</p>
+    <p><strong>If AI Had Designed This:</strong> Optimized the minimap information density — empirically testing which alert modalities best maintain player situation awareness at maximum speed.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: SCR — Scroll Shooter</h3>
+    <p>Games where the play area scrolls (horizontally or vertically) through a world larger than the screen. The player navigates continuous space while engaging enemies. The tension: <em>manage what you can see and anticipate what you can’t.</em></p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Free-scrolling combat with civilian protection.</strong> 3200px world with bidirectional scrolling. Aliens attempt to abduct ground-based humans. Player must prioritize: fight aliens or save civilians. Smart bombs as panic button (limited, powerful).</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Free-scroll feel (does the world feel larger than the screen?)</li>
+      <li>Minimap effectiveness (can you locate threats before they’re on screen?)</li>
+      <li>Abduction drama (does rescuing humans feel urgent and rewarding?)</li>
+      <li>Alien variety (lander, swarm, mutant — do they feel different?)</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. World wraps at 3200px. Scanner minimap at bottom. 3 alien types with distinct behavior. Civilian abduction and rescue mechanics. Smart bomb clears screen.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W=800, H=600;
+canvas.width=W; canvas.height=H;
+function resize(){const s=Math.min(window.innerWidth/W,window.innerHeight/H)*0.95;canvas.style.width=W*s+'px';canvas.style.height=H*s+'px';}
+resize(); window.addEventListener('resize',resize);
+
+const keys={};
+window.addEventListener('keydown',e=>{if(infoOpen)return;keys[e.code]=true;e.preventDefault();});
+window.addEventListener('keyup',e=>{keys[e.code]=false;});
+
+const WORLD_W=3200, GROUND_Y=H-80;
+const SCAN_H=40, SCAN_Y=H-38;
+
+// --- ENTITIES ---
+let ship, bullets, aliens, humans, particles, bombs;
+let score, lives, smartBombs, gameOver, won, frame, camX;
+let shootCooldown=0;
+
+function rand(a,b){return a+Math.random()*(b-a);}
+function wrap(x){return ((x%WORLD_W)+WORLD_W)%WORLD_W;}
+
+function spawnAliens(n){
+  const arr=[];
+  for(let i=0;i<n;i++){
+    arr.push({
+      x:rand(0,WORLD_W), y:rand(60,GROUND_Y-80),
+      vx:rand(-1.2,1.2)||0.8, vy:rand(-0.4,0.4),
+      type:Math.random()<0.3?'lander':'swarm',
+      anim:0, targeting:null, descended:false,
+      hp:1
+    });
+  }
+  return arr;
+}
+
+function spawnHumans(n){
+  const arr=[];
+  for(let i=0;i<n;i++){
+    arr.push({x:rand(0,WORLD_W), y:GROUND_Y-14, captured:false, carrier:null, alive:true});
+  }
+  return arr;
+}
+
+function initGame(){
+  ship={x:200,y:H/2,vx:0,vy:0,facing:1};
+  score=0; lives=3; smartBombs=3; gameOver=false; won=false; frame=0; camX=0;
+  bullets=[];
+  aliens=spawnAliens(18);
+  humans=spawnHumans(10);
+  particles=[];
+  bombs=[];
+  shootCooldown=0;
+}
+initGame();
+
+function explode(x,y,count,color){
+  for(let i=0;i<count;i++){
+    const a=Math.random()*Math.PI*2, spd=rand(1,4);
+    particles.push({x,y,vx:Math.cos(a)*spd,vy:Math.sin(a)*spd,life:40,maxLife:40,color});
+  }
+}
+
+// --- UPDATE ---
+function update(){
+  if(infoOpen)return;
+  if(gameOver||won){if(keys['KeyR'])initGame();return;}
+  frame++;
+
+  // Ship movement
+  const ACCEL=0.5, MAX_SPD=8, FRICTION=0.88, VERT_SPD=4;
+  if(keys['ArrowLeft']||keys['KeyA']){ship.vx-=ACCEL;ship.facing=-1;}
+  if(keys['ArrowRight']||keys['KeyD']){ship.vx+=ACCEL;ship.facing=1;}
+  if(!keys['ArrowLeft']&&!keys['ArrowRight']&&!keys['KeyA']&&!keys['KeyD']) ship.vx*=FRICTION;
+  if(keys['ArrowUp']||keys['KeyW']) ship.vy-=VERT_SPD*0.15;
+  if(keys['ArrowDown']||keys['KeyS']) ship.vy+=VERT_SPD*0.15;
+  ship.vy*=0.85;
+
+  ship.vx=Math.max(-MAX_SPD,Math.min(MAX_SPD,ship.vx));
+  ship.x=wrap(ship.x+ship.vx);
+  ship.y=Math.max(40,Math.min(GROUND_Y-30,ship.y+ship.vy));
+
+  // Camera follows ship
+  camX=ship.x-W/2;
+
+  // Shoot
+  shootCooldown--;
+  if(keys['Space']&&shootCooldown<=0){
+    const spd=12;
+    bullets.push({x:ship.x+(ship.facing>0?20:-20),y:ship.y,vx:ship.facing*spd+ship.vx,vy:0,life:60});
+    shootCooldown=8;
+  }
+
+  // Smart bomb
+  if(keys['KeyZ']&&smartBombs>0){
+    smartBombs--;
+    for(let i=aliens.length-1;i>=0;i--){
+      const a=aliens[i];
+      const dx=wrap(a.x-ship.x+WORLD_W/2)-WORLD_W/2;
+      if(Math.abs(dx)<300){
+        if(a.targeting){a.targeting.captured=false;a.targeting.carrier=null;a.targeting=null;}
+        explode(a.x,a.y,15,'#ff8');
+        score+=150;
+        aliens.splice(i,1);
+      }
+    }
+    keys['KeyZ']=false;
+  }
+
+  // Bullets
+  bullets=bullets.filter(b=>{
+    b.x=wrap(b.x+b.vx); b.y+=b.vy;
+    if(--b.life<=0) return false;
+    for(let i=aliens.length-1;i>=0;i--){
+      const a=aliens[i];
+      const dx=Math.abs(wrap(b.x-a.x+WORLD_W/2)-WORLD_W/2);
+      if(dx<20&&Math.abs(b.y-a.y)<16){
+        a.hp--;
+        if(a.hp<=0){
+          if(a.targeting){a.targeting.captured=false;a.targeting.carrier=null;a.targeting=null;}
+          explode(a.x,a.y,12,'#f80'); score+=150;
+          aliens.splice(i,1);
+        }
+        return false;
+      }
+    }
+    return true;
+  });
+
+  // Aliens move + abduct
+  for(const a of aliens){
+    a.anim++;
+    if(a.type==='lander'&&!a.targeting&&Math.random()<0.003){
+      const freeH=humans.filter(h=>h.alive&&!h.captured);
+      if(freeH.length){
+        const t=freeH[Math.floor(Math.random()*freeH.length)];
+        a.targeting=t; t.captured=true; t.carrier=a;
+      }
+    }
+    if(a.targeting&&!a.descended){
+      // Descend to human
+      const dy=a.targeting.y-20-a.y;
+      a.vy=dy>0?1:-1;
+      if(Math.abs(dy)<4){a.descended=true;}
+    } else if(a.targeting&&a.descended){
+      // Ascend carrying human
+      a.vy=-1.6;
+      a.targeting.x=a.x; a.targeting.y=a.y+20;
+      if(a.y<100){
+        // Human converted to mutant — release, mark gone
+        a.targeting.alive=false; a.targeting.captured=false; a.targeting=null;
+        a.type='mutant'; a.hp=2;
+      }
+    } else {
+      a.vy*=0.9;
+      if(Math.abs(a.vx)<0.5) a.vx=(Math.random()<0.5?1:-1)*rand(1.0,2.2);
+    }
+    a.x=wrap(a.x+a.vx);
+    a.y=Math.max(40,Math.min(GROUND_Y-20,a.y+a.vy));
+  }
+
+  // Alien bullets (random, rare)
+  if(frame%55===0&&aliens.length){
+    const shooter=aliens[Math.floor(Math.random()*aliens.length)];
+    const dx=wrap(ship.x-shooter.x+WORLD_W/2)-WORLD_W/2;
+    const spd=5;
+    bullets.push({x:shooter.x,y:shooter.y,vx:dx>0?spd:-spd,vy:0,life:90,enemy:true});
+  }
+
+  // Ship-alien collision
+  for(let i=aliens.length-1;i>=0;i--){
+    const a=aliens[i];
+    const dx=Math.abs(wrap(ship.x-a.x+WORLD_W/2)-WORLD_W/2);
+    if(dx<22&&Math.abs(ship.y-a.y)<18){
+      lives--;
+      explode(ship.x,ship.y,20,'#0ff');
+      if(a.targeting){a.targeting.captured=false;a.targeting.carrier=null;a.targeting=null;}
+      aliens.splice(i,1);
+      if(lives<=0){gameOver=true;return;}
+      ship={x:200,y:H/2,vx:0,vy:0,facing:1};
+      break;
+    }
+  }
+
+  // Enemy bullet hits ship
+  for(let i=bullets.length-1;i>=0;i--){
+    const b=bullets[i];
+    if(!b.enemy) continue;
+    const dx=Math.abs(wrap(ship.x-b.x+WORLD_W/2)-WORLD_W/2);
+    if(dx<16&&Math.abs(ship.y-b.y)<14){
+      lives--; explode(ship.x,ship.y,20,'#0ff'); bullets.splice(i,1);
+      if(lives<=0){gameOver=true;return;}
+      ship={x:200,y:H/2,vx:0,vy:0,facing:1};
+      break;
+    }
+  }
+
+  particles=particles.filter(p=>{p.x+=p.vx;p.y+=p.vy;p.vx*=0.96;p.vy*=0.96;return --p.life>0;});
+
+  if(aliens.length===0) won=true;
+}
+
+// --- DRAW ---
+function screenX(wx){return ((wrap(wx-camX)+WORLD_W/2)%WORLD_W)-WORLD_W/2+W/2;}
+
+function drawShip(){
+  const sx=W/2, sy=ship.y;
+  const f=ship.facing;
+  ctx.strokeStyle='#7ff'; ctx.lineWidth=1.5;
+  ctx.beginPath();
+  ctx.moveTo(sx+f*22,sy);
+  ctx.lineTo(sx-f*14,sy-10);
+  ctx.lineTo(sx-f*8,sy);
+  ctx.lineTo(sx-f*14,sy+10);
+  ctx.closePath(); ctx.stroke();
+  // Engine flare
+  if(keys['ArrowLeft']||keys['ArrowRight']||keys['KeyA']||keys['KeyD']){
+    ctx.strokeStyle='#f80'; ctx.lineWidth=2;
+    ctx.beginPath();
+    ctx.moveTo(sx-f*8,sy-5); ctx.lineTo(sx-f*16,sy); ctx.lineTo(sx-f*8,sy+5);
+    ctx.stroke();
+  }
+}
+
+function drawAlien(a){
+  const sx=screenX(a.x), sy=a.y;
+  if(sx<-40||sx>W+40) return;
+  const bob=Math.sin(a.anim*0.12)*3;
+  if(a.type==='mutant'){
+    ctx.strokeStyle='#f44'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.arc(sx,sy+bob,12,0,Math.PI*2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(sx-12,sy+bob); ctx.lineTo(sx-18,sy-6+bob);
+    ctx.moveTo(sx+12,sy+bob); ctx.lineTo(sx+18,sy-6+bob); ctx.stroke();
+  } else {
+    ctx.fillStyle=a.type==='lander'?'#f8f':'#ff0';
+    ctx.beginPath();
+    ctx.arc(sx,sy-4+bob,8,0,Math.PI*2);
+    ctx.fill();
+    ctx.fillRect(sx-10,sy-2+bob,20,8);
+    ctx.fillStyle='#000';
+    ctx.fillRect(sx-6,sy-4+bob,4,4); ctx.fillRect(sx+2,sy-4+bob,4,4);
+  }
+}
+
+function drawHuman(h){
+  if(!h.alive) return;
+  const sx=screenX(h.x);
+  if(sx<-20||sx>W+20) return;
+  ctx.fillStyle=h.captured?'#f44':'#0f4';
+  ctx.fillRect(sx-4,h.y-16,8,10); // body
+  ctx.beginPath(); ctx.arc(sx,h.y-22,5,0,Math.PI*2);
+  ctx.fill();
+}
+
+function drawGround(){
+  ctx.fillStyle='#111';
+  ctx.fillRect(0,GROUND_Y,W,H-GROUND_Y);
+  ctx.fillStyle='#1a3a1a';
+  // Hills
+  ctx.beginPath(); ctx.moveTo(0,GROUND_Y);
+  for(let x=0;x<=W;x+=20){
+    const wx=wrap(x+camX);
+    const hy=GROUND_Y-15*Math.sin(wx/120)*Math.cos(wx/200)*2;
+    ctx.lineTo(x,hy);
+  }
+  ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.closePath(); ctx.fill();
+}
+
+function drawMinimap(){
+  const mw=W-20, mh=SCAN_H-6;
+  const mx=10, my=SCAN_Y+3;
+  ctx.fillStyle='rgba(0,20,0,0.85)'; ctx.fillRect(mx,my,mw,mh);
+  ctx.strokeStyle='#0a0'; ctx.lineWidth=1;
+  ctx.strokeRect(mx,my,mw,mh);
+  // Ship blip
+  const sx=((ship.x/WORLD_W)*mw+mx)|0;
+  ctx.fillStyle='#0ff'; ctx.fillRect(sx-1,my+mh/2-3,3,6);
+  // Alien blips
+  for(const a of aliens){
+    const ax=((a.x/WORLD_W)*mw+mx)|0;
+    const ay=(my+mh/2-((GROUND_Y-a.y)/(GROUND_Y-40))*mh*0.5)|0;
+    ctx.fillStyle=a.type==='lander'?'#f8f':'#ff0';
+    ctx.fillRect(ax-1,ay-1,2,2);
+  }
+  // Human blips
+  for(const h of humans){
+    if(!h.alive) continue;
+    const hx=((h.x/WORLD_W)*mw+mx)|0;
+    ctx.fillStyle=h.captured?'#f44':'#0f4';
+    ctx.fillRect(hx-1,my+mh-4,2,3);
+  }
+}
+
+function draw(){
+  ctx.fillStyle='#000'; ctx.fillRect(0,0,W,H);
+  // Stars
+  ctx.fillStyle='#fff';
+  for(let i=0;i<80;i++){
+    const sx=(((i*137+camX*0.1)%WORLD_W)/WORLD_W*W|0);
+    const sy=((i*91)%(GROUND_Y-40))+20;
+    ctx.fillRect(sx,sy,1,1);
+  }
+  drawGround();
+  for(const h of humans) drawHuman(h);
+  for(const a of aliens) drawAlien(a);
+  drawShip();
+  for(const p of particles){
+    ctx.globalAlpha=p.life/p.maxLife;
+    ctx.fillStyle=p.color||'#f80'; ctx.fillRect(p.x-camX%WORLD_W,p.y,2,2);
+  }
+  ctx.globalAlpha=1;
+  for(const b of bullets){
+    if(b.enemy){ctx.fillStyle='#f44';}else{ctx.fillStyle='#7ff';}
+    const bsx=screenX(b.x);
+    ctx.fillRect(bsx-4,b.y-1,8,2);
+  }
+  drawMinimap();
+
+  // HUD
+  ctx.fillStyle='#7ff'; ctx.font='16px monospace'; ctx.textAlign='left';
+  ctx.fillText('SCORE: '+score, 10, 26);
+  ctx.textAlign='center'; ctx.fillStyle='#f80';
+  ctx.fillText('BOMBS: '+smartBombs+' (Z)', W/2, 26);
+  ctx.textAlign='right'; ctx.fillStyle='#7ff';
+  ctx.fillText('LIVES: '+lives, W-10, 26);
+
+  if(gameOver||won){
+    ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(0,0,W,H);
+    ctx.font='bold 48px monospace'; ctx.textAlign='center';
+    ctx.fillStyle=won?'#0ff':'#f44';
+    ctx.fillText(won?'SECTOR CLEAR':'GAME OVER', W/2, H/2-20);
+    ctx.fillStyle='#aaa'; ctx.font='18px monospace';
+    ctx.fillText('R to restart   SCORE: '+score, W/2, H/2+24);
+  }
+
+  ctx.fillStyle='#111'; ctx.fillRect(8,8,210,28);
+  ctx.fillStyle='#555'; ctx.font='13px monospace'; ctx.textAlign='left';
+  ctx.fillText('SCR-001 · WAVE GUARD  [?]', 16, 26);
+}
+
+function loop(){update();draw();requestAnimationFrame(loop);}
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: defender ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("defender");
+</script>
+</body>
+</html>

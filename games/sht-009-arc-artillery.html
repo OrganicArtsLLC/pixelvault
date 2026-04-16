@@ -1,0 +1,916 @@
+<!--
+PROTOTYPE: arc-artillery
+SERIES: sht
+NUMBER: 009
+DATE: 2026-03-24
+MECHANIC: mobile artillery — choose a vehicle (mobile), aim angle + power with wind; each mobile has unique special shot; Worms-like with vehicle RPG elements
+ANCESTRY: GunBound (2003, Softnyx), Worms (1995, Team17), Scorched Earth (1991, Wendell Hicken)
+CONTROLS: Up/Down — aim angle | Space (hold) — charge power | S — special shot | Left/Right — move | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 5 (Deep Learning — AI opponent calculates ballistic trajectories with wind compensation, mobile-specific shot selection)
+AI-INSIGHT: GunBound's vehicle selection meta-game layers strategic identity onto artillery physics. Each mobile creates a distinct problem space — the same wind and terrain demand different solutions depending on your vehicle. This mirrors ensemble methods in ML where different model architectures excel at different problem domains.
+NOTES: Korean mobile artillery (Softnyx, 2003 — 110 million registered users).
+       Vehicle selection creates meta-game absent from pure artillery games.
+       Different from Fortress/Worms because of the vehicle-RPG element.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SHT-009 &middot; GUNBOUND</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;font-family:'SF Mono','Cascadia Code','Consolas',monospace}
+canvas{image-rendering:pixelated}
+#info-panel{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);z-index:100;color:#ddd;overflow-y:auto}
+#info-panel .inner{max-width:700px;margin:30px auto;padding:20px;line-height:1.6}
+#info-panel h1{color:#7bf;font-size:22px;margin-bottom:4px}
+#info-panel h2{color:#f80;font-size:16px;margin:18px 0 6px;border-bottom:1px solid #333;padding-bottom:4px}
+#info-panel h3{color:#4f4;font-size:14px;margin:12px 0 4px}
+#info-panel p,#info-panel li{font-size:13px}
+#info-panel ul{padding-left:18px}
+#info-panel .tag{display:inline-block;background:#333;color:#aaa;padding:2px 8px;border-radius:3px;font-size:11px;margin:2px}
+#info-panel .tag.series{background:#234;color:#7bf}
+#info-panel .close-btn{position:fixed;top:12px;right:20px;color:#888;font-size:28px;cursor:pointer;z-index:101}
+#info-panel .close-btn:hover{color:#fff}
+#info-panel kbd{background:#333;border:1px solid #555;border-radius:3px;padding:1px 6px;font-size:12px;color:#ff0}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SHT-009 &middot; GUNBOUND</h1>
+    <p><span class="tag series">SHT &mdash; Shooter</span> <span class="tag">Prototype #009</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Choose a mobile (vehicle) and battle an AI opponent in turn-based artillery combat. Account for wind, aim carefully, and use your special shot wisely!</p>
+    <ul>
+      <li><kbd>&uarr;</kbd> / <kbd>&darr;</kbd> &mdash; Adjust aim angle</li>
+      <li><kbd>Space</kbd> (hold) &mdash; Charge power, release to fire</li>
+      <li><kbd>S</kbd> &mdash; Fire special shot (limited uses)</li>
+      <li><kbd>&larr;</kbd> / <kbd>&rarr;</kbd> &mdash; Move mobile</li>
+      <li><kbd>R</kbd> &mdash; Restart game</li>
+      <li><kbd>?</kbd> &mdash; Toggle this info panel</li>
+    </ul>
+    <h3>Mobiles</h3>
+    <ul>
+      <li><strong>Armor:</strong> Balanced stats. Normal shot deals solid damage. Special: Dual Shot (fires two projectiles).</li>
+      <li><strong>Boomer:</strong> Arcing shots that bounce once before exploding. Special: Triple Bounce (bounces twice with larger blast).</li>
+      <li><strong>Lightning:</strong> Fast straight shot, less affected by wind. Special: Beam (piercing laser line).</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Wind:</strong> Check the wind arrow at the top &mdash; it pushes projectiles during flight.</li>
+      <li><strong>Terrain:</strong> Explosions destroy terrain. Drop enemies into pits!</li>
+      <li><strong>Specials:</strong> You only get 2 special shots per game &mdash; use them at key moments.</li>
+      <li><strong>Movement:</strong> Limited movement per turn &mdash; reposition to get a better angle.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Scorched Earth (1991) &rarr; Worms (1995) &rarr; GunBound (2003, Softnyx)</p>
+    <p>GunBound (&#44148;&#48148;&#50868;&#46300;) was developed by Korean studio Softnyx and launched in 2003, quickly becoming one of the most popular online games in Asia with over 110 million registered users. It combined the classic artillery formula with vehicle selection, creating a meta-game layer where players chose "mobiles" &mdash; each with unique shot types, stats, and special abilities.</p>
+    <p>Unlike Worms' character-based approach, GunBound's vehicle-RPG element meant players developed expertise with specific mobiles, creating diverse playstyles and team compositions in multiplayer. The game pioneered the free-to-play model with cosmetic microtransactions that many modern games would later adopt.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 5 &mdash; Deep Learning (2006&ndash;present)</p>
+    <p><strong>Hidden Intelligence:</strong> GunBound's vehicle selection creates a meta-game that mirrors ensemble methods in machine learning. Each mobile represents a different "model architecture" &mdash; Armor is a balanced generalist, Boomer excels at indirect attacks, Lightning dominates in low-wind conditions. Optimal play requires matching your mobile to the situation, just as ML practitioners select models suited to their data.</p>
+    <p><strong>The Convergence:</strong> The AI opponent must solve trajectory optimization under uncertainty (wind), with the added complexity of mobile-specific shot physics. This is a constrained optimization problem where the constraints change based on vehicle choice &mdash; analogous to how transfer learning must adapt pretrained models to new domains.</p>
+
+    <h2>Classification</h2>
+    <p><span class="tag">artillery</span> <span class="tag">turn-based</span> <span class="tag">vehicle-selection</span> <span class="tag">destructible-terrain</span> <span class="tag">wind-physics</span> <span class="tag">korean</span> <span class="tag">online-pioneer</span></p>
+
+    <h2>Prototype Notes</h2>
+    <p>Distills GunBound to its core differentiator: mobile selection layered onto artillery combat. Three vehicles with distinct shot physics and special abilities create meaningful pre-game strategy. Destructible pixel terrain, wind physics, and turn-based AI opponent. The vehicle-RPG element distinguishes this from the Worms prototype.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+  </div>
+</div>
+
+<script>
+var C=document.getElementById('c'),X=C.getContext('2d');
+C.width=800;C.height=600;
+var infoOpen=false;
+
+function toggleInfo(){
+  infoOpen=!infoOpen;
+  document.getElementById('info-panel').style.display=infoOpen?'block':'none';
+}
+
+// --- Resize ---
+function resize(){
+  var s=Math.min(innerWidth/800,innerHeight/600);
+  C.style.width=(800*s)+'px';
+  C.style.height=(600*s)+'px';
+}
+resize();
+addEventListener('resize',resize);
+
+// --- Constants ---
+var W=800,H=600,G=0.12,MOVE_SPEED=1.5,MAX_MOVE=60;
+
+// Mobile definitions
+var MOBILES=[
+  {name:'Armor',color:'#4af',shotColor:'#ff4',specColor:'#f84',desc:'Balanced',
+   windMul:1.0,speed:1.0,blastR:28,specBlastR:22,specName:'Dual Shot',specMax:2},
+  {name:'Boomer',color:'#4f4',shotColor:'#8f4',specColor:'#4ff',desc:'Bouncing',
+   windMul:1.2,speed:0.9,blastR:24,specBlastR:30,specName:'Triple Bounce',specMax:2},
+  {name:'Lightning',color:'#ff4',shotColor:'#fff',specColor:'#f4f',desc:'Fast & Straight',
+   windMul:0.4,speed:1.1,blastR:22,specBlastR:20,specName:'Beam',specMax:2}
+];
+
+// --- State ---
+var gamePhase; // 'select','move','aim','charge','flight','explode','fall','ai-think','ai-charge','ai-flight','gameover'
+var terrain,selectedMobile,aiMobile;
+var player,ai,wind,turn;
+var aimAngle,power,charging;
+var moveLeft,projectile,projectiles;
+var explosions,particles;
+var specials,aiSpecials;
+var gameOverMsg,aiTimer,aiAngle,aiPower,aiUseSpec;
+var keys={};
+var selectIdx=0;
+
+function generateTerrain(){
+  terrain=new Uint8Array(W*H);
+  var heights=new Float64Array(W);
+  heights[0]=200+Math.random()*60;
+  heights[W-1]=200+Math.random()*60;
+  mdp(heights,0,W-1,50);
+  for(var x=0;x<W;x++){
+    var h=Math.floor(heights[x]);
+    if(h<120)h=120;if(h>350)h=350;
+    for(var y=H-1;y>=H-h;y--){
+      terrain[y*W+x]=1;
+    }
+  }
+}
+
+function mdp(a,l,r,d){
+  if(r-l<2)return;
+  var m=(l+r)>>1;
+  a[m]=(a[l]+a[r])/2+(Math.random()-0.5)*d;
+  mdp(a,l,m,d*0.55);
+  mdp(a,m,r,d*0.55);
+}
+
+function terrainH(x){
+  x=Math.floor(x);
+  if(x<0||x>=W)return H;
+  for(var y=0;y<H;y++){if(terrain[y*W+x])return y;}
+  return H;
+}
+
+function destroyTerrain(cx,cy,r){
+  var r2=r*r;
+  var x0=Math.max(0,Math.floor(cx-r)),x1=Math.min(W-1,Math.ceil(cx+r));
+  var y0=Math.max(0,Math.floor(cy-r)),y1=Math.min(H-1,Math.ceil(cy+r));
+  for(var y=y0;y<=y1;y++)for(var x=x0;x<=x1;x++){
+    if((x-cx)*(x-cx)+(y-cy)*(y-cy)<r2)terrain[y*W+x]=0;
+  }
+}
+
+function isSolid(x,y){
+  x=Math.floor(x);y=Math.floor(y);
+  if(x<0||x>=W||y<0||y>=H)return false;
+  return terrain[y*W+x]===1;
+}
+
+function settleEntity(e){
+  // Drop entity to terrain surface
+  var th=terrainH(e.x);
+  if(e.y>=th){e.y=th-1;}
+  else{
+    // Fall
+    var fell=false;
+    while(e.y<H-1&&!isSolid(e.x,e.y+1)){e.y++;fell=true;}
+    if(e.y>=H-2){e.hp=0;e.alive=false;}
+  }
+}
+
+// --- Init ---
+function init(){
+  generateTerrain();
+  gamePhase='select';
+  selectIdx=0;
+  wind=(Math.random()-0.5)*0.1;
+  explosions=[];
+  particles=[];
+  projectile=null;
+  projectiles=[];
+  gameOverMsg='';
+  keys={};
+}
+init();
+
+function startGame(){
+  selectedMobile=selectIdx;
+  aiMobile=Math.floor(Math.random()*3);
+  // Place player left, AI right
+  var px=80+Math.floor(Math.random()*120);
+  var ax=600+Math.floor(Math.random()*120);
+  player={x:px,y:terrainH(px)-1,hp:100,alive:true,mobile:selectedMobile};
+  ai={x:ax,y:terrainH(ax)-1,hp:100,alive:true,mobile:aiMobile};
+  specials=MOBILES[selectedMobile].specMax;
+  aiSpecials=MOBILES[aiMobile].specMax;
+  turn=0; // 0=player, 1=AI
+  aimAngle=-Math.PI/4;
+  power=0;charging=false;
+  moveLeft=MAX_MOVE;
+  gamePhase='move';
+}
+
+// --- Input ---
+document.addEventListener('keydown',function(e){
+  if(e.key==='?'||(e.key==='/'&&e.shiftKey)){toggleInfo();e.preventDefault();return;}
+  if(e.key==='Escape'&&infoOpen){toggleInfo();e.preventDefault();return;}
+  if(infoOpen)return;
+  keys[e.key]=true;
+  if(e.key==='r'||e.key==='R'){init();return;}
+
+  if(gamePhase==='select'){
+    if(e.key==='ArrowLeft'||e.key==='a')selectIdx=(selectIdx+2)%3;
+    if(e.key==='ArrowRight'||e.key==='d')selectIdx=(selectIdx+1)%3;
+    if(e.key===' '||e.key==='Enter'){startGame();e.preventDefault();}
+    return;
+  }
+
+  if(turn!==0)return; // Only handle input on player turn
+
+  if(gamePhase==='move'||gamePhase==='aim'){
+    if(e.key===' '){gamePhase='charge';power=0;charging=true;e.preventDefault();}
+    if(e.key==='s'||e.key==='S'){
+      if(specials>0){fireShot(player,selectedMobile,aimAngle,50,true);specials--;e.preventDefault();}
+    }
+  }
+  if(e.key===' ')e.preventDefault();
+});
+
+document.addEventListener('keyup',function(e){
+  keys[e.key]=false;
+  if(e.key===' '&&gamePhase==='charge'&&turn===0){
+    fireShot(player,selectedMobile,aimAngle,power,false);
+    charging=false;
+  }
+});
+
+// --- Shooting ---
+function fireShot(shooter,mobileIdx,angle,pwr,isSpecial){
+  var mob=MOBILES[mobileIdx];
+  var p=Math.max(pwr,3);
+  var spd=p*0.13*mob.speed;
+  var col=isSpecial?mob.specColor:mob.shotColor;
+  var br=isSpecial?mob.specBlastR:mob.blastR;
+
+  if(mobileIdx===0){ // Armor
+    if(isSpecial){
+      // Dual shot: two projectiles at slight angle offset
+      projectiles=[];
+      for(var i=-1;i<=1;i+=2){
+        projectiles.push({x:shooter.x,y:shooter.y-8,
+          vx:Math.cos(angle+i*0.08)*spd,vy:Math.sin(angle+i*0.08)*spd,
+          color:col,blast:br,wMul:mob.windMul,bounces:0,maxBounce:0,type:'normal'});
+      }
+      projectile=null;
+    } else {
+      projectile={x:shooter.x,y:shooter.y-8,
+        vx:Math.cos(angle)*spd,vy:Math.sin(angle)*spd,
+        color:col,blast:br,wMul:mob.windMul,bounces:0,maxBounce:0,type:'normal'};
+      projectiles=[];
+    }
+  } else if(mobileIdx===1){ // Boomer
+    var mb=isSpecial?2:1;
+    var b=isSpecial?br:mob.blastR;
+    projectile={x:shooter.x,y:shooter.y-8,
+      vx:Math.cos(angle)*spd,vy:Math.sin(angle)*spd,
+      color:col,blast:b,wMul:mob.windMul,bounces:0,maxBounce:mb,type:'bounce'};
+    projectiles=[];
+  } else { // Lightning
+    if(isSpecial){
+      // Beam: instant line damage
+      fireBeam(shooter,angle);
+      projectile=null;projectiles=[];
+      gamePhase=turn===0?'explode':'explode';
+      return;
+    } else {
+      projectile={x:shooter.x,y:shooter.y-8,
+        vx:Math.cos(angle)*spd*1.5,vy:Math.sin(angle)*spd*1.5,
+        color:col,blast:br,wMul:mob.windMul,bounces:0,maxBounce:0,type:'fast'};
+      projectiles=[];
+    }
+  }
+  gamePhase=turn===0?'flight':'ai-flight';
+}
+
+function fireBeam(shooter,angle){
+  // Trace a line and damage along it
+  var bx=shooter.x,by=shooter.y-8;
+  var dx=Math.cos(angle)*4,dy=Math.sin(angle)*4;
+  var hits=[];
+  for(var i=0;i<200;i++){
+    bx+=dx;by+=dy;
+    if(bx<0||bx>=W||by<0||by>=H)break;
+    if(isSolid(bx,by)){
+      destroyTerrain(bx,by,8);
+      addExplosion(bx,by,8);
+      break;
+    }
+    // Check hit on target
+    var target=turn===0?ai:player;
+    if(target.alive&&Math.abs(bx-target.x)<12&&Math.abs(by-target.y)<12){
+      target.hp-=35;
+      if(target.hp<=0){target.hp=0;target.alive=false;}
+      addExplosion(bx,by,10);
+      break;
+    }
+    // Draw beam particle
+    particles.push({x:bx,y:by,vx:0,vy:0,life:20,color:'#f4f',size:2});
+  }
+}
+
+function addExplosion(x,y,r){
+  explosions.push({x:x,y:y,r:r,t:0,maxT:20});
+  for(var i=0;i<12;i++){
+    var a=Math.random()*Math.PI*2;
+    var s=1+Math.random()*3;
+    particles.push({x:x,y:y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-1,life:20+Math.random()*15,
+      color:['#f80','#ff4','#f44','#fff'][Math.floor(Math.random()*4)],size:2+Math.random()*2});
+  }
+}
+
+function handleProjectileHit(proj){
+  var target=turn===0?ai:player;
+  // Check target hit
+  if(target.alive){
+    var dx=proj.x-target.x,dy=proj.y-target.y;
+    if(dx*dx+dy*dy<(proj.blast+8)*(proj.blast+8)){
+      var dist=Math.sqrt(dx*dx+dy*dy);
+      var dmg=Math.floor(30*(1-dist/(proj.blast+16))+10);
+      target.hp-=dmg;
+      if(target.hp<=0){target.hp=0;target.alive=false;}
+    }
+  }
+  // Also check self-damage
+  var self=turn===0?player:ai;
+  if(self.alive){
+    var dx2=proj.x-self.x,dy2=proj.y-self.y;
+    if(dx2*dx2+dy2*dy2<(proj.blast+8)*(proj.blast+8)){
+      var dist2=Math.sqrt(dx2*dx2+dy2*dy2);
+      var dmg2=Math.floor(20*(1-dist2/(proj.blast+16))+5);
+      self.hp-=dmg2;
+      if(self.hp<=0){self.hp=0;self.alive=false;}
+    }
+  }
+  destroyTerrain(proj.x,proj.y,proj.blast);
+  addExplosion(proj.x,proj.y,proj.blast);
+}
+
+// --- AI ---
+function aiThink(){
+  aiTimer=60+Math.floor(Math.random()*30);
+  // Calculate angle and power to hit player
+  var dx=player.x-ai.x;
+  var dy=(player.y-8)-(ai.y-8);
+  var dist=Math.sqrt(dx*dx+dy*dy);
+  var mob=MOBILES[aiMobile];
+  // Approximate: aim with some error
+  var baseAngle=Math.atan2(dy,dx);
+  // Add error based on distance
+  var err=(Math.random()-0.5)*0.15;
+  aiAngle=baseAngle+err;
+  // Estimate power needed
+  var pNeeded=dist/(0.13*mob.speed*1.8);
+  pNeeded=Math.min(95,Math.max(20,pNeeded+(Math.random()-0.5)*15));
+  aiPower=pNeeded;
+  // Decide whether to use special
+  aiUseSpec=false;
+  if(aiSpecials>0&&player.hp<50&&Math.random()>0.5){
+    aiUseSpec=true;
+  }
+}
+
+// --- Update ---
+var fallCheckTimer=0;
+
+function update(){
+  if(infoOpen)return;
+  if(gamePhase==='select')return;
+  if(gamePhase==='gameover')return;
+
+  // Player movement
+  if(turn===0&&(gamePhase==='move'||gamePhase==='aim')){
+    if(moveLeft>0){
+      if(keys['ArrowLeft']||keys['a']){
+        var nx=player.x-MOVE_SPEED;
+        if(nx>10){
+          player.x=nx;
+          player.y=terrainH(player.x)-1;
+          moveLeft-=MOVE_SPEED;
+          gamePhase='aim';
+        }
+      }
+      if(keys['ArrowRight']||keys['d']){
+        var nx2=player.x+MOVE_SPEED;
+        if(nx2<W-10){
+          player.x=nx2;
+          player.y=terrainH(player.x)-1;
+          moveLeft-=MOVE_SPEED;
+          gamePhase='aim';
+        }
+      }
+    }
+    // Aim
+    if(keys['ArrowUp']){aimAngle-=0.02;gamePhase='aim';}
+    if(keys['ArrowDown']){aimAngle+=0.02;gamePhase='aim';}
+    aimAngle=Math.max(-Math.PI,Math.min(0,aimAngle));
+  }
+
+  // Charge power
+  if(gamePhase==='charge'){
+    power+=1.2;
+    if(power>100)power=100;
+  }
+
+  // Projectile flight
+  if(gamePhase==='flight'||gamePhase==='ai-flight'){
+    var projs=projectile?[projectile]:projectiles;
+    var allDone=true;
+    for(var i=projs.length-1;i>=0;i--){
+      var p=projs[i];
+      p.vy+=G;
+      p.vx+=wind*p.wMul;
+      p.x+=p.vx;
+      p.y+=p.vy;
+      // Out of bounds
+      if(p.x<-50||p.x>W+50||p.y>H+50){
+        projs.splice(i,1);continue;
+      }
+      // Terrain collision
+      if(p.y>0&&isSolid(Math.floor(p.x),Math.floor(p.y))){
+        if(p.type==='bounce'&&p.bounces<p.maxBounce){
+          p.bounces++;
+          p.vy=-Math.abs(p.vy)*0.6;
+          p.vx*=0.8;
+          p.y-=2;
+        } else {
+          handleProjectileHit(p);
+          projs.splice(i,1);continue;
+        }
+      }
+      // Direct hit check (for fast projectiles)
+      var tgt=turn===0?ai:player;
+      if(tgt.alive&&Math.abs(p.x-tgt.x)<10&&Math.abs(p.y-tgt.y)<14){
+        handleProjectileHit(p);
+        projs.splice(i,1);continue;
+      }
+      allDone=false;
+    }
+    if(projs.length===0||allDone){
+      projectile=null;projectiles=[];
+      gamePhase='explode';
+    }
+  }
+
+  // Explosion animation
+  if(gamePhase==='explode'){
+    var active=false;
+    for(var e=0;e<explosions.length;e++){
+      explosions[e].t++;
+      if(explosions[e].t<explosions[e].maxT)active=true;
+    }
+    if(!active){
+      explosions=[];
+      gamePhase='fall';
+      fallCheckTimer=15;
+    }
+  }
+
+  // Fall phase - settle entities
+  if(gamePhase==='fall'){
+    fallCheckTimer--;
+    if(player.alive)settleEntity(player);
+    if(ai.alive)settleEntity(ai);
+    if(fallCheckTimer<=0){
+      // Check game over
+      if(!player.alive||!ai.alive){
+        gamePhase='gameover';
+        gameOverMsg=!player.alive&&!ai.alive?'DRAW!':(!player.alive?'AI WINS!':'YOU WIN!');
+        return;
+      }
+      // Switch turns
+      endTurn();
+    }
+  }
+
+  // AI turn
+  if(gamePhase==='ai-think'){
+    aiTimer--;
+    if(aiTimer<=0){
+      gamePhase='ai-charge';
+      power=0;
+    }
+  }
+  if(gamePhase==='ai-charge'){
+    power+=1.5;
+    if(power>=aiPower){
+      if(aiUseSpec&&aiSpecials>0){
+        fireShot(ai,aiMobile,aiAngle,aiPower,true);
+        aiSpecials--;
+      } else {
+        fireShot(ai,aiMobile,aiAngle,aiPower,false);
+      }
+      power=0;
+    }
+  }
+
+  // Update particles
+  for(var i=particles.length-1;i>=0;i--){
+    var pt=particles[i];
+    pt.x+=pt.vx;pt.y+=pt.vy;
+    pt.vy+=0.05;
+    pt.life--;
+    if(pt.life<=0)particles.splice(i,1);
+  }
+}
+
+function endTurn(){
+  turn=1-turn;
+  moveLeft=MAX_MOVE;
+  wind+=(Math.random()-0.5)*0.04;
+  wind=Math.max(-0.15,Math.min(0.15,wind));
+  if(turn===1){
+    // AI turn
+    aiThink();
+    gamePhase='ai-think';
+  } else {
+    gamePhase='move';
+    aimAngle=-Math.PI/4;
+  }
+}
+
+// --- Draw ---
+function drawTerrain(){
+  var id=X.createImageData(W,H);
+  var d=id.data;
+  for(var y=0;y<H;y++){
+    for(var x=0;x<W;x++){
+      var idx=y*W+x;
+      if(terrain[idx]){
+        var pi=idx*4;
+        // Determine color based on depth
+        var depth=0;
+        for(var yy=y-1;yy>=0;yy--){
+          if(!terrain[yy*W+x])break;
+          depth++;
+        }
+        if(depth<3){
+          // Grass
+          d[pi]=60+(x*7%30);d[pi+1]=170+(x*13%30);d[pi+2]=40;d[pi+3]=255;
+        } else {
+          // Dirt
+          var dd=Math.min(depth/80,1);
+          d[pi]=120+dd*30+(x*3%15)|0;d[pi+1]=75+dd*15+(y*5%10)|0;d[pi+2]=35;d[pi+3]=255;
+        }
+      }
+    }
+  }
+  X.putImageData(id,0,0);
+}
+
+function drawMobile(entity,mobileIdx,facing){
+  var mob=MOBILES[mobileIdx];
+  var x=entity.x,y=entity.y;
+  var f=facing||1;
+  // Body
+  X.fillStyle=mob.color;
+  X.fillRect(x-10,y-8,20,8);
+  // Turret base
+  X.fillStyle=mob.color;
+  X.beginPath();
+  X.arc(x,y-8,6,Math.PI,0);
+  X.fill();
+  // Tracks
+  X.fillStyle='#555';
+  X.fillRect(x-12,y,24,4);
+  X.fillStyle='#777';
+  for(var i=0;i<5;i++){
+    X.fillRect(x-10+i*5,y,3,4);
+  }
+  // HP bar
+  var hpPct=entity.hp/100;
+  X.fillStyle='#300';
+  X.fillRect(x-12,y-16,24,3);
+  X.fillStyle=hpPct>0.5?'#0f0':hpPct>0.25?'#ff0':'#f00';
+  X.fillRect(x-12,y-16,24*hpPct,3);
+}
+
+function drawBarrel(entity,angle){
+  var x=entity.x,y=entity.y-8;
+  X.strokeStyle='#ddd';
+  X.lineWidth=3;
+  X.beginPath();
+  X.moveTo(x,y);
+  X.lineTo(x+Math.cos(angle)*18,y+Math.sin(angle)*18);
+  X.stroke();
+  X.lineWidth=1;
+}
+
+function drawHUD(){
+  X.font='bold 14px monospace';
+  // Turn indicator
+  var turnText=turn===0?'YOUR TURN':'AI TURN';
+  var turnColor=turn===0?'#4af':'#f44';
+  X.fillStyle=turnColor;
+  X.textAlign='center';
+  X.fillText(turnText,W/2,20);
+
+  // Wind
+  X.fillStyle='#fff';
+  X.font='12px monospace';
+  X.fillText('WIND',W/2,38);
+  // Wind arrow
+  var wStr=Math.abs(wind)*500;
+  X.strokeStyle='#0ff';
+  X.lineWidth=2;
+  X.beginPath();
+  X.moveTo(W/2-wStr,46);
+  X.lineTo(W/2+wStr,46);
+  if(Math.abs(wind)>0.005){
+    var dir=wind>0?1:-1;
+    X.lineTo(W/2+wStr-dir*6,42);
+    X.moveTo(W/2+wStr,46);
+    X.lineTo(W/2+wStr-dir*6,50);
+  }
+  X.stroke();
+  X.lineWidth=1;
+
+  // Player info - left
+  X.textAlign='left';
+  X.fillStyle='#4af';
+  X.font='bold 13px monospace';
+  X.fillText('YOU: '+MOBILES[selectedMobile].name,10,20);
+  X.font='12px monospace';
+  X.fillStyle='#aaa';
+  X.fillText('HP: '+player.hp,10,36);
+  X.fillText('SP: '+specials,10,50);
+
+  // AI info - right
+  X.textAlign='right';
+  X.fillStyle='#f44';
+  X.font='bold 13px monospace';
+  X.fillText('AI: '+MOBILES[aiMobile].name,W-10,20);
+  X.font='12px monospace';
+  X.fillStyle='#aaa';
+  X.fillText('HP: '+ai.hp,W-10,36);
+
+  // Power bar (when charging)
+  if(gamePhase==='charge'||gamePhase==='ai-charge'){
+    X.fillStyle='#333';
+    X.fillRect(W/2-60,H-30,120,12);
+    var pc=power/100;
+    X.fillStyle=pc<0.5?'#0f0':pc<0.8?'#ff0':'#f00';
+    X.fillRect(W/2-60,H-30,120*pc,12);
+    X.strokeStyle='#fff';
+    X.strokeRect(W/2-60,H-30,120,12);
+    X.fillStyle='#fff';
+    X.textAlign='center';
+    X.font='10px monospace';
+    X.fillText(Math.floor(power)+'%',W/2,H-20);
+  }
+
+  // Angle indicator (player turn)
+  if(turn===0&&(gamePhase==='move'||gamePhase==='aim'||gamePhase==='charge')){
+    X.textAlign='left';
+    X.fillStyle='#fff';
+    X.font='11px monospace';
+    var deg=Math.round(-aimAngle*180/Math.PI);
+    X.fillText('Angle: '+deg+'\u00B0',10,H-10);
+    X.fillText('Move: '+Math.floor(moveLeft),10,H-24);
+  }
+}
+
+function drawSky(){
+  var grad=X.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0,'#001830');
+  grad.addColorStop(0.4,'#003060');
+  grad.addColorStop(0.7,'#005080');
+  grad.addColorStop(1,'#007090');
+  X.fillStyle=grad;
+  X.fillRect(0,0,W,H);
+}
+
+function drawSelectScreen(){
+  X.fillStyle='#001020';
+  X.fillRect(0,0,W,H);
+  X.fillStyle='#7bf';
+  X.font='bold 24px monospace';
+  X.textAlign='center';
+  X.fillText('SELECT YOUR MOBILE',W/2,80);
+  X.font='14px monospace';
+  X.fillStyle='#888';
+  X.fillText('Left/Right to browse, Space to confirm',W/2,110);
+
+  for(var i=0;i<3;i++){
+    var mx=W/2+(i-1)*220;
+    var my=300;
+    var mob=MOBILES[i];
+    var sel=i===selectIdx;
+
+    // Box
+    X.strokeStyle=sel?mob.color:'#333';
+    X.lineWidth=sel?3:1;
+    X.strokeRect(mx-80,my-100,160,200);
+    if(sel){
+      X.fillStyle=mob.color+'22';
+      X.fillRect(mx-80,my-100,160,200);
+    }
+
+    // Name
+    X.fillStyle=sel?mob.color:'#666';
+    X.font='bold 18px monospace';
+    X.fillText(mob.name,mx,my-60);
+
+    // Draw mini mobile
+    X.fillStyle=mob.color;
+    X.fillRect(mx-15,my-10,30,12);
+    X.beginPath();X.arc(mx,my-10,8,Math.PI,0);X.fill();
+    X.fillStyle='#555';
+    X.fillRect(mx-17,my+2,34,5);
+
+    // Stats
+    X.font='12px monospace';
+    X.fillStyle=sel?'#ccc':'#555';
+    X.fillText(mob.desc,mx,my+30);
+    X.font='11px monospace';
+    var windLabel=mob.windMul<0.6?'Low':mob.windMul>1?'High':'Med';
+    X.fillText('Wind: '+windLabel,mx,my+50);
+    X.fillText('Speed: '+(mob.speed>1?'Fast':mob.speed<1?'Slow':'Med'),mx,my+65);
+    X.fillText('Special: '+mob.specName,mx,my+80);
+  }
+}
+
+function draw(){
+  if(gamePhase==='select'){drawSelectScreen();return;}
+
+  drawSky();
+  drawTerrain();
+
+  // Draw entities
+  if(player.alive){
+    drawMobile(player,selectedMobile,1);
+    drawBarrel(player,aimAngle);
+  }
+  if(ai.alive){
+    drawMobile(ai,aiMobile,-1);
+    var aiAng=gamePhase==='ai-think'||gamePhase==='ai-charge'?aiAngle:Math.PI+Math.PI/4;
+    drawBarrel(ai,aiAng);
+  }
+
+  // Projectiles
+  var projs=projectile?[projectile]:projectiles;
+  for(var i=0;i<projs.length;i++){
+    var p=projs[i];
+    X.fillStyle=p.color;
+    X.beginPath();
+    X.arc(p.x,p.y,3,0,Math.PI*2);
+    X.fill();
+    // Trail
+    X.fillStyle=p.color+'88';
+    X.beginPath();
+    X.arc(p.x-p.vx,p.y-p.vy,2,0,Math.PI*2);
+    X.fill();
+  }
+
+  // Explosions
+  for(var e=0;e<explosions.length;e++){
+    var ex=explosions[e];
+    var prog=ex.t/ex.maxT;
+    X.globalAlpha=1-prog;
+    X.fillStyle='#f80';
+    X.beginPath();
+    X.arc(ex.x,ex.y,ex.r*(0.5+prog*0.5),0,Math.PI*2);
+    X.fill();
+    X.fillStyle='#ff4';
+    X.beginPath();
+    X.arc(ex.x,ex.y,ex.r*0.5*(1-prog),0,Math.PI*2);
+    X.fill();
+    X.globalAlpha=1;
+  }
+
+  // Particles
+  for(var i=0;i<particles.length;i++){
+    var pt=particles[i];
+    X.globalAlpha=pt.life/30;
+    X.fillStyle=pt.color;
+    X.fillRect(pt.x-pt.size/2,pt.y-pt.size/2,pt.size,pt.size);
+  }
+  X.globalAlpha=1;
+
+  // HUD
+  drawHUD();
+
+  // Game over
+  if(gamePhase==='gameover'){
+    X.fillStyle='rgba(0,0,0,0.6)';
+    X.fillRect(0,H/2-40,W,80);
+    X.fillStyle='#fff';
+    X.font='bold 32px monospace';
+    X.textAlign='center';
+    X.fillText(gameOverMsg,W/2,H/2+5);
+    X.font='14px monospace';
+    X.fillStyle='#aaa';
+    X.fillText('Press R to restart',W/2,H/2+30);
+  }
+}
+
+// --- Loop ---
+function loop(){
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

@@ -1,0 +1,581 @@
+<!--
+PROTOTYPE: color-match
+SERIES: puz
+NUMBER: 025
+DATE: 2026-03-24
+MECHANIC: pathfinding ball alignment — move colored balls on a 9×9 grid via clear paths; align 5+ of same color in a line to clear them; 3 new balls appear each turn if no line formed
+ANCESTRY: Color Lines (1992, Olga Demina / Gennady Denisov / Igor Ivkin, Gamos Moscow), Winlines (1992), Lines 98 (1998, Gametop)
+CONTROLS: Mouse — click ball to select, click empty cell to move | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — pathfinding algorithms, BFS for reachability, combinatorial pattern matching)
+AI-INSIGHT: Color Lines is a pure planning puzzle wrapped in a pathfinding constraint. The BFS reachability check transforms a simple matching game into a spatial logistics problem — every move must consider not just alignment but accessibility, and the random ball spawns create an ever-tightening noose of blocked paths.
+NOTES: Russian puzzle classic distilled to grid pathfinding and color matching.
+       Preview mechanic adds strategic depth — plan around incoming balls.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PUZ-025 · COLOR MATCH</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: pointer; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>PUZ-025 · COLOR MATCH</h1>
+    <p><span class="tag series">PUZ — Puzzle</span> <span class="tag">Prototype #025</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Move colored balls on a 9x9 grid to form lines of 5 or more same-colored balls. Lines can be horizontal, vertical, or diagonal.</p>
+    <ul>
+      <li><strong>Click</strong> a ball to select it (it bounces to show selection)</li>
+      <li><strong>Click</strong> an empty cell to move the selected ball there</li>
+      <li>The ball must have a <strong>clear path</strong> — it cannot jump over other balls</li>
+      <li>If you form a line of 5+, those balls are cleared and you score points</li>
+      <li>If no line is formed, <strong>3 new balls</strong> appear on the grid</li>
+      <li>Small dots show where the <strong>next 3 balls</strong> will appear</li>
+      <li>Game ends when the grid is completely full</li>
+    </ul>
+    <p><kbd>R</kbd> Restart &nbsp; <kbd>?</kbd> Toggle this panel</p>
+
+    <h2>Scoring</h2>
+    <ul>
+      <li>5 in a line = 10 points</li>
+      <li>6 in a line = 20 points</li>
+      <li>7 in a line = 40 points</li>
+      <li>8 in a line = 80 points</li>
+      <li>9 in a line = 160 points</li>
+      <li>Multiple lines cleared in one move stack!</li>
+    </ul>
+
+    <h2>History</h2>
+    <p>Color Lines was created in 1992 by <strong>Olga Demina</strong>, <strong>Gennady Denisov</strong>, and <strong>Igor Ivkin</strong> at Gamos studio in Moscow. It became one of the most popular casual games in the former Soviet Union and Eastern Europe, pre-installed on countless Windows machines. The game's genius is its simplicity — the rules take seconds to learn, but the pathfinding constraint and random spawns create deep strategic tension. It spawned dozens of clones including Lines 98, Winlines, and many mobile versions.</p>
+
+    <h2>AI Archaeology</h2>
+    <h3>Pathfinding as Puzzle Constraint</h3>
+    <p>The BFS (breadth-first search) reachability check is the game's secret weapon. Without it, Color Lines would be a trivial matching game. The pathfinding requirement means every ball placement is a spatial logistics problem — you must consider not just where you want the ball, but whether it can physically get there. This transforms color matching into route planning.</p>
+    <h3>Entropy and the Tightening Noose</h3>
+    <p>Each failed move adds 3 balls, steadily filling the grid. The preview mechanic gives players partial information about incoming randomness, creating a planning horizon. Expert play involves sacrificing immediate matches to keep paths open — a form of resource management where the resource is empty space itself.</p>
+
+    <h2>Classification</h2>
+    <p><span class="tag">Puzzle</span> <span class="tag">Pathfinding</span> <span class="tag">Color Matching</span> <span class="tag">Turn-Based</span> <span class="tag">Grid</span> <span class="tag">Russian Classic</span></p>
+
+    <h2>Prototype Notes</h2>
+    <p>This prototype implements BFS pathfinding for move validation, 7-color ball system with animated selection bounce, next-ball preview, and diagonal line detection. The grid rendering uses a warm wood-tone palette reminiscent of the original Windows versions.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This is an educational reconstruction created for study and preservation purposes. Color Lines was created by Olga Demina, Gennady Denisov, and Igor Ivkin at Gamos, Moscow (1992). All rights belong to their respective holders. This prototype is not affiliated with or endorsed by the original creators.</p>
+  </div>
+</div>
+
+<script>
+// --- Info Panel ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// --- Canvas Setup ---
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+
+function resize() {
+  const s = Math.min(innerWidth / W, innerHeight / H);
+  canvas.style.width = (W * s) + 'px';
+  canvas.style.height = (H * s) + 'px';
+}
+resize();
+addEventListener('resize', resize);
+
+// --- HUD Text Helper ---
+function hudText(text, x, y, size, color, align) {
+  ctx.save();
+  ctx.font = size + 'px monospace';
+  ctx.fillStyle = color || '#fff';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+// --- Constants ---
+const GRID = 9;
+const CELL = 52;
+const GRID_X = Math.floor((W - GRID * CELL) / 2);
+const GRID_Y = 70;
+const NUM_COLORS = 7;
+const COLORS = [
+  '#e74c3c', // red
+  '#2ecc71', // green
+  '#3498db', // blue
+  '#f1c40f', // yellow
+  '#9b59b6', // purple
+  '#e67e22', // orange
+  '#1abc9c'  // teal
+];
+const COLOR_DARK = [
+  '#c0392b', '#27ae60', '#2980b9', '#d4ac0f', '#8e44ad', '#d35400', '#16a085'
+];
+const COLOR_LIGHT = [
+  '#ff7675', '#55efc4', '#74b9ff', '#ffeaa7', '#d6a2e8', '#fab1a0', '#7efcd2'
+];
+
+// --- State ---
+let grid, selected, nextBalls, score, highScore, gameOver, animTime;
+let path = null; // animated path
+let pathIdx = 0;
+let pathBall = -1;
+let moving = false;
+let clearAnim = null; // {cells:[], t:0}
+let bounceT = 0;
+
+function loadHighScore() {
+  try { return parseInt(localStorage.getItem('puz025-hi')) || 0; } catch(e) { return 0; }
+}
+function saveHighScore() {
+  try { localStorage.setItem('puz025-hi', highScore); } catch(e) {}
+}
+
+function init() {
+  grid = [];
+  for (let i = 0; i < GRID * GRID; i++) grid[i] = -1;
+  selected = -1;
+  score = 0;
+  gameOver = false;
+  moving = false;
+  path = null;
+  clearAnim = null;
+  highScore = loadHighScore();
+  nextBalls = generateNextBalls();
+  spawnBalls(5); // start with 5 balls
+  nextBalls = generateNextBalls();
+}
+
+function generateNextBalls() {
+  const balls = [];
+  for (let i = 0; i < 3; i++) {
+    balls.push({ color: Math.floor(Math.random() * NUM_COLORS), pos: -1 });
+  }
+  assignNextPositions(balls);
+  return balls;
+}
+
+function assignNextPositions(balls) {
+  const empty = [];
+  for (let i = 0; i < GRID * GRID; i++) {
+    if (grid[i] === -1) empty.push(i);
+  }
+  for (let i = 0; i < balls.length; i++) {
+    if (empty.length === 0) { balls[i].pos = -1; continue; }
+    const idx = Math.floor(Math.random() * empty.length);
+    balls[i].pos = empty[idx];
+    empty.splice(idx, 1);
+  }
+}
+
+function spawnBalls(count) {
+  const empty = [];
+  for (let i = 0; i < GRID * GRID; i++) {
+    if (grid[i] === -1) empty.push(i);
+  }
+  if (count === undefined) {
+    // Spawn nextBalls
+    for (let i = 0; i < nextBalls.length; i++) {
+      let pos = nextBalls[i].pos;
+      if (pos === -1 || grid[pos] !== -1) {
+        // find another empty cell
+        const e2 = [];
+        for (let j = 0; j < GRID * GRID; j++) {
+          if (grid[j] === -1) e2.push(j);
+        }
+        if (e2.length === 0) return;
+        pos = e2[Math.floor(Math.random() * e2.length)];
+      }
+      grid[pos] = nextBalls[i].color;
+    }
+  } else {
+    for (let i = 0; i < count; i++) {
+      if (empty.length === 0) return;
+      const idx = Math.floor(Math.random() * empty.length);
+      grid[empty[idx]] = Math.floor(Math.random() * NUM_COLORS);
+      empty.splice(idx, 1);
+    }
+  }
+}
+
+// --- BFS Pathfinding ---
+function findPath(from, to) {
+  if (from === to) return [from];
+  if (grid[to] !== -1) return null;
+  const visited = new Uint8Array(GRID * GRID);
+  const parent = new Int16Array(GRID * GRID).fill(-1);
+  const queue = [from];
+  visited[from] = 1;
+  while (queue.length > 0) {
+    const cur = queue.shift();
+    const cx = cur % GRID, cy = Math.floor(cur / GRID);
+    const dirs = [[-1,0],[1,0],[0,-1],[0,1]];
+    for (const [dx, dy] of dirs) {
+      const nx = cx + dx, ny = cy + dy;
+      if (nx < 0 || nx >= GRID || ny < 0 || ny >= GRID) continue;
+      const ni = ny * GRID + nx;
+      if (visited[ni]) continue;
+      if (grid[ni] !== -1 && ni !== to) continue;
+      visited[ni] = 1;
+      parent[ni] = cur;
+      if (ni === to) {
+        // reconstruct
+        const p = [];
+        let c = to;
+        while (c !== -1) { p.push(c); c = parent[c]; }
+        p.reverse();
+        return p;
+      }
+      queue.push(ni);
+    }
+  }
+  return null;
+}
+
+// --- Line Detection ---
+function checkLines() {
+  const toRemove = new Set();
+  const dirs = [[1,0],[0,1],[1,1],[1,-1]]; // horiz, vert, diag-down, diag-up
+
+  for (let y = 0; y < GRID; y++) {
+    for (let x = 0; x < GRID; x++) {
+      const idx = y * GRID + x;
+      if (grid[idx] === -1) continue;
+      const color = grid[idx];
+
+      for (const [dx, dy] of dirs) {
+        const line = [idx];
+        let nx = x + dx, ny = y + dy;
+        while (nx >= 0 && nx < GRID && ny >= 0 && ny < GRID) {
+          const ni = ny * GRID + nx;
+          if (grid[ni] !== color) break;
+          line.push(ni);
+          nx += dx; ny += dy;
+        }
+        if (line.length >= 5) {
+          for (const c of line) toRemove.add(c);
+        }
+      }
+    }
+  }
+
+  if (toRemove.size > 0) {
+    // Score: count distinct lines
+    const cells = Array.from(toRemove);
+    // Simple scoring: based on total cleared with bonus
+    const count = cells.length;
+    const pts = count >= 9 ? 160 : count >= 8 ? 80 : count >= 7 ? 40 : count >= 6 ? 20 : 10;
+    score += pts;
+    if (score > highScore) { highScore = score; saveHighScore(); }
+
+    clearAnim = { cells: cells, t: 0 };
+    return true;
+  }
+  return false;
+}
+
+function finishClear() {
+  for (const c of clearAnim.cells) {
+    grid[c] = -1;
+  }
+  clearAnim = null;
+}
+
+function checkGameOver() {
+  for (let i = 0; i < GRID * GRID; i++) {
+    if (grid[i] === -1) return false;
+  }
+  return true;
+}
+
+// --- Input ---
+function getCellFromMouse(mx, my) {
+  const rect = canvas.getBoundingClientRect();
+  const sx = W / rect.width, sy = H / rect.height;
+  const x = (mx - rect.left) * sx;
+  const y = (my - rect.top) * sy;
+  const gx = Math.floor((x - GRID_X) / CELL);
+  const gy = Math.floor((y - GRID_Y) / CELL);
+  if (gx < 0 || gx >= GRID || gy < 0 || gy >= GRID) return -1;
+  return gy * GRID + gx;
+}
+
+canvas.addEventListener('click', function(e) {
+  if (infoOpen || moving || clearAnim || gameOver) return;
+  const cell = getCellFromMouse(e.clientX, e.clientY);
+  if (cell === -1) return;
+
+  if (grid[cell] !== -1) {
+    // Select this ball
+    selected = cell;
+    bounceT = 0;
+  } else if (selected !== -1) {
+    // Try to move
+    const p = findPath(selected, cell);
+    if (p && p.length > 1) {
+      path = p;
+      pathIdx = 0;
+      pathBall = grid[selected];
+      grid[selected] = -1;
+      moving = true;
+      selected = -1;
+    }
+  }
+});
+
+addEventListener('keydown', function(e) {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); return; }
+  if (e.key === 'r' || e.key === 'R') { init(); return; }
+});
+
+// --- Drawing ---
+function drawBall(x, y, colorIdx, radius, alpha) {
+  const c = COLORS[colorIdx];
+  const cl = COLOR_LIGHT[colorIdx];
+  const cd = COLOR_DARK[colorIdx];
+  const a = alpha !== undefined ? alpha : 1;
+
+  ctx.save();
+  ctx.globalAlpha = a;
+
+  // Shadow
+  ctx.beginPath();
+  ctx.arc(x + 2, y + 3, radius * 0.85, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.fill();
+
+  // Main ball gradient
+  const grad = ctx.createRadialGradient(x - radius * 0.3, y - radius * 0.3, radius * 0.1, x, y, radius);
+  grad.addColorStop(0, cl);
+  grad.addColorStop(0.5, c);
+  grad.addColorStop(1, cd);
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Highlight
+  ctx.beginPath();
+  ctx.arc(x - radius * 0.25, y - radius * 0.25, radius * 0.35, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.fill();
+
+  ctx.restore();
+}
+
+function draw() {
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fillRect(0, 0, W, H);
+
+  // Title
+  hudText('COLOR LINES', W / 2, 22, 20, '#7bf', 'center');
+
+  // Score
+  hudText('SCORE: ' + score, GRID_X, 52, 16, '#fff', 'left');
+  hudText('HIGH: ' + highScore, GRID_X + GRID * CELL, 52, 16, '#888', 'right');
+
+  // Next balls preview label
+  const previewX = GRID_X + GRID * CELL + 20;
+  if (previewX + 60 < W) {
+    hudText('NEXT', W / 2, 52, 14, '#aaa', 'center');
+    for (let i = 0; i < nextBalls.length; i++) {
+      drawBall(W / 2 - 30 + i * 30, 52, nextBalls[i].color, 8);
+    }
+  } else {
+    hudText('NEXT', W / 2, 52, 14, '#aaa', 'center');
+    for (let i = 0; i < nextBalls.length; i++) {
+      drawBall(W / 2 - 30 + i * 30, 52, nextBalls[i].color, 8);
+    }
+  }
+
+  // Grid background
+  ctx.fillStyle = '#2d2d4a';
+  ctx.fillRect(GRID_X - 2, GRID_Y - 2, GRID * CELL + 4, GRID * CELL + 4);
+
+  // Cells
+  for (let y = 0; y < GRID; y++) {
+    for (let x = 0; x < GRID; x++) {
+      const px = GRID_X + x * CELL;
+      const py = GRID_Y + y * CELL;
+      const idx = y * GRID + x;
+
+      // Cell background
+      ctx.fillStyle = (x + y) % 2 === 0 ? '#3a3a5c' : '#33334f';
+      ctx.fillRect(px + 1, py + 1, CELL - 2, CELL - 2);
+
+      // Next ball preview dots
+      if (grid[idx] === -1) {
+        for (let i = 0; i < nextBalls.length; i++) {
+          if (nextBalls[i].pos === idx) {
+            ctx.beginPath();
+            ctx.arc(px + CELL / 2, py + CELL / 2, 6, 0, Math.PI * 2);
+            ctx.fillStyle = COLORS[nextBalls[i].color];
+            ctx.globalAlpha = 0.35;
+            ctx.fill();
+            ctx.globalAlpha = 1;
+          }
+        }
+      }
+    }
+  }
+
+  // Balls
+  for (let y = 0; y < GRID; y++) {
+    for (let x = 0; x < GRID; x++) {
+      const idx = y * GRID + x;
+      if (grid[idx] === -1) continue;
+
+      // Skip if being cleared
+      if (clearAnim && clearAnim.cells.includes(idx)) continue;
+
+      const px = GRID_X + x * CELL + CELL / 2;
+      const py = GRID_Y + y * CELL + CELL / 2;
+
+      let ballY = py;
+      let radius = CELL * 0.38;
+
+      if (idx === selected) {
+        // Bounce animation
+        ballY = py - Math.abs(Math.sin(bounceT * 4)) * 8;
+        radius = CELL * 0.38 + Math.sin(bounceT * 4) * 1.5;
+      }
+
+      drawBall(px, ballY, grid[idx], radius);
+    }
+  }
+
+  // Moving ball animation
+  if (moving && path) {
+    const cur = path[pathIdx];
+    const next = path[Math.min(pathIdx + 1, path.length - 1)];
+    const cx = cur % GRID, cy = Math.floor(cur / GRID);
+    const nx = next % GRID, ny = Math.floor(next / GRID);
+    const t = animTime;
+    const px = GRID_X + (cx + (nx - cx) * t) * CELL + CELL / 2;
+    const py = GRID_Y + (cy + (ny - cy) * t) * CELL + CELL / 2;
+    drawBall(px, py, pathBall, CELL * 0.38);
+  }
+
+  // Clear animation
+  if (clearAnim) {
+    const alpha = 1 - clearAnim.t;
+    const scale = 1 + clearAnim.t * 0.5;
+    for (const idx of clearAnim.cells) {
+      const x = idx % GRID, y = Math.floor(idx / GRID);
+      const px = GRID_X + x * CELL + CELL / 2;
+      const py = GRID_Y + y * CELL + CELL / 2;
+      drawBall(px, py, grid[idx], CELL * 0.38 * scale, alpha);
+    }
+  }
+
+  // Game over
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, 0, W, H);
+    hudText('GAME OVER', W / 2, H / 2 - 30, 36, '#e74c3c', 'center');
+    hudText('Score: ' + score, W / 2, H / 2 + 15, 22, '#fff', 'center');
+    hudText('Press R to restart', W / 2, H / 2 + 50, 16, '#888', 'center');
+  }
+
+  // Controls hint
+  hudText('? info  R restart', W / 2, H - 14, 12, '#555', 'center');
+}
+
+// --- Update ---
+let lastTime = 0;
+function update(ts) {
+  if (infoOpen) return;
+
+  const dt = Math.min((ts - lastTime) / 1000, 0.05);
+  lastTime = ts;
+
+  bounceT += dt;
+
+  // Path animation
+  if (moving && path) {
+    animTime += dt * 8;
+    if (animTime >= 1) {
+      animTime = 0;
+      pathIdx++;
+      if (pathIdx >= path.length - 1) {
+        // Arrived
+        const dest = path[path.length - 1];
+        grid[dest] = pathBall;
+        moving = false;
+        path = null;
+
+        // Check lines
+        if (!checkLines()) {
+          // No line formed — spawn next balls
+          spawnBalls();
+          // Check lines from spawned balls
+          checkLines();
+          // Generate next
+          nextBalls = generateNextBalls();
+          // Check game over
+          if (checkGameOver()) gameOver = true;
+        }
+      }
+    }
+  }
+
+  // Clear animation
+  if (clearAnim) {
+    clearAnim.t += dt * 3;
+    if (clearAnim.t >= 1) {
+      finishClear();
+      // Check game over (unlikely after clearing but just in case)
+      if (checkGameOver()) gameOver = true;
+    }
+  }
+}
+
+// --- Loop ---
+animTime = 0;
+function loop(ts) {
+  update(ts);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+init();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

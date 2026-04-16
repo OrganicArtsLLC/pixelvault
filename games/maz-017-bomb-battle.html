@@ -1,0 +1,974 @@
+<!--
+PROTOTYPE: bomb-battle
+SERIES: maz
+NUMBER: 017
+DATE: 2026-03-24
+MECHANIC: water balloon bombing — drop water balloons that burst in cross patterns; trap opponents in bubbles; collect power-ups to increase range and balloon count
+ANCESTRY: Bomberman (1983, Hudson Soft), Dynablaster (1990, Hudson Soft), Crazy Arcade / BnB (2001, Nexon)
+CONTROLS: Arrow keys — move | Space — drop balloon | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 5 (Deep Learning — strategic trap-setting, pathfinding around hazards)
+AI-INSIGHT: Balloon bombing requires planning multi-step traps — predicting opponent movement and cutting off escape routes. This combines real-time pathfinding with game-tree search, as each balloon placement reshapes the navigation graph. Korea's decade-long obsession with BnB created enormous datasets of human strategic play.
+NOTES: Nexon's Crazy Arcade (2001) became Korea's #1 casual game for a decade.
+       Water balloon theming made Bomberman's core loop feel fresh and approachable.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MAZ-017 · BOMB BATTLE</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>MAZ-017 · BOMB BATTLE</h1>
+    <p><span class="tag series">MAZ — Maze</span> <span class="tag">Prototype #017</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Drop water balloons to trap your opponents! Last player standing wins.</p>
+    <ul>
+      <li><kbd>&larr;</kbd> <kbd>&uarr;</kbd> <kbd>&darr;</kbd> <kbd>&rarr;</kbd> — Move</li>
+      <li><kbd>Space</kbd> — Drop water balloon</li>
+      <li>Balloons burst after 2 seconds in a cross pattern</li>
+      <li>Getting hit traps you in a water bubble — mash <kbd>Space</kbd> to escape!</li>
+      <li>Destroy soft blocks to find power-ups</li>
+      <li>Power-ups: <b>+Range</b> (longer blasts), <b>+Balloon</b> (carry more), <b>+Speed</b> (move faster), <b>+Kick</b> (push balloons)</li>
+      <li>Defeat all 3 AI opponents to win</li>
+      <li><kbd>R</kbd> — Restart game</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+
+    <h2>History</h2>
+    <p>Crazy Arcade (크레이지 아케이드, also known as BnB — Boom and Bust) was released by Nexon in 2001 and became Korea's most beloved casual online game for over a decade. Built on Bomberman's core mechanics, it replaced bombs with water balloons and adopted a bright, cute aesthetic that appealed to Korea's PC bang (internet cafe) culture. At its peak, millions played simultaneously. The game proved that a well-localized, culturally-tuned adaptation of a classic mechanic could outperform the original in a specific market — a lesson the Korean games industry has applied repeatedly since.</p>
+
+    <h2>AI Archaeology</h2>
+    <h3>AI Era 5 — Deep Learning</h3>
+    <p>Balloon bombing requires planning multi-step traps — predicting opponent movement and cutting off escape routes. Each balloon placement reshapes the navigation graph, making this a dynamic constraint satisfaction problem. AI agents must balance aggression (trapping opponents) with self-preservation (not boxing themselves in). Korea's decade of competitive BnB play generated enormous datasets of human strategic decision-making in grid-based environments.</p>
+
+    <h2>Classification</h2>
+    <p><span class="tag series">Series: MAZ (Maze)</span> <span class="tag">Grid-based</span> <span class="tag">Bombing</span> <span class="tag">Power-ups</span> <span class="tag">Trap-setting</span> <span class="tag">Korean</span></p>
+
+    <h2>Prototype Notes</h2>
+    <p>13x11 grid with destructible soft blocks and indestructible pillars in an alternating pattern. Water balloons burst in cross patterns after a 2-second fuse. Blast hits trap players in bubbles — mash Space to escape or be eliminated. Four power-up types hidden in soft blocks. Three AI opponents with pathfinding that avoids active balloon blast zones. The kick power-up adds a strategic dimension — push balloons down corridors to reach distant opponents.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+var C = document.getElementById('c'), X = C.getContext('2d');
+C.width = 800; C.height = 600;
+
+var infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// Resize handler
+function resize() {
+  var s = Math.min(innerWidth / 800, innerHeight / 600);
+  C.style.width = (800 * s) + 'px';
+  C.style.height = (600 * s) + 'px';
+}
+resize();
+addEventListener('resize', resize);
+
+// HUD text helper
+function hudText(text, x, y, size, color, align) {
+  X.font = size + 'px monospace';
+  X.textAlign = align || 'left';
+  X.textBaseline = 'top';
+  X.fillStyle = '#000';
+  X.fillText(text, x + 1, y + 1);
+  X.fillStyle = color || '#fff';
+  X.fillText(text, x, y);
+}
+
+// Grid constants
+var COLS = 13, ROWS = 11;
+var TILE = 48;
+var OX = (800 - COLS * TILE) / 2; // offset x to center grid
+var OY = (600 - ROWS * TILE) / 2 + 10;
+
+// Cell types
+var EMPTY = 0, WALL = 1, SOFT = 2;
+
+// Power-up types
+var PW_RANGE = 1, PW_BALLOON = 2, PW_SPEED = 3, PW_KICK = 4;
+
+// Colors
+var COL_BG = '#2a6e3f';
+var COL_WALL = '#556b55';
+var COL_SOFT = '#c4a35a';
+var COL_SOFT_DARK = '#a08040';
+var COL_FLOOR = '#5da06a';
+var COL_PLAYER = '#4488ff';
+var COL_AI = ['#ff4444', '#ff9900', '#cc44cc'];
+var COL_BALLOON = '#66bbff';
+var COL_BURST = '#aaddff';
+var COL_BUBBLE = 'rgba(100,200,255,0.5)';
+
+// Game state
+var grid, balloons, bursts, powerups, players, state, roundTimer;
+var FUSE = 120; // 2 seconds at 60fps
+var BURST_DUR = 30;
+var BUBBLE_HP = 90; // frames to escape bubble
+var BUBBLE_MASH = 12; // mashes needed to escape
+
+// Spawn positions (grid coords)
+var SPAWNS = [
+  {c: 1, r: 1},
+  {c: COLS - 2, r: 1},
+  {c: 1, r: ROWS - 2},
+  {c: COLS - 2, r: ROWS - 2}
+];
+
+function initGrid() {
+  grid = [];
+  for (var r = 0; r < ROWS; r++) {
+    grid[r] = [];
+    for (var c = 0; c < COLS; c++) {
+      if (r === 0 || r === ROWS - 1 || c === 0 || c === COLS - 1) {
+        grid[r][c] = WALL;
+      } else if (r % 2 === 0 && c % 2 === 0) {
+        grid[r][c] = WALL; // pillars
+      } else {
+        grid[r][c] = SOFT;
+      }
+    }
+  }
+  // Clear spawn corners
+  for (var i = 0; i < SPAWNS.length; i++) {
+    var s = SPAWNS[i];
+    grid[s.r][s.c] = EMPTY;
+    if (s.c + 1 < COLS - 1) grid[s.r][s.c + 1] = EMPTY;
+    if (s.c - 1 > 0) grid[s.r][s.c - 1] = EMPTY;
+    if (s.r + 1 < ROWS - 1) grid[s.r + 1][s.c] = EMPTY;
+    if (s.r - 1 > 0) grid[s.r - 1][s.c] = EMPTY;
+  }
+}
+
+function initGame() {
+  initGrid();
+  balloons = [];
+  bursts = [];
+  powerups = [];
+  players = [];
+  state = 'play'; // play, win, lose
+  roundTimer = 0;
+
+  // Player
+  players.push({
+    c: SPAWNS[0].c, r: SPAWNS[0].r,
+    x: SPAWNS[0].c * TILE + TILE / 2,
+    y: SPAWNS[0].r * TILE + TILE / 2,
+    range: 2, maxBalloons: 1, speed: 2.2, kick: false,
+    alive: true, trapped: false, trapTimer: 0, mashes: 0,
+    ai: false, color: COL_PLAYER, dir: 0,
+    moveTimer: 0
+  });
+
+  // AI opponents
+  for (var i = 0; i < 3; i++) {
+    players.push({
+      c: SPAWNS[i + 1].c, r: SPAWNS[i + 1].r,
+      x: SPAWNS[i + 1].c * TILE + TILE / 2,
+      y: SPAWNS[i + 1].r * TILE + TILE / 2,
+      range: 2, maxBalloons: 1, speed: 1.8, kick: false,
+      alive: true, trapped: false, trapTimer: 0, mashes: 0,
+      ai: true, color: COL_AI[i], dir: 0,
+      aiTimer: 0, aiDir: -1, aiDropTimer: 0,
+      moveTimer: 0
+    });
+  }
+}
+
+// Input
+var keys = {};
+addEventListener('keydown', function(e) {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+  keys[e.key] = true;
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].indexOf(e.key) >= 0) e.preventDefault();
+});
+addEventListener('keyup', function(e) { keys[e.key] = false; });
+
+function cellAt(px, py) {
+  var c = Math.floor(px / TILE);
+  var r = Math.floor(py / TILE);
+  return { c: c, r: r };
+}
+
+function canMove(px, py, w) {
+  var half = w || 18;
+  // Check all 4 corners
+  var pts = [
+    {x: px - half, y: py - half},
+    {x: px + half, y: py - half},
+    {x: px - half, y: py + half},
+    {x: px + half, y: py + half}
+  ];
+  for (var i = 0; i < pts.length; i++) {
+    var cc = Math.floor(pts[i].x / TILE);
+    var rr = Math.floor(pts[i].y / TILE);
+    if (cc < 0 || cc >= COLS || rr < 0 || rr >= ROWS) return false;
+    if (grid[rr][cc] === WALL || grid[rr][cc] === SOFT) return false;
+    // Check balloons blocking
+    for (var b = 0; b < balloons.length; b++) {
+      if (balloons[b].c === cc && balloons[b].r === rr) {
+        // Allow if player is ON the balloon (just placed it)
+        var pc = cellAt(px, py);
+        if (pc.c !== cc || pc.r !== rr) return false;
+      }
+    }
+  }
+  return true;
+}
+
+function countPlayerBalloons(pi) {
+  var count = 0;
+  for (var i = 0; i < balloons.length; i++) {
+    if (balloons[i].owner === pi) count++;
+  }
+  return count;
+}
+
+function dropBalloon(pi) {
+  var p = players[pi];
+  var gc = Math.round((p.x - TILE / 2) / TILE);
+  var gr = Math.round((p.y - TILE / 2) / TILE);
+  if (gc < 0) gc = 0; if (gc >= COLS) gc = COLS - 1;
+  if (gr < 0) gr = 0; if (gr >= ROWS) gr = ROWS - 1;
+  if (countPlayerBalloons(pi) >= p.maxBalloons) return;
+  // Check no balloon already here
+  for (var i = 0; i < balloons.length; i++) {
+    if (balloons[i].c === gc && balloons[i].r === gr) return;
+  }
+  if (grid[gr][gc] !== EMPTY) return;
+  balloons.push({c: gc, r: gr, timer: FUSE, owner: pi, range: p.range, kicked: false, kdir: -1});
+}
+
+function explodeBalloon(idx) {
+  var b = balloons[idx];
+  var dirs = [{dc: 0, dr: -1}, {dc: 0, dr: 1}, {dc: -1, dr: 0}, {dc: 1, dr: 0}];
+  // Center burst
+  bursts.push({c: b.c, r: b.r, timer: BURST_DUR});
+
+  for (var d = 0; d < dirs.length; d++) {
+    for (var dist = 1; dist <= b.range; dist++) {
+      var nc = b.c + dirs[d].dc * dist;
+      var nr = b.r + dirs[d].dr * dist;
+      if (nc < 0 || nc >= COLS || nr < 0 || nr >= ROWS) break;
+      if (grid[nr][nc] === WALL) break;
+      if (grid[nr][nc] === SOFT) {
+        // Destroy block, maybe spawn power-up
+        grid[nr][nc] = EMPTY;
+        bursts.push({c: nc, r: nr, timer: BURST_DUR});
+        if (Math.random() < 0.35) {
+          var types = [PW_RANGE, PW_BALLOON, PW_SPEED, PW_KICK];
+          var weights = [0.3, 0.3, 0.25, 0.15];
+          var roll = Math.random(), cum = 0, pt = PW_RANGE;
+          for (var w = 0; w < weights.length; w++) {
+            cum += weights[w];
+            if (roll < cum) { pt = types[w]; break; }
+          }
+          powerups.push({c: nc, r: nr, type: pt});
+        }
+        break; // stop at soft block
+      }
+      bursts.push({c: nc, r: nr, timer: BURST_DUR});
+      // Chain reaction — trigger other balloons
+      for (var bi = 0; bi < balloons.length; bi++) {
+        if (bi !== idx && balloons[bi].c === nc && balloons[bi].r === nr) {
+          balloons[bi].timer = 1; // explode next frame
+        }
+      }
+    }
+  }
+  balloons.splice(idx, 1);
+}
+
+function isInBurst(gc, gr) {
+  for (var i = 0; i < bursts.length; i++) {
+    if (bursts[i].c === gc && bursts[i].r === gr) return true;
+  }
+  return false;
+}
+
+function isDangerous(gc, gr) {
+  // Check if cell is in burst or has an active balloon that could reach it
+  if (isInBurst(gc, gr)) return true;
+  for (var i = 0; i < balloons.length; i++) {
+    var b = balloons[i];
+    if (b.c === gc && b.r === gr) return true;
+    // Check if in blast range
+    if (b.c === gc) {
+      var dist = Math.abs(b.r - gr);
+      if (dist <= b.range) {
+        var blocked = false;
+        var minR = Math.min(b.r, gr), maxR = Math.max(b.r, gr);
+        for (var rr = minR; rr <= maxR; rr++) {
+          if (grid[rr][gc] === WALL || grid[rr][gc] === SOFT) { blocked = true; break; }
+        }
+        if (!blocked) return true;
+      }
+    }
+    if (b.r === gr) {
+      var dist2 = Math.abs(b.c - gc);
+      if (dist2 <= b.range) {
+        var blocked2 = false;
+        var minC = Math.min(b.c, gc), maxC = Math.max(b.c, gc);
+        for (var cc = minC; cc <= maxC; cc++) {
+          if (grid[gr][cc] === WALL || grid[gr][cc] === SOFT) { blocked2 = true; break; }
+        }
+        if (!blocked2) return true;
+      }
+    }
+  }
+  return false;
+}
+
+// AI logic
+function aiUpdate(pi) {
+  var p = players[pi];
+  if (!p.alive || p.trapped) return;
+
+  p.aiTimer--;
+  if (p.aiTimer > 0 && p.aiDir >= 0) {
+    aiMove(pi, p.aiDir);
+    return;
+  }
+
+  var gc = Math.round((p.x - TILE / 2) / TILE);
+  var gr = Math.round((p.y - TILE / 2) / TILE);
+
+  // If in danger, flee
+  if (isDangerous(gc, gr)) {
+    var safeDirs = [];
+    var dirs = [{dc: 0, dr: -1}, {dc: 0, dr: 1}, {dc: -1, dr: 0}, {dc: 1, dr: 0}];
+    for (var d = 0; d < dirs.length; d++) {
+      var nc = gc + dirs[d].dc, nr = gr + dirs[d].dr;
+      if (nc >= 0 && nc < COLS && nr >= 0 && nr < ROWS &&
+          grid[nr][nc] === EMPTY && !isDangerous(nc, nr)) {
+        // Also check no balloon blocks
+        var bBlocked = false;
+        for (var bi = 0; bi < balloons.length; bi++) {
+          if (balloons[bi].c === nc && balloons[bi].r === nr) { bBlocked = true; break; }
+        }
+        if (!bBlocked) safeDirs.push(d);
+      }
+    }
+    if (safeDirs.length > 0) {
+      p.aiDir = safeDirs[Math.floor(Math.random() * safeDirs.length)];
+      p.aiTimer = 15 + Math.floor(Math.random() * 10);
+      aiMove(pi, p.aiDir);
+      return;
+    }
+  }
+
+  // Collect nearby power-ups
+  for (var pw = 0; pw < powerups.length; pw++) {
+    var dx = powerups[pw].c - gc, dy = powerups[pw].r - gr;
+    if (Math.abs(dx) + Math.abs(dy) <= 3) {
+      if (dx !== 0) p.aiDir = dx > 0 ? 3 : 2;
+      else p.aiDir = dy > 0 ? 1 : 0;
+      p.aiTimer = 10;
+      aiMove(pi, p.aiDir);
+      return;
+    }
+  }
+
+  // Drop balloon near opponents
+  p.aiDropTimer--;
+  if (p.aiDropTimer <= 0) {
+    // Check if any player is nearby
+    for (var op = 0; op < players.length; op++) {
+      if (op === pi || !players[op].alive) continue;
+      var opc = Math.round((players[op].x - TILE / 2) / TILE);
+      var opr = Math.round((players[op].y - TILE / 2) / TILE);
+      if ((opc === gc && Math.abs(opr - gr) <= p.range + 1) ||
+          (opr === gr && Math.abs(opc - gc) <= p.range + 1)) {
+        if (!isDangerous(gc, gr)) {
+          dropBalloon(pi);
+          p.aiDropTimer = 60 + Math.floor(Math.random() * 60);
+          // Flee after dropping
+          var fleeDirs = [];
+          var dirs2 = [{dc: 0, dr: -1}, {dc: 0, dr: 1}, {dc: -1, dr: 0}, {dc: 1, dr: 0}];
+          for (var d2 = 0; d2 < dirs2.length; d2++) {
+            var nc2 = gc + dirs2[d2].dc, nr2 = gr + dirs2[d2].dr;
+            if (nc2 >= 0 && nc2 < COLS && nr2 >= 0 && nr2 < ROWS && grid[nr2][nc2] === EMPTY) {
+              fleeDirs.push(d2);
+            }
+          }
+          if (fleeDirs.length > 0) {
+            p.aiDir = fleeDirs[Math.floor(Math.random() * fleeDirs.length)];
+            p.aiTimer = 20;
+          }
+          aiMove(pi, p.aiDir);
+          return;
+        }
+      }
+    }
+    // Drop near soft blocks sometimes
+    var dirs3 = [{dc: 0, dr: -1}, {dc: 0, dr: 1}, {dc: -1, dr: 0}, {dc: 1, dr: 0}];
+    for (var d3 = 0; d3 < dirs3.length; d3++) {
+      var nc3 = gc + dirs3[d3].dc, nr3 = gr + dirs3[d3].dr;
+      if (nc3 >= 0 && nc3 < COLS && nr3 >= 0 && nr3 < ROWS && grid[nr3][nc3] === SOFT) {
+        if (Math.random() < 0.3 && !isDangerous(gc, gr)) {
+          dropBalloon(pi);
+          p.aiDropTimer = 90 + Math.floor(Math.random() * 60);
+          // Move away from the balloon
+          var away = (d3 + 2) % 4; // opposite direction
+          p.aiDir = away;
+          p.aiTimer = 20;
+          aiMove(pi, p.aiDir);
+          return;
+        }
+      }
+    }
+    p.aiDropTimer = 30;
+  }
+
+  // Random movement
+  if (Math.random() < 0.15) {
+    p.aiDir = Math.floor(Math.random() * 4);
+    p.aiTimer = 20 + Math.floor(Math.random() * 40);
+  }
+  if (p.aiDir >= 0) aiMove(pi, p.aiDir);
+}
+
+function aiMove(pi, dir) {
+  var p = players[pi];
+  var dx = 0, dy = 0;
+  if (dir === 0) dy = -p.speed;
+  else if (dir === 1) dy = p.speed;
+  else if (dir === 2) dx = -p.speed;
+  else if (dir === 3) dx = p.speed;
+
+  var nx = p.x + dx, ny = p.y + dy;
+  if (canMove(nx, ny)) {
+    p.x = nx; p.y = ny;
+    p.dir = dir;
+  } else {
+    p.aiDir = -1;
+    p.aiTimer = 0;
+  }
+  p.c = Math.round((p.x - TILE / 2) / TILE);
+  p.r = Math.round((p.y - TILE / 2) / TILE);
+}
+
+function movePlayer(pi) {
+  var p = players[pi];
+  if (!p.alive || p.trapped) return;
+  var dx = 0, dy = 0;
+  if (keys['ArrowUp']) { dy = -p.speed; p.dir = 0; }
+  else if (keys['ArrowDown']) { dy = p.speed; p.dir = 1; }
+  if (keys['ArrowLeft']) { dx = -p.speed; p.dir = 2; }
+  else if (keys['ArrowRight']) { dx = p.speed; p.dir = 3; }
+
+  // Move x and y separately for wall sliding
+  if (dx !== 0) {
+    var nx = p.x + dx;
+    if (canMove(nx, p.y)) p.x = nx;
+  }
+  if (dy !== 0) {
+    var ny = p.y + dy;
+    if (canMove(p.x, ny)) p.y = ny;
+  }
+  p.c = Math.round((p.x - TILE / 2) / TILE);
+  p.r = Math.round((p.y - TILE / 2) / TILE);
+}
+
+function update() {
+  if (infoOpen) return;
+
+  if (keys['r'] || keys['R']) {
+    initGame();
+    keys['r'] = false; keys['R'] = false;
+    return;
+  }
+
+  if (state !== 'play') return;
+  roundTimer++;
+
+  // Player movement
+  movePlayer(0);
+
+  // Player drop balloon
+  if (keys[' ']) {
+    var p0 = players[0];
+    if (p0.alive && p0.trapped) {
+      p0.mashes++;
+      if (p0.mashes >= BUBBLE_MASH) {
+        p0.trapped = false;
+        p0.trapTimer = 0;
+        p0.mashes = 0;
+      }
+    } else if (p0.alive) {
+      dropBalloon(0);
+    }
+    keys[' '] = false;
+  }
+
+  // Kick balloons
+  if (players[0].kick && players[0].alive && !players[0].trapped) {
+    var p = players[0];
+    var gc = Math.round((p.x - TILE / 2) / TILE);
+    var gr = Math.round((p.y - TILE / 2) / TILE);
+    var dirs = [{dc: 0, dr: -1}, {dc: 0, dr: 1}, {dc: -1, dr: 0}, {dc: 1, dr: 0}];
+    if (p.dir >= 0 && p.dir < 4) {
+      var fc = gc + dirs[p.dir].dc, fr = gr + dirs[p.dir].dr;
+      for (var bi = 0; bi < balloons.length; bi++) {
+        if (balloons[bi].c === fc && balloons[bi].r === fr && !balloons[bi].kicked) {
+          if (keys['ArrowUp'] || keys['ArrowDown'] || keys['ArrowLeft'] || keys['ArrowRight']) {
+            balloons[bi].kicked = true;
+            balloons[bi].kdir = p.dir;
+          }
+        }
+      }
+    }
+  }
+
+  // AI updates
+  for (var ai = 1; ai < players.length; ai++) {
+    if (players[ai].alive && !players[ai].trapped) {
+      aiUpdate(ai);
+    }
+    // AI trapped — auto-mash
+    if (players[ai].trapped && players[ai].alive) {
+      if (Math.random() < 0.08) players[ai].mashes++;
+      if (players[ai].mashes >= BUBBLE_MASH + 4) {
+        players[ai].trapped = false;
+        players[ai].trapTimer = 0;
+        players[ai].mashes = 0;
+      }
+    }
+  }
+
+  // Update balloons
+  for (var i = balloons.length - 1; i >= 0; i--) {
+    var b = balloons[i];
+    // Kicked balloon movement
+    if (b.kicked) {
+      var dirs2 = [{dc: 0, dr: -1}, {dc: 0, dr: 1}, {dc: -1, dr: 0}, {dc: 1, dr: 0}];
+      var nc = b.c + dirs2[b.kdir].dc;
+      var nr = b.r + dirs2[b.kdir].dr;
+      if (nc >= 0 && nc < COLS && nr >= 0 && nr < ROWS && grid[nr][nc] === EMPTY) {
+        var bBlocked = false;
+        for (var bj = 0; bj < balloons.length; bj++) {
+          if (bj !== i && balloons[bj].c === nc && balloons[bj].r === nr) { bBlocked = true; break; }
+        }
+        if (!bBlocked) { b.c = nc; b.r = nr; }
+        else { b.kicked = false; }
+      } else {
+        b.kicked = false;
+      }
+    }
+
+    b.timer--;
+    if (b.timer <= 0) {
+      explodeBalloon(i);
+    }
+  }
+
+  // Update bursts
+  for (var j = bursts.length - 1; j >= 0; j--) {
+    bursts[j].timer--;
+    if (bursts[j].timer <= 0) bursts.splice(j, 1);
+  }
+
+  // Check burst hits on players
+  for (var pi = 0; pi < players.length; pi++) {
+    var pp = players[pi];
+    if (!pp.alive) continue;
+    var pgc = Math.round((pp.x - TILE / 2) / TILE);
+    var pgr = Math.round((pp.y - TILE / 2) / TILE);
+    if (isInBurst(pgc, pgr)) {
+      if (!pp.trapped) {
+        pp.trapped = true;
+        pp.trapTimer = BUBBLE_HP;
+        pp.mashes = 0;
+      }
+    }
+  }
+
+  // Destroy powerups hit by bursts
+  for (var pw = powerups.length - 1; pw >= 0; pw--) {
+    if (isInBurst(powerups[pw].c, powerups[pw].r)) {
+      powerups.splice(pw, 1);
+    }
+  }
+
+  // Update trapped players
+  for (var ti = 0; ti < players.length; ti++) {
+    var tp = players[ti];
+    if (tp.trapped && tp.alive) {
+      tp.trapTimer--;
+      if (tp.trapTimer <= 0) {
+        tp.alive = false;
+      }
+      // Getting hit again while trapped = instant eliminate
+      if (isInBurst(Math.round((tp.x - TILE / 2) / TILE), Math.round((tp.y - TILE / 2) / TILE)) && tp.trapTimer < BUBBLE_HP - 5) {
+        tp.alive = false;
+      }
+    }
+  }
+
+  // Collect power-ups
+  for (var ci = 0; ci < players.length; ci++) {
+    var cp = players[ci];
+    if (!cp.alive || cp.trapped) continue;
+    var cgc = Math.round((cp.x - TILE / 2) / TILE);
+    var cgr = Math.round((cp.y - TILE / 2) / TILE);
+    for (var pwi = powerups.length - 1; pwi >= 0; pwi--) {
+      if (powerups[pwi].c === cgc && powerups[pwi].r === cgr) {
+        var pwt = powerups[pwi].type;
+        if (pwt === PW_RANGE) cp.range = Math.min(cp.range + 1, 7);
+        else if (pwt === PW_BALLOON) cp.maxBalloons = Math.min(cp.maxBalloons + 1, 5);
+        else if (pwt === PW_SPEED) cp.speed = Math.min(cp.speed + 0.3, 4.0);
+        else if (pwt === PW_KICK) cp.kick = true;
+        powerups.splice(pwi, 1);
+      }
+    }
+  }
+
+  // Check win/lose
+  if (!players[0].alive) {
+    state = 'lose';
+  } else {
+    var aliveAI = 0;
+    for (var wi = 1; wi < players.length; wi++) {
+      if (players[wi].alive) aliveAI++;
+    }
+    if (aliveAI === 0) state = 'win';
+  }
+}
+
+function drawTile(c, r, color, darker) {
+  var x = OX + c * TILE, y = OY + r * TILE;
+  X.fillStyle = color;
+  X.fillRect(x + 1, y + 1, TILE - 2, TILE - 2);
+  if (darker) {
+    X.fillStyle = darker;
+    X.fillRect(x + 4, y + 4, TILE - 8, TILE - 8);
+  }
+}
+
+function drawPlayer(p, idx) {
+  if (!p.alive) return;
+  var sx = OX + p.x, sy = OY + p.y;
+
+  if (p.trapped) {
+    // Draw bubble
+    X.beginPath();
+    X.arc(sx, sy, 20, 0, Math.PI * 2);
+    X.fillStyle = COL_BUBBLE;
+    X.fill();
+    X.strokeStyle = '#88ccff';
+    X.lineWidth = 2;
+    X.stroke();
+    // Trapped player inside
+    X.fillStyle = p.color;
+    X.globalAlpha = 0.6;
+    X.beginPath();
+    X.arc(sx, sy, 14, 0, Math.PI * 2);
+    X.fill();
+    X.globalAlpha = 1;
+    // Escape bar
+    if (idx === 0) {
+      var pct = p.mashes / BUBBLE_MASH;
+      X.fillStyle = '#333';
+      X.fillRect(sx - 16, sy - 26, 32, 5);
+      X.fillStyle = '#0f0';
+      X.fillRect(sx - 16, sy - 26, 32 * pct, 5);
+    }
+    return;
+  }
+
+  // Body
+  X.fillStyle = p.color;
+  X.beginPath();
+  X.arc(sx, sy, 16, 0, Math.PI * 2);
+  X.fill();
+
+  // Eyes direction
+  var ex = 0, ey = 0;
+  if (p.dir === 0) ey = -3;
+  else if (p.dir === 1) ey = 3;
+  else if (p.dir === 2) ex = -3;
+  else if (p.dir === 3) ex = 3;
+  X.fillStyle = '#fff';
+  X.beginPath();
+  X.arc(sx - 5 + ex, sy - 3 + ey, 4, 0, Math.PI * 2);
+  X.arc(sx + 5 + ex, sy - 3 + ey, 4, 0, Math.PI * 2);
+  X.fill();
+  X.fillStyle = '#000';
+  X.beginPath();
+  X.arc(sx - 4 + ex, sy - 3 + ey, 2, 0, Math.PI * 2);
+  X.arc(sx + 6 + ex, sy - 3 + ey, 2, 0, Math.PI * 2);
+  X.fill();
+
+  // Label for player
+  if (idx === 0) {
+    hudText('P1', sx - 8, sy + 16, 10, '#fff');
+  }
+}
+
+function drawBalloon(b) {
+  var sx = OX + b.c * TILE + TILE / 2;
+  var sy = OY + b.r * TILE + TILE / 2;
+  var pulse = 1 + Math.sin(b.timer * 0.15) * 0.1;
+  var r = 16 * pulse;
+
+  // Water balloon shape
+  X.fillStyle = COL_BALLOON;
+  X.beginPath();
+  X.arc(sx, sy + 2, r, 0, Math.PI * 2);
+  X.fill();
+
+  // Knot at top
+  X.fillStyle = '#4499dd';
+  X.beginPath();
+  X.arc(sx, sy - r + 2, 4, 0, Math.PI * 2);
+  X.fill();
+
+  // Shine
+  X.fillStyle = 'rgba(255,255,255,0.4)';
+  X.beginPath();
+  X.arc(sx - 4, sy - 2, 5, 0, Math.PI * 2);
+  X.fill();
+
+  // Timer indicator — flashes when about to burst
+  if (b.timer < 40) {
+    X.globalAlpha = (b.timer % 8 < 4) ? 0.8 : 0.2;
+    X.fillStyle = '#ff4444';
+    X.beginPath();
+    X.arc(sx, sy, r + 3, 0, Math.PI * 2);
+    X.fill();
+    X.globalAlpha = 1;
+  }
+}
+
+function drawBurst(b) {
+  var sx = OX + b.c * TILE, sy = OY + b.r * TILE;
+  var alpha = b.timer / BURST_DUR;
+  X.globalAlpha = alpha * 0.8;
+  X.fillStyle = COL_BURST;
+  X.fillRect(sx + 2, sy + 2, TILE - 4, TILE - 4);
+  // Water splash effect
+  X.fillStyle = '#aaeeff';
+  var splash = (1 - alpha) * 8;
+  X.fillRect(sx + 6 + splash, sy + 6 + splash, TILE - 12 - splash * 2, TILE - 12 - splash * 2);
+  X.globalAlpha = 1;
+}
+
+function drawPowerup(pw) {
+  var sx = OX + pw.c * TILE + TILE / 2;
+  var sy = OY + pw.r * TILE + TILE / 2;
+  var bob = Math.sin(roundTimer * 0.08 + pw.c + pw.r) * 3;
+
+  X.fillStyle = '#222';
+  X.beginPath();
+  X.arc(sx, sy + bob, 12, 0, Math.PI * 2);
+  X.fill();
+
+  var icon = '', color = '#fff';
+  if (pw.type === PW_RANGE) { icon = 'R'; color = '#ff6644'; }
+  else if (pw.type === PW_BALLOON) { icon = 'B'; color = '#44aaff'; }
+  else if (pw.type === PW_SPEED) { icon = 'S'; color = '#44ff44'; }
+  else if (pw.type === PW_KICK) { icon = 'K'; color = '#ffcc00'; }
+
+  X.font = 'bold 14px monospace';
+  X.textAlign = 'center';
+  X.textBaseline = 'middle';
+  X.fillStyle = color;
+  X.fillText(icon, sx, sy + bob);
+}
+
+function draw() {
+  // Background
+  X.fillStyle = '#1a1a2e';
+  X.fillRect(0, 0, 800, 600);
+
+  // Grid background
+  X.fillStyle = COL_FLOOR;
+  X.fillRect(OX, OY, COLS * TILE, ROWS * TILE);
+
+  // Grid cells
+  for (var r = 0; r < ROWS; r++) {
+    for (var c = 0; c < COLS; c++) {
+      if (grid[r][c] === WALL) {
+        drawTile(c, r, COL_WALL, '#3d4f3d');
+      } else if (grid[r][c] === SOFT) {
+        drawTile(c, r, COL_SOFT, COL_SOFT_DARK);
+      } else {
+        // Floor tile pattern
+        var shade = ((r + c) % 2 === 0) ? COL_FLOOR : '#52956a';
+        X.fillStyle = shade;
+        X.fillRect(OX + c * TILE, OY + r * TILE, TILE, TILE);
+      }
+    }
+  }
+
+  // Power-ups
+  for (var pw = 0; pw < powerups.length; pw++) drawPowerup(powerups[pw]);
+
+  // Bursts
+  for (var b = 0; b < bursts.length; b++) drawBurst(bursts[b]);
+
+  // Balloons
+  for (var bl = 0; bl < balloons.length; bl++) drawBalloon(balloons[bl]);
+
+  // Players
+  for (var pi = 0; pi < players.length; pi++) drawPlayer(players[pi], pi);
+
+  // HUD
+  hudText('BOMB BATTLE', 10, 8, 14, '#7bf', 'left');
+  var p = players[0];
+  if (p.alive) {
+    hudText('Range:' + p.range + ' Balloons:' + p.maxBalloons +
+            (p.kick ? ' Kick' : ''), 10, 26, 11, '#aaa', 'left');
+  }
+
+  // Alive count
+  var alive = 0;
+  for (var ac = 0; ac < players.length; ac++) {
+    if (players[ac].alive) alive++;
+  }
+  hudText('Alive: ' + alive + '/4', 700, 8, 12, '#ccc', 'left');
+
+  hudText('[?] Info  [R] Restart', 400, 585, 10, '#555', 'center');
+
+  // Win/Lose overlay
+  if (state === 'win') {
+    X.fillStyle = 'rgba(0,0,0,0.5)';
+    X.fillRect(0, 0, 800, 600);
+    hudText('YOU WIN!', 400, 260, 40, '#4f4', 'center');
+    hudText('All opponents eliminated!', 400, 310, 16, '#aaa', 'center');
+    hudText('Press R to play again', 400, 350, 14, '#888', 'center');
+  } else if (state === 'lose') {
+    X.fillStyle = 'rgba(0,0,0,0.5)';
+    X.fillRect(0, 0, 800, 600);
+    hudText('GAME OVER', 400, 260, 40, '#f44', 'center');
+    hudText('You were eliminated!', 400, 310, 16, '#aaa', 'center');
+    hudText('Press R to play again', 400, 350, 14, '#888', 'center');
+  }
+}
+
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+initGame();
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

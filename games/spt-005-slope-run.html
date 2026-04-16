@@ -1,0 +1,886 @@
+<!--
+PROTOTYPE: slope-run
+SERIES: spt
+NUMBER: 005
+DATE: 2026-03-22
+MECHANIC: downhill freestyle skiing — dodge obstacles, perform jumps, outrun the yeti
+ANCESTRY: SkiFree (1991, Chris Pirih, Microsoft), Skiing (1980, Activision)
+CONTROLS: Left/Right — steer | Down — speed boost | Up — slow down | Space — jump | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 4 (Statistical Learning — procedural obstacle generation)
+AI-INSIGHT: SkiFree's infamous Abominable Snowman is a chase agent with a simple but effective catch-up algorithm — it always runs faster than the player, making escape feel impossible but creating a memorable emergent narrative. The yeti became a cultural touchstone for unexpected game AI behavior.
+NOTES: Downhill skiing. Dodge trees, rocks, other skiers. Jump off ramps.
+       The abominable snowman chases after you pass a certain distance.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPT-005 · SLOPE RUN</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SPT-005 · SLOPE RUN</h1>
+    <p><span class="tag series">SPT — Sports</span> <span class="tag">Prototype #005</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Ski downhill as far as you can. Dodge obstacles, hit ramps for jump points, and try to outrun the Abominable Snowman.</p>
+    <ul>
+      <li><kbd>&#8592;</kbd> <kbd>&#8594;</kbd> — Steer left/right</li>
+      <li><kbd>&#8595;</kbd> — Speed boost (tuck position)</li>
+      <li><kbd>&#8593;</kbd> — Slow down (snowplow)</li>
+      <li><kbd>Space</kbd> — Jump (small hop over obstacles)</li>
+      <li><kbd>F</kbd> — Fast mode (turbo escape from yeti)</li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Ramps:</strong> Hit the orange ramps to launch into the air. You are invulnerable while airborne and score style points.</li>
+      <li><strong>Moguls:</strong> Brown bumpy patches slow you down. Avoid them when the yeti is chasing.</li>
+      <li><strong>Ice patches:</strong> Blue-white patches give you a speed boost.</li>
+      <li><strong>The Yeti:</strong> After ~2000m, the Abominable Snowman appears. Use speed boost or F key to try to outrun it.</li>
+      <li><strong>Other skiers:</strong> They follow their own paths. Colliding with them is a crash.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Skiing (1980, Activision) &#8594; SkiFree (1991, Chris Pirih) &#8594; Alto's Adventure (2015)</p>
+    <p>SkiFree was created by Chris Pirih as a side project at Microsoft in 1991. Bundled with the Microsoft Entertainment Pack, it became one of the most played Windows games of the early 1990s. The game's simple premise — ski downhill forever — was elevated by one legendary design choice: the Abominable Snowman.</p>
+    <p>The yeti appears after approximately 2000 meters, running faster than the default ski speed. Most players never realized you could outrun it by pressing F for fast mode. This hidden mechanic and the yeti's shocking appearance created one of gaming's earliest viral moments, long before the internet made such things routine.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 4 — Statistical Learning (1990-2000)</p>
+    <p><strong>Contemporary AI:</strong> Neural networks were gaining traction. Procedural content generation was becoming formalized.</p>
+    <p><strong>Hidden Intelligence:</strong> The yeti's catch-up algorithm is deceptively simple — it always moves faster than the player's default speed, creating a deterministic pursuit that feels like intelligent hunting. The genius is in the tuning: it is faster than normal skiing but slower than turbo mode, creating a narrow escape window that most players never discover.</p>
+    <p><strong>The Convergence:</strong> The procedural obstacle placement anticipates modern endless runner design. Each run is unique but statistically consistent — trees and rocks spawn with controlled density, ensuring fair-feeling difficulty. This is hand-tuned procedural generation, a precursor to formal PCG research.</p>
+    <p><strong>If AI Had Designed This:</strong> An RL agent would learn the optimal obstacle density curve that maximizes play time before the yeti catch — balancing challenge progression with the dramatic tension of the chase sequence.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: SPT — Sports</h3>
+    <p>SkiFree is a downhill skiing game with arcade sensibilities. Infinite scrolling terrain, obstacle avoidance, and a chase mechanic blend sports simulation with endless runner design.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Downhill freestyle skiing with procedural obstacles and a pursuit agent.</strong> Continuous vertical scrolling. Speed control via tuck/snowplow. Ramp jumps for invulnerability and points. The yeti as an inevitable timer that transforms the game from leisure to survival.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Scrolling terrain — does the downhill motion feel smooth and natural?</li>
+      <li>Obstacle density — is the procedural placement fair and varied?</li>
+      <li>Speed control — does tuck/snowplow create meaningful decisions?</li>
+      <li>The Yeti — does the chase create genuine panic and excitement?</li>
+      <li>Ramp jumps — does airtime feel rewarding?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Procedural obstacle generation with distance-based difficulty scaling. The yeti uses a simple pursuit vector with speed advantage. Ramp jumps provide invulnerability frames and score bonuses.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+const keys = {};
+window.addEventListener('keydown', e => { if (!infoOpen) keys[e.code] = true; e.preventDefault(); });
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+// --- SEEDED RANDOM ---
+function seededRand(seed) {
+  let s = seed;
+  return function() {
+    s = (s * 16807 + 0) % 2147483647;
+    return (s - 1) / 2147483646;
+  };
+}
+
+// --- OBSTACLE TYPES ---
+const OBS_TREE_BIG = 0, OBS_TREE_SMALL = 1, OBS_ROCK = 2, OBS_SKIER = 3;
+const OBS_DOG = 4, OBS_SNOWBOARDER = 5, OBS_RAMP = 6, OBS_MOGUL = 7, OBS_ICE = 8;
+
+// --- STATE ---
+let player, obstacles, distance, score, speed, gameOver, frame;
+let yeti, yetiActive, yetiEating, yetiEatTimer;
+let airborne, airTimer, jumpScore;
+let crashed, crashTimer;
+let particles;
+let bestDist;
+
+function initGame() {
+  player = { x: W / 2, y: 160, angle: 0 };
+  obstacles = [];
+  distance = 0;
+  score = 0;
+  speed = 3;
+  gameOver = false;
+  frame = 0;
+  yeti = null;
+  yetiActive = false;
+  yetiEating = false;
+  yetiEatTimer = 0;
+  airborne = false;
+  airTimer = 0;
+  jumpScore = 0;
+  crashed = false;
+  crashTimer = 0;
+  particles = [];
+  bestDist = bestDist || 0;
+  // Pre-populate obstacles
+  for (let y = 0; y < H + 200; y += 40) {
+    spawnRow(y);
+  }
+}
+
+function spawnRow(screenY) {
+  const worldY = distance + screenY;
+  const rng = seededRand(Math.floor(worldY / 40) * 31 + 7);
+  // Density increases with distance
+  const densityBase = 0.3 + Math.min(distance / 8000, 0.4);
+  const count = rng() < densityBase ? (rng() < 0.3 ? 2 : 1) : 0;
+
+  for (let i = 0; i < count; i++) {
+    const x = 40 + rng() * (W - 80);
+    let type;
+    const roll = rng();
+    if (roll < 0.30) type = OBS_TREE_BIG;
+    else if (roll < 0.50) type = OBS_TREE_SMALL;
+    else if (roll < 0.65) type = OBS_ROCK;
+    else if (roll < 0.73) type = OBS_SKIER;
+    else if (roll < 0.78) type = OBS_DOG;
+    else if (roll < 0.83) type = OBS_SNOWBOARDER;
+    else if (roll < 0.90) type = OBS_RAMP;
+    else if (roll < 0.95) type = OBS_MOGUL;
+    else type = OBS_ICE;
+
+    obstacles.push({
+      x: x,
+      y: screenY,
+      type: type,
+      worldY: worldY,
+      hit: false,
+      // For moving obstacles
+      vx: type === OBS_SKIER ? (rng() - 0.5) * 1.5 : (type === OBS_DOG ? (rng() - 0.5) * 2 : (type === OBS_SNOWBOARDER ? (rng() - 0.5) * 1.2 : 0)),
+      vy: type === OBS_SKIER ? rng() * 0.5 : (type === OBS_DOG ? -rng() * 0.5 : (type === OBS_SNOWBOARDER ? rng() * 0.3 : 0))
+    });
+  }
+}
+
+initGame();
+
+function addParticle(x, y, color, count) {
+  for (let i = 0; i < count; i++) {
+    particles.push({
+      x: x, y: y,
+      vx: (Math.random() - 0.5) * 4,
+      vy: (Math.random() - 0.5) * 4 - 2,
+      life: 20 + Math.random() * 20,
+      color: color
+    });
+  }
+}
+
+function update() {
+  if (infoOpen) return;
+  if (gameOver) { if (keys['KeyR']) initGame(); return; }
+  frame++;
+
+  // Crash recovery
+  if (crashed) {
+    crashTimer--;
+    if (crashTimer <= 0) crashed = false;
+    // Still scroll slowly while crashed
+    const scrollAmt = 1;
+    distance += scrollAmt;
+    for (const o of obstacles) o.y -= scrollAmt;
+    obstacles = obstacles.filter(o => o.y > -100);
+    // Spawn new rows
+    if (frame % 3 === 0) spawnRow(H + 100 + Math.random() * 60);
+    return;
+  }
+
+  // Speed control
+  let targetSpeed = 3;
+  if (keys['ArrowDown']) targetSpeed = 6;
+  if (keys['ArrowUp']) targetSpeed = 1.5;
+  if (keys['KeyF']) targetSpeed = 8; // Fast mode to escape yeti
+  speed += (targetSpeed - speed) * 0.08;
+
+  // Steering
+  const steerSpeed = 3.5;
+  if (keys['ArrowLeft']) {
+    player.x -= steerSpeed;
+    player.angle = -0.4;
+  } else if (keys['ArrowRight']) {
+    player.x += steerSpeed;
+    player.angle = 0.4;
+  } else {
+    player.angle *= 0.8;
+  }
+  // Clamp player
+  if (player.x < 20) player.x = 20;
+  if (player.x > W - 20) player.x = W - 20;
+
+  // Jump
+  if (keys['Space'] && !airborne) {
+    airborne = true;
+    airTimer = 30;
+    jumpScore = 0;
+  }
+  if (airborne) {
+    airTimer--;
+    jumpScore++;
+    if (airTimer <= 0) {
+      airborne = false;
+      score += jumpScore * 2;
+      addParticle(player.x, player.y + 10, '#def', 5);
+    }
+  }
+
+  // Scroll world
+  const scrollAmt = speed;
+  distance += scrollAmt;
+
+  // Move obstacles
+  for (const o of obstacles) {
+    o.y -= scrollAmt;
+    // Moving obstacles
+    if (o.type === OBS_SKIER || o.type === OBS_DOG || o.type === OBS_SNOWBOARDER) {
+      o.x += o.vx;
+      o.y += o.vy;
+      if (o.x < 30 || o.x > W - 30) o.vx *= -1;
+    }
+  }
+
+  // Remove off-screen obstacles, spawn new ones
+  obstacles = obstacles.filter(o => o.y > -100);
+  if (frame % 2 === 0) spawnRow(H + 80 + Math.random() * 80);
+
+  // Collision detection (skip if airborne)
+  if (!airborne) {
+    for (const o of obstacles) {
+      if (o.hit) continue;
+      const dx = player.x - o.x;
+      const dy = player.y - o.y;
+      let hitR;
+      switch (o.type) {
+        case OBS_TREE_BIG: hitR = 16; break;
+        case OBS_TREE_SMALL: hitR = 10; break;
+        case OBS_ROCK: hitR = 12; break;
+        case OBS_SKIER: hitR = 12; break;
+        case OBS_DOG: hitR = 10; break;
+        case OBS_SNOWBOARDER: hitR = 12; break;
+        case OBS_RAMP: hitR = 18; break;
+        case OBS_MOGUL: hitR = 22; break;
+        case OBS_ICE: hitR = 22; break;
+        default: hitR = 10;
+      }
+      if (dx * dx + dy * dy < hitR * hitR) {
+        if (o.type === OBS_RAMP) {
+          // Launch!
+          airborne = true;
+          airTimer = 50;
+          jumpScore = 0;
+          o.hit = true;
+          addParticle(o.x, o.y, '#fa0', 8);
+        } else if (o.type === OBS_MOGUL) {
+          // Slow down
+          speed *= 0.6;
+          o.hit = true;
+          addParticle(o.x, o.y, '#a86', 4);
+        } else if (o.type === OBS_ICE) {
+          // Speed boost
+          speed = Math.min(speed + 2, 9);
+          o.hit = true;
+          addParticle(o.x, o.y, '#8ef', 4);
+        } else {
+          // Crash!
+          o.hit = true;
+          crashed = true;
+          crashTimer = 40;
+          speed = 0;
+          score = Math.max(0, score - 20);
+          addParticle(player.x, player.y, '#fff', 12);
+        }
+      }
+    }
+  }
+
+  // Score from distance
+  if (frame % 10 === 0) score += Math.floor(speed);
+
+  // --- YETI ---
+  if (distance > 2000 && !yetiActive && !yeti) {
+    yetiActive = true;
+    yeti = {
+      x: player.x + (Math.random() > 0.5 ? 300 : -300),
+      y: H + 100
+    };
+  }
+  if (yeti && !yetiEating) {
+    // Chase player — always slightly faster than normal speed
+    const ydx = player.x - yeti.x;
+    const ydy = player.y - yeti.y;
+    const ydist = Math.sqrt(ydx * ydx + ydy * ydy);
+    const yetiSpeed = 4.5; // faster than default 3, slower than turbo 8
+    if (ydist > 0) {
+      yeti.x += (ydx / ydist) * yetiSpeed;
+      yeti.y += (ydy / ydist) * yetiSpeed;
+    }
+
+    // Catch player
+    if (ydist < 20 && !airborne) {
+      yetiEating = true;
+      yetiEatTimer = 90;
+    }
+  }
+  if (yetiEating) {
+    yetiEatTimer--;
+    if (yetiEatTimer <= 0) {
+      if (distance > bestDist) bestDist = distance;
+      gameOver = true;
+    }
+  }
+
+  // Update particles
+  particles = particles.filter(p => {
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.1;
+    p.life--;
+    return p.life > 0;
+  });
+
+  // Best distance
+  if (distance > bestDist) bestDist = distance;
+}
+
+// --- DRAWING ---
+function drawTree(x, y, big) {
+  const s = big ? 1.2 : 0.7;
+  // Trunk
+  ctx.fillStyle = '#654';
+  ctx.fillRect(x - 2 * s, y - 2, 4 * s, 10 * s);
+  // Foliage layers
+  ctx.fillStyle = '#183';
+  ctx.beginPath();
+  ctx.moveTo(x, y - 24 * s);
+  ctx.lineTo(x - 12 * s, y - 4 * s);
+  ctx.lineTo(x + 12 * s, y - 4 * s);
+  ctx.fill();
+  ctx.fillStyle = '#1a5';
+  ctx.beginPath();
+  ctx.moveTo(x, y - 30 * s);
+  ctx.lineTo(x - 9 * s, y - 14 * s);
+  ctx.lineTo(x + 9 * s, y - 14 * s);
+  ctx.fill();
+  // Snow cap
+  ctx.fillStyle = '#eef';
+  ctx.beginPath();
+  ctx.moveTo(x, y - 30 * s);
+  ctx.lineTo(x - 5 * s, y - 22 * s);
+  ctx.lineTo(x + 5 * s, y - 22 * s);
+  ctx.fill();
+}
+
+function drawRock(x, y) {
+  ctx.fillStyle = '#667';
+  ctx.beginPath();
+  ctx.moveTo(x - 10, y);
+  ctx.lineTo(x - 6, y - 12);
+  ctx.lineTo(x + 4, y - 14);
+  ctx.lineTo(x + 12, y - 6);
+  ctx.lineTo(x + 10, y + 2);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#889';
+  ctx.beginPath();
+  ctx.moveTo(x - 4, y - 2);
+  ctx.lineTo(x - 2, y - 10);
+  ctx.lineTo(x + 6, y - 10);
+  ctx.lineTo(x + 8, y - 4);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawSkier(x, y) {
+  // Other skier NPC
+  ctx.fillStyle = '#e44';
+  ctx.fillRect(x - 3, y - 12, 6, 10);
+  // Head
+  ctx.fillStyle = '#fca';
+  ctx.beginPath(); ctx.arc(x, y - 15, 4, 0, Math.PI * 2); ctx.fill();
+  // Skis
+  ctx.strokeStyle = '#88f';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(x - 5, y); ctx.lineTo(x - 5, y + 8); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x + 5, y); ctx.lineTo(x + 5, y + 8); ctx.stroke();
+}
+
+function drawDog(x, y) {
+  ctx.fillStyle = '#a62';
+  ctx.fillRect(x - 8, y - 5, 16, 8);
+  // Head
+  ctx.fillRect(x + 6, y - 9, 6, 7);
+  // Legs
+  ctx.fillRect(x - 7, y + 3, 3, 5);
+  ctx.fillRect(x + 4, y + 3, 3, 5);
+  // Tail
+  ctx.strokeStyle = '#a62';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(x - 8, y - 4);
+  ctx.lineTo(x - 13, y - 9);
+  ctx.stroke();
+}
+
+function drawSnowboarder(x, y) {
+  ctx.fillStyle = '#4ae';
+  ctx.fillRect(x - 3, y - 12, 6, 10);
+  // Head
+  ctx.fillStyle = '#fca';
+  ctx.beginPath(); ctx.arc(x, y - 15, 4, 0, Math.PI * 2); ctx.fill();
+  // Board
+  ctx.fillStyle = '#f80';
+  ctx.fillRect(x - 8, y, 16, 3);
+}
+
+function drawRamp(x, y) {
+  ctx.fillStyle = '#f80';
+  ctx.beginPath();
+  ctx.moveTo(x - 16, y + 4);
+  ctx.lineTo(x - 12, y - 8);
+  ctx.lineTo(x + 12, y - 8);
+  ctx.lineTo(x + 16, y + 4);
+  ctx.closePath();
+  ctx.fill();
+  // Stripes
+  ctx.strokeStyle = '#fc0';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(x - 8, y + 2); ctx.lineTo(x - 5, y - 6); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x, y + 2); ctx.lineTo(x, y - 6); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x + 8, y + 2); ctx.lineTo(x + 5, y - 6); ctx.stroke();
+}
+
+function drawMogul(x, y) {
+  ctx.fillStyle = '#a86';
+  ctx.beginPath();
+  ctx.arc(x, y, 14, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#c9a';
+  ctx.beginPath();
+  ctx.arc(x - 2, y - 3, 6, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawIce(x, y) {
+  ctx.fillStyle = 'rgba(150,210,255,0.4)';
+  ctx.beginPath();
+  ctx.ellipse(x, y, 18, 10, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(200,240,255,0.6)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.ellipse(x, y, 18, 10, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  // Sparkle
+  if (frame % 20 < 10) {
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(x - 3, y - 1, 2, 2);
+    ctx.fillRect(x + 5, y + 2, 2, 2);
+  }
+}
+
+function drawPlayer(x, y) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(player.angle * 0.5);
+
+  // Shadow when airborne
+  if (airborne) {
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath();
+    ctx.ellipse(0, 12 + airTimer * 0.3, 8, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  const yOff = airborne ? -8 - Math.sin(airTimer * 0.15) * 12 : 0;
+
+  // Skis
+  ctx.strokeStyle = '#66f';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(-5, 4 + yOff); ctx.lineTo(-7, 12 + yOff); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(5, 4 + yOff); ctx.lineTo(7, 12 + yOff); ctx.stroke();
+
+  // Body
+  ctx.fillStyle = crashed ? '#f44' : '#2af';
+  ctx.fillRect(-4, -10 + yOff, 8, 12);
+
+  // Head
+  ctx.fillStyle = '#fca';
+  ctx.beginPath(); ctx.arc(0, -13 + yOff, 4, 0, Math.PI * 2); ctx.fill();
+
+  // Hat
+  ctx.fillStyle = '#e22';
+  ctx.fillRect(-4, -18 + yOff, 8, 4);
+
+  // Poles (when not airborne)
+  if (!airborne) {
+    ctx.strokeStyle = '#aaa';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(-4, -2 + yOff); ctx.lineTo(-12, 10 + yOff); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(4, -2 + yOff); ctx.lineTo(12, 10 + yOff); ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+function drawYeti(x, y) {
+  // Body
+  ctx.fillStyle = '#eee';
+  ctx.fillRect(x - 14, y - 20, 28, 30);
+  // Head
+  ctx.fillStyle = '#ddd';
+  ctx.beginPath(); ctx.arc(x, y - 26, 12, 0, Math.PI * 2); ctx.fill();
+  // Eyes (angry)
+  ctx.fillStyle = '#f00';
+  ctx.beginPath(); ctx.arc(x - 5, y - 28, 3, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x + 5, y - 28, 3, 0, Math.PI * 2); ctx.fill();
+  // Mouth
+  ctx.fillStyle = '#400';
+  ctx.fillRect(x - 6, y - 20, 12, 5);
+  // Teeth
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(x - 4, y - 20, 3, 3);
+  ctx.fillRect(x + 1, y - 20, 3, 3);
+  // Arms
+  ctx.fillStyle = '#eee';
+  ctx.fillRect(x - 22, y - 14, 10, 6);
+  ctx.fillRect(x + 12, y - 14, 10, 6);
+  // Claws
+  ctx.fillStyle = '#888';
+  ctx.fillRect(x - 24, y - 14, 3, 3);
+  ctx.fillRect(x - 24, y - 11, 3, 3);
+  ctx.fillRect(x + 21, y - 14, 3, 3);
+  ctx.fillRect(x + 21, y - 11, 3, 3);
+  // Legs
+  ctx.fillStyle = '#ddd';
+  ctx.fillRect(x - 10, y + 10, 8, 10);
+  ctx.fillRect(x + 2, y + 10, 8, 10);
+  // Feet
+  ctx.fillStyle = '#bbb';
+  ctx.fillRect(x - 12, y + 18, 12, 4);
+  ctx.fillRect(x, y + 18, 12, 4);
+
+  // Eating animation
+  if (yetiEating) {
+    const chomp = Math.floor(yetiEatTimer / 6) % 2;
+    // Larger mouth when chomping
+    ctx.fillStyle = '#600';
+    ctx.fillRect(x - 8, y - 22, 16, chomp ? 10 : 6);
+    ctx.fillStyle = '#fff';
+    if (chomp) {
+      ctx.fillRect(x - 6, y - 22, 3, 4);
+      ctx.fillRect(x + 3, y - 22, 3, 4);
+      ctx.fillRect(x - 3, y - 14, 3, 4);
+      ctx.fillRect(x + 1, y - 14, 3, 4);
+    }
+    // Skier bits flying
+    if (yetiEatTimer % 8 < 4) {
+      ctx.fillStyle = '#2af';
+      ctx.fillRect(x + 20, y - 30 + Math.random() * 10, 4, 4);
+      ctx.fillStyle = '#e22';
+      ctx.fillRect(x - 20, y - 25 + Math.random() * 10, 3, 3);
+    }
+  }
+}
+
+function drawSnowTrail() {
+  if (crashed || airborne) return;
+  // Small snow spray behind skier
+  ctx.fillStyle = 'rgba(220,230,255,0.5)';
+  for (let i = 0; i < 3; i++) {
+    const ox = (Math.random() - 0.5) * 10;
+    const oy = 10 + Math.random() * 6;
+    ctx.fillRect(player.x + ox, player.y + oy, 2, 2);
+  }
+}
+
+function draw() {
+  // Snow background
+  ctx.fillStyle = '#e8ecf0';
+  ctx.fillRect(0, 0, W, H);
+
+  // Subtle slope lines
+  ctx.strokeStyle = 'rgba(200,208,220,0.4)';
+  ctx.lineWidth = 1;
+  const lineOff = (distance * 0.5) % 60;
+  for (let y = -60 + lineOff; y < H + 60; y += 60) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(W, y + 20);
+    ctx.stroke();
+  }
+
+  // Draw obstacles (sorted by y for depth)
+  const sorted = obstacles.slice().sort((a, b) => a.y - b.y);
+  for (const o of sorted) {
+    if (o.y < -50 || o.y > H + 50) continue;
+    if (o.hit && o.type !== OBS_RAMP) continue;
+    switch (o.type) {
+      case OBS_TREE_BIG: drawTree(o.x, o.y, true); break;
+      case OBS_TREE_SMALL: drawTree(o.x, o.y, false); break;
+      case OBS_ROCK: drawRock(o.x, o.y); break;
+      case OBS_SKIER: drawSkier(o.x, o.y); break;
+      case OBS_DOG: drawDog(o.x, o.y); break;
+      case OBS_SNOWBOARDER: drawSnowboarder(o.x, o.y); break;
+      case OBS_RAMP: if (!o.hit) drawRamp(o.x, o.y); break;
+      case OBS_MOGUL: drawMogul(o.x, o.y); break;
+      case OBS_ICE: drawIce(o.x, o.y); break;
+    }
+  }
+
+  // Snow trail
+  drawSnowTrail();
+
+  // Player
+  drawPlayer(player.x, player.y);
+
+  // Crashed indicator
+  if (crashed) {
+    ctx.fillStyle = '#f44';
+    ctx.font = 'bold 20px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('CRASH!', player.x, player.y - 30);
+  }
+
+  // Airborne indicator
+  if (airborne) {
+    ctx.fillStyle = '#0af';
+    ctx.font = 'bold 16px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('JUMP! +' + (jumpScore * 2), player.x, player.y - 40);
+  }
+
+  // Yeti
+  if (yeti) {
+    drawYeti(yeti.x, yeti.y);
+  }
+
+  // Particles
+  for (const p of particles) {
+    ctx.globalAlpha = p.life / 30;
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x - 1, p.y - 1, 3, 3);
+  }
+  ctx.globalAlpha = 1;
+
+  // --- HUD ---
+  // Distance
+  const distM = Math.floor(distance / 10);
+  ctx.fillStyle = '#234';
+  ctx.font = '16px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('DIST: ' + distM + 'm', 10, 50);
+  // Score
+  ctx.fillText('SCORE: ' + score, 10, 70);
+  // Speed indicator
+  const speedLabel = speed > 6 ? 'TURBO' : (speed > 4 ? 'FAST' : (speed < 2 ? 'SLOW' : 'NORMAL'));
+  ctx.fillStyle = speed > 6 ? '#f44' : (speed > 4 ? '#fa0' : '#234');
+  ctx.fillText('SPEED: ' + speedLabel, 10, 90);
+
+  // Best distance
+  ctx.fillStyle = '#888';
+  ctx.textAlign = 'right';
+  ctx.fillText('BEST: ' + Math.floor(bestDist / 10) + 'm', W - 10, 50);
+
+  // Yeti warning
+  if (distance > 1600 && distance < 2000 && !yetiActive) {
+    ctx.fillStyle = '#f44';
+    ctx.font = 'bold 16px monospace';
+    ctx.textAlign = 'center';
+    const blink = Math.floor(frame / 15) % 2;
+    if (blink) ctx.fillText('THE YETI IS COMING...', W / 2, H - 30);
+  }
+
+  // Yeti eating overlay
+  if (yetiEating) {
+    ctx.fillStyle = 'rgba(255,0,0,' + (0.1 + Math.sin(yetiEatTimer * 0.3) * 0.05) + ')';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#f44';
+    ctx.font = 'bold 24px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('THE YETI GOT YOU!', W / 2, 80);
+  }
+
+  // Game over
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.font = 'bold 48px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#f55';
+    ctx.fillText('GAME OVER', W / 2, H / 2 - 40);
+    ctx.fillStyle = '#eee';
+    ctx.font = '18px monospace';
+    ctx.fillText('Distance: ' + Math.floor(distance / 10) + 'm   Score: ' + score, W / 2, H / 2 + 10);
+    ctx.fillText('Best: ' + Math.floor(bestDist / 10) + 'm', W / 2, H / 2 + 36);
+    ctx.fillStyle = '#aaa';
+    ctx.font = '16px monospace';
+    ctx.fillText('R to restart', W / 2, H / 2 + 70);
+  }
+
+  // Title badge
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(8, 8, 250, 28);
+  ctx.fillStyle = '#aaa';
+  ctx.font = '13px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('SPT-005 \u00B7 SKIFREE  [?]', 16, 26);
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: runner ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("runner");
+</script>
+</body>
+</html>

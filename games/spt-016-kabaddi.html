@@ -1,0 +1,843 @@
+<!--
+PROTOTYPE: kabaddi
+SERIES: spt
+NUMBER: 016
+DATE: 2026-03-24
+MECHANIC: raid and return — one raider enters enemy half, must tag opponents and return in one breath (timer); defenders try to tackle and hold the raider
+ANCESTRY: Kabaddi (~2000 BCE, Indian subcontinent), Pro Kabaddi League (2014, Star Sports)
+CONTROLS: Arrow keys — move | Space — tackle (defend mode) | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Expert Systems — rule-based pursuit/evasion, zone control)
+AI-INSIGHT: Kabaddi's raid mechanic is a natural pursuit-evasion problem. Defenders must coordinate zone coverage while the raider optimizes a path that maximizes tags under a strict time constraint — a variant of the travelling salesman problem with adversarial obstacles and a hard deadline.
+NOTES: Raid-and-return creates unique risk-reward tension unlike any Western sport.
+       Breath timer is the core constraint that makes every decision urgent.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPT-016 · KABADDI</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SPT-016 · KABADDI</h1>
+    <p><span class="tag series">SPT — Sports</span> <span class="tag">Prototype #016</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Kabaddi is a contact sport where a lone raider enters enemy territory, tags opponents, and must return before their breath runs out.</p>
+    <ul>
+      <li><kbd>&#8593;</kbd> <kbd>&#8595;</kbd> <kbd>&#8592;</kbd> <kbd>&#8594;</kbd> — Move your player</li>
+      <li><kbd>Space</kbd> — Tackle attempt (when defending)</li>
+      <li><kbd>R</kbd> — Restart match</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <p><strong>Raiding:</strong> Cross the center line into enemy territory. Tag opponents by touching them. Return to your half before the 10-second breath timer expires. Each tag scores 1 point. If the timer runs out or defenders surround you, you are out and the opponent scores.</p>
+    <p><strong>Defending:</strong> You control one defender (highlighted). Move to intercept the AI raider. Press Space near the raider to attempt a tackle. A successful tackle scores 1 point for your team.</p>
+
+    <h2>History</h2>
+    <p><em>Kabaddi</em> is one of the oldest sports in the world, with roots in the Indian subcontinent dating back roughly 4,000 years. The name derives from the Tamil word "kai-pidi" meaning "holding hands." Ancient forms were used as training for self-defense and group hunting.</p>
+    <p>The modern codified game emerged in the 1920s. It became a demonstration sport at the 1936 Berlin Olympics and was included in the Asian Games from 1990. The Pro Kabaddi League, launched in India in 2014, transformed it into a televised spectacle rivalling cricket in viewership.</p>
+    <p>The sport's genius is its asymmetry: one raider versus many defenders, constrained by the "cant" — the raider must chant "kabaddi, kabaddi" in one breath, creating a natural time limit. This single rule generates extraordinary tactical depth.</p>
+
+    <h2>AI Archaeology</h2>
+    <h3>Era 3 — Expert Systems</h3>
+    <p>Kabaddi's raid mechanic is a natural pursuit-evasion problem. Defenders must coordinate zone coverage while the raider optimizes a path that maximizes tags under a strict time constraint — a variant of the travelling salesman problem with adversarial obstacles and a hard deadline.</p>
+    <p>The raider's decision — how deep to go, how many to tag, when to retreat — maps to risk-reward optimization under uncertainty. Early expert systems could model this with rule-based state machines: "if raider is within X distance, converge; if near boundary, spread."</p>
+
+    <h3>Classification</h3>
+    <p><span class="tag">raid and return</span> <span class="tag">pursuit-evasion</span> <span class="tag">breath timer</span> <span class="tag">asymmetric play</span> <span class="tag">contact sport</span> <span class="tag">team tactics</span></p>
+
+    <h2>Prototype Notes</h2>
+    <ul>
+      <li>Top-down court view with center line dividing two halves</li>
+      <li>6v6 teams; alternate between raiding and defending each turn</li>
+      <li>Breath timer (10 seconds) creates the core tension of every raid</li>
+      <li>Tagged players flash and leave the court; they return next round</li>
+      <li>AI defenders use zone-based convergence when raider enters territory</li>
+      <li>AI raider uses opportunistic tag-and-retreat with risk awareness</li>
+    </ul>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+var canvas = document.getElementById('c');
+var ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+// ── Canvas Setup ──
+var W = 800, H = 600;
+canvas.width = W;
+canvas.height = H;
+function resize() {
+  var s = Math.min(innerWidth / W, innerHeight / H);
+  canvas.style.width = (W * s) + 'px';
+  canvas.style.height = (H * s) + 'px';
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ── Info Panel ──
+var infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// ── Constants ──
+var COURT_X = 50, COURT_Y = 60, COURT_W = 700, COURT_H = 480;
+var MID_X = COURT_X + COURT_W / 2;
+var PLAYER_R = 12;
+var TEAM_SIZE = 6;
+var BREATH_MAX = 10;
+var PLAYER_SPEED = 2.8;
+var AI_SPEED = 2.2;
+var RAIDER_AI_SPEED = 2.0;
+var TACKLE_RANGE = 30;
+var TAG_RANGE = 22;
+var SURROUND_DIST = 28;
+var SURROUND_COUNT = 3;
+
+// Colors
+var COL_LEFT = '#4488ff';
+var COL_RIGHT = '#ff5544';
+var COL_COURT = '#2a5e1e';
+var COL_LINE = '#fff';
+
+// ── State ──
+var keys = {};
+var state, scoreLeft, scoreRight, round, maxRounds;
+var leftTeam, rightTeam;
+var breathTimer, breathMax;
+var phase; // 'raid-left' (left raids right), 'raid-right', 'defend-left', 'defend-right'
+var raider, defenders, raiderTeam, defenderTeam;
+var raiderSide; // 'left' or 'right' — which side is raiding
+var playerControlled; // the player-controlled entity
+var tagged; // set of tagged defender indices
+var raidResult; // null, 'success', 'caught'
+var resultTimer;
+var gameOver;
+var flashTimer;
+var outLeft, outRight; // arrays of booleans for who is out
+var tackleCD; // tackle cooldown
+var raiderCrossed; // has raider crossed the line?
+
+function initTeamPositions(team, side) {
+  var baseX = side === 'left' ? COURT_X + COURT_W / 4 : COURT_X + 3 * COURT_W / 4;
+  for (var i = 0; i < TEAM_SIZE; i++) {
+    team[i] = {
+      x: baseX + (Math.random() - 0.5) * 100,
+      y: COURT_Y + 60 + i * ((COURT_H - 120) / (TEAM_SIZE - 1)),
+      vx: 0, vy: 0,
+      out: false,
+      tagged: false,
+      flash: 0
+    };
+  }
+}
+
+function initGame() {
+  scoreLeft = 0;
+  scoreRight = 0;
+  round = 0;
+  maxRounds = 12;
+  outLeft = [];
+  outRight = [];
+  for (var i = 0; i < TEAM_SIZE; i++) { outLeft[i] = false; outRight[i] = false; }
+  gameOver = false;
+  startRound();
+}
+
+function startRound() {
+  round++;
+  if (round > maxRounds) { gameOver = true; return; }
+  leftTeam = [];
+  rightTeam = [];
+  // Place teams
+  for (var i = 0; i < TEAM_SIZE; i++) {
+    leftTeam[i] = { x: 0, y: 0, vx: 0, vy: 0, out: outLeft[i], tagged: false, flash: 0 };
+    rightTeam[i] = { x: 0, y: 0, vx: 0, vy: 0, out: outRight[i], tagged: false, flash: 0 };
+  }
+  // Alternate raiding side
+  raiderSide = (round % 2 === 1) ? 'left' : 'right';
+  if (raiderSide === 'left') {
+    // Left team raids right side. Player controls raider.
+    raiderTeam = leftTeam;
+    defenderTeam = rightTeam;
+    phase = 'raid';
+  } else {
+    // Right team raids left side. Player defends.
+    raiderTeam = rightTeam;
+    defenderTeam = leftTeam;
+    phase = 'defend';
+  }
+  // Position teams on their respective halves
+  positionTeam(leftTeam, 'left');
+  positionTeam(rightTeam, 'right');
+  // Pick raider (index 0 of raiding team, or first non-out)
+  var ri = 0;
+  for (var i = 0; i < TEAM_SIZE; i++) {
+    if (!raiderTeam[i].out) { ri = i; break; }
+  }
+  raider = raiderTeam[ri];
+  // Place raider near the center line on their side
+  if (raiderSide === 'left') {
+    raider.x = MID_X - 30;
+    raider.y = COURT_Y + COURT_H / 2;
+  } else {
+    raider.x = MID_X + 30;
+    raider.y = COURT_Y + COURT_H / 2;
+  }
+  // In defend phase, player controls a specific defender
+  if (phase === 'defend') {
+    // Pick first non-out defender from left team
+    playerControlled = null;
+    for (var i = 0; i < TEAM_SIZE; i++) {
+      if (!defenderTeam[i].out) { playerControlled = defenderTeam[i]; break; }
+    }
+  }
+  tagged = {};
+  breathTimer = BREATH_MAX;
+  raidResult = null;
+  resultTimer = 0;
+  flashTimer = 0;
+  tackleCD = 0;
+  raiderCrossed = false;
+}
+
+function positionTeam(team, side) {
+  var baseX = side === 'left' ? COURT_X + COURT_W * 0.25 : COURT_X + COURT_W * 0.75;
+  var active = [];
+  for (var i = 0; i < TEAM_SIZE; i++) { if (!team[i].out) active.push(i); }
+  for (var j = 0; j < active.length; j++) {
+    var idx = active[j];
+    var spacing = (COURT_H - 120) / Math.max(active.length - 1, 1);
+    team[idx].x = baseX + (j % 2 === 0 ? -25 : 25);
+    team[idx].y = COURT_Y + 60 + j * spacing;
+  }
+}
+
+function dist(a, b) { return Math.sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y)); }
+
+function clampToCourt(p) {
+  p.x = Math.max(COURT_X + PLAYER_R, Math.min(COURT_X + COURT_W - PLAYER_R, p.x));
+  p.y = Math.max(COURT_Y + PLAYER_R, Math.min(COURT_Y + COURT_H - PLAYER_R, p.y));
+}
+
+function activeDefenders() {
+  var count = 0;
+  for (var i = 0; i < TEAM_SIZE; i++) {
+    if (!defenderTeam[i].out && !defenderTeam[i].tagged) count++;
+  }
+  return count;
+}
+
+// ── AI: Defender movement ──
+function moveDefenderAI(def, raiderPos, dt) {
+  if (def.out || def.tagged) return;
+  var dx = raiderPos.x - def.x;
+  var dy = raiderPos.y - def.y;
+  var d = Math.sqrt(dx * dx + dy * dy);
+  if (d < 5) return;
+  // Move toward raider but maintain some spacing
+  var speed = AI_SPEED;
+  if (d < 80) speed *= 0.7; // slow down when close to form ring
+  def.x += (dx / d) * speed;
+  def.y += (dy / d) * speed;
+  clampToCourt(def);
+}
+
+// ── AI: Raider movement (when computer raids) ──
+function moveRaiderAI(raider, defenders, dt) {
+  var targetSide = raiderSide === 'right' ? 'left' : 'right';
+  var enemyHalfLeft = targetSide === 'left' ? COURT_X : MID_X;
+  var enemyHalfRight = targetSide === 'left' ? MID_X : COURT_X + COURT_W;
+  var homeLine = raiderSide === 'right' ? MID_X : MID_X;
+
+  // Find nearest untagged defender
+  var nearest = null, nearDist = 9999;
+  for (var i = 0; i < TEAM_SIZE; i++) {
+    if (defenders[i].out || defenders[i].tagged) continue;
+    var d = dist(raider, defenders[i]);
+    if (d < nearDist) { nearDist = d; nearest = defenders[i]; }
+  }
+
+  // If breath timer low or all tagged, retreat
+  var shouldRetreat = breathTimer < 3.5 || activeDefenders() === 0;
+
+  if (shouldRetreat || !nearest) {
+    // Head home
+    var homeX = raiderSide === 'right' ? MID_X + 40 : MID_X - 40;
+    var dx = homeX - raider.x;
+    var dy = (COURT_Y + COURT_H / 2) - raider.y;
+    var d = Math.sqrt(dx * dx + dy * dy);
+    if (d > 2) {
+      raider.x += (dx / d) * RAIDER_AI_SPEED * 1.3;
+      raider.y += (dy / d) * RAIDER_AI_SPEED * 1.3;
+    }
+  } else {
+    // Chase nearest defender but try to avoid being surrounded
+    var dx = nearest.x - raider.x;
+    var dy = nearest.y - raider.y;
+    var d = Math.sqrt(dx * dx + dy * dy);
+    if (d > 2) {
+      // Add some evasion from other nearby defenders
+      var evadeX = 0, evadeY = 0;
+      for (var i = 0; i < TEAM_SIZE; i++) {
+        if (defenders[i].out || defenders[i].tagged) continue;
+        if (defenders[i] === nearest) continue;
+        var ed = dist(raider, defenders[i]);
+        if (ed < 60) {
+          evadeX -= (defenders[i].x - raider.x) / (ed + 1) * 20;
+          evadeY -= (defenders[i].y - raider.y) / (ed + 1) * 20;
+        }
+      }
+      var mx = dx / d * RAIDER_AI_SPEED + evadeX * 0.05;
+      var my = dy / d * RAIDER_AI_SPEED + evadeY * 0.05;
+      var mm = Math.sqrt(mx * mx + my * my);
+      if (mm > 0) {
+        raider.x += (mx / mm) * RAIDER_AI_SPEED;
+        raider.y += (my / mm) * RAIDER_AI_SPEED;
+      }
+    }
+  }
+  clampToCourt(raider);
+}
+
+// ── Check if raider is surrounded ──
+function checkSurrounded() {
+  var nearCount = 0;
+  for (var i = 0; i < TEAM_SIZE; i++) {
+    if (defenderTeam[i].out || defenderTeam[i].tagged) continue;
+    if (dist(raider, defenderTeam[i]) < SURROUND_DIST) nearCount++;
+  }
+  return nearCount >= SURROUND_COUNT;
+}
+
+// ── Check if raider returned to own half ──
+function raiderReturned() {
+  if (raiderSide === 'left') return raider.x < MID_X;
+  return raider.x > MID_X;
+}
+
+function raiderInEnemyHalf() {
+  if (raiderSide === 'left') return raider.x > MID_X;
+  return raider.x < MID_X;
+}
+
+// ── Input ──
+window.addEventListener('keydown', function(e) {
+  keys[e.key] = true;
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); }
+  if (e.key === 'r' || e.key === 'R') { initGame(); }
+});
+window.addEventListener('keyup', function(e) { keys[e.key] = false; });
+
+// ── Update ──
+function update(dt) {
+  if (infoOpen) return;
+  if (gameOver) return;
+  if (raidResult) {
+    resultTimer -= dt;
+    if (resultTimer <= 0) {
+      // Apply outs from tags
+      if (raidResult === 'success') {
+        var tagCount = 0;
+        for (var i = 0; i < TEAM_SIZE; i++) {
+          if (defenderTeam[i].tagged) {
+            defenderTeam[i].out = true;
+            tagCount++;
+          }
+        }
+        if (raiderSide === 'left') {
+          scoreLeft += tagCount;
+          for (var i = 0; i < TEAM_SIZE; i++) outRight[i] = rightTeam[i].out;
+        } else {
+          scoreRight += tagCount;
+          for (var i = 0; i < TEAM_SIZE; i++) outLeft[i] = leftTeam[i].out;
+        }
+      } else if (raidResult === 'caught') {
+        // Raider is out, opponent scores 1
+        if (raiderSide === 'left') {
+          scoreRight += 1;
+          // Mark raider as out
+          for (var i = 0; i < TEAM_SIZE; i++) {
+            if (leftTeam[i] === raider) { outLeft[i] = true; break; }
+          }
+        } else {
+          scoreLeft += 1;
+          for (var i = 0; i < TEAM_SIZE; i++) {
+            if (rightTeam[i] === raider) { outRight[i] = true; break; }
+          }
+        }
+      }
+      // Revive teams if all out (bonus point rule)
+      var allOutL = true, allOutR = true;
+      for (var i = 0; i < TEAM_SIZE; i++) {
+        if (!outLeft[i]) allOutL = false;
+        if (!outRight[i]) allOutR = false;
+      }
+      if (allOutL) {
+        scoreRight += 2;
+        for (var i = 0; i < TEAM_SIZE; i++) outLeft[i] = false;
+      }
+      if (allOutR) {
+        scoreLeft += 2;
+        for (var i = 0; i < TEAM_SIZE; i++) outRight[i] = false;
+      }
+      startRound();
+    }
+    return;
+  }
+
+  flashTimer += dt;
+  if (tackleCD > 0) tackleCD -= dt;
+
+  // Breath timer ticks once raider crosses
+  if (raiderCrossed) {
+    breathTimer -= dt;
+  }
+
+  if (raiderInEnemyHalf()) {
+    raiderCrossed = true;
+  }
+
+  // ── RAID PHASE: Player is raider ──
+  if (phase === 'raid') {
+    // Player movement
+    var mx = 0, my = 0;
+    if (keys['ArrowLeft'] || keys['a']) mx -= 1;
+    if (keys['ArrowRight'] || keys['d']) mx += 1;
+    if (keys['ArrowUp'] || keys['w']) my -= 1;
+    if (keys['ArrowDown'] || keys['s']) my += 1;
+    if (mx || my) {
+      var len = Math.sqrt(mx * mx + my * my);
+      raider.x += (mx / len) * PLAYER_SPEED;
+      raider.y += (my / len) * PLAYER_SPEED;
+    }
+    clampToCourt(raider);
+
+    // Check tags
+    for (var i = 0; i < TEAM_SIZE; i++) {
+      if (defenderTeam[i].out || defenderTeam[i].tagged) continue;
+      if (dist(raider, defenderTeam[i]) < TAG_RANGE) {
+        defenderTeam[i].tagged = true;
+        defenderTeam[i].flash = 1;
+      }
+    }
+
+    // AI defenders move toward raider if in their half
+    if (raiderCrossed) {
+      for (var i = 0; i < TEAM_SIZE; i++) {
+        if (defenderTeam[i].out || defenderTeam[i].tagged) continue;
+        moveDefenderAI(defenderTeam[i], raider, dt);
+      }
+    }
+
+    // Check surrounded
+    if (raiderCrossed && checkSurrounded()) {
+      raidResult = 'caught';
+      resultTimer = 1.5;
+      return;
+    }
+
+    // Check breath expired
+    if (breathTimer <= 0 && raiderCrossed) {
+      if (!raiderReturned()) {
+        raidResult = 'caught';
+        resultTimer = 1.5;
+        return;
+      }
+    }
+
+    // Check successful return
+    if (raiderCrossed && raiderReturned()) {
+      raidResult = 'success';
+      resultTimer = 1.5;
+      return;
+    }
+  }
+
+  // ── DEFEND PHASE: Player is a defender ──
+  if (phase === 'defend') {
+    // AI raider moves
+    moveRaiderAI(raider, defenderTeam, dt);
+
+    if (raiderInEnemyHalf()) raiderCrossed = true;
+
+    // Check raider tags defenders
+    if (raiderCrossed) {
+      for (var i = 0; i < TEAM_SIZE; i++) {
+        if (defenderTeam[i].out || defenderTeam[i].tagged) continue;
+        if (dist(raider, defenderTeam[i]) < TAG_RANGE) {
+          defenderTeam[i].tagged = true;
+          defenderTeam[i].flash = 1;
+        }
+      }
+    }
+
+    // Player-controlled defender movement
+    if (playerControlled && !playerControlled.out && !playerControlled.tagged) {
+      var mx = 0, my = 0;
+      if (keys['ArrowLeft'] || keys['a']) mx -= 1;
+      if (keys['ArrowRight'] || keys['d']) mx += 1;
+      if (keys['ArrowUp'] || keys['w']) my -= 1;
+      if (keys['ArrowDown'] || keys['s']) my += 1;
+      if (mx || my) {
+        var len = Math.sqrt(mx * mx + my * my);
+        playerControlled.x += (mx / len) * PLAYER_SPEED;
+        playerControlled.y += (my / len) * PLAYER_SPEED;
+      }
+      clampToCourt(playerControlled);
+
+      // Tackle attempt
+      if ((keys[' '] || keys['Space']) && tackleCD <= 0) {
+        if (dist(playerControlled, raider) < TACKLE_RANGE) {
+          raidResult = 'caught';
+          resultTimer = 1.5;
+          return;
+        }
+        tackleCD = 0.5;
+      }
+    }
+
+    // AI defenders (other than player-controlled) move
+    if (raiderCrossed) {
+      for (var i = 0; i < TEAM_SIZE; i++) {
+        if (defenderTeam[i].out || defenderTeam[i].tagged) continue;
+        if (defenderTeam[i] === playerControlled) continue;
+        moveDefenderAI(defenderTeam[i], raider, dt);
+      }
+    }
+
+    // Check surrounded
+    if (raiderCrossed && checkSurrounded()) {
+      raidResult = 'caught';
+      resultTimer = 1.5;
+      return;
+    }
+
+    // Breath expired
+    if (breathTimer <= 0 && raiderCrossed) {
+      if (!raiderReturned()) {
+        raidResult = 'caught';
+        resultTimer = 1.5;
+        return;
+      }
+    }
+
+    // AI raider returns
+    if (raiderCrossed && raiderReturned()) {
+      raidResult = 'success';
+      resultTimer = 1.5;
+      return;
+    }
+  }
+}
+
+// ── Draw ──
+function draw() {
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0, 0, W, H);
+
+  // Court
+  ctx.fillStyle = COL_COURT;
+  ctx.fillRect(COURT_X, COURT_Y, COURT_W, COURT_H);
+
+  // Court border
+  ctx.strokeStyle = COL_LINE;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(COURT_X, COURT_Y, COURT_W, COURT_H);
+
+  // Center line
+  ctx.beginPath();
+  ctx.moveTo(MID_X, COURT_Y);
+  ctx.lineTo(MID_X, COURT_Y + COURT_H);
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  // Baulk lines (dashed, 3.75m from center)
+  ctx.setLineDash([8, 6]);
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = '#aaa';
+  var baulkOff = 70;
+  ctx.beginPath();
+  ctx.moveTo(MID_X - baulkOff, COURT_Y);
+  ctx.lineTo(MID_X - baulkOff, COURT_Y + COURT_H);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(MID_X + baulkOff, COURT_Y);
+  ctx.lineTo(MID_X + baulkOff, COURT_Y + COURT_H);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Half labels
+  hudText('YOUR HALF', COURT_X + 80, COURT_Y + 10, '#4488ff88', 12, 'center');
+  hudText('ENEMY HALF', COURT_X + COURT_W - 80, COURT_Y + 10, '#ff554488', 12, 'center');
+
+  // Draw players
+  drawTeam(leftTeam, COL_LEFT, 'left');
+  drawTeam(rightTeam, COL_RIGHT, 'right');
+
+  // Highlight raider
+  if (raider && !gameOver) {
+    ctx.beginPath();
+    ctx.arc(raider.x, raider.y, PLAYER_R + 5, 0, Math.PI * 2);
+    ctx.strokeStyle = '#ff0';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    hudText('RAIDER', raider.x, raider.y - PLAYER_R - 14, '#ff0', 10, 'center');
+  }
+
+  // Highlight player-controlled defender
+  if (phase === 'defend' && playerControlled && !playerControlled.out && !playerControlled.tagged) {
+    ctx.beginPath();
+    ctx.arc(playerControlled.x, playerControlled.y, PLAYER_R + 5, 0, Math.PI * 2);
+    ctx.strokeStyle = '#0f0';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    hudText('YOU', playerControlled.x, playerControlled.y - PLAYER_R - 14, '#0f0', 10, 'center');
+  }
+
+  // HUD
+  hudText('KABADDI', 10, 8, '#f80', 18, 'left');
+  hudText('Round ' + Math.min(round, maxRounds) + '/' + maxRounds, 10, 32, '#aaa', 12, 'left');
+
+  // Scores
+  hudText('YOU: ' + scoreLeft, W / 2 - 80, 8, COL_LEFT, 16, 'center');
+  hudText('CPU: ' + scoreRight, W / 2 + 80, 8, COL_RIGHT, 16, 'center');
+
+  // Phase indicator
+  var phaseText = phase === 'raid' ? 'RAIDING — Tag & Return!' : 'DEFENDING — Stop the Raider!';
+  hudText(phaseText, W / 2, 32, '#ff0', 13, 'center');
+
+  // Breath timer bar
+  if (raiderCrossed || raidResult) {
+    var bw = 200, bh = 14;
+    var bx = W / 2 - bw / 2, by = COURT_Y - 22;
+    ctx.fillStyle = '#333';
+    ctx.fillRect(bx, by, bw, bh);
+    var frac = Math.max(0, breathTimer / BREATH_MAX);
+    var barCol = frac > 0.4 ? '#4c4' : frac > 0.2 ? '#cc4' : '#c44';
+    ctx.fillStyle = barCol;
+    ctx.fillRect(bx, by, bw * frac, bh);
+    ctx.strokeStyle = '#888';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(bx, by, bw, bh);
+    hudText('BREATH: ' + Math.max(0, breathTimer).toFixed(1) + 's', W / 2, by + 1, '#fff', 11, 'center');
+  } else {
+    hudText('Cross the line to start breath timer', W / 2, COURT_Y - 18, '#888', 11, 'center');
+  }
+
+  // Tags count
+  var tagCount = 0;
+  for (var i = 0; i < TEAM_SIZE; i++) {
+    if (defenderTeam[i] && defenderTeam[i].tagged) tagCount++;
+  }
+  if (tagCount > 0) {
+    hudText('TAGS: ' + tagCount, W / 2, COURT_Y + COURT_H + 8, '#ff0', 14, 'center');
+  }
+
+  // Result overlay
+  if (raidResult) {
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(0, H / 2 - 40, W, 80);
+    if (raidResult === 'success') {
+      var who = raiderSide === 'left' ? 'YOUR' : 'CPU';
+      hudText(who + ' RAID SUCCESS! +' + tagCount + ' point' + (tagCount !== 1 ? 's' : ''), W / 2, H / 2 - 12, '#4f4', 22, 'center');
+    } else {
+      var who = raiderSide === 'left' ? 'YOU WERE' : 'RAIDER';
+      hudText(who + ' CAUGHT! Opponent +1', W / 2, H / 2 - 12, '#f44', 22, 'center');
+    }
+  }
+
+  // Game over
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, 0, W, H);
+    hudText('MATCH OVER', W / 2, H / 2 - 50, '#f80', 28, 'center');
+    hudText('You: ' + scoreLeft + '  CPU: ' + scoreRight, W / 2, H / 2 - 10, '#fff', 20, 'center');
+    var result = scoreLeft > scoreRight ? 'YOU WIN!' : scoreLeft < scoreRight ? 'CPU WINS!' : 'DRAW!';
+    var rcol = scoreLeft > scoreRight ? '#4f4' : scoreLeft < scoreRight ? '#f44' : '#ff0';
+    hudText(result, W / 2, H / 2 + 25, rcol, 24, 'center');
+    hudText('Press R to play again', W / 2, H / 2 + 60, '#888', 14, 'center');
+  }
+
+  // Controls hint
+  if (!gameOver && !raidResult) {
+    if (phase === 'raid') {
+      hudText('Arrows: Move | Touch enemies to tag | Return before breath runs out', W / 2, H - 18, '#666', 11, 'center');
+    } else {
+      hudText('Arrows: Move | Space: Tackle | Get close to the raider', W / 2, H - 18, '#666', 11, 'center');
+    }
+  }
+  hudText('? — Info', W - 10, 8, '#555', 11, 'right');
+}
+
+function drawTeam(team, color, side) {
+  for (var i = 0; i < TEAM_SIZE; i++) {
+    var p = team[i];
+    if (p.out) continue;
+
+    var col = color;
+    // Flash tagged players
+    if (p.tagged) {
+      p.flash -= 0.02;
+      col = (Math.floor(flashTimer * 8) % 2 === 0) ? '#fff' : '#ff0';
+      if (p.flash <= 0) col = '#555';
+    }
+
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, PLAYER_R, 0, Math.PI * 2);
+    ctx.fillStyle = col;
+    ctx.fill();
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Player number
+    ctx.fillStyle = '#000';
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(i + 1, p.x, p.y);
+  }
+}
+
+// ── Game Loop ──
+var lastTime = 0;
+function loop(ts) {
+  var dt = Math.min((ts - lastTime) / 1000, 0.05);
+  lastTime = ts;
+  update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+initGame();
+requestAnimationFrame(loop);
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

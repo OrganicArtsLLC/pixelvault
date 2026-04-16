@@ -1,0 +1,650 @@
+<!--
+PROTOTYPE: whackamole
+SERIES: def
+NUMBER: 005
+DATE: 2026-03-24
+MECHANIC: reaction time targeting — moles pop up from holes randomly; click them before they disappear; speed increases over time
+ANCESTRY: Mogura Taiji (1975 TOGO), Whac-A-Mole (1975 Aaron Fechter), arcade redemption games
+CONTROLS: Click mole — whack it | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 2-5 (Expert Systems → Statistical — reaction time models, attention allocation, Fitts's Law)
+AI-INSIGHT: Whac-A-Mole directly measures reaction time + motor precision — the two components of Fitts's Law (1954). As moles appear faster, the game transitions from a reaction task to an attention allocation task: you can't watch all holes simultaneously. This is the cocktail party problem — selective attention under information overload.
+NOTES: Aaron Fechter created the original Whac-A-Mole at Creative Engineering Inc. (1975). The game became the definitive arcade redemption game. The phrase "whack-a-mole" entered common language to describe futile reactive problem-solving.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DEF-005 · WHAC-A-MOLE</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: crosshair; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>DEF-005 · WHAC-A-MOLE</h1>
+    <p><span class="tag series">DEF — Deflection</span> <span class="tag">Prototype #005</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Moles pop up from holes. Click them to whack them before they disappear. You have 60 seconds.</p>
+    <ul>
+      <li><kbd>Click</kbd> — Whack a mole (+100 pts, +200 for golden moles)</li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Build combos:</strong> Consecutive hits multiply your score. Miss a mole or click an empty hole and the combo resets.</li>
+      <li><strong>Watch for golden moles:</strong> They appear rarely but are worth double points.</li>
+      <li><strong>Don't spam click:</strong> Clicking empty holes costs you 50 points and breaks your combo.</li>
+      <li><strong>Speed increases:</strong> Moles appear faster and stay for less time as the game progresses.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Mogura Taiji (1975, TOGO) &rarr; Whac-A-Mole (1975, Aaron Fechter / Creative Engineering) &rarr; arcade redemption games worldwide</p>
+    <p>Aaron Fechter invented the Whac-A-Mole at Creative Engineering Inc. in Orlando, Florida in 1975. Originally a mechanical arcade game with a padded mallet, it became the definitive arcade redemption game &mdash; the one you played for tickets. The concept was so intuitive that "whack-a-mole" entered common language as a metaphor for futile, reactive problem-solving.</p>
+    <p>The Japanese version, Mogura Taiji ("mole extermination"), appeared independently around the same time from TOGO/Bandai, suggesting the mechanic is a convergent design &mdash; the game equivalent of natural selection arriving at the same solution twice.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 2&ndash;5 (Expert Systems &rarr; Statistical)</p>
+    <p><strong>Contemporary AI:</strong> Fitts's Law (1954) formalized the speed-accuracy tradeoff in motor tasks. Later work on selective attention (Broadbent, 1958) and the cocktail party problem maps directly to Whac-A-Mole's core challenge.</p>
+    <p><strong>Hidden Intelligence:</strong> This game is a near-perfect Fitts's Law apparatus. The target (mole) has a fixed size and appears at varying distances from the cursor. As moles appear faster, the game shifts from a simple reaction-time task to an attention-allocation problem: with 9 possible locations and limited time, you must decide where to look. This is the visual search problem that drives modern computer vision research.</p>
+
+    <h2>Classification</h2>
+    <ul>
+      <li><strong>Series:</strong> DEF (Deflection / Defense)</li>
+      <li><strong>Mechanic:</strong> Reaction time targeting</li>
+      <li><strong>Input:</strong> Mouse click</li>
+      <li><strong>Complexity:</strong> Low (pure reflex + attention)</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>3&times;3 grid, 60-second timer, progressive difficulty. Golden moles at ~10% frequency. Combo system rewards accuracy over speed. Miss penalty discourages blind clicking.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This is an interactive educational prototype exploring the history and design of classic games. Created for study and commentary under fair use principles. Not affiliated with or endorsed by Creative Engineering Inc., TOGO, or Bandai.</p>
+  </div>
+</div>
+
+<script>
+// --- Info panel ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// --- Canvas setup ---
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+
+function resizeCanvas() {
+  const scale = Math.min(window.innerWidth / W, window.innerHeight / H);
+  canvas.style.width = (W * scale) + 'px';
+  canvas.style.height = (H * scale) + 'px';
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+// --- HUD text helper ---
+function hudText(text, x, y, size, color, align) {
+  ctx.save();
+  ctx.font = size + 'px monospace';
+  ctx.fillStyle = color || '#fff';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+// --- Game constants ---
+const GRID_COLS = 3, GRID_ROWS = 3;
+const HOLE_SPACING_X = 200, HOLE_SPACING_Y = 140;
+const GRID_OFFSET_X = 200, GRID_OFFSET_Y = 180;
+const HOLE_RX = 60, HOLE_RY = 22;
+const MOLE_RADIUS = 32;
+const GAME_DURATION = 60;
+
+// --- Mole states ---
+const MOLE_HIDDEN = 0;
+const MOLE_RISING = 1;
+const MOLE_UP = 2;
+const MOLE_SINKING = 3;
+const MOLE_WHACKED = 4;
+
+// --- Game state ---
+let score, combo, maxCombo, hits, misses, timeLeft, gameState;
+let moles, effects, spawnTimer, spawnInterval, moleUpTime;
+let lastTime;
+
+function initHole(col, row) {
+  return {
+    col: col, row: row,
+    x: GRID_OFFSET_X + col * HOLE_SPACING_X,
+    y: GRID_OFFSET_Y + row * HOLE_SPACING_Y,
+    state: MOLE_HIDDEN,
+    t: 0,
+    golden: false,
+    riseTime: 0.25,
+    sinkTime: 0.25,
+    upDuration: 1.5,
+    whackT: 0
+  };
+}
+
+function initGame() {
+  score = 0; combo = 0; maxCombo = 0; hits = 0; misses = 0;
+  timeLeft = GAME_DURATION;
+  gameState = 'ready';
+  spawnTimer = 0;
+  spawnInterval = 1.2;
+  moleUpTime = 1.8;
+  effects = [];
+  moles = [];
+  for (let r = 0; r < GRID_ROWS; r++) {
+    for (let c = 0; c < GRID_COLS; c++) {
+      moles.push(initHole(c, r));
+    }
+  }
+  lastTime = performance.now();
+}
+
+function startGame() {
+  gameState = 'playing';
+  spawnTimer = 0.3;
+}
+
+// --- Spawning ---
+function spawnMole() {
+  const hidden = moles.filter(m => m.state === MOLE_HIDDEN);
+  if (hidden.length === 0) return;
+  const m = hidden[Math.floor(Math.random() * hidden.length)];
+  m.state = MOLE_RISING;
+  m.t = 0;
+  m.golden = Math.random() < 0.1;
+  m.upDuration = moleUpTime;
+}
+
+// --- Effects ---
+function addEffect(x, y, type, text) {
+  effects.push({ x, y, type, text, t: 0, duration: 0.7 });
+}
+
+// --- Click handling ---
+function getCanvasPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = W / rect.width, scaleY = H / rect.height;
+  return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
+}
+
+canvas.addEventListener('click', function(e) {
+  if (infoOpen) return;
+  if (gameState === 'ready') { startGame(); return; }
+  if (gameState === 'over') { initGame(); startGame(); return; }
+  if (gameState !== 'playing') return;
+
+  const pos = getCanvasPos(e);
+  let hitMole = false;
+
+  for (let m of moles) {
+    if (m.state !== MOLE_RISING && m.state !== MOLE_UP) continue;
+    // Compute mole visible position
+    let rise = 0;
+    if (m.state === MOLE_RISING) rise = m.t / m.riseTime;
+    else if (m.state === MOLE_UP) rise = 1;
+    const moleY = m.y - rise * (MOLE_RADIUS * 1.8);
+    const dx = pos.x - m.x, dy = pos.y - moleY;
+    if (dx * dx + dy * dy < (MOLE_RADIUS + 10) * (MOLE_RADIUS + 10)) {
+      // Hit!
+      hitMole = true;
+      m.state = MOLE_WHACKED;
+      m.whackT = 0;
+      combo++;
+      if (combo > maxCombo) maxCombo = combo;
+      hits++;
+      const pts = m.golden ? 200 : 100;
+      const comboBonus = Math.min(combo, 10);
+      const totalPts = pts * comboBonus;
+      score += totalPts;
+      let txt = '+' + totalPts;
+      if (comboBonus > 1) txt += ' x' + comboBonus;
+      if (m.golden) txt += ' GOLD!';
+      addEffect(m.x, moleY - 20, 'hit', txt);
+      addEffect(m.x, moleY, 'stars', '');
+      break;
+    }
+  }
+
+  if (!hitMole) {
+    // Check if clicked near any hole (miss penalty)
+    for (let m of moles) {
+      const dx = pos.x - m.x, dy = pos.y - m.y;
+      if (dx * dx / ((HOLE_RX + 20) * (HOLE_RX + 20)) + dy * dy / ((HOLE_RY + 40) * (HOLE_RY + 40)) < 1) {
+        score = Math.max(0, score - 50);
+        combo = 0;
+        misses++;
+        addEffect(m.x, m.y - 30, 'miss', '-50');
+        break;
+      }
+    }
+  }
+});
+
+// --- Keyboard ---
+window.addEventListener('keydown', function(e) {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); return; }
+  if (infoOpen) return;
+  if (e.key === 'r' || e.key === 'R') { initGame(); return; }
+  if (gameState === 'ready' && (e.key === ' ' || e.key === 'Enter')) { startGame(); }
+});
+
+// --- Difficulty ---
+function updateDifficulty() {
+  const elapsed = GAME_DURATION - timeLeft;
+  const progress = elapsed / GAME_DURATION;
+  spawnInterval = Math.max(0.4, 1.2 - progress * 0.9);
+  moleUpTime = Math.max(0.6, 1.8 - progress * 1.4);
+}
+
+// --- Update ---
+function update(dt) {
+  if (infoOpen) return;
+  if (gameState !== 'playing') return;
+
+  timeLeft -= dt;
+  if (timeLeft <= 0) {
+    timeLeft = 0;
+    gameState = 'over';
+    return;
+  }
+
+  updateDifficulty();
+
+  // Spawn timer
+  spawnTimer -= dt;
+  if (spawnTimer <= 0) {
+    spawnMole();
+    // Sometimes spawn two at once later in game
+    if (Math.random() < (GAME_DURATION - timeLeft) / GAME_DURATION * 0.5) {
+      spawnMole();
+    }
+    spawnTimer = spawnInterval;
+  }
+
+  // Update moles
+  for (let m of moles) {
+    m.t += dt;
+    switch (m.state) {
+      case MOLE_RISING:
+        if (m.t >= m.riseTime) { m.state = MOLE_UP; m.t = 0; }
+        break;
+      case MOLE_UP:
+        if (m.t >= m.upDuration) { m.state = MOLE_SINKING; m.t = 0; combo = 0; }
+        break;
+      case MOLE_SINKING:
+        if (m.t >= m.sinkTime) { m.state = MOLE_HIDDEN; m.t = 0; }
+        break;
+      case MOLE_WHACKED:
+        m.whackT += dt;
+        if (m.whackT >= 0.4) { m.state = MOLE_SINKING; m.t = 0; }
+        break;
+    }
+  }
+
+  // Update effects
+  for (let i = effects.length - 1; i >= 0; i--) {
+    effects[i].t += dt;
+    if (effects[i].t >= effects[i].duration) effects.splice(i, 1);
+  }
+}
+
+// --- Drawing ---
+function drawGrass() {
+  // Sky gradient
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, 150);
+  skyGrad.addColorStop(0, '#87CEEB');
+  skyGrad.addColorStop(1, '#B0E0FF');
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, W, 150);
+
+  // Grass gradient
+  const grassGrad = ctx.createLinearGradient(0, 100, 0, H);
+  grassGrad.addColorStop(0, '#4CAF50');
+  grassGrad.addColorStop(0.3, '#388E3C');
+  grassGrad.addColorStop(1, '#2E7D32');
+  ctx.fillStyle = grassGrad;
+  ctx.fillRect(0, 100, W, H - 100);
+
+  // Grass tufts
+  ctx.strokeStyle = '#5CB860';
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 30; i++) {
+    const gx = (i * 137 + 23) % W;
+    const gy = 120 + (i * 89 + 41) % (H - 160);
+    ctx.beginPath();
+    ctx.moveTo(gx, gy);
+    ctx.lineTo(gx - 4, gy - 12);
+    ctx.moveTo(gx + 3, gy);
+    ctx.lineTo(gx + 6, gy - 10);
+    ctx.moveTo(gx - 2, gy);
+    ctx.lineTo(gx + 1, gy - 14);
+    ctx.stroke();
+  }
+}
+
+function drawHole(m) {
+  // Dirt mound
+  ctx.fillStyle = '#5D4037';
+  ctx.beginPath();
+  ctx.ellipse(m.x, m.y + 8, HOLE_RX + 8, HOLE_RY + 4, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Dark hole
+  ctx.fillStyle = '#1a0f0a';
+  ctx.beginPath();
+  ctx.ellipse(m.x, m.y, HOLE_RX, HOLE_RY, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Hole rim highlight
+  ctx.strokeStyle = '#795548';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.ellipse(m.x, m.y, HOLE_RX, HOLE_RY, 0, Math.PI, Math.PI * 2);
+  ctx.stroke();
+}
+
+function drawMole(m) {
+  let rise = 0;
+  if (m.state === MOLE_RISING) rise = m.t / m.riseTime;
+  else if (m.state === MOLE_UP) rise = 1;
+  else if (m.state === MOLE_SINKING) rise = 1 - m.t / m.sinkTime;
+  else if (m.state === MOLE_WHACKED) rise = Math.max(0, 1 - m.whackT * 2);
+  else return;
+
+  if (rise <= 0) return;
+
+  const moleY = m.y - rise * (MOLE_RADIUS * 1.8);
+
+  // Clip to hole area
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(m.x - HOLE_RX - 5, 0, (HOLE_RX + 5) * 2, m.y + 2);
+  ctx.clip();
+
+  const isWhacked = m.state === MOLE_WHACKED;
+  const wobble = isWhacked ? Math.sin(m.whackT * 40) * 5 : 0;
+
+  // Body
+  ctx.fillStyle = m.golden ? '#FFD700' : '#8D6E63';
+  ctx.beginPath();
+  ctx.ellipse(m.x + wobble, moleY, MOLE_RADIUS, MOLE_RADIUS * 1.1, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Body outline
+  ctx.strokeStyle = m.golden ? '#FFA000' : '#5D4037';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Belly
+  ctx.fillStyle = m.golden ? '#FFF176' : '#A1887F';
+  ctx.beginPath();
+  ctx.ellipse(m.x + wobble, moleY + 8, MOLE_RADIUS * 0.6, MOLE_RADIUS * 0.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  if (!isWhacked) {
+    // Eyes
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(m.x - 10, moleY - 8, 7, 0, Math.PI * 2);
+    ctx.arc(m.x + 10, moleY - 8, 7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#222';
+    ctx.beginPath();
+    ctx.arc(m.x - 9, moleY - 7, 3.5, 0, Math.PI * 2);
+    ctx.arc(m.x + 11, moleY - 7, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Nose
+    ctx.fillStyle = m.golden ? '#FF6F00' : '#E91E63';
+    ctx.beginPath();
+    ctx.ellipse(m.x, moleY + 2, 5, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Whiskers
+    ctx.strokeStyle = '#5D4037';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(m.x - 8, moleY + 2); ctx.lineTo(m.x - 25, moleY - 3);
+    ctx.moveTo(m.x - 8, moleY + 4); ctx.lineTo(m.x - 24, moleY + 6);
+    ctx.moveTo(m.x + 8, moleY + 2); ctx.lineTo(m.x + 25, moleY - 3);
+    ctx.moveTo(m.x + 8, moleY + 4); ctx.lineTo(m.x + 24, moleY + 6);
+    ctx.stroke();
+
+    // Golden sparkle
+    if (m.golden) {
+      const sparkT = performance.now() / 200;
+      ctx.fillStyle = '#FFF';
+      for (let i = 0; i < 4; i++) {
+        const angle = sparkT + i * Math.PI / 2;
+        const sx = m.x + Math.cos(angle) * 20;
+        const sy = moleY - 5 + Math.sin(angle) * 15;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  } else {
+    // Whacked face: X eyes, dizzy
+    ctx.strokeStyle = '#222';
+    ctx.lineWidth = 2.5;
+    // X eye left
+    ctx.beginPath();
+    ctx.moveTo(m.x + wobble - 14, moleY - 12); ctx.lineTo(m.x + wobble - 6, moleY - 4);
+    ctx.moveTo(m.x + wobble - 14, moleY - 4); ctx.lineTo(m.x + wobble - 6, moleY - 12);
+    ctx.stroke();
+    // X eye right
+    ctx.beginPath();
+    ctx.moveTo(m.x + wobble + 6, moleY - 12); ctx.lineTo(m.x + wobble + 14, moleY - 4);
+    ctx.moveTo(m.x + wobble + 6, moleY - 4); ctx.lineTo(m.x + wobble + 14, moleY - 12);
+    ctx.stroke();
+    // Dizzy mouth
+    ctx.beginPath();
+    ctx.arc(m.x + wobble, moleY + 6, 6, 0, Math.PI);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+function drawEffects() {
+  for (let e of effects) {
+    const progress = e.t / e.duration;
+    const alpha = 1 - progress;
+
+    if (e.type === 'hit') {
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.font = 'bold 20px monospace';
+      ctx.fillStyle = e.text.includes('GOLD') ? '#FFD700' : '#0F0';
+      ctx.textAlign = 'center';
+      ctx.fillText(e.text, e.x, e.y - progress * 50);
+      ctx.restore();
+    } else if (e.type === 'miss') {
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.font = 'bold 18px monospace';
+      ctx.fillStyle = '#F44';
+      ctx.textAlign = 'center';
+      ctx.fillText(e.text, e.x, e.y - progress * 40);
+      ctx.restore();
+    } else if (e.type === 'stars') {
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      const starCount = 6;
+      for (let i = 0; i < starCount; i++) {
+        const angle = (i / starCount) * Math.PI * 2 + progress * 3;
+        const dist = 15 + progress * 35;
+        const sx = e.x + Math.cos(angle) * dist;
+        const sy = e.y + Math.sin(angle) * dist;
+        // Star shape
+        ctx.fillStyle = i % 2 === 0 ? '#FFD700' : '#FFF';
+        ctx.beginPath();
+        for (let j = 0; j < 5; j++) {
+          const a = (j / 5) * Math.PI * 2 - Math.PI / 2;
+          const r = j % 2 === 0 ? 5 : 2;
+          if (j === 0) ctx.moveTo(sx + Math.cos(a) * r, sy + Math.sin(a) * r);
+          else ctx.lineTo(sx + Math.cos(a) * r, sy + Math.sin(a) * r);
+        }
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+  }
+}
+
+function drawHUD() {
+  // Score
+  hudText('SCORE: ' + score, 20, 12, 22, '#FFF');
+
+  // Combo
+  if (combo > 1) {
+    hudText('COMBO x' + combo, 20, 40, 16, '#0F0');
+  }
+
+  // Timer
+  const timerColor = timeLeft <= 10 ? '#F44' : timeLeft <= 20 ? '#FF0' : '#FFF';
+  hudText('TIME: ' + Math.ceil(timeLeft), W - 20, 12, 22, timerColor, 'right');
+
+  // Hits/Misses
+  hudText('HIT: ' + hits, W / 2, 12, 14, '#8F8', 'center');
+  hudText('MISS: ' + misses, W / 2, 30, 14, '#F88', 'center');
+
+  // Controls hint
+  hudText('[?] INFO   [R] RESTART', W / 2, H - 22, 11, '#666', 'center');
+}
+
+function drawReadyScreen() {
+  drawGrass();
+  for (let m of moles) drawHole(m);
+
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.fillRect(0, 0, W, H);
+
+  hudText('WHAC-A-MOLE', W / 2, 160, 48, '#FFD700', 'center');
+  hudText('Click to whack the moles!', W / 2, 230, 20, '#FFF', 'center');
+  hudText('Golden moles = double points', W / 2, 260, 16, '#FFD700', 'center');
+  hudText('Don\'t click empty holes! (-50 pts)', W / 2, 290, 16, '#F88', 'center');
+
+  // Pulsing start prompt
+  const pulse = 0.5 + Math.sin(performance.now() / 400) * 0.5;
+  ctx.globalAlpha = pulse;
+  hudText('CLICK OR PRESS SPACE TO START', W / 2, 380, 18, '#FFF', 'center');
+  ctx.globalAlpha = 1;
+
+  hudText('[?] INFO', W / 2, H - 30, 12, '#888', 'center');
+}
+
+function drawGameOver() {
+  drawGrass();
+  for (let m of moles) drawHole(m);
+
+  ctx.fillStyle = 'rgba(0,0,0,0.65)';
+  ctx.fillRect(0, 0, W, H);
+
+  hudText('TIME\'S UP!', W / 2, 130, 44, '#F44', 'center');
+  hudText('FINAL SCORE: ' + score, W / 2, 200, 32, '#FFD700', 'center');
+  hudText('Moles whacked: ' + hits, W / 2, 260, 18, '#8F8', 'center');
+  hudText('Misses: ' + misses, W / 2, 290, 18, '#F88', 'center');
+  hudText('Best combo: x' + maxCombo, W / 2, 320, 18, '#88F', 'center');
+
+  // Rating
+  let rating = 'Beginner';
+  if (score >= 5000) rating = 'Mole Master!';
+  else if (score >= 3000) rating = 'Expert Whacker';
+  else if (score >= 1500) rating = 'Getting Good';
+  else if (score >= 500) rating = 'Warming Up';
+  hudText(rating, W / 2, 370, 24, '#FFF', 'center');
+
+  const pulse = 0.5 + Math.sin(performance.now() / 400) * 0.5;
+  ctx.globalAlpha = pulse;
+  hudText('CLICK TO PLAY AGAIN', W / 2, 440, 18, '#FFF', 'center');
+  ctx.globalAlpha = 1;
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+
+  if (gameState === 'ready') { drawReadyScreen(); return; }
+  if (gameState === 'over') { drawGameOver(); return; }
+
+  drawGrass();
+
+  // Draw holes and moles (back to front for proper overlap)
+  for (let r = 0; r < GRID_ROWS; r++) {
+    for (let c = 0; c < GRID_COLS; c++) {
+      const m = moles[r * GRID_COLS + c];
+      drawHole(m);
+      drawMole(m);
+    }
+  }
+
+  // Re-draw front rim of holes over moles so they look like they're emerging
+  for (let m of moles) {
+    ctx.fillStyle = '#5D4037';
+    ctx.beginPath();
+    ctx.ellipse(m.x, m.y + 8, HOLE_RX + 8, HOLE_RY + 4, 0, 0, Math.PI, false);
+    ctx.fill();
+    ctx.fillStyle = '#1a0f0a';
+    ctx.beginPath();
+    ctx.ellipse(m.x, m.y, HOLE_RX, HOLE_RY, 0, 0, Math.PI, false);
+    ctx.fill();
+  }
+
+  drawEffects();
+  drawHUD();
+}
+
+// --- Main loop ---
+function gameLoop(now) {
+  const dt = Math.min((now - lastTime) / 1000, 0.05);
+  lastTime = now;
+  update(dt);
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+initGame();
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>

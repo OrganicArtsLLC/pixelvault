@@ -1,0 +1,893 @@
+<!--
+PROTOTYPE: roof-sprint
+SERIES: plt
+NUMBER: 014
+DATE: 2026-03-24
+MECHANIC: one-button auto-runner — character runs automatically and accelerates; you can only jump; procedural cityscape with gaps and obstacles
+ANCESTRY: Canabalt (2009, Adam Saltsman / Semi Secret Software), Pitfall! (1982, Activision), Moon Patrol (1982, Irem)
+CONTROLS: Space/Click — jump | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 5 (Deep Learning — one-button design presages neural architecture search for minimal viable control schemes)
+AI-INSIGHT: Canabalt's radical reduction to a single input mirrors dimensionality reduction in deep learning — proving that stripping away all but one axis of control can create emergent depth from environmental complexity alone.
+NOTES: One-button endless runner. Procedural buildings with gaps and obstacles.
+       Accelerating speed creates natural difficulty curve. Monochrome aesthetic.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PLT-014 · ROOF SPRINT</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>PLT-014 · ROOF SPRINT</h1>
+    <p><span class="tag series">PLT — Platformer</span> <span class="tag">Prototype #014</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Run across the rooftops of a crumbling city. Your character runs automatically and keeps accelerating. You have one button: jump.</p>
+    <ul>
+      <li><kbd>Space</kbd> / <kbd>Click</kbd> &mdash; Jump</li>
+      <li><kbd>R</kbd> &mdash; Restart</li>
+      <li><kbd>?</kbd> &mdash; Toggle this info panel</li>
+    </ul>
+    <h3>Mechanics</h3>
+    <ul>
+      <li><strong>Acceleration:</strong> You get faster over time. The longer you survive, the harder it gets.</li>
+      <li><strong>Obstacles:</strong> Hit crates and antennas to slow down &mdash; sometimes this is a good thing.</li>
+      <li><strong>Gaps:</strong> Miss a rooftop and you fall to your death.</li>
+      <li><strong>Variable jump:</strong> Hold jump longer for higher jumps. Release early for short hops.</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Speed management:</strong> Sometimes hitting an obstacle on purpose slows you to a safer speed.</li>
+      <li><strong>Edge jumps:</strong> Jump at the last moment to clear wider gaps.</li>
+      <li><strong>Watch the gaps:</strong> Buildings vary in height &mdash; be ready to land high or low.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Canabalt (2009, Adam Saltsman) &larr; Moon Patrol (1982, Irem) &larr; Pitfall! (1982, Activision)</p>
+    <p>Canabalt (2009) was created by Adam Saltsman in five days for the Experimental Gameplay Project. Built in Flash with the Flixel framework, it became a viral sensation and essentially invented the modern one-button endless runner genre.</p>
+    <p>Its genius lay in radical reduction: stripping away every control except jump, then making the environment do all the work. The procedural cityscape, the accelerating speed, the monochrome palette, the screen shake on landing &mdash; every element served the fantasy of a desperate rooftop escape.</p>
+    <p>The game inspired countless mobile runners including Temple Run, Jetpack Joyride, and the Chrome dinosaur game. Its influence proved that constraint breeds innovation: one button can create infinite depth when the world responds dynamically to the player&rsquo;s single choice.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 5 &mdash; Deep Learning (2006&ndash;2020)</p>
+    <p><strong>Contemporary AI:</strong> Dimensionality reduction, feature extraction, minimal viable architectures in neural network design.</p>
+    <p><strong>Insight:</strong> Canabalt&rsquo;s single-input design mirrors the concept of dimensionality reduction in machine learning &mdash; proving that a one-dimensional control space can produce rich, emergent gameplay when paired with a complex environment. This parallels how autoencoders compress high-dimensional data to minimal latent representations while preserving essential structure.</p>
+
+    <h2>Classification</h2>
+    <ul>
+      <li><strong>Primary:</strong> Platformer (endless horizontal runner)</li>
+      <li><strong>Secondary:</strong> Procedural generation, reflexes, speed management</li>
+      <li><strong>Input:</strong> Single button (jump)</li>
+      <li><strong>Perspective:</strong> Side-on, horizontal auto-scroll</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This prototype implements the core one-button auto-runner with procedural building generation, accelerating speed, obstacles that slow the player, parallax background layers, camera shake on landing, and atmospheric background events. The monochrome grey-scale palette captures the original&rsquo;s stark aesthetic.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+var W = 800, H = 600;
+var canvas = document.getElementById('c');
+var ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+canvas.width = W;
+canvas.height = H;
+
+var infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// ── Resize ──
+function resize() {
+  var s = Math.min(innerWidth / W, innerHeight / H);
+  canvas.style.width = (W * s) + 'px';
+  canvas.style.height = (H * s) + 'px';
+}
+addEventListener('resize', resize);
+resize();
+
+// ── Game constants ──
+var GRAVITY = 0.6;
+var JUMP_FORCE = -12;
+var JUMP_CUT = -4; // velocity cap on release
+var BASE_SPEED = 4;
+var MAX_SPEED = 14;
+var ACCEL = 0.003;
+var OBSTACLE_SLOW = 0.6; // multiplier on hit
+var PLAYER_W = 16;
+var PLAYER_H = 28;
+var GROUND_Y = 500; // baseline for building tops
+
+// ── Game state ──
+var player, buildings, obstacles, particles, bgEvents;
+var speed, distance, highScore, gameState; // 'title', 'play', 'dead'
+var shakeX, shakeY, shakeDur;
+var jumpPressed, jumpHeld;
+var lastTime;
+
+// ── Parallax layers ──
+var bgLayers = [];
+
+function initBgLayers() {
+  bgLayers = [];
+  // Far clouds
+  for (var i = 0; i < 6; i++) {
+    bgLayers.push({ x: Math.random() * W * 2, y: 30 + Math.random() * 80, w: 60 + Math.random() * 120, h: 15 + Math.random() * 20, depth: 0.05, type: 'cloud' });
+  }
+  // Distant buildings
+  for (var i = 0; i < 12; i++) {
+    bgLayers.push({ x: i * 120 + Math.random() * 40, y: 0, w: 50 + Math.random() * 80, h: 150 + Math.random() * 200, depth: 0.15, type: 'far' });
+  }
+  // Mid buildings
+  for (var i = 0; i < 10; i++) {
+    bgLayers.push({ x: i * 140 + Math.random() * 60, y: 0, w: 60 + Math.random() * 90, h: 200 + Math.random() * 180, depth: 0.35, type: 'mid' });
+  }
+}
+
+function initGame() {
+  player = {
+    x: 200, y: 300, vy: 0,
+    onGround: false, wasOnGround: false,
+    frame: 0, frameTimer: 0,
+    alive: true
+  };
+  buildings = [];
+  obstacles = [];
+  particles = [];
+  bgEvents = [];
+  speed = BASE_SPEED;
+  distance = 0;
+  shakeX = 0; shakeY = 0; shakeDur = 0;
+  jumpPressed = false;
+  jumpHeld = false;
+  lastTime = 0;
+
+  // Generate initial buildings
+  var bx = 0;
+  while (bx < W + 400) {
+    var bw = 150 + Math.random() * 200;
+    var bh = 80 + Math.random() * 160;
+    buildings.push({ x: bx, w: bw, h: bh, hasWindows: Math.random() > 0.3 });
+    // Place obstacles
+    if (bx > 300 && Math.random() > 0.5) {
+      var ox = bx + 40 + Math.random() * (bw - 80);
+      var otype = Math.random() > 0.5 ? 'crate' : 'antenna';
+      obstacles.push({ x: ox, type: otype, hit: false, bldgIdx: buildings.length - 1 });
+    }
+    bx += bw + 40 + Math.random() * 80;
+  }
+
+  // Place player on first building
+  player.y = H - buildings[0].h - PLAYER_H;
+  player.onGround = true;
+
+  initBgLayers();
+}
+
+try { highScore = parseInt(localStorage.getItem('canabalt-hi')) || 0; } catch(e) { highScore = 0; }
+
+gameState = 'title';
+initGame();
+
+// ── Input ──
+var inputJump = false;
+var inputJumpRelease = false;
+
+addEventListener('keydown', function(e) {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); return; }
+  if (infoOpen) return;
+  if (e.key === 'r' || e.key === 'R') { gameState = 'title'; initGame(); return; }
+  if (e.code === 'Space' || e.key === ' ') {
+    e.preventDefault();
+    inputJump = true;
+    jumpHeld = true;
+  }
+});
+
+addEventListener('keyup', function(e) {
+  if (e.code === 'Space' || e.key === ' ') {
+    jumpHeld = false;
+    inputJumpRelease = true;
+  }
+});
+
+canvas.addEventListener('mousedown', function(e) {
+  if (infoOpen) return;
+  inputJump = true;
+  jumpHeld = true;
+});
+
+canvas.addEventListener('mouseup', function() {
+  jumpHeld = false;
+  inputJumpRelease = true;
+});
+
+canvas.addEventListener('touchstart', function(e) {
+  if (infoOpen) return;
+  e.preventDefault();
+  inputJump = true;
+  jumpHeld = true;
+});
+
+canvas.addEventListener('touchend', function(e) {
+  e.preventDefault();
+  jumpHeld = false;
+  inputJumpRelease = true;
+});
+
+// ── Particle system ──
+function spawnParticles(x, y, count, color, vxRange, vyRange) {
+  for (var i = 0; i < count; i++) {
+    particles.push({
+      x: x + Math.random() * 10 - 5,
+      y: y + Math.random() * 5,
+      vx: vxRange[0] + Math.random() * (vxRange[1] - vxRange[0]),
+      vy: vyRange[0] + Math.random() * (vyRange[1] - vyRange[0]),
+      life: 0.5 + Math.random() * 0.5,
+      maxLife: 1,
+      size: 2 + Math.random() * 3,
+      color: color
+    });
+  }
+}
+
+// ── Background events ──
+function maybeSpawnBgEvent() {
+  if (Math.random() > 0.003) return;
+  var type = Math.random() > 0.4 ? 'explosion' : 'falling';
+  bgEvents.push({
+    x: W + 100 + Math.random() * 300,
+    y: 60 + Math.random() * 200,
+    type: type,
+    timer: 0,
+    duration: type === 'explosion' ? 1.5 : 3,
+    size: 20 + Math.random() * 40,
+    fallVy: 0
+  });
+}
+
+// ── Generate new building ──
+function generateBuilding() {
+  var last = buildings[buildings.length - 1];
+  var gap = 40 + Math.random() * 60 + speed * 8;
+  var bw = 120 + Math.random() * 220;
+  var lastH = last.h;
+  var dh = (Math.random() - 0.5) * 120;
+  var bh = Math.max(60, Math.min(260, lastH + dh));
+  var bx = last.x + last.w + gap;
+
+  buildings.push({ x: bx, w: bw, h: bh, hasWindows: Math.random() > 0.3 });
+
+  // Maybe add obstacle
+  if (Math.random() > 0.4) {
+    var ox = bx + 30 + Math.random() * (bw - 60);
+    var otype = Math.random() > 0.5 ? 'crate' : 'antenna';
+    obstacles.push({ x: ox, type: otype, hit: false });
+  }
+}
+
+// ── Update ──
+function update(dt) {
+  if (infoOpen) return;
+
+  if (gameState === 'title') {
+    // Scroll background slowly
+    for (var i = 0; i < bgLayers.length; i++) {
+      bgLayers[i].x -= 0.5 * bgLayers[i].depth * 60 * dt;
+    }
+    if (inputJump) {
+      gameState = 'play';
+      initGame();
+      inputJump = false;
+    }
+    return;
+  }
+
+  if (gameState === 'dead') {
+    // Let particles finish
+    for (var i = particles.length - 1; i >= 0; i--) {
+      var p = particles[i];
+      p.x -= speed * 60 * dt * 0.3;
+      p.vx *= 0.98;
+      p.vy += 8 * dt;
+      p.x += p.vx * 60 * dt;
+      p.y += p.vy * 60 * dt;
+      p.life -= dt;
+      if (p.life <= 0) particles.splice(i, 1);
+    }
+    if (inputJump) {
+      gameState = 'play';
+      initGame();
+      inputJump = false;
+    }
+    return;
+  }
+
+  // ── Play state ──
+  // Accelerate
+  speed = Math.min(MAX_SPEED, speed + ACCEL * 60 * dt);
+  distance += speed * 60 * dt;
+
+  // Scroll everything
+  var scroll = speed * 60 * dt;
+
+  // Buildings
+  for (var i = 0; i < buildings.length; i++) {
+    buildings[i].x -= scroll;
+  }
+  // Remove offscreen buildings
+  while (buildings.length > 0 && buildings[0].x + buildings[0].w < -50) {
+    buildings.shift();
+  }
+  // Generate new buildings
+  while (buildings.length < 8 || buildings[buildings.length - 1].x < W + 200) {
+    generateBuilding();
+  }
+
+  // Obstacles
+  for (var i = 0; i < obstacles.length; i++) {
+    obstacles[i].x -= scroll;
+  }
+  while (obstacles.length > 0 && obstacles[0].x < -50) {
+    obstacles.shift();
+  }
+
+  // Background parallax
+  for (var i = 0; i < bgLayers.length; i++) {
+    bgLayers[i].x -= scroll * bgLayers[i].depth;
+    // Wrap
+    if (bgLayers[i].type === 'cloud' && bgLayers[i].x + bgLayers[i].w < -20) {
+      bgLayers[i].x = W + 50 + Math.random() * 200;
+      bgLayers[i].y = 30 + Math.random() * 80;
+    }
+    if (bgLayers[i].type === 'far' && bgLayers[i].x + bgLayers[i].w < -20) {
+      bgLayers[i].x = W + 20 + Math.random() * 100;
+      bgLayers[i].h = 150 + Math.random() * 200;
+      bgLayers[i].w = 50 + Math.random() * 80;
+    }
+    if (bgLayers[i].type === 'mid' && bgLayers[i].x + bgLayers[i].w < -20) {
+      bgLayers[i].x = W + 20 + Math.random() * 100;
+      bgLayers[i].h = 200 + Math.random() * 180;
+      bgLayers[i].w = 60 + Math.random() * 90;
+    }
+  }
+
+  // Background events
+  maybeSpawnBgEvent();
+  for (var i = bgEvents.length - 1; i >= 0; i--) {
+    var ev = bgEvents[i];
+    ev.x -= scroll * 0.2;
+    ev.timer += dt;
+    if (ev.type === 'falling') {
+      ev.fallVy += 2 * dt;
+      ev.y += ev.fallVy * 60 * dt;
+    }
+    if (ev.timer > ev.duration || ev.y > H + 100) {
+      bgEvents.splice(i, 1);
+    }
+  }
+
+  // ── Player physics ──
+  player.wasOnGround = player.onGround;
+
+  // Jump
+  if (inputJump && player.onGround) {
+    player.vy = JUMP_FORCE;
+    player.onGround = false;
+    spawnParticles(player.x + PLAYER_W / 2, player.y + PLAYER_H, 5, '#aaa', [-2, 2], [-3, -0.5]);
+  }
+  inputJump = false;
+
+  // Variable jump height — cut velocity on release
+  if (inputJumpRelease && player.vy < JUMP_CUT) {
+    player.vy = JUMP_CUT;
+  }
+  inputJumpRelease = false;
+
+  // Gravity
+  player.vy += GRAVITY * 60 * dt;
+  player.y += player.vy * 60 * dt;
+
+  // Collision with buildings
+  player.onGround = false;
+  for (var i = 0; i < buildings.length; i++) {
+    var b = buildings[i];
+    var bTop = H - b.h;
+    var px = player.x;
+    var py = player.y;
+    // Check if player is above the building horizontally
+    if (px + PLAYER_W > b.x + 4 && px < b.x + b.w - 4) {
+      // Landing on top
+      if (py + PLAYER_H >= bTop && py + PLAYER_H <= bTop + 20 && player.vy >= 0) {
+        player.y = bTop - PLAYER_H;
+        if (player.vy > 3 && !player.wasOnGround) {
+          // Camera shake on landing
+          shakeDur = 0.15 + Math.min(0.15, player.vy * 0.01);
+          spawnParticles(player.x + PLAYER_W / 2, player.y + PLAYER_H, 8, '#999', [-3, 3], [-2, -0.2]);
+        }
+        player.vy = 0;
+        player.onGround = true;
+        break;
+      }
+    }
+  }
+
+  // Obstacle collision
+  for (var i = 0; i < obstacles.length; i++) {
+    var o = obstacles[i];
+    if (o.hit) continue;
+    var oh, ow;
+    if (o.type === 'crate') { ow = 18; oh = 18; }
+    else { ow = 6; oh = 36; } // antenna
+
+    // Find building this obstacle is on
+    var obstY = H; // default
+    for (var j = 0; j < buildings.length; j++) {
+      var b = buildings[j];
+      if (o.x >= b.x && o.x <= b.x + b.w) {
+        obstY = H - b.h - oh;
+        break;
+      }
+    }
+
+    if (player.x + PLAYER_W > o.x - ow / 2 && player.x < o.x + ow / 2 &&
+        player.y + PLAYER_H > obstY && player.y < obstY + oh) {
+      o.hit = true;
+      speed *= OBSTACLE_SLOW;
+      if (speed < BASE_SPEED) speed = BASE_SPEED;
+      shakeDur = 0.2;
+      spawnParticles(o.x, obstY + oh / 2, 12, '#bbb', [-4, 4], [-4, 0]);
+      // Stumble: small upward push if on ground
+      if (player.onGround) {
+        player.vy = -3;
+        player.onGround = false;
+      }
+    }
+  }
+
+  // Fell off screen
+  if (player.y > H + 50) {
+    die();
+    return;
+  }
+
+  // Camera shake
+  if (shakeDur > 0) {
+    shakeDur -= dt;
+    shakeX = (Math.random() - 0.5) * 6;
+    shakeY = (Math.random() - 0.5) * 4;
+  } else {
+    shakeX = 0; shakeY = 0;
+  }
+
+  // Animation
+  player.frameTimer += dt;
+  if (player.frameTimer > 0.08) {
+    player.frameTimer = 0;
+    player.frame = (player.frame + 1) % 4;
+  }
+
+  // Particles
+  for (var i = particles.length - 1; i >= 0; i--) {
+    var p = particles[i];
+    p.x += p.vx * 60 * dt;
+    p.y += p.vy * 60 * dt;
+    p.vy += 5 * dt;
+    p.x -= scroll * 0.5;
+    p.life -= dt;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+}
+
+function die() {
+  gameState = 'dead';
+  player.alive = false;
+  spawnParticles(player.x + PLAYER_W / 2, player.y + PLAYER_H / 2, 20, '#ccc', [-5, 5], [-8, 2]);
+  var meters = Math.floor(distance / 50);
+  if (meters > highScore) {
+    highScore = meters;
+    try { localStorage.setItem('canabalt-hi', highScore); } catch(e) {}
+  }
+}
+
+// ── Draw ──
+function draw() {
+  ctx.save();
+  ctx.translate(shakeX, shakeY);
+
+  // Sky gradient — monochrome
+  var grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#b8b8b8');
+  grad.addColorStop(0.5, '#8a8a8a');
+  grad.addColorStop(1, '#606060');
+  ctx.fillStyle = grad;
+  ctx.fillRect(-10, -10, W + 20, H + 20);
+
+  // Clouds
+  for (var i = 0; i < bgLayers.length; i++) {
+    var l = bgLayers[i];
+    if (l.type === 'cloud') {
+      ctx.fillStyle = 'rgba(200,200,200,0.4)';
+      ctx.beginPath();
+      ctx.ellipse(l.x + l.w / 2, l.y + l.h / 2, l.w / 2, l.h / 2, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // Background events
+  for (var i = 0; i < bgEvents.length; i++) {
+    var ev = bgEvents[i];
+    if (ev.type === 'explosion') {
+      var t = ev.timer / ev.duration;
+      var r = ev.size * (1 + t * 2);
+      var alpha = Math.max(0, 1 - t);
+      ctx.fillStyle = 'rgba(220,180,140,' + (alpha * 0.5) + ')';
+      ctx.beginPath();
+      ctx.arc(ev.x, ev.y, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,200,100,' + (alpha * 0.8) + ')';
+      ctx.beginPath();
+      ctx.arc(ev.x, ev.y, r * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      // Falling building silhouette
+      ctx.save();
+      ctx.translate(ev.x, ev.y);
+      ctx.rotate(ev.timer * 0.3);
+      ctx.fillStyle = 'rgba(60,60,60,0.5)';
+      ctx.fillRect(-ev.size / 4, -ev.size, ev.size / 2, ev.size);
+      ctx.restore();
+    }
+  }
+
+  // Far buildings
+  for (var i = 0; i < bgLayers.length; i++) {
+    var l = bgLayers[i];
+    if (l.type === 'far') {
+      ctx.fillStyle = '#585858';
+      ctx.fillRect(l.x, H - l.h, l.w, l.h);
+      // Dim windows
+      ctx.fillStyle = '#666';
+      for (var wy = H - l.h + 10; wy < H - 10; wy += 20) {
+        for (var wx = l.x + 8; wx < l.x + l.w - 8; wx += 16) {
+          ctx.fillRect(wx, wy, 6, 8);
+        }
+      }
+    }
+  }
+
+  // Mid buildings
+  for (var i = 0; i < bgLayers.length; i++) {
+    var l = bgLayers[i];
+    if (l.type === 'mid') {
+      ctx.fillStyle = '#484848';
+      ctx.fillRect(l.x, H - l.h, l.w, l.h);
+      ctx.fillStyle = '#555';
+      for (var wy = H - l.h + 12; wy < H - 10; wy += 18) {
+        for (var wx = l.x + 6; wx < l.x + l.w - 6; wx += 14) {
+          ctx.fillRect(wx, wy, 5, 7);
+        }
+      }
+    }
+  }
+
+  // ── Foreground buildings ──
+  for (var i = 0; i < buildings.length; i++) {
+    var b = buildings[i];
+    if (b.x + b.w < -10 || b.x > W + 10) continue;
+    var bTop = H - b.h;
+
+    // Building body
+    ctx.fillStyle = '#3a3a3a';
+    ctx.fillRect(b.x, bTop, b.w, b.h);
+
+    // Top edge highlight
+    ctx.fillStyle = '#4a4a4a';
+    ctx.fillRect(b.x, bTop, b.w, 3);
+
+    // Side edge
+    ctx.fillStyle = '#2e2e2e';
+    ctx.fillRect(b.x, bTop, 2, b.h);
+    ctx.fillRect(b.x + b.w - 2, bTop, 2, b.h);
+
+    // Windows
+    if (b.hasWindows) {
+      for (var wy = bTop + 12; wy < H - 8; wy += 16) {
+        for (var wx = b.x + 10; wx < b.x + b.w - 10; wx += 20) {
+          var lit = Math.sin(wx * 0.1 + wy * 0.2) > 0;
+          ctx.fillStyle = lit ? '#555' : '#444';
+          ctx.fillRect(wx, wy, 8, 8);
+        }
+      }
+    }
+  }
+
+  // ── Obstacles ──
+  for (var i = 0; i < obstacles.length; i++) {
+    var o = obstacles[i];
+    if (o.hit) continue;
+    if (o.x < -30 || o.x > W + 30) continue;
+
+    // Find building top
+    var obstY = H;
+    for (var j = 0; j < buildings.length; j++) {
+      var b = buildings[j];
+      if (o.x >= b.x && o.x <= b.x + b.w) {
+        if (o.type === 'crate') {
+          obstY = H - b.h - 18;
+        } else {
+          obstY = H - b.h - 36;
+        }
+        break;
+      }
+    }
+
+    if (o.type === 'crate') {
+      ctx.fillStyle = '#666';
+      ctx.fillRect(o.x - 9, obstY, 18, 18);
+      ctx.strokeStyle = '#555';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(o.x - 9, obstY, 18, 18);
+      // X mark
+      ctx.beginPath();
+      ctx.moveTo(o.x - 7, obstY + 2);
+      ctx.lineTo(o.x + 7, obstY + 16);
+      ctx.moveTo(o.x + 7, obstY + 2);
+      ctx.lineTo(o.x - 7, obstY + 16);
+      ctx.strokeStyle = '#777';
+      ctx.stroke();
+    } else {
+      // Antenna
+      ctx.fillStyle = '#777';
+      ctx.fillRect(o.x - 2, obstY, 4, 36);
+      // Cross bars
+      ctx.fillRect(o.x - 8, obstY + 6, 16, 2);
+      ctx.fillRect(o.x - 5, obstY + 14, 10, 2);
+      // Tip
+      ctx.fillStyle = '#a00';
+      ctx.fillRect(o.x - 2, obstY - 2, 4, 4);
+    }
+  }
+
+  // ── Player ──
+  if (player.alive) {
+    var px = player.x;
+    var py = player.y;
+    var f = player.frame;
+
+    // Body
+    ctx.fillStyle = '#1a1a1a';
+    // Torso
+    ctx.fillRect(px + 3, py + 6, 10, 12);
+    // Head
+    ctx.fillRect(px + 4, py, 8, 8);
+    // Arms
+    if (player.onGround) {
+      // Running arms
+      var armOff = f < 2 ? -2 : 2;
+      ctx.fillRect(px + 1, py + 8 + armOff, 3, 6);
+      ctx.fillRect(px + 12, py + 8 - armOff, 3, 6);
+    } else {
+      // Jumping — arms up/back
+      ctx.fillRect(px, py + 4, 3, 8);
+      ctx.fillRect(px + 13, py + 2, 3, 6);
+    }
+    // Legs
+    if (player.onGround) {
+      // Running legs
+      var legOff1 = (f === 0 || f === 2) ? 0 : 3;
+      var legOff2 = (f === 0 || f === 2) ? 3 : 0;
+      ctx.fillRect(px + 4, py + 18, 4, 10 - legOff1);
+      ctx.fillRect(px + 9, py + 18, 4, 10 - legOff2);
+    } else {
+      // In air — legs trailing
+      ctx.fillRect(px + 3, py + 18, 4, 8);
+      ctx.fillRect(px + 8, py + 20, 4, 8);
+    }
+
+    // Coat tail flap
+    if (speed > 6) {
+      ctx.fillStyle = '#222';
+      ctx.fillRect(px - 2, py + 10, 4, 6 + Math.sin(Date.now() * 0.02) * 2);
+    }
+  }
+
+  // ── Particles ──
+  for (var i = 0; i < particles.length; i++) {
+    var p = particles[i];
+    var alpha = p.life / p.maxLife;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x, p.y, p.size, p.size);
+  }
+  ctx.globalAlpha = 1;
+
+  ctx.restore(); // remove shake
+
+  // ── HUD ──
+  var meters = Math.floor(distance / 50);
+
+  if (gameState === 'play') {
+    hudText(meters + 'm', W - 10, 10, '#fff', 20, 'right');
+    if (highScore > 0) {
+      hudText('BEST: ' + highScore + 'm', W - 10, 34, '#aaa', 12, 'right');
+    }
+    // Speed indicator
+    var speedPct = ((speed - BASE_SPEED) / (MAX_SPEED - BASE_SPEED) * 100).toFixed(0);
+    hudText('SPEED', 10, 10, '#888', 10, 'left');
+    ctx.fillStyle = '#444';
+    ctx.fillRect(10, 24, 100, 6);
+    ctx.fillStyle = speed > 10 ? '#c44' : speed > 7 ? '#ca4' : '#4a4';
+    ctx.fillRect(10, 24, Math.min(100, (speed - BASE_SPEED) / (MAX_SPEED - BASE_SPEED) * 100), 6);
+  }
+
+  if (gameState === 'title') {
+    // Darken
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.fillRect(0, 0, W, H);
+
+    hudText('ROOF SPRINT', W / 2, H / 2 - 60, '#fff', 36, 'center');
+    hudText('ONE BUTTON. INFINITE DEPTH.', W / 2, H / 2 - 15, '#aaa', 14, 'center');
+    hudText('PRESS SPACE OR CLICK TO RUN', W / 2, H / 2 + 25, '#ccc', 16, 'center');
+    if (highScore > 0) {
+      hudText('BEST: ' + highScore + 'm', W / 2, H / 2 + 60, '#888', 14, 'center');
+    }
+    hudText('PRESS ? FOR INFO', W / 2, H - 30, '#666', 11, 'center');
+  }
+
+  if (gameState === 'dead') {
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(0, 0, W, H);
+
+    hudText('GAME OVER', W / 2, H / 2 - 50, '#fff', 32, 'center');
+    hudText(meters + ' METERS', W / 2, H / 2 - 10, '#ccc', 20, 'center');
+    if (meters >= highScore && highScore > 0) {
+      hudText('NEW RECORD!', W / 2, H / 2 + 20, '#ff4', 16, 'center');
+    }
+    hudText('BEST: ' + highScore + 'm', W / 2, H / 2 + 45, '#888', 14, 'center');
+    hudText('PRESS SPACE OR CLICK TO RETRY', W / 2, H / 2 + 80, '#aaa', 14, 'center');
+  }
+}
+
+// ── Loop ──
+function loop(ts) {
+  var dt = lastTime ? Math.min((ts - lastTime) / 1000, 0.05) : 1 / 60;
+  lastTime = ts;
+  update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+requestAnimationFrame(loop);
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

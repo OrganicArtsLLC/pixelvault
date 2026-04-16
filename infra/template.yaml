@@ -1,0 +1,288 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Description: >
+  Pixel Vault — Leaderboard, Stats, and Session API
+  Serverless backend for the Pixel Vault game museum.
+  Deploys: API Gateway (HTTP) + Lambda + DynamoDB + WAF WebACL
+
+# ──────────────────────────────────────────────────────────────────
+# Parameters
+# ──────────────────────────────────────────────────────────────────
+Parameters:
+  Environment:
+    Type: String
+    Default: production
+    AllowedValues: [production, staging, development]
+
+  AllowedOrigin:
+    Type: String
+    Default: https://joshuaayson.com
+    Description: CORS allowed origin (your hosted domain)
+
+  RateLimit:
+    Type: Number
+    Default: 100
+    Description: WAF rate limit — max requests per 5 minutes per IP
+
+  MaxConcurrentSessions:
+    Type: Number
+    Default: 200
+    Description: Soft cap on simultaneous active sessions (for queue display)
+
+# ──────────────────────────────────────────────────────────────────
+# Globals
+# ──────────────────────────────────────────────────────────────────
+Globals:
+  Function:
+    Runtime: python3.11
+    Timeout: 10
+    MemorySize: 256
+    Environment:
+      Variables:
+        LEADERBOARD_TABLE: !Ref LeaderboardTable
+        STATS_TABLE: !Ref StatsTable
+        SESSIONS_TABLE: !Ref SessionsTable
+        ALLOWED_ORIGIN: !Ref AllowedOrigin
+        MAX_CONCURRENT: !Ref MaxConcurrentSessions
+        ENVIRONMENT: !Ref Environment
+
+# ──────────────────────────────────────────────────────────────────
+# Resources
+# ──────────────────────────────────────────────────────────────────
+Resources:
+
+  # ── API Gateway (HTTP API — lower cost, simpler than REST) ──
+  PixelVaultApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: !Ref Environment
+      CorsConfiguration:
+        AllowOrigins:
+          - !Ref AllowedOrigin
+        AllowMethods:
+          - GET
+          - POST
+          - OPTIONS
+        AllowHeaders:
+          - Content-Type
+          - X-Session-ID
+        MaxAge: 300
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 50
+        ThrottlingRateLimit: 100
+
+  # ── Lambda: single handler routes all API paths ──
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub pixelvault-api-${Environment}
+      CodeUri: functions/
+      Handler: api.handler
+      Description: Pixel Vault leaderboard, stats, and session API
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref LeaderboardTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref StatsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SessionsTable
+      Events:
+        LeaderboardGet:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref PixelVaultApi
+            Method: GET
+            Path: /api/leaderboard/{gameId}
+        ScorePost:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref PixelVaultApi
+            Method: POST
+            Path: /api/score
+        SessionPost:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref PixelVaultApi
+            Method: POST
+            Path: /api/session
+        StatsGet:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref PixelVaultApi
+            Method: GET
+            Path: /api/stats
+        # CORS preflight passthrough
+        OptionsAll:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref PixelVaultApi
+            Method: OPTIONS
+            Path: /api/{proxy+}
+
+  # ── DynamoDB: Leaderboard scores ──
+  # PK: gameId (e.g. "def-001-pong")
+  # SK: score_padded#timestamp (e.g. "0000012345#1742000000000")
+  #     — zero-padded score enables lexicographic sort (high = last, use ScanIndexForward=False)
+  LeaderboardTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain  # Never auto-delete score data
+    Properties:
+      TableName: !Sub pixelvault-leaderboard-${Environment}
+      BillingMode: PAY_PER_REQUEST  # On-demand — cost-efficient for game museum traffic
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      AttributeDefinitions:
+        - AttributeName: gameId
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: gameId
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: false  # Scores are permanent (no TTL)
+
+  # ── DynamoDB: Game stats (play counts) ──
+  # PK: gameId
+  StatsTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    Properties:
+      TableName: !Sub pixelvault-stats-${Environment}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: gameId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: gameId
+          KeyType: HASH
+
+  # ── DynamoDB: Active sessions (queue + dupe-score prevention) ──
+  # PK: sessionId  TTL: 1 hour
+  SessionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub pixelvault-sessions-${Environment}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: sessionId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: sessionId
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true  # Sessions auto-expire after 1 hour
+
+  # ── WAF WebACL — rate limiting + IP blocking ──
+  PixelVaultWAF:
+    Type: AWS::WAFv2::WebACL
+    Properties:
+      Name: !Sub pixelvault-waf-${Environment}
+      Scope: REGIONAL  # Use CLOUDFRONT scope if attaching to CloudFront
+      DefaultAction:
+        Allow: {}
+      Rules:
+        # Rule 1: Rate limit per IP (100 requests per 5 minutes)
+        - Name: RateLimitPerIP
+          Priority: 1
+          Action:
+            Block:
+              CustomResponse:
+                ResponseCode: 429
+                ResponseHeaders:
+                  - Name: Retry-After
+                    Value: "300"
+          Statement:
+            RateBasedStatement:
+              Limit: !Ref RateLimit
+              AggregateKeyType: IP
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: RateLimitPerIP
+
+        # Rule 2: AWS Managed Rules — Common Rule Set (OWASP Top 10 coverage)
+        - Name: AWSManagedRulesCommonRuleSet
+          Priority: 2
+          OverrideAction:
+            None: {}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesCommonRuleSet
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: AWSManagedRulesCommonRuleSet
+
+        # Rule 3: Known bad inputs (SQL injection, XSS patterns)
+        - Name: AWSManagedRulesKnownBadInputsRuleSet
+          Priority: 3
+          OverrideAction:
+            None: {}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesKnownBadInputsRuleSet
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: KnownBadInputs
+
+      VisibilityConfig:
+        SampledRequestsEnabled: true
+        CloudWatchMetricsEnabled: true
+        MetricName: !Sub PixelVaultWAF-${Environment}
+
+  # ── WAF Association with API Gateway ──
+  WafAssociation:
+    Type: AWS::WAFv2::WebACLAssociation
+    Properties:
+      ResourceArn: !Sub
+        - 'arn:aws:apigateway:${AWS::Region}::/restapis/${ApiId}/stages/${Stage}'
+        - ApiId: !Ref PixelVaultApi
+          Stage: !Ref Environment
+      WebACLArn: !GetAtt PixelVaultWAF.Arn
+
+  # ── CloudWatch Alarms ──
+  HighErrorRateAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub pixelvault-high-error-rate-${Environment}
+      AlarmDescription: API Lambda error rate above 5%
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref ApiFunction
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 10
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+
+# ──────────────────────────────────────────────────────────────────
+# Outputs
+# ──────────────────────────────────────────────────────────────────
+Outputs:
+  ApiEndpoint:
+    Description: API Gateway endpoint URL — add /api/ prefix for routes
+    Value: !Sub https://${PixelVaultApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}
+    Export:
+      Name: !Sub PixelVaultApiEndpoint-${Environment}
+
+  LeaderboardTableName:
+    Value: !Ref LeaderboardTable
+    Export:
+      Name: !Sub PixelVaultLeaderboardTable-${Environment}
+
+  WAFArn:
+    Value: !GetAtt PixelVaultWAF.Arn
+    Export:
+      Name: !Sub PixelVaultWAFArn-${Environment}

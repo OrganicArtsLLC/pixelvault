@@ -1,0 +1,930 @@
+<!--
+PROTOTYPE: reform-platform
+SERIES: plt
+NUMBER: 016
+DATE: 2026-03-24
+MECHANIC: shrinking platforms — jump between lily pads that shrink and sink after you land on them; collect items while platforms disappear beneath you
+ANCESTRY: Perestroika (1990, Nikita Skripkin / Locis Software, USSR), Frogger (1981, Konami)
+CONTROLS: Left/Right arrows — move | Up/Space — jump | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Machine Learning — emergent difficulty through decaying platform states mirrors adaptive systems)
+AI-INSIGHT: Perestroika's shrinking platforms create an emergent difficulty curve where the game state itself degrades over time — a mechanic that mirrors entropy in complex adaptive systems and the concept of non-stationary environments in reinforcement learning.
+NOTES: Soviet-era political satire platformer. Lily pads shrink and sink after landing.
+       The crumbling platforms metaphor for Soviet collapse. Collect items for points.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PLT-016 · REFORM PLATFORM</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>PLT-016 · REFORM PLATFORM</h1>
+    <p><span class="tag series">PLT &mdash; Platformer</span> <span class="tag">Prototype #016</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>You are a frog leaping between lily pads on a pond. Every pad you land on begins to shrink and will eventually sink beneath the water. Collect flowers and stars for points, but never stay still &mdash; the ground is always disappearing beneath you.</p>
+    <ul>
+      <li><kbd>&#8592;</kbd> <kbd>&#8594;</kbd> &mdash; Move left/right</li>
+      <li><kbd>&#8593;</kbd> / <kbd>Space</kbd> &mdash; Jump</li>
+      <li><kbd>R</kbd> &mdash; Restart</li>
+      <li><kbd>?</kbd> &mdash; Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Keep moving:</strong> Pads shrink faster the longer you stand on them. Jump early and often.</li>
+      <li><strong>New pads grow:</strong> Fresh lily pads periodically appear &mdash; watch for bright green pads emerging from the water.</li>
+      <li><strong>Collect items:</strong> Flowers (&#9880;) and stars (&#9733;) appear on pads. Grab them before the pad sinks.</li>
+      <li><strong>Water = death:</strong> Fall in the water and you lose a life. You have 3 lives.</li>
+      <li><strong>Levels:</strong> Each level adds more pads but they shrink faster. Survive the restructuring.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Perestroika (1990, Nikita Skripkin / Locis Software, USSR) &larr; Frogger (1981, Konami)</p>
+    <p>Perestroika (Russian: &#1055;&#1077;&#1088;&#1077;&#1089;&#1090;&#1088;&#1086;&#769;&#1081;&#1082;&#1072;, &ldquo;restructuring&rdquo;) was created by Nikita Skripkin at Locis Software in 1990, during the final years of the Soviet Union. The game was an unmistakable political allegory: a frog (the citizen) leaping between lily pads (institutions of Soviet society) that shrink and sink beneath you. The message was clear &mdash; the platforms of the old order were crumbling, and survival meant constant adaptation.</p>
+    <p>Originally written for MS-DOS, it became one of the most famous Soviet-era computer games. The game spread through floppy-disk copying networks across the USSR and Eastern Bloc. It captured the anxiety and dark humor of an era when the entire social contract was dissolving in real time. The title directly referenced Gorbachev&rsquo;s reform program that was reshaping (and ultimately dismantling) the Soviet system.</p>
+    <p>The mechanical lineage connects to Frogger (1981) &mdash; both feature a small creature navigating a hostile environment by jumping between safe zones. But where Frogger&rsquo;s traffic is cyclical and predictable, Perestroika&rsquo;s platforms decay irreversibly, creating a one-way ratchet toward chaos that mirrors historical entropy.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 3 &mdash; Machine Learning (1980&ndash;2000)</p>
+    <p><strong>Contemporary AI:</strong> Expert systems, early neural networks, connectionism vs. symbolicism debate.</p>
+    <p><strong>Insight:</strong> The shrinking-platform mechanic creates a non-stationary environment &mdash; a concept central to reinforcement learning research. An agent trained on early game states would find its policy invalidated as platforms decay, requiring continuous adaptation. This mirrors the challenge of concept drift in machine learning, where the underlying data distribution shifts over time. The game is essentially a physical metaphor for training in non-stationary environments.</p>
+
+    <h2>Classification</h2>
+    <ul>
+      <li><strong>Primary:</strong> Platformer (single-screen, shrinking platforms)</li>
+      <li><strong>Secondary:</strong> Collection, survival, political satire</li>
+      <li><strong>Input:</strong> 4-direction movement + jump</li>
+      <li><strong>Perspective:</strong> Side view</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This prototype implements the core shrinking-platform loop with a frog character, collectible items, progressive levels, and the signature mechanic of pads that decay after landing. New pads grow periodically to prevent total platform extinction. The political metaphor is preserved through the escalating instability of each level.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game&rsquo;s creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+var W = 800, H = 600;
+var canvas = document.getElementById('c');
+var ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+canvas.width = W;
+canvas.height = H;
+
+var infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// ── Game constants ──
+var GRAVITY = 0.5;
+var JUMP_FORCE = -11;
+var MOVE_SPEED = 4;
+var WATER_LINE = 500;
+var PAD_SHRINK_RATE = 0.15;       // pixels per frame shrink
+var PAD_SINK_RATE = 0.3;          // sink speed once too small
+var PAD_MIN_WIDTH = 15;           // starts sinking at this width
+var NEW_PAD_INTERVAL = 180;       // frames between new pad spawns
+var ITEM_SCORE = 100;
+var LEVEL_BONUS = 500;
+
+// ── Game state ──
+var frog, pads, items, particles, lives, score, highScore, level;
+var gameOver, gameStarted, levelComplete;
+var newPadTimer, levelTimer, itemSpawnTimer;
+var keys = {};
+var lastTime = 0;
+
+highScore = 0;
+
+function makePad(x, y, w) {
+  return {
+    x: x, y: y, w: w, maxW: w, h: 16,
+    shrinking: false, sinking: false,
+    shrinkAmount: 0,
+    age: 0, growing: true, growProgress: 0
+  };
+}
+
+function makeItem(pad) {
+  var types = ['flower', 'star', 'hammer'];
+  var t = types[Math.floor(Math.random() * types.length)];
+  return {
+    x: pad.x + pad.w / 2,
+    y: pad.y - 20,
+    type: t,
+    pad: pad,
+    collected: false,
+    bobPhase: Math.random() * Math.PI * 2
+  };
+}
+
+function generateLevel(lvl) {
+  pads = [];
+  items = [];
+  particles = [];
+  newPadTimer = 0;
+  itemSpawnTimer = 0;
+  levelComplete = false;
+  levelTimer = 0;
+
+  // Create initial pads
+  var padCount = 8 + lvl * 2;
+  if (padCount > 20) padCount = 20;
+
+  // Starting pad (always safe, larger)
+  pads.push(makePad(350, WATER_LINE - 40, 120));
+  pads[0].growing = false;
+  pads[0].growProgress = 1;
+
+  for (var i = 1; i < padCount; i++) {
+    var pw = 60 + Math.random() * 50;
+    var px = 30 + Math.random() * (W - 90);
+    var py = WATER_LINE - 50 - Math.random() * 340;
+    // Avoid overlapping
+    var overlap = false;
+    for (var j = 0; j < pads.length; j++) {
+      if (Math.abs(pads[j].x - px) < 80 && Math.abs(pads[j].y - py) < 40) {
+        overlap = true;
+        break;
+      }
+    }
+    if (!overlap) {
+      var p = makePad(px, py, pw);
+      p.growing = false;
+      p.growProgress = 1;
+      pads.push(p);
+      // Maybe add item
+      if (Math.random() < 0.4) {
+        items.push(makeItem(p));
+      }
+    }
+  }
+
+  // Place frog on starting pad
+  frog = {
+    x: pads[0].x + pads[0].w / 2 - 12,
+    y: pads[0].y - 28,
+    w: 24, h: 24,
+    vx: 0, vy: 0,
+    onGround: true,
+    currentPad: pads[0],
+    facing: 1,
+    jumpCooldown: 0,
+    blinkTimer: 0
+  };
+  // Start pad shrinking
+  pads[0].shrinking = true;
+}
+
+function init() {
+  lives = 3;
+  score = 0;
+  level = 1;
+  gameOver = false;
+  gameStarted = false;
+  generateLevel(level);
+}
+
+// ── Input ──
+document.addEventListener('keydown', function(e) {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
+    toggleInfo();
+    e.preventDefault();
+    return;
+  }
+  if (infoOpen && e.key === 'Escape') {
+    toggleInfo();
+    e.preventDefault();
+    return;
+  }
+  keys[e.key] = true;
+  if (e.key === 'r' || e.key === 'R') {
+    init();
+    gameStarted = true;
+  }
+  if (!gameStarted && (e.key === ' ' || e.key === 'ArrowUp')) {
+    gameStarted = true;
+    e.preventDefault();
+  }
+  if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+    e.preventDefault();
+  }
+});
+document.addEventListener('keyup', function(e) {
+  keys[e.key] = false;
+});
+
+// ── Particles ──
+function spawnParticles(x, y, color, count) {
+  for (var i = 0; i < count; i++) {
+    particles.push({
+      x: x, y: y,
+      vx: (Math.random() - 0.5) * 4,
+      vy: -Math.random() * 3 - 1,
+      life: 30 + Math.random() * 20,
+      maxLife: 50,
+      color: color,
+      size: 2 + Math.random() * 3
+    });
+  }
+}
+
+function spawnSplash(x, y) {
+  for (var i = 0; i < 12; i++) {
+    particles.push({
+      x: x + (Math.random() - 0.5) * 20,
+      y: y,
+      vx: (Math.random() - 0.5) * 5,
+      vy: -Math.random() * 6 - 2,
+      life: 25 + Math.random() * 15,
+      maxLife: 40,
+      color: '#5af',
+      size: 3 + Math.random() * 3
+    });
+  }
+}
+
+// ── Ripple effect for water ──
+var ripples = [];
+function addRipple(x, y) {
+  ripples.push({ x: x, y: y, r: 5, maxR: 40 + Math.random() * 20, alpha: 0.6 });
+}
+
+// ── Update ──
+function update() {
+  if (infoOpen) return;
+  if (!gameStarted || gameOver) return;
+
+  var shrinkMult = 1 + (level - 1) * 0.25;
+
+  // Frog movement
+  if (keys['ArrowLeft'] || keys['a']) {
+    frog.vx = -MOVE_SPEED;
+    frog.facing = -1;
+  } else if (keys['ArrowRight'] || keys['d']) {
+    frog.vx = MOVE_SPEED;
+    frog.facing = 1;
+  } else {
+    frog.vx *= 0.7;
+    if (Math.abs(frog.vx) < 0.3) frog.vx = 0;
+  }
+
+  // Jump
+  if ((keys['ArrowUp'] || keys[' '] || keys['w']) && frog.onGround && frog.jumpCooldown <= 0) {
+    frog.vy = JUMP_FORCE;
+    frog.onGround = false;
+    frog.currentPad = null;
+    frog.jumpCooldown = 8;
+  }
+  if (frog.jumpCooldown > 0) frog.jumpCooldown--;
+
+  // Gravity
+  if (!frog.onGround) {
+    frog.vy += GRAVITY;
+  }
+
+  // Move frog
+  frog.x += frog.vx;
+  frog.y += frog.vy;
+
+  // Screen bounds
+  if (frog.x < 0) frog.x = 0;
+  if (frog.x + frog.w > W) frog.x = W - frog.w;
+
+  // Platform collision (only when falling)
+  frog.onGround = false;
+  if (frog.vy >= 0) {
+    for (var i = 0; i < pads.length; i++) {
+      var p = pads[i];
+      if (p.sinking && p.y > WATER_LINE - 5) continue;
+      if (!p.growing || p.growProgress >= 0.5) {
+        var pw = p.w * (p.growing ? p.growProgress : 1);
+        var px = p.x + (p.w - pw) / 2;
+        if (frog.x + frog.w > px + 4 && frog.x < px + pw - 4 &&
+            frog.y + frog.h >= p.y && frog.y + frog.h <= p.y + 12 + frog.vy) {
+          frog.y = p.y - frog.h;
+          frog.vy = 0;
+          frog.onGround = true;
+          if (frog.currentPad !== p) {
+            frog.currentPad = p;
+            if (!p.shrinking) {
+              p.shrinking = true;
+              spawnParticles(frog.x + frog.w / 2, frog.y + frog.h, '#4a4', 5);
+            }
+          }
+          break;
+        }
+      }
+    }
+  }
+
+  // If on a sinking pad, sink with it
+  if (frog.onGround && frog.currentPad) {
+    var cp = frog.currentPad;
+    frog.y = cp.y - frog.h;
+    // If pad center moved, adjust frog
+    var pw = cp.w;
+    var cx = cp.x + pw / 2;
+    // Keep frog on shrinking pad
+    if (frog.x + frog.w / 2 < cp.x || frog.x + frog.w / 2 > cp.x + cp.w) {
+      frog.onGround = false;
+      frog.currentPad = null;
+    }
+  }
+
+  // Water check
+  if (frog.y + frog.h > WATER_LINE + 10) {
+    spawnSplash(frog.x + frog.w / 2, WATER_LINE);
+    addRipple(frog.x + frog.w / 2, WATER_LINE);
+    lives--;
+    if (lives <= 0) {
+      gameOver = true;
+      if (score > highScore) highScore = score;
+    } else {
+      // Respawn on a safe pad
+      var safePad = null;
+      var bestW = 0;
+      for (var i = 0; i < pads.length; i++) {
+        if (!pads[i].sinking && pads[i].w > bestW && (!pads[i].growing || pads[i].growProgress >= 0.8)) {
+          bestW = pads[i].w;
+          safePad = pads[i];
+        }
+      }
+      if (safePad) {
+        frog.x = safePad.x + safePad.w / 2 - frog.w / 2;
+        frog.y = safePad.y - frog.h;
+        frog.vy = 0;
+        frog.vx = 0;
+        frog.onGround = true;
+        frog.currentPad = safePad;
+      } else {
+        // No safe pad, regenerate level
+        generateLevel(level);
+      }
+    }
+  }
+
+  // Update pads
+  for (var i = pads.length - 1; i >= 0; i--) {
+    var p = pads[i];
+
+    // Growing animation
+    if (p.growing && p.growProgress < 1) {
+      p.growProgress += 0.02;
+      if (p.growProgress >= 1) {
+        p.growProgress = 1;
+        p.growing = false;
+      }
+    }
+
+    // Shrinking
+    if (p.shrinking && !p.growing) {
+      p.shrinkAmount += PAD_SHRINK_RATE * shrinkMult;
+      p.w = p.maxW - p.shrinkAmount;
+      p.x += PAD_SHRINK_RATE * shrinkMult * 0.5;
+      if (p.w <= PAD_MIN_WIDTH) {
+        p.sinking = true;
+        p.w = PAD_MIN_WIDTH;
+      }
+    }
+
+    // Sinking
+    if (p.sinking) {
+      p.y += PAD_SINK_RATE;
+      if (p.y > WATER_LINE + 30) {
+        // Add ripple
+        addRipple(p.x + p.w / 2, WATER_LINE);
+        pads.splice(i, 1);
+        // Remove items on this pad
+        for (var j = items.length - 1; j >= 0; j--) {
+          if (items[j].pad === p) items.splice(j, 1);
+        }
+        continue;
+      }
+    }
+
+    p.age++;
+  }
+
+  // Spawn new pads periodically
+  newPadTimer++;
+  if (newPadTimer >= NEW_PAD_INTERVAL) {
+    newPadTimer = 0;
+    if (pads.length < 15) {
+      var nx = 30 + Math.random() * (W - 120);
+      var ny = 140 + Math.random() * (WATER_LINE - 200);
+      var nw = 55 + Math.random() * 45;
+      var newPad = makePad(nx, ny, nw);
+      pads.push(newPad);
+      if (Math.random() < 0.5) {
+        items.push(makeItem(newPad));
+      }
+    }
+  }
+
+  // Item collection
+  for (var i = items.length - 1; i >= 0; i--) {
+    var it = items[i];
+    if (it.collected) continue;
+    it.bobPhase += 0.05;
+    // Update position relative to pad
+    if (it.pad) {
+      it.x = it.pad.x + it.pad.w / 2;
+      it.y = it.pad.y - 20 + Math.sin(it.bobPhase) * 3;
+    }
+    // Check collection
+    if (Math.abs(frog.x + frog.w / 2 - it.x) < 18 &&
+        Math.abs(frog.y + frog.h / 2 - it.y) < 18) {
+      it.collected = true;
+      score += ITEM_SCORE;
+      var col = it.type === 'flower' ? '#f6a' : it.type === 'star' ? '#ff0' : '#f44';
+      spawnParticles(it.x, it.y, col, 8);
+      items.splice(i, 1);
+    }
+  }
+
+  // Level completion: survive long enough or collect enough
+  levelTimer++;
+  var targetTime = 600 + level * 120;  // ~10-14 seconds per level at 60fps
+  if (levelTimer >= targetTime) {
+    level++;
+    score += LEVEL_BONUS;
+    spawnParticles(W / 2, H / 2, '#ff0', 20);
+    generateLevel(level);
+  }
+
+  // Check if all pads are gone (fail state — regenerate some)
+  if (pads.length === 0) {
+    generateLevel(level);
+  }
+
+  // Update particles
+  for (var i = particles.length - 1; i >= 0; i--) {
+    var pt = particles[i];
+    pt.x += pt.vx;
+    pt.y += pt.vy;
+    pt.vy += 0.1;
+    pt.life--;
+    if (pt.life <= 0) particles.splice(i, 1);
+  }
+
+  // Update ripples
+  for (var i = ripples.length - 1; i >= 0; i--) {
+    ripples[i].r += 0.8;
+    ripples[i].alpha -= 0.015;
+    if (ripples[i].alpha <= 0) ripples.splice(i, 1);
+  }
+
+  // Frog blink
+  frog.blinkTimer++;
+}
+
+// ── Draw ──
+function draw() {
+  // Sky gradient
+  var skyGrad = ctx.createLinearGradient(0, 0, 0, WATER_LINE);
+  skyGrad.addColorStop(0, '#1a1a3e');
+  skyGrad.addColorStop(1, '#2a3a2a');
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, W, WATER_LINE);
+
+  // Distant scenery (Soviet-style buildings silhouette)
+  ctx.fillStyle = '#151530';
+  // Buildings
+  var bldgs = [
+    [50, 80, 40, 160], [100, 100, 50, 140], [170, 60, 35, 180],
+    [250, 90, 60, 150], [350, 50, 30, 190], [420, 110, 55, 130],
+    [520, 70, 40, 170], [600, 95, 50, 145], [680, 55, 45, 185],
+    [740, 100, 50, 140]
+  ];
+  for (var i = 0; i < bldgs.length; i++) {
+    var b = bldgs[i];
+    ctx.fillRect(b[0], b[1], b[2], b[3]);
+    // Windows
+    ctx.fillStyle = '#2a2a50';
+    for (var wy = b[1] + 10; wy < b[1] + b[3] - 10; wy += 20) {
+      for (var wx = b[0] + 6; wx < b[0] + b[2] - 6; wx += 14) {
+        ctx.fillRect(wx, wy, 6, 8);
+      }
+    }
+    ctx.fillStyle = '#151530';
+  }
+
+  // Water
+  var waterGrad = ctx.createLinearGradient(0, WATER_LINE, 0, H);
+  waterGrad.addColorStop(0, '#1a4a6a');
+  waterGrad.addColorStop(0.3, '#0d3350');
+  waterGrad.addColorStop(1, '#061a2a');
+  ctx.fillStyle = waterGrad;
+  ctx.fillRect(0, WATER_LINE, W, H - WATER_LINE);
+
+  // Water surface shimmer
+  var time = Date.now() * 0.002;
+  ctx.strokeStyle = 'rgba(100,200,255,0.15)';
+  ctx.lineWidth = 1;
+  for (var wx = 0; wx < W; wx += 3) {
+    var wy = WATER_LINE + Math.sin(wx * 0.03 + time) * 3;
+    ctx.fillStyle = 'rgba(100,200,255,0.08)';
+    ctx.fillRect(wx, wy, 2, 1);
+  }
+
+  // Ripples
+  for (var i = 0; i < ripples.length; i++) {
+    var rp = ripples[i];
+    ctx.beginPath();
+    ctx.ellipse(rp.x, rp.y, rp.r, rp.r * 0.3, 0, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(120,210,255,' + rp.alpha + ')';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+
+  // Draw pads
+  for (var i = 0; i < pads.length; i++) {
+    var p = pads[i];
+    var drawW = p.w;
+    var drawX = p.x;
+    var drawY = p.y;
+    var alpha = 1;
+
+    if (p.growing) {
+      drawW = p.maxW * p.growProgress;
+      drawX = p.x + (p.maxW - drawW) / 2;
+      alpha = p.growProgress;
+    }
+
+    if (p.sinking) {
+      alpha = Math.max(0, 1 - (drawY - WATER_LINE + 20) / 50);
+    }
+
+    // Shadow/reflection in water
+    if (drawY < WATER_LINE) {
+      ctx.fillStyle = 'rgba(30,80,40,' + (alpha * 0.3) + ')';
+      ctx.beginPath();
+      ctx.ellipse(drawX + drawW / 2, WATER_LINE + 5, drawW / 2, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Lily pad body
+    var healthRatio = p.shrinking ? Math.max(0, p.w / p.maxW) : 1;
+    var g1 = Math.floor(100 + healthRatio * 100);
+    var g2 = Math.floor(60 + healthRatio * 60);
+    ctx.globalAlpha = alpha;
+
+    // Pad shape (ellipse)
+    ctx.beginPath();
+    ctx.ellipse(drawX + drawW / 2, drawY, drawW / 2, p.h / 2, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgb(30,' + g1 + ',30)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgb(20,' + g2 + ',20)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Lily pad notch (V shape)
+    ctx.beginPath();
+    ctx.moveTo(drawX + drawW / 2, drawY);
+    ctx.lineTo(drawX + drawW / 2 + drawW * 0.15, drawY - p.h * 0.3);
+    ctx.lineTo(drawX + drawW / 2 + drawW * 0.05, drawY);
+    ctx.fillStyle = p.sinking ? '#1a4a6a' : '#1a1a3e';
+    ctx.fill();
+
+    // Shrink indicator (reddish tint when low)
+    if (healthRatio < 0.4 && p.shrinking) {
+      ctx.beginPath();
+      ctx.ellipse(drawX + drawW / 2, drawY, drawW / 2, p.h / 2, 0, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(200,50,50,' + ((0.4 - healthRatio) * 0.5) + ')';
+      ctx.fill();
+    }
+
+    ctx.globalAlpha = 1;
+  }
+
+  // Draw items
+  for (var i = 0; i < items.length; i++) {
+    var it = items[i];
+    if (it.collected) continue;
+    ctx.save();
+    ctx.translate(it.x, it.y);
+
+    if (it.type === 'flower') {
+      // Pink flower
+      for (var p = 0; p < 5; p++) {
+        var angle = (p / 5) * Math.PI * 2 + time * 0.5;
+        ctx.beginPath();
+        ctx.arc(Math.cos(angle) * 5, Math.sin(angle) * 5, 4, 0, Math.PI * 2);
+        ctx.fillStyle = '#f6a';
+        ctx.fill();
+      }
+      ctx.beginPath();
+      ctx.arc(0, 0, 3, 0, Math.PI * 2);
+      ctx.fillStyle = '#ff0';
+      ctx.fill();
+    } else if (it.type === 'star') {
+      // Gold star
+      ctx.beginPath();
+      for (var s = 0; s < 10; s++) {
+        var r = s % 2 === 0 ? 8 : 4;
+        var angle = (s / 10) * Math.PI * 2 - Math.PI / 2;
+        if (s === 0) ctx.moveTo(Math.cos(angle) * r, Math.sin(angle) * r);
+        else ctx.lineTo(Math.cos(angle) * r, Math.sin(angle) * r);
+      }
+      ctx.closePath();
+      ctx.fillStyle = '#ff0';
+      ctx.fill();
+      ctx.strokeStyle = '#da0';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    } else {
+      // Hammer and sickle (simplified)
+      ctx.fillStyle = '#f44';
+      ctx.fillRect(-4, -8, 3, 16);
+      ctx.fillRect(-6, -8, 8, 3);
+      ctx.beginPath();
+      ctx.arc(4, 0, 6, -Math.PI * 0.6, Math.PI * 0.3, false);
+      ctx.strokeStyle = '#f44';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // Draw frog
+  if (!gameOver) {
+    drawFrog(frog.x, frog.y, frog.w, frog.h, frog.facing, frog.onGround);
+  }
+
+  // Particles
+  for (var i = 0; i < particles.length; i++) {
+    var pt = particles[i];
+    ctx.globalAlpha = pt.life / pt.maxLife;
+    ctx.fillStyle = pt.color;
+    ctx.fillRect(pt.x - pt.size / 2, pt.y - pt.size / 2, pt.size, pt.size);
+  }
+  ctx.globalAlpha = 1;
+
+  // HUD
+  hudText('REFORM LEAP', 10, 10, '#f80', 16);
+  hudText('Score: ' + score, 10, 32, '#fff', 14);
+  hudText('Level: ' + level, 10, 50, '#aaf', 14);
+  hudText('Hi: ' + highScore, W - 10, 10, '#888', 12, 'right');
+
+  // Lives
+  for (var i = 0; i < lives; i++) {
+    drawMiniFrog(W - 80 + i * 25, 30, 16);
+  }
+
+  // Level timer bar
+  var targetTime = 600 + level * 120;
+  var progress = Math.min(1, levelTimer / targetTime);
+  ctx.fillStyle = '#333';
+  ctx.fillRect(200, 8, 200, 8);
+  ctx.fillStyle = progress > 0.8 ? '#4f4' : progress > 0.5 ? '#ff0' : '#f80';
+  ctx.fillRect(200, 8, 200 * progress, 8);
+  hudText('LEVEL', 200, 18, '#888', 10);
+
+  // Hint
+  hudText('[ ? ] info', W - 10, H - 20, '#555', 11, 'right');
+
+  // Title screen
+  if (!gameStarted) {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, 0, W, H);
+    hudText('REFORM LEAP', W / 2, H / 3 - 40, '#f44', 36, 'center');
+    hudText('\u041F\u0435\u0440\u0435\u0441\u0442\u0440\u043E\u0439\u043A\u0430', W / 2, H / 3 + 10, '#c44', 20, 'center');
+    hudText('The platforms of society crumble beneath your feet.', W / 2, H / 3 + 50, '#aaa', 13, 'center');
+    hudText('Arrow Keys / WASD to move, Up/Space to jump', W / 2, H / 2 + 20, '#888', 13, 'center');
+    hudText('Collect items. Stay above water. Keep moving.', W / 2, H / 2 + 44, '#888', 13, 'center');
+    hudText('Press SPACE or UP to start', W / 2, H / 2 + 80, '#ff0', 15, 'center');
+    hudText('Nikita Skripkin / Locis Software, 1990 USSR', W / 2, H - 50, '#664', 11, 'center');
+  }
+
+  // Game over
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.75)';
+    ctx.fillRect(0, 0, W, H);
+    hudText('GAME OVER', W / 2, H / 3, '#f44', 32, 'center');
+    hudText('The restructuring is complete.', W / 2, H / 3 + 40, '#aaa', 14, 'center');
+    hudText('Score: ' + score, W / 2, H / 2, '#ff0', 20, 'center');
+    if (score >= highScore && score > 0) {
+      hudText('NEW HIGH SCORE!', W / 2, H / 2 + 30, '#f80', 16, 'center');
+    }
+    hudText('Press R to restart', W / 2, H / 2 + 70, '#888', 14, 'center');
+  }
+}
+
+function drawFrog(x, y, w, h, facing, onGround) {
+  ctx.save();
+  ctx.translate(x + w / 2, y + h / 2);
+  if (facing < 0) ctx.scale(-1, 1);
+
+  // Body
+  ctx.fillStyle = '#3a3';
+  ctx.beginPath();
+  ctx.ellipse(0, 2, w / 2, h / 2 - 2, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Belly
+  ctx.fillStyle = '#6d6';
+  ctx.beginPath();
+  ctx.ellipse(0, 4, w / 3, h / 3, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Eyes
+  var blink = (frog.blinkTimer % 120 < 5);
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(-5, -6, 5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(5, -6, 5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#111';
+  if (!blink) {
+    ctx.beginPath();
+    ctx.arc(-4, -6, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(6, -6, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    ctx.fillRect(-8, -7, 7, 1.5);
+    ctx.fillRect(2, -7, 7, 1.5);
+  }
+
+  // Legs (when jumping, extend them)
+  ctx.fillStyle = '#2a2';
+  if (!onGround) {
+    // Extended legs
+    ctx.fillRect(-w / 2 - 4, 4, 6, 10);
+    ctx.fillRect(w / 2 - 2, 4, 6, 10);
+  } else {
+    // Crouched legs
+    ctx.fillRect(-w / 2 - 3, 6, 8, 5);
+    ctx.fillRect(w / 2 - 5, 6, 8, 5);
+  }
+
+  ctx.restore();
+}
+
+function drawMiniFrog(x, y, size) {
+  ctx.fillStyle = '#3a3';
+  ctx.beginPath();
+  ctx.ellipse(x, y, size / 2, size / 2 - 1, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(x - 2, y - 3, 2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(x + 2, y - 3, 2, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// ── Resize ──
+function resize() {
+  var scale = Math.min(window.innerWidth / W, window.innerHeight / H);
+  canvas.style.width = (W * scale) + 'px';
+  canvas.style.height = (H * scale) + 'px';
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ── Game loop ──
+init();
+
+function loop(t) {
+  if (lastTime === 0) lastTime = t;
+  lastTime = t;
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: runner ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("runner");
+</script>
+</body>
+</html>

@@ -1,0 +1,818 @@
+<!--
+PROTOTYPE: tuho
+SERIES: spt
+NUMBER: 021
+DATE: 2026-03-24
+MECHANIC: arrow throwing precision — throw thin arrows into a narrow-necked pot from a distance; arcs follow physics; score based on arrows that land inside
+ANCESTRY: Tuho (투호, Korea, ~5th century), Touhu (投壺, China, ~5th century BCE), Toko (投壺, Japan), Korean aristocratic court game
+CONTROLS: Click+drag — set angle and power | Release — throw | R — new game | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 2 (Expert Systems — trajectory calculation, ballistic prediction)
+AI-INSIGHT: Tuho is a deceptively simple ballistic problem. The narrow pot opening creates a tight constraint on the angle-velocity space. An expert system can solve the optimal throw analytically, but human players must develop muscle memory through repetition — the same motor learning challenge that makes darts and archery compelling.
+NOTES: Tuho (투호) is a traditional Korean arrow-throwing game played by aristocrats during the Joseon dynasty.
+       Also played in China (投壺 touhu) and Japan. Players throw thin arrows into a narrow-necked pot from a set distance.
+       The game was used as a test of composure and grace, not brute force.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPT-021 · TUHO</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+.edu-notice { margin-top: 20px; padding: 12px; background: #1a1a2e; border: 1px solid #333; border-radius: 4px; font-size: 11px; color: #888; }
+.edu-notice strong { color: #aaa; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SPT-021 · TUHO (투호)</h1>
+    <p><span class="tag series">SPT — Sports</span> <span class="tag">Prototype #021</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Throw thin arrows into a narrow-necked pot from a distance. Aim carefully — the opening is small!</p>
+    <ul>
+      <li><kbd>Click+Drag</kbd> — Set angle and power (drag away from pot)</li>
+      <li><kbd>Release</kbd> — Throw the arrow</li>
+      <li><kbd>R</kbd> — New game</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <p>You have 10 arrows per round. After your turn, an AI opponent throws 10 arrows. The player with more arrows in the pot wins. The pot neck is narrow — precision matters more than power.</p>
+
+    <h2>History</h2>
+    <p><em>Tuho</em> (투호) is a traditional Korean arrow-throwing game dating back to at least the 5th century CE. It evolved from the Chinese game <em>Touhu</em> (投壺), which originated during the Warring States period (~5th century BCE) as a banquet entertainment for nobility. The game spread to Japan as <em>Toko</em>.</p>
+    <p>In Korea, Tuho became closely associated with Confucian court culture during the Joseon dynasty (1392–1897). It was considered a test of composure, grace, and self-control — not athletic prowess. Players stood at a fixed distance and threw thin bamboo arrows into a narrow-necked bronze or ceramic pot. The game appears in the <em>Akhak Gwebeom</em> (1493), the definitive Joseon text on court music and ritual.</p>
+    <p>Unlike Western dart games which reward accuracy on a target, Tuho demands precise arc control — the arrow must enter a vertical opening from above at the correct angle and speed. Too fast and it bounces out; too slow and it falls short.</p>
+
+    <h2>AI Archaeology</h2>
+    <h3>Era 2 — Expert Systems</h3>
+    <p>Tuho is a classic ballistic optimization problem. Given known physics (gravity, drag), the optimal throw can be calculated analytically — find the angle and velocity that place the arrow within the pot opening. An expert system can solve this perfectly, making AI opponents trivially strong. The human challenge is pure motor control: translating known physics into consistent muscle memory under the pressure of competition.</p>
+    <p>This mirrors the broader AI insight that many physical skill games are computationally simple but motorically demanding — the gap between knowing the solution and executing it is the entire game.</p>
+
+    <h3>Classification</h3>
+    <p><span class="tag">precision throwing</span> <span class="tag">ballistic arc</span> <span class="tag">traditional Korean</span> <span class="tag">Confucian court game</span> <span class="tag">motor control</span> <span class="tag">투호</span></p>
+
+    <h2>Prototype Notes</h2>
+    <p>Side-view physics simulation with parabolic arrow flight. The pot has a narrow neck opening that requires precise angle and power control. Arrows that miss clink off the rim; arrows that enter swish satisfyingly. AI opponent provides competitive context. Web Audio API generates all sound effects procedurally.</p>
+
+    <div class="edu-notice">
+      <strong>Educational Notice:</strong> This is a non-commercial prototype created for educational purposes, exploring the history and mechanics of traditional Korean games. Tuho (투호) is a cultural heritage game — no intellectual property claims apply.
+    </div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+canvas.width = 800; canvas.height = 600;
+
+// Info panel
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// Resize
+function resize() {
+  const s = Math.min(innerWidth / 800, innerHeight / 600);
+  canvas.style.width = (800 * s) + 'px';
+  canvas.style.height = (600 * s) + 'px';
+}
+resize(); addEventListener('resize', resize);
+
+// Audio
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function playSound(type) {
+  try {
+    const now = audioCtx.currentTime;
+    if (type === 'swish') {
+      // Success — bright filtered noise burst
+      const dur = 0.25;
+      const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * dur, audioCtx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) {
+        const t = i / audioCtx.sampleRate;
+        d[i] = (Math.random() * 2 - 1) * Math.exp(-t * 12) * 0.3;
+      }
+      const src = audioCtx.createBufferSource();
+      src.buffer = buf;
+      const filt = audioCtx.createBiquadFilter();
+      filt.type = 'bandpass'; filt.frequency.value = 3000; filt.Q.value = 2;
+      src.connect(filt); filt.connect(audioCtx.destination);
+      src.start(now);
+    } else if (type === 'clink') {
+      // Metallic clink — high frequency ping
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(1800, now);
+      osc.frequency.exponentialRampToValueAtTime(600, now + 0.15);
+      gain.gain.setValueAtTime(0.2, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(now); osc.stop(now + 0.2);
+    } else if (type === 'whoosh') {
+      // Arrow flight — short noise sweep
+      const dur = 0.15;
+      const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * dur, audioCtx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) {
+        const t = i / audioCtx.sampleRate;
+        d[i] = (Math.random() * 2 - 1) * Math.sin(t / dur * Math.PI) * 0.12;
+      }
+      const src = audioCtx.createBufferSource();
+      src.buffer = buf;
+      const filt = audioCtx.createBiquadFilter();
+      filt.type = 'highpass'; filt.frequency.value = 1500;
+      src.connect(filt); filt.connect(audioCtx.destination);
+      src.start(now);
+    }
+  } catch(e) {}
+}
+
+// HUD text helper
+function hudText(text, x, y, size, color, align) {
+  ctx.save();
+  ctx.font = size + 'px monospace';
+  ctx.fillStyle = color || '#fff';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+// Game constants
+const GRAVITY = 600;
+const GROUND_Y = 480;
+const PLAYER_X = 120;
+const PLAYER_Y = GROUND_Y;
+const POT_X = 600;
+const POT_BASE_Y = GROUND_Y;
+const POT_HEIGHT = 120;
+const POT_WIDTH = 50;
+const POT_NECK_WIDTH = 18;
+const POT_NECK_TOP = POT_BASE_Y - POT_HEIGHT;
+const ARROW_LENGTH = 60;
+const TOTAL_ARROWS = 10;
+
+// Game state
+let state, playerScore, aiScore, arrowsLeft, turn;
+let throwArrow, flyingArrow, landedArrows, dragging, dragStart, dragEnd;
+let aiThrowTimer, aiThrowDelay, showResult, resultTimer;
+let mouseX, mouseY;
+
+function initGame() {
+  state = 'aiming'; // aiming, flying, ai-turn, result
+  playerScore = 0;
+  aiScore = 0;
+  arrowsLeft = TOTAL_ARROWS;
+  turn = 'player';
+  flyingArrow = null;
+  landedArrows = [];
+  dragging = false;
+  dragStart = null;
+  dragEnd = null;
+  aiThrowTimer = 0;
+  aiThrowDelay = 0;
+  showResult = false;
+  resultTimer = 0;
+  mouseX = 0; mouseY = 0;
+}
+initGame();
+
+// Arrow physics
+function throwNewArrow(startX, startY, vx, vy) {
+  playSound('whoosh');
+  return {
+    x: startX, y: startY, vx: vx, vy: vy,
+    angle: Math.atan2(vy, vx),
+    trail: [],
+    active: true, result: null, timer: 0
+  };
+}
+
+function updateArrow(a, dt) {
+  if (!a.active) return;
+  a.trail.push({ x: a.x, y: a.y });
+  if (a.trail.length > 30) a.trail.shift();
+
+  a.vy += GRAVITY * dt;
+  a.x += a.vx * dt;
+  a.y += a.vy * dt;
+  a.angle = Math.atan2(a.vy, a.vx);
+  a.timer += dt;
+
+  // Check pot collision
+  const tipX = a.x + Math.cos(a.angle) * 4;
+  const tipY = a.y + Math.sin(a.angle) * 4;
+
+  // Pot neck opening — check if arrow tip enters from above
+  const neckLeft = POT_X - POT_NECK_WIDTH / 2;
+  const neckRight = POT_X + POT_NECK_WIDTH / 2;
+  const neckY = POT_NECK_TOP;
+
+  if (tipY >= neckY - 4 && tipY <= neckY + 12 &&
+      tipX >= neckLeft && tipX <= neckRight &&
+      a.vy > 0) {
+    // Arrow entered the pot!
+    a.active = false;
+    a.result = 'in';
+    a.x = POT_X + (Math.random() - 0.5) * 8;
+    a.y = neckY + 5;
+    a.angle = -Math.PI / 2 + (Math.random() - 0.5) * 0.3;
+    playSound('swish');
+    return;
+  }
+
+  // Check pot body collision (rim/side hit)
+  // Left side of pot
+  const potLeft = POT_X - POT_WIDTH / 2;
+  const potRight = POT_X + POT_WIDTH / 2;
+  const bodyTop = POT_NECK_TOP + 10;
+
+  // Neck sides (above body)
+  if (tipY >= neckY && tipY <= bodyTop) {
+    if ((tipX >= neckLeft - 6 && tipX < neckLeft) ||
+        (tipX > neckRight && tipX <= neckRight + 6)) {
+      a.active = false;
+      a.result = 'rim';
+      playSound('clink');
+      a.vx *= -0.3; a.vy *= 0.2;
+      return;
+    }
+  }
+
+  // Pot body
+  if (tipY >= bodyTop && tipY <= POT_BASE_Y) {
+    if (tipX >= potLeft && tipX <= potRight) {
+      a.active = false;
+      a.result = 'rim';
+      playSound('clink');
+      return;
+    }
+  }
+
+  // Pot rim top
+  if (tipY >= neckY - 8 && tipY <= neckY + 4) {
+    if ((tipX >= potLeft && tipX < neckLeft) ||
+        (tipX > neckRight && tipX <= potRight)) {
+      a.active = false;
+      a.result = 'rim';
+      playSound('clink');
+      return;
+    }
+  }
+
+  // Ground
+  if (tipY >= GROUND_Y) {
+    a.active = false;
+    a.result = 'miss';
+    a.y = GROUND_Y - 4;
+    return;
+  }
+
+  // Off screen
+  if (a.x > 820 || a.x < -20 || a.y > 620) {
+    a.active = false;
+    a.result = 'miss';
+    return;
+  }
+}
+
+// Drawing
+function drawBackground() {
+  // Sky gradient
+  const grad = ctx.createLinearGradient(0, 0, 0, 600);
+  grad.addColorStop(0, '#1a1a3e');
+  grad.addColorStop(0.6, '#2a2a5e');
+  grad.addColorStop(1, '#3a2a2a');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 800, 600);
+
+  // Ground
+  ctx.fillStyle = '#3a4a3a';
+  ctx.fillRect(0, GROUND_Y, 800, 120);
+
+  // Wooden floor pattern
+  ctx.strokeStyle = '#4a5a4a';
+  ctx.lineWidth = 1;
+  for (let y = GROUND_Y; y < 600; y += 15) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(800, y);
+    ctx.stroke();
+  }
+
+  // Distance markers
+  ctx.fillStyle = '#555';
+  ctx.font = '10px monospace';
+  ctx.textAlign = 'center';
+  for (let x = 200; x < 600; x += 100) {
+    ctx.fillRect(x, GROUND_Y - 2, 2, 6);
+  }
+}
+
+function drawPot() {
+  const cx = POT_X;
+  const by = POT_BASE_Y;
+  const ty = POT_NECK_TOP;
+  const hw = POT_WIDTH / 2;
+  const nw = POT_NECK_WIDTH / 2;
+
+  // Pot body — elegant vase shape
+  ctx.save();
+  ctx.beginPath();
+  // Right side
+  ctx.moveTo(cx + nw, ty);
+  ctx.quadraticCurveTo(cx + nw + 2, ty + 20, cx + hw, ty + 45);
+  ctx.quadraticCurveTo(cx + hw + 5, ty + 80, cx + hw - 5, by);
+  // Bottom
+  ctx.lineTo(cx - hw + 5, by);
+  // Left side
+  ctx.quadraticCurveTo(cx - hw - 5, ty + 80, cx - hw, ty + 45);
+  ctx.quadraticCurveTo(cx - nw - 2, ty + 20, cx - nw, ty);
+  ctx.closePath();
+
+  // Pot gradient
+  const potGrad = ctx.createLinearGradient(cx - hw, 0, cx + hw, 0);
+  potGrad.addColorStop(0, '#5a3a2a');
+  potGrad.addColorStop(0.3, '#8a6a4a');
+  potGrad.addColorStop(0.5, '#9a7a5a');
+  potGrad.addColorStop(0.7, '#8a6a4a');
+  potGrad.addColorStop(1, '#5a3a2a');
+  ctx.fillStyle = potGrad;
+  ctx.fill();
+  ctx.strokeStyle = '#4a2a1a';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Neck rim
+  ctx.beginPath();
+  ctx.ellipse(cx, ty, nw + 3, 4, 0, 0, Math.PI * 2);
+  ctx.fillStyle = '#6a4a3a';
+  ctx.fill();
+  ctx.strokeStyle = '#4a2a1a';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Opening (dark)
+  ctx.beginPath();
+  ctx.ellipse(cx, ty, nw, 3, 0, 0, Math.PI * 2);
+  ctx.fillStyle = '#1a0a0a';
+  ctx.fill();
+
+  // Decorative band
+  ctx.strokeStyle = '#b8964a';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  const bandY = ty + 35;
+  ctx.moveTo(cx - hw + 3, bandY);
+  ctx.quadraticCurveTo(cx, bandY - 3, cx + hw - 3, bandY);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(cx - hw + 3, bandY + 6);
+  ctx.quadraticCurveTo(cx, bandY + 3, cx + hw - 3, bandY + 6);
+  ctx.stroke();
+
+  // Korean pattern on band
+  ctx.fillStyle = '#b8964a';
+  ctx.font = '9px serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('⊕', cx - 10, bandY + 5);
+  ctx.fillText('⊕', cx + 10, bandY + 5);
+
+  ctx.restore();
+}
+
+function drawPlayer() {
+  const px = PLAYER_X;
+  const py = PLAYER_Y;
+
+  ctx.save();
+  // Body (hanbok-style robe)
+  ctx.fillStyle = '#4466aa';
+  ctx.beginPath();
+  ctx.moveTo(px - 10, py - 55);
+  ctx.lineTo(px - 18, py);
+  ctx.lineTo(px + 18, py);
+  ctx.lineTo(px + 10, py - 55);
+  ctx.closePath();
+  ctx.fill();
+
+  // Sash
+  ctx.strokeStyle = '#cc8844';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(px - 12, py - 40);
+  ctx.lineTo(px + 12, py - 40);
+  ctx.stroke();
+
+  // Head
+  ctx.fillStyle = '#d4a574';
+  ctx.beginPath();
+  ctx.arc(px, py - 65, 10, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Hat (gat)
+  ctx.fillStyle = '#222';
+  ctx.beginPath();
+  ctx.ellipse(px, py - 75, 14, 4, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillRect(px - 4, py - 82, 8, 8);
+
+  // Arm holding arrow
+  if (turn === 'player' && state === 'aiming') {
+    ctx.strokeStyle = '#d4a574';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(px + 10, py - 48);
+    ctx.lineTo(px + 22, py - 55);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+function drawArrow(a, color) {
+  ctx.save();
+  ctx.translate(a.x, a.y);
+  ctx.rotate(a.angle);
+
+  // Arrow shaft
+  ctx.strokeStyle = color || '#d4b896';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(-ARROW_LENGTH / 2, 0);
+  ctx.lineTo(ARROW_LENGTH / 2, 0);
+  ctx.stroke();
+
+  // Arrow tip
+  ctx.fillStyle = '#888';
+  ctx.beginPath();
+  ctx.moveTo(ARROW_LENGTH / 2, 0);
+  ctx.lineTo(ARROW_LENGTH / 2 - 6, -3);
+  ctx.lineTo(ARROW_LENGTH / 2 - 6, 3);
+  ctx.closePath();
+  ctx.fill();
+
+  // Fletching
+  ctx.fillStyle = '#aa4444';
+  ctx.beginPath();
+  ctx.moveTo(-ARROW_LENGTH / 2, 0);
+  ctx.lineTo(-ARROW_LENGTH / 2 + 8, -3);
+  ctx.lineTo(-ARROW_LENGTH / 2 + 8, 3);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.restore();
+}
+
+function drawTrail(a) {
+  if (a.trail.length < 2) return;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(200,180,150,0.15)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(a.trail[0].x, a.trail[0].y);
+  for (let i = 1; i < a.trail.length; i++) {
+    ctx.lineTo(a.trail[i].x, a.trail[i].y);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawAimLine() {
+  if (!dragging || !dragStart || !dragEnd) return;
+  const dx = dragStart.x - dragEnd.x;
+  const dy = dragStart.y - dragEnd.y;
+  const power = Math.min(Math.sqrt(dx * dx + dy * dy), 200);
+  const angle = Math.atan2(dy, dx);
+
+  // Power bar
+  const barX = 30;
+  const barY = 100;
+  const barH = 200;
+  const fill = power / 200;
+  ctx.fillStyle = '#222';
+  ctx.fillRect(barX, barY, 12, barH);
+  const barColor = fill < 0.5 ? '#4a4' : fill < 0.8 ? '#aa4' : '#a44';
+  ctx.fillStyle = barColor;
+  ctx.fillRect(barX, barY + barH * (1 - fill), 12, barH * fill);
+  ctx.strokeStyle = '#666';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(barX, barY, 12, barH);
+  hudText('PWR', barX - 2, barY - 16, 10, '#888', 'left');
+
+  // Trajectory preview (dotted)
+  const vx = dx * 2.5;
+  const vy = dy * 2.5;
+  const sx = PLAYER_X + 22;
+  const sy = PLAYER_Y - 55;
+
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,200,0.3)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(sx, sy);
+  for (let t = 0; t < 1.5; t += 0.02) {
+    const px = sx + vx * t;
+    const py = sy + vy * t + 0.5 * GRAVITY * t * t;
+    if (px > 800 || py > GROUND_Y + 20) break;
+    ctx.lineTo(px, py);
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
+function drawLandedArrows() {
+  for (const a of landedArrows) {
+    if (a.result === 'in') {
+      // Arrows sticking up from pot
+      ctx.save();
+      ctx.translate(a.x, a.y);
+      ctx.rotate(a.angle);
+      ctx.strokeStyle = a.owner === 'player' ? '#aaccff' : '#ffaaaa';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(0, -35);
+      ctx.stroke();
+      // Fletching
+      ctx.fillStyle = a.owner === 'player' ? '#4466aa' : '#aa4444';
+      ctx.beginPath();
+      ctx.moveTo(0, -35);
+      ctx.lineTo(-3, -28);
+      ctx.lineTo(3, -28);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    } else if (a.result === 'rim' || a.result === 'miss') {
+      // Arrows on ground near pot
+      drawArrow(a, a.owner === 'player' ? '#8899aa' : '#aa8888');
+    }
+  }
+}
+
+function drawHUD() {
+  // Scores
+  hudText('TUHO  투호', 400, 12, 18, '#c8b48a', 'center');
+
+  // Player score
+  hudText('YOU: ' + playerScore + '/' + (turn === 'player' ? (TOTAL_ARROWS - arrowsLeft) : TOTAL_ARROWS), 60, 40, 14, '#aaccff', 'left');
+
+  // AI score
+  hudText('AI: ' + aiScore + '/' + (turn === 'ai' ? (TOTAL_ARROWS - arrowsLeft) : (turn === 'result' ? TOTAL_ARROWS : 0)), 740, 40, 14, '#ffaaaa', 'right');
+
+  // Arrows remaining
+  if (state !== 'result') {
+    const who = turn === 'player' ? 'YOUR' : 'AI';
+    hudText(who + ' ARROWS: ' + arrowsLeft, 400, 42, 12, '#888', 'center');
+
+    // Arrow icons
+    const iconY = 58;
+    for (let i = 0; i < arrowsLeft; i++) {
+      const ix = 370 + i * 8;
+      ctx.strokeStyle = turn === 'player' ? '#6688bb' : '#bb6666';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(ix, iconY);
+      ctx.lineTo(ix, iconY + 12);
+      ctx.stroke();
+      ctx.fillStyle = turn === 'player' ? '#6688bb' : '#bb6666';
+      ctx.beginPath();
+      ctx.moveTo(ix - 2, iconY);
+      ctx.lineTo(ix + 2, iconY);
+      ctx.lineTo(ix, iconY - 3);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  // Turn indicator
+  if (turn === 'ai' && state === 'ai-turn') {
+    hudText('AI is throwing...', 400, 560, 14, '#ff8888', 'center');
+  } else if (turn === 'player' && state === 'aiming') {
+    hudText('Click and drag to aim · Release to throw', 400, 560, 12, '#888', 'center');
+  }
+
+  // Result
+  if (state === 'result') {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(200, 200, 400, 180);
+    ctx.strokeStyle = '#c8b48a';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(200, 200, 400, 180);
+
+    hudText('MATCH COMPLETE', 400, 220, 18, '#c8b48a', 'center');
+    hudText('You: ' + playerScore + ' arrows in pot', 400, 260, 14, '#aaccff', 'center');
+    hudText('AI: ' + aiScore + ' arrows in pot', 400, 285, 14, '#ffaaaa', 'center');
+
+    let msg, col;
+    if (playerScore > aiScore) { msg = 'YOU WIN!'; col = '#4f4'; }
+    else if (aiScore > playerScore) { msg = 'AI WINS!'; col = '#f44'; }
+    else { msg = 'TIE GAME!'; col = '#ff0'; }
+    hudText(msg, 400, 320, 22, col, 'center');
+    hudText('Press R to play again', 400, 358, 12, '#888', 'center');
+  }
+
+  // Info hint
+  hudText('[?] Info', 770, 580, 10, '#555', 'right');
+}
+
+// Input
+canvas.addEventListener('mousedown', function(e) {
+  if (infoOpen || state !== 'aiming' || turn !== 'player') return;
+  const rect = canvas.getBoundingClientRect();
+  const sx = 800 / rect.width;
+  const sy = 600 / rect.height;
+  dragStart = { x: (e.clientX - rect.left) * sx, y: (e.clientY - rect.top) * sy };
+  dragEnd = { ...dragStart };
+  dragging = true;
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+});
+
+canvas.addEventListener('mousemove', function(e) {
+  const rect = canvas.getBoundingClientRect();
+  const sx = 800 / rect.width;
+  const sy = 600 / rect.height;
+  mouseX = (e.clientX - rect.left) * sx;
+  mouseY = (e.clientY - rect.top) * sy;
+  if (dragging) {
+    dragEnd = { x: mouseX, y: mouseY };
+  }
+});
+
+canvas.addEventListener('mouseup', function(e) {
+  if (!dragging || state !== 'aiming' || turn !== 'player') return;
+  dragging = false;
+
+  const dx = dragStart.x - dragEnd.x;
+  const dy = dragStart.y - dragEnd.y;
+  const power = Math.min(Math.sqrt(dx * dx + dy * dy), 200);
+
+  if (power < 10) { dragStart = null; dragEnd = null; return; }
+
+  const vx = dx * 2.5;
+  const vy = dy * 2.5;
+  flyingArrow = throwNewArrow(PLAYER_X + 22, PLAYER_Y - 55, vx, vy);
+  flyingArrow.owner = 'player';
+  state = 'flying';
+  arrowsLeft--;
+  dragStart = null; dragEnd = null;
+});
+
+// Touch support
+canvas.addEventListener('touchstart', function(e) {
+  e.preventDefault();
+  const t = e.touches[0];
+  canvas.dispatchEvent(new MouseEvent('mousedown', { clientX: t.clientX, clientY: t.clientY }));
+}, { passive: false });
+canvas.addEventListener('touchmove', function(e) {
+  e.preventDefault();
+  const t = e.touches[0];
+  canvas.dispatchEvent(new MouseEvent('mousemove', { clientX: t.clientX, clientY: t.clientY }));
+}, { passive: false });
+canvas.addEventListener('touchend', function(e) {
+  e.preventDefault();
+  canvas.dispatchEvent(new MouseEvent('mouseup', {}));
+}, { passive: false });
+
+// Keyboard
+addEventListener('keydown', function(e) {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); return; }
+  if (e.key === 'r' || e.key === 'R') { initGame(); return; }
+});
+
+// AI throw logic
+function aiThrow() {
+  // Calculate a throw that has a chance of hitting
+  // Perfect throw: need to land at POT_X, POT_NECK_TOP
+  const sx = PLAYER_X + 22;
+  const sy = PLAYER_Y - 55;
+  const tx = POT_X;
+  const ty = POT_NECK_TOP;
+  const dx = tx - sx;
+  const dy = ty - sy;
+
+  // Solve for good angle/power with some randomness
+  // Using projectile formula: t = dx/vx, dy = vy*t + 0.5*g*t^2
+  // Pick a flight time and solve
+  const flightTime = 0.7 + Math.random() * 0.3;
+  const vx = dx / flightTime;
+  const vy = (dy - 0.5 * GRAVITY * flightTime * flightTime) / flightTime;
+
+  // Add AI inaccuracy (makes it beatable)
+  const accuracy = 0.85 + Math.random() * 0.1; // 85-95% accurate
+  const errorX = (Math.random() - 0.5) * 60 * (1 - accuracy);
+  const errorY = (Math.random() - 0.5) * 40 * (1 - accuracy);
+
+  flyingArrow = throwNewArrow(sx, sy, vx + errorX, vy + errorY);
+  flyingArrow.owner = 'ai';
+  state = 'flying';
+  arrowsLeft--;
+}
+
+// Main loop
+let lastTime = 0;
+function update(timestamp) {
+  requestAnimationFrame(update);
+  if (infoOpen) return;
+
+  const dt = Math.min((timestamp - lastTime) / 1000, 0.05);
+  lastTime = timestamp;
+
+  // Update flying arrow
+  if (flyingArrow && flyingArrow.active) {
+    updateArrow(flyingArrow, dt);
+  } else if (flyingArrow && !flyingArrow.active) {
+    // Arrow landed
+    if (flyingArrow.result === 'in') {
+      if (flyingArrow.owner === 'player') playerScore++;
+      else aiScore++;
+    }
+    landedArrows.push(flyingArrow);
+    flyingArrow = null;
+
+    // Next throw or switch turn
+    if (arrowsLeft > 0) {
+      if (turn === 'player') {
+        state = 'aiming';
+      } else {
+        state = 'ai-turn';
+        aiThrowDelay = 0.8 + Math.random() * 0.6;
+        aiThrowTimer = 0;
+      }
+    } else {
+      // Turn over
+      if (turn === 'player') {
+        turn = 'ai';
+        arrowsLeft = TOTAL_ARROWS;
+        state = 'ai-turn';
+        aiThrowDelay = 1.2;
+        aiThrowTimer = 0;
+      } else {
+        state = 'result';
+      }
+    }
+  }
+
+  // AI turn timing
+  if (state === 'ai-turn') {
+    aiThrowTimer += dt;
+    if (aiThrowTimer >= aiThrowDelay) {
+      aiThrow();
+    }
+  }
+
+  // Draw
+  drawBackground();
+  drawPot();
+  drawLandedArrows();
+  drawPlayer();
+
+  if (flyingArrow) {
+    drawTrail(flyingArrow);
+    drawArrow(flyingArrow, flyingArrow.owner === 'player' ? '#ddeeff' : '#ffdddd');
+  }
+
+  if (state === 'aiming' && turn === 'player') {
+    drawAimLine();
+  }
+
+  drawHUD();
+}
+
+requestAnimationFrame(update);
+</script>
+</body>
+</html>

@@ -1,0 +1,445 @@
+<!--
+PROTOTYPE: brick-break
+SERIES: def
+NUMBER: 002
+DATE: 2026-03-22
+MECHANIC: deflect + destroy — ball clears destructible brick field; angles steepen as bricks clear
+ANCESTRY: Pong (1972), Atari Breakout (1976), Arkanoid (1986)
+CONTROLS: Left/Right arrows or A/D — paddle | Space — launch | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 2 (Expert Systems — rule-based, no learning)
+AI-INSIGHT: No AI opponent at all — physics is the antagonist. DeepMind's DQN (2013) found the tunnel-behind-the-wall strategy humans knew intuitively but never formally documented until AI rediscovered it.
+NOTES: Introduces the destructible environment. The moment the brick field thins is when tension peaks — that's the core insight.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DEF-002 · BRICK BREAK</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #0b0e11; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>DEF-002 · BRICK BREAK</h1>
+    <p><span class="tag series">DEF — Deflection</span> <span class="tag">Prototype #002</span> <span class="tag">★★★★☆</span></p>
+
+    <h2>How to Play</h2>
+    <p>Bounce the ball off your paddle to destroy all bricks. Don't let the ball fall off the bottom.</p>
+    <ul>
+      <li><kbd>←</kbd> <kbd>→</kbd> or <kbd>A</kbd> <kbd>D</kbd> — Move paddle</li>
+      <li><kbd>Space</kbd> — Launch ball</li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Angle control:</strong> Hit the ball with the paddle edge for steep angles, center for straight shots</li>
+      <li><strong>Multi-hit bricks:</strong> Top rows take 3 hits (they dim and crack), bottom rows take 1</li>
+      <li>Top rows score more points</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Pong (1972) → Atari Breakout (1976) → Arkanoid (1986)</p>
+    <p>Breakout asked: what if there was no opponent, just a wall to destroy? Steve Wozniak built the original hardware prototype for Atari. The game introduced <em>destructible environments</em> — the world changes as you play. Arkanoid (1986) added power-ups, boss fights, and enemies, inventing the "brick-breaker" genre.</p>
+    <p>The core insight: as bricks disappear, the ball's path becomes less predictable. The game gets simultaneously easier (fewer targets) and harder (wilder trajectories). That tension is the design.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 2 — Expert Systems (1972–1977)</p>
+    <p><strong>Contemporary AI:</strong> Same era as Pong. Rule-based systems, no learning. AI could match patterns but not explore state spaces.</p>
+    <p><strong>Hidden Intelligence:</strong> Breakout removes the AI opponent entirely — physics IS the antagonist. The destructible brick field foreshadows procedural destruction by 30+ years. DeepMind's DQN (2013) later discovered the &quot;tunnel behind the wall&quot; strategy — a move humans knew intuitively but no one had formally documented until AI found it.</p>
+    <p><strong>The Convergence:</strong> You don't need an intelligent opponent to create depth. The environment itself can be the challenge. AI rediscovering human intuition through brute-force search is its own convergence point.</p>
+    <p><strong>If AI Had Designed This:</strong> Procedural brick layouts optimized for &quot;interesting bounces&quot; — 20 years before procedural generation existed as a concept.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: DEF — Deflection</h3>
+    <p>Games built around redirecting a moving object. Breakout extends Pong by adding a destructible target field, creating a single-player loop from a multiplayer mechanic.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Deflection + destruction.</strong> Angle-based paddle control. Multi-HP bricks create shot planning depth. The thinning brick field increases ball chaos.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Brick HP systems (does multi-hit create satisfying progression?)</li>
+      <li>AABB-circle collision (does the ball behave predictably off bricks?)</li>
+      <li>The "tension peak" — moment when few bricks remain and the ball is hardest to control</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> — a mechanical skeleton. The goal is to feel the destructible-environment loop from the builder's perspective.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+
+function resize() {
+  const scale = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width  = (W * scale) + 'px';
+  canvas.style.height = (H * scale) + 'px';
+}
+resize();
+window.addEventListener('resize', resize);
+
+// --- INPUT ---
+const keys = {};
+window.addEventListener('keydown', e => { if(!infoOpen) keys[e.code] = true; e.preventDefault(); });
+window.addEventListener('keyup',   e => { keys[e.code] = false; });
+
+// --- CONFIG ---
+const PADDLE_W = 90, PADDLE_H = 12, PADDLE_Y = H - 50;
+const PADDLE_SPD = 9;
+const BALL_R = 7;
+const COLS = 12, ROWS = 6;
+const BRICK_W = 54, BRICK_H = 18, BRICK_GAP = 4;
+const BRICK_OFFSET_X = (W - (COLS * (BRICK_W + BRICK_GAP) - BRICK_GAP)) / 2;
+const BRICK_OFFSET_Y = 60;
+
+// Row colors: hottest at top, coolest at bottom
+const ROW_COLORS = ['#e74c3c','#e67e22','#f1c40f','#2ecc71','#3498db','#9b59b6'];
+// Row hit-points (top row is worth more / takes more hits)
+const ROW_HP     = [3, 3, 2, 2, 1, 1];
+
+// --- STATE ---
+let paddle, ball, bricks, score, lives, gameOver, won, launched;
+
+function makeBricks() {
+  const b = [];
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      b.push({
+        x:  BRICK_OFFSET_X + c * (BRICK_W + BRICK_GAP),
+        y:  BRICK_OFFSET_Y + r * (BRICK_H + BRICK_GAP),
+        hp: ROW_HP[r],
+        maxHp: ROW_HP[r],
+        color: ROW_COLORS[r],
+        alive: true
+      });
+    }
+  }
+  return b;
+}
+
+function initGame() {
+  paddle   = { x: W/2 - PADDLE_W/2, y: PADDLE_Y };
+  ball     = { x: W/2, y: PADDLE_Y - BALL_R - 1, vx: 5.5, vy: -7 };
+  bricks   = makeBricks();
+  score    = 0;
+  lives    = 3;
+  gameOver = false;
+  won      = false;
+  launched = false;
+}
+initGame();
+
+// --- COLLISION HELPERS ---
+function aabb(bx, by, bw, bh, cx, cy, r) {
+  // AABB vs circle — find closest point on rect to circle center
+  const nearX = Math.max(bx, Math.min(cx, bx + bw));
+  const nearY = Math.max(by, Math.min(cy, by + bh));
+  const dx = cx - nearX, dy = cy - nearY;
+  return dx*dx + dy*dy <= r*r;
+}
+
+// --- UPDATE ---
+function update() {
+  if (infoOpen) return;
+  if (gameOver || won) {
+    if (keys['KeyR']) initGame();
+    return;
+  }
+
+  // Paddle
+  if (keys['ArrowLeft'] || keys['KeyA']) paddle.x -= PADDLE_SPD;
+  if (keys['ArrowRight'] || keys['KeyD']) paddle.x += PADDLE_SPD;
+  paddle.x = Math.max(0, Math.min(W - PADDLE_W, paddle.x));
+
+  // Pre-launch: ball follows paddle
+  if (!launched) {
+    ball.x = paddle.x + PADDLE_W / 2;
+    ball.y = PADDLE_Y - BALL_R - 1;
+    if (keys['Space']) {
+      launched = true;
+      // Slight random angle variation on launch
+      const spread = (Math.random() - 0.5) * 2;
+      ball.vx = 3.5 + spread;
+      ball.vy = -5;
+    }
+    return;
+  }
+
+  ball.x += ball.vx;
+  ball.y += ball.vy;
+
+  // Wall collisions
+  if (ball.x - BALL_R <= 0)   { ball.x = BALL_R;   ball.vx *= -1; }
+  if (ball.x + BALL_R >= W)   { ball.x = W-BALL_R;  ball.vx *= -1; }
+  if (ball.y - BALL_R <= 0)   { ball.y = BALL_R;    ball.vy *= -1; }
+
+  // Paddle collision
+  if (ball.vy > 0 && aabb(paddle.x, paddle.y, PADDLE_W, PADDLE_H, ball.x, ball.y, BALL_R)) {
+    ball.y = paddle.y - BALL_R;
+    // Angle based on relative hit position: edges send ball at steeper angles
+    const hitPos = (ball.x - paddle.x) / PADDLE_W; // 0..1
+    const angle  = (hitPos - 0.5) * 140 * Math.PI / 180; // -70° to +70°
+    const spd    = Math.sqrt(ball.vx*ball.vx + ball.vy*ball.vy);
+    ball.vx = spd * Math.sin(angle);
+    ball.vy = -spd * Math.cos(angle);
+    // Ensure minimum upward velocity
+    if (Math.abs(ball.vy) < 2.5) ball.vy = -2.5;
+  }
+
+  // Ball lost
+  if (ball.y - BALL_R > H) {
+    lives--;
+    if (lives <= 0) { gameOver = true; return; }
+    launched = false;
+    ball.x = paddle.x + PADDLE_W / 2;
+    ball.y = PADDLE_Y - BALL_R - 1;
+  }
+
+  // Brick collisions
+  for (const b of bricks) {
+    if (!b.alive) continue;
+    if (aabb(b.x, b.y, BRICK_W, BRICK_H, ball.x, ball.y, BALL_R)) {
+      b.hp--;
+      if (b.hp <= 0) {
+        b.alive = false;
+        score += b.maxHp * 10;
+      }
+      // Determine bounce axis by overlap depth
+      const cx = b.x + BRICK_W/2, cy = b.y + BRICK_H/2;
+      const overX = BRICK_W/2 + BALL_R - Math.abs(ball.x - cx);
+      const overY = BRICK_H/2 + BALL_R - Math.abs(ball.y - cy);
+      if (overX < overY) ball.vx *= -1;
+      else               ball.vy *= -1;
+      break; // one collision per frame
+    }
+  }
+
+  // Win check
+  if (bricks.every(b => !b.alive)) won = true;
+}
+
+// --- DRAW ---
+function draw() {
+  ctx.fillStyle = '#0b0e11';
+  ctx.fillRect(0, 0, W, H);
+
+  // Bricks
+  for (const b of bricks) {
+    if (!b.alive) continue;
+    // Dim as HP degrades
+    const alpha = 0.4 + 0.6 * (b.hp / b.maxHp);
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = b.color;
+    ctx.fillRect(b.x + 1, b.y + 1, BRICK_W - 2, BRICK_H - 2);
+
+    // Crack marks for damaged bricks
+    if (b.hp < b.maxHp) {
+      ctx.globalAlpha = 0.6;
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(b.x + BRICK_W*0.3, b.y + 3);
+      ctx.lineTo(b.x + BRICK_W*0.5, b.y + BRICK_H - 3);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // Paddle
+  ctx.fillStyle = '#e8e9eb';
+  ctx.fillRect(paddle.x, paddle.y, PADDLE_W, PADDLE_H);
+
+  // Ball
+  ctx.beginPath();
+  ctx.arc(ball.x, ball.y, BALL_R, 0, Math.PI*2);
+  ctx.fillStyle = '#fff';
+  ctx.fill();
+
+  // HUD
+  ctx.fillStyle = '#e8e9eb';
+  ctx.font = '16px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('SCORE: ' + score, 10, 24);
+  ctx.textAlign = 'right';
+  ctx.fillText('LIVES: ' + lives, W - 10, 24);
+
+  // Launch prompt
+  if (!launched && !gameOver && !won) {
+    ctx.fillStyle = '#666';
+    ctx.font = '18px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('SPACE to launch', W/2, H - 16);
+  }
+
+  // Game over / win overlays
+  ctx.textAlign = 'center';
+  if (gameOver || won) {
+    ctx.fillStyle = 'rgba(0,0,0,0.65)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = won ? '#2ecc71' : '#e74c3c';
+    ctx.font = 'bold 52px monospace';
+    ctx.fillText(won ? 'CLEARED' : 'GAME OVER', W/2, H/2 - 20);
+    ctx.fillStyle = '#aaa';
+    ctx.font = '20px monospace';
+    ctx.fillText('R to restart   SCORE: ' + score, W/2, H/2 + 28);
+  }
+
+  // Title badge
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(8, 8, 200, 28);
+  ctx.fillStyle = '#555';
+  ctx.font = '13px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('DEF-002 · BRICK BREAK  [?]', 16, 26);
+}
+
+// --- GAME LOOP ---
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: dpad2+fire ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("dpad2+fire");
+</script>
+</body>
+</html>

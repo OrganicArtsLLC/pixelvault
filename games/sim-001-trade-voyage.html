@@ -1,0 +1,1150 @@
+<!--
+PROTOTYPE: trade-voyage
+SERIES: sim
+NUMBER: 001
+DATE: 2026-03-22
+MECHANIC: sail between ports trading goods for profit under risk
+ANCESTRY: Taipan! (1982, Art Canfil), Lemonade Stand (1979, MECC)
+CONTROLS: 1-5 — menu options | ← → — select goods | Enter — confirm | Space — fire (combat) | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 2 (Expert Systems — economic modeling, risk assessment)
+AI-INSIGHT: Taipan is a sequential decision problem under uncertainty — the player optimizes a buy-sell strategy across a stochastic price graph with risk events. This is the multi-armed bandit problem applied to spatial economics, where each port is an arm with non-stationary rewards and the travel cost is the exploration penalty.
+NOTES: Buy low sell high is the simplest economic insight, yet endlessly engaging.
+       Risk events (pirates, storms) add variance that prevents pure optimization.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SIM-001 · TRADE VOYAGE</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SIM-001 · TRADE VOYAGE</h1>
+    <p><span class="tag series">SIM — Simulation</span> <span class="tag">Prototype #001</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>You are a trader sailing between ports in the South China Sea. Buy goods cheap, sell them dear, and retire with 10,000 gold.</p>
+    <ul>
+      <li><kbd>1</kbd>-<kbd>5</kbd> — Select menu option (Buy, Sell, Sail, Repair, Status)</li>
+      <li><kbd>&#8592;</kbd> <kbd>&#8594;</kbd> — Select goods or ports</li>
+      <li><kbd>&#8593;</kbd> <kbd>&#8595;</kbd> — Adjust quantity</li>
+      <li><kbd>Enter</kbd> — Confirm selection</li>
+      <li><kbd>Space</kbd> — Fire cannons (during combat)</li>
+      <li><kbd>F</kbd> — Flee (during combat)</li>
+      <li><kbd>R</kbd> — Restart game</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Trading</h3>
+    <ul>
+      <li>Each port has different base prices for Silk, Tea, Spice, and Jade.</li>
+      <li>Prices fluctuate each visit. Watch for bargains and sell high.</li>
+      <li>Your ship has limited cargo capacity (start: 50 units).</li>
+    </ul>
+    <h3>Dangers</h3>
+    <ul>
+      <li><strong>Pirates:</strong> Attack while sailing. Fight with Space or Flee with F (lose cargo).</li>
+      <li><strong>Storms:</strong> Random cargo loss while sailing.</li>
+      <li><strong>Ship damage:</strong> Repair at Hong Kong to avoid sinking.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Lemonade Stand (1979) &#8594; Taipan! (1982) &#8594; Dope Wars (1998) &#8594; countless trading sims</p>
+    <p>Taipan! was created by Art Canfil in 1982 for the Apple II. Inspired by James Clavell's novel "Tai-Pan," it cast players as traders in 19th-century East Asia. The game pioneered the buy-low-sell-high loop with spatial movement and random events that would define an entire genre.</p>
+    <p>Before Taipan!, MECC's Lemonade Stand (1979) introduced economic simulation to computing. But Taipan! added geography, risk, and narrative tension. The player wasn't just optimizing — they were adventuring.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 2 — Expert Systems (1965-1980)</p>
+    <p><strong>Contemporary AI:</strong> The price system is a stochastic model — base prices with random perturbation. The pirate encounters scale with time, creating an adaptive difficulty curve. These are the building blocks of economic modeling and risk assessment.</p>
+    <p><strong>Hidden Intelligence:</strong> The port price system is a simplified spatial economic model. Each port has comparative advantages (Shanghai for Silk, Manila for Tea). The player discovers these advantages through exploration and builds a mental model of the price graph. This is implicit reinforcement learning — the human brain running a multi-armed bandit algorithm.</p>
+    <p><strong>The Convergence:</strong> Modern algorithmic trading uses the same fundamental insight: buy where cheap, sell where expensive, manage risk in transit. Taipan! is a trading algorithm tutorial disguised as a game.</p>
+    <p><strong>If AI Had Designed This:</strong> It might have optimized the price variance to maximize the information gain per voyage — ensuring each trip teaches the player something new about the market.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: SIM — Simulation</h3>
+    <p>Games that model real-world systems. Trading, economics, resource management.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Buy-sell arbitrage across spatial nodes under uncertainty.</strong> Four ports, four goods, stochastic prices, risk events. Pure economic decision-making.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Does the buy-sell loop feel satisfying on a text-rendered canvas?</li>
+      <li>Do price fluctuations create real decision tension?</li>
+      <li>Does pirate combat add excitement without overwhelming the trading?</li>
+      <li>Is the win condition (10,000 gold) achievable but challenging?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Green-on-black terminal aesthetic. All UI rendered as text on canvas. The game captures the essential Taipan! loop: sail, trade, survive.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+const justPressed = {};
+const keys = {};
+window.addEventListener('keydown', e => {
+  if (infoOpen) return;
+  if (!keys[e.code]) justPressed[e.code] = true;
+  keys[e.code] = true;
+  e.preventDefault();
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+function pop(code) { if (justPressed[code]) { justPressed[code] = false; return true; } return false; }
+
+// --- CONSTANTS ---
+const PORTS = ['Hong Kong', 'Shanghai', 'Manila', 'Singapore'];
+const GOODS = ['Silk', 'Tea', 'Spice', 'Jade'];
+const BASE_PRICES = [
+  [100, 60, 80, 120],   // Silk: HK, SH, MN, SG
+  [30, 50, 20, 40],     // Tea
+  [60, 80, 40, 70],     // Spice
+  [200, 150, 180, 250]  // Jade
+];
+const PORT_COLORS = ['#ff4444', '#44aaff', '#ffaa00', '#44ff44'];
+const GOOD_COLORS = ['#ff88ff', '#88ffaa', '#ffcc44', '#88ddff'];
+
+const WIN_GOLD = 10000;
+const START_GOLD = 500;
+const START_CAPACITY = 50;
+const START_HP = 100;
+const MAX_TURNS = 100;
+const PIRATE_RAMP_TURN = 50;
+
+// --- GAME STATE ---
+const SCREEN = { PORT: 0, BUY: 1, SELL: 2, SAIL: 3, REPAIR: 4, STATUS: 5,
+                 SAILING: 6, COMBAT: 7, STORM: 8, WIND: 9, WIN: 10, LOSE: 11 };
+let screen, port, turn, gold, hp, capacity, cargo, prices;
+let selectedGood, selectedPort, quantity;
+let pirateHP, pirateMaxHP, combatLog, combatTimer;
+let eventMsg, eventTimer;
+let msgLog;
+
+function initGame() {
+  screen = SCREEN.PORT;
+  port = 0; // Hong Kong
+  turn = 1;
+  gold = START_GOLD;
+  hp = START_HP;
+  capacity = START_CAPACITY;
+  cargo = [0, 0, 0, 0]; // Silk, Tea, Spice, Jade
+  selectedGood = 0;
+  selectedPort = 1;
+  quantity = 0;
+  pirateHP = 0; pirateMaxHP = 0;
+  combatLog = [];
+  combatTimer = 0;
+  eventMsg = [];
+  eventTimer = 0;
+  msgLog = [];
+  generatePrices();
+}
+
+function totalCargo() { return cargo.reduce((a, b) => a + b, 0); }
+function cargoValue() {
+  let v = 0;
+  for (let i = 0; i < 4; i++) v += cargo[i] * prices[i];
+  return v;
+}
+
+function generatePrices() {
+  prices = [];
+  for (let i = 0; i < 4; i++) {
+    const base = BASE_PRICES[i][port];
+    const fluctuation = 0.7 + Math.random() * 0.6; // +/- 30%
+    prices.push(Math.max(1, Math.round(base * fluctuation)));
+  }
+}
+
+function addMsg(text) {
+  msgLog.unshift(text);
+  if (msgLog.length > 5) msgLog.pop();
+}
+
+// --- SAILING & EVENTS ---
+function sail(destPort) {
+  const eventRoll = Math.random();
+  const pirateChance = turn >= PIRATE_RAMP_TURN ? 0.45 : 0.25;
+
+  if (eventRoll < pirateChance) {
+    // Pirates!
+    const minHP = 3 + Math.floor(turn / 15);
+    const maxHP = Math.min(minHP + 5, 20);
+    pirateMaxHP = minHP + Math.floor(Math.random() * (maxHP - minHP + 1));
+    pirateHP = pirateMaxHP;
+    combatLog = ['Pirates attack! ' + pirateHP + ' HP'];
+    combatTimer = 0;
+    screen = SCREEN.COMBAT;
+    port = destPort;
+  } else if (eventRoll < pirateChance + 0.15) {
+    // Storm
+    screen = SCREEN.STORM;
+    port = destPort;
+    const dmg = 5 + Math.floor(Math.random() * 15);
+    hp = Math.max(0, hp - dmg);
+    let lost = 0;
+    const tc = totalCargo();
+    if (tc > 0) {
+      const loseCount = Math.max(1, Math.floor(tc * (0.05 + Math.random() * 0.15)));
+      for (let i = 0; i < loseCount; i++) {
+        const validGoods = [];
+        for (let g = 0; g < 4; g++) { if (cargo[g] > 0) validGoods.push(g); }
+        if (validGoods.length === 0) break;
+        cargo[validGoods[Math.floor(Math.random() * validGoods.length)]]--;
+        lost++;
+      }
+    }
+    eventMsg = ['A storm strikes!', 'Ship takes ' + dmg + ' damage.',
+                lost > 0 ? lost + ' cargo lost overboard.' : 'Cargo secure.'];
+    eventTimer = 0;
+  } else if (eventRoll < pirateChance + 0.15 + 0.1) {
+    // Favorable winds
+    screen = SCREEN.WIND;
+    port = destPort;
+    eventMsg = ['Favorable winds!', 'Arrived swiftly at ' + PORTS[destPort] + '.'];
+    eventTimer = 0;
+  } else {
+    // Normal voyage
+    port = destPort;
+    screen = SCREEN.PORT;
+    addMsg('Arrived at ' + PORTS[port] + '.');
+  }
+  turn++;
+  generatePrices();
+  checkShipSink();
+}
+
+function checkShipSink() {
+  if (hp <= 0) {
+    screen = SCREEN.LOSE;
+    eventMsg = ['Your ship has sunk!'];
+  }
+}
+
+function checkBankrupt() {
+  if (gold <= 0 && totalCargo() === 0) {
+    screen = SCREEN.LOSE;
+    eventMsg = ['You are bankrupt!'];
+  }
+}
+
+function checkWin() {
+  if (gold >= WIN_GOLD) {
+    screen = SCREEN.WIN;
+  }
+}
+
+// --- COMBAT ---
+function fireCannons() {
+  const dmg = 1 + Math.floor(Math.random() * 3);
+  pirateHP -= dmg;
+  let msg = 'You fire! ' + dmg + ' damage.';
+  if (pirateHP <= 0) {
+    pirateHP = 0;
+    const loot = 50 + Math.floor(Math.random() * 150);
+    gold += loot;
+    msg += ' Pirates defeated! +' + loot + ' gold.';
+    combatLog.push(msg);
+    addMsg('Defeated pirates! +' + loot + ' gold.');
+    screen = SCREEN.PORT;
+    checkWin();
+    return;
+  }
+  // Pirates attack back
+  const pirateDmg = Math.floor(Math.random() * 3);
+  hp = Math.max(0, hp - pirateDmg);
+  if (pirateDmg > 0) msg += ' Pirates hit you for ' + pirateDmg + '.';
+  else msg += ' Pirates miss!';
+  combatLog.push(msg);
+  if (combatLog.length > 6) combatLog.shift();
+  checkShipSink();
+}
+
+function fleeCombat() {
+  const tc = totalCargo();
+  let lost = 0;
+  if (tc > 0) {
+    const losePct = 0.1 + Math.random() * 0.2;
+    const loseCount = Math.max(1, Math.floor(tc * losePct));
+    for (let i = 0; i < loseCount; i++) {
+      const validGoods = [];
+      for (let g = 0; g < 4; g++) { if (cargo[g] > 0) validGoods.push(g); }
+      if (validGoods.length === 0) break;
+      cargo[validGoods[Math.floor(Math.random() * validGoods.length)]]--;
+      lost++;
+    }
+  }
+  addMsg('Fled pirates! Lost ' + lost + ' cargo.');
+  screen = SCREEN.PORT;
+}
+
+// --- UPDATE ---
+function update() {
+  if (infoOpen) return;
+
+  // Global restart
+  if (pop('KeyR')) { initGame(); return; }
+
+  switch (screen) {
+    case SCREEN.PORT:
+      if (pop('Digit1') || pop('Numpad1')) { screen = SCREEN.BUY; selectedGood = 0; quantity = 0; }
+      if (pop('Digit2') || pop('Numpad2')) { screen = SCREEN.SELL; selectedGood = 0; quantity = 0; }
+      if (pop('Digit3') || pop('Numpad3')) { screen = SCREEN.SAIL; selectedPort = port === 0 ? 1 : 0; }
+      if (pop('Digit4') || pop('Numpad4')) {
+        if (port === 0) { screen = SCREEN.REPAIR; }
+        else { addMsg('Repairs only available in Hong Kong.'); }
+      }
+      if (pop('Digit5') || pop('Numpad5')) { screen = SCREEN.STATUS; }
+      break;
+
+    case SCREEN.BUY:
+      if (pop('ArrowLeft')) selectedGood = (selectedGood + 3) % 4;
+      if (pop('ArrowRight')) selectedGood = (selectedGood + 1) % 4;
+      if (pop('ArrowUp')) {
+        const maxAfford = Math.floor(gold / prices[selectedGood]);
+        const maxSpace = capacity - totalCargo();
+        const maxBuy = Math.min(maxAfford, maxSpace);
+        quantity = Math.min(quantity + 1, maxBuy);
+      }
+      if (pop('ArrowDown')) quantity = Math.max(quantity - 1, 0);
+      if (pop('Enter') || pop('NumpadEnter')) {
+        if (quantity > 0) {
+          const cost = quantity * prices[selectedGood];
+          gold -= cost;
+          cargo[selectedGood] += quantity;
+          addMsg('Bought ' + quantity + ' ' + GOODS[selectedGood] + ' for ' + cost + 'g.');
+          quantity = 0;
+        }
+      }
+      if (pop('Escape') || pop('Backspace')) { screen = SCREEN.PORT; }
+      break;
+
+    case SCREEN.SELL:
+      if (pop('ArrowLeft')) { selectedGood = (selectedGood + 3) % 4; quantity = 0; }
+      if (pop('ArrowRight')) { selectedGood = (selectedGood + 1) % 4; quantity = 0; }
+      if (pop('ArrowUp')) quantity = Math.min(quantity + 1, cargo[selectedGood]);
+      if (pop('ArrowDown')) quantity = Math.max(quantity - 1, 0);
+      if (pop('Enter') || pop('NumpadEnter')) {
+        if (quantity > 0) {
+          const revenue = quantity * prices[selectedGood];
+          gold += revenue;
+          cargo[selectedGood] -= quantity;
+          addMsg('Sold ' + quantity + ' ' + GOODS[selectedGood] + ' for ' + revenue + 'g.');
+          quantity = 0;
+          checkWin();
+        }
+      }
+      if (pop('Escape') || pop('Backspace')) { screen = SCREEN.PORT; }
+      break;
+
+    case SCREEN.SAIL:
+      if (pop('ArrowLeft')) {
+        do { selectedPort = (selectedPort + 3) % 4; } while (selectedPort === port);
+      }
+      if (pop('ArrowRight')) {
+        do { selectedPort = (selectedPort + 1) % 4; } while (selectedPort === port);
+      }
+      if (pop('Enter') || pop('NumpadEnter')) {
+        sail(selectedPort);
+      }
+      if (pop('Escape') || pop('Backspace')) { screen = SCREEN.PORT; }
+      break;
+
+    case SCREEN.REPAIR:
+      if (pop('Digit1') || pop('Numpad1')) {
+        const cost25 = 50;
+        if (gold >= cost25 && hp < 100) {
+          gold -= cost25;
+          hp = Math.min(100, hp + 25);
+          addMsg('Repaired 25 HP for 50g.');
+        }
+      }
+      if (pop('Digit2') || pop('Numpad2')) {
+        const costFull = Math.ceil((100 - hp) * 2);
+        if (gold >= costFull && hp < 100) {
+          gold -= costFull;
+          hp = 100;
+          addMsg('Full repair for ' + costFull + 'g.');
+        }
+      }
+      if (pop('Digit3') || pop('Numpad3')) {
+        // Upgrade capacity
+        const upgCost = 200 + (capacity - START_CAPACITY) * 10;
+        if (gold >= upgCost) {
+          gold -= upgCost;
+          capacity += 10;
+          addMsg('Capacity upgraded to ' + capacity + ' for ' + upgCost + 'g.');
+        }
+      }
+      if (pop('Escape') || pop('Backspace')) { screen = SCREEN.PORT; }
+      break;
+
+    case SCREEN.STATUS:
+      if (pop('Escape') || pop('Backspace') || pop('Enter') || pop('NumpadEnter')) { screen = SCREEN.PORT; }
+      break;
+
+    case SCREEN.COMBAT:
+      combatTimer++;
+      if (pop('Space')) fireCannons();
+      if (pop('KeyF')) fleeCombat();
+      break;
+
+    case SCREEN.STORM:
+    case SCREEN.WIND:
+      eventTimer++;
+      if (pop('Enter') || pop('NumpadEnter') || pop('Space') || eventTimer > 150) {
+        if (hp <= 0) { screen = SCREEN.LOSE; }
+        else { screen = SCREEN.PORT; addMsg('Arrived at ' + PORTS[port] + '.'); }
+        checkBankrupt();
+      }
+      break;
+
+    case SCREEN.WIN:
+    case SCREEN.LOSE:
+      // Only restart
+      break;
+  }
+
+  // Clear unconsumed key presses to prevent stale inputs on screen transitions
+  for (const k in justPressed) justPressed[k] = false;
+}
+
+// --- DRAWING HELPERS ---
+const FONT_SM = '13px monospace';
+const FONT_MD = '15px monospace';
+const FONT_LG = '18px monospace';
+const FONT_XL = '24px monospace';
+const FONT_TITLE = 'bold 28px monospace';
+const COL_BG = '#000';
+const COL_TEXT = '#00ff00';
+const COL_DIM = '#007700';
+const COL_BRIGHT = '#00ff88';
+const COL_WARN = '#ffcc00';
+const COL_DANGER = '#ff4444';
+const COL_HIGHLIGHT = '#00ffff';
+const COL_GOLD = '#ffd700';
+const COL_HEADER = '#33ff33';
+const LINE_H = 22;
+
+function txt(text, x, y, color, font) {
+  ctx.fillStyle = color || COL_TEXT;
+  ctx.font = font || FONT_MD;
+  ctx.textAlign = 'left';
+  ctx.fillText(text, x, y);
+}
+
+function txtCenter(text, y, color, font) {
+  ctx.fillStyle = color || COL_TEXT;
+  ctx.font = font || FONT_MD;
+  ctx.textAlign = 'center';
+  ctx.fillText(text, W / 2, y);
+}
+
+function txtRight(text, x, y, color, font) {
+  ctx.fillStyle = color || COL_TEXT;
+  ctx.font = font || FONT_MD;
+  ctx.textAlign = 'right';
+  ctx.fillText(text, x, y);
+}
+
+function drawHLine(y, color) {
+  ctx.strokeStyle = color || COL_DIM;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(30, y);
+  ctx.lineTo(W - 30, y);
+  ctx.stroke();
+}
+
+function drawHeader() {
+  // Port name and status bar
+  ctx.fillStyle = '#001100';
+  ctx.fillRect(0, 0, W, 50);
+  drawHLine(50, COL_DIM);
+
+  txt(PORTS[port], 40, 32, PORT_COLORS[port], FONT_LG);
+  txt('Turn: ' + turn, 240, 32, COL_TEXT, FONT_SM);
+  txt('Gold: ' + gold, 340, 32, COL_GOLD, FONT_SM);
+
+  // HP bar
+  const hpX = 490;
+  const hpW = 100;
+  txt('Hull:', hpX, 32, COL_DIM, FONT_SM);
+  ctx.fillStyle = '#222';
+  ctx.fillRect(hpX + 40, 20, hpW, 14);
+  const hpCol = hp > 60 ? '#00cc00' : hp > 30 ? '#cccc00' : '#cc0000';
+  ctx.fillStyle = hpCol;
+  ctx.fillRect(hpX + 40, 20, hpW * (hp / 100), 14);
+  txt(hp + '%', hpX + 40 + hpW + 5, 32, hpCol, FONT_SM);
+
+  txt('Cargo: ' + totalCargo() + '/' + capacity, 680, 32, COL_DIM, FONT_SM);
+}
+
+function drawMsgLog() {
+  const y0 = H - 10;
+  for (let i = 0; i < msgLog.length; i++) {
+    const alpha = 1 - i * 0.2;
+    ctx.globalAlpha = Math.max(0.2, alpha);
+    txt(msgLog[i], 40, y0 - i * 16, COL_DIM, FONT_SM);
+  }
+  ctx.globalAlpha = 1;
+}
+
+// --- DRAW SCREENS ---
+function drawPortScreen() {
+  drawHeader();
+
+  // Price table
+  txt('--- Market Prices ---', 40, 80, COL_HEADER, FONT_MD);
+  drawHLine(88);
+  txt('Good', 60, 110, COL_BRIGHT, FONT_SM);
+  txt('Price', 200, 110, COL_BRIGHT, FONT_SM);
+  txt('You Have', 300, 110, COL_BRIGHT, FONT_SM);
+  drawHLine(118);
+
+  for (let i = 0; i < 4; i++) {
+    const y = 138 + i * LINE_H;
+    txt(GOODS[i], 60, y, GOOD_COLORS[i], FONT_MD);
+    txt(prices[i] + 'g', 200, y, COL_TEXT, FONT_MD);
+    txt(cargo[i] + '', 300, y, cargo[i] > 0 ? COL_TEXT : COL_DIM, FONT_MD);
+  }
+
+  drawHLine(230);
+
+  // Menu
+  txt('--- Actions ---', 40, 260, COL_HEADER, FONT_MD);
+  txt('1. Buy Goods', 60, 290, COL_HIGHLIGHT, FONT_MD);
+  txt('2. Sell Goods', 60, 314, COL_HIGHLIGHT, FONT_MD);
+  txt('3. Sail to Port', 60, 338, COL_HIGHLIGHT, FONT_MD);
+  txt('4. Repair Ship' + (port !== 0 ? ' (Hong Kong only)' : ''), 60, 362,
+     port === 0 ? COL_HIGHLIGHT : COL_DIM, FONT_MD);
+  txt('5. Ship Status', 60, 386, COL_HIGHLIGHT, FONT_MD);
+
+  // Port flavor
+  drawPortMap();
+
+  drawMsgLog();
+}
+
+function drawPortMap() {
+  const mx = 560, my = 140;
+  const portPositions = [
+    [mx + 80, my],       // Hong Kong (NE)
+    [mx + 60, my - 50],  // Shanghai (N)
+    [mx + 30, my + 60],  // Manila (SE)
+    [mx - 40, my + 20]   // Singapore (SW)
+  ];
+
+  txt('~ South China Sea ~', mx - 20, my - 80, COL_DIM, FONT_SM);
+
+  // Draw water lines
+  ctx.strokeStyle = '#002244';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 8; i++) {
+    const wy = my - 60 + i * 20;
+    ctx.beginPath();
+    ctx.moveTo(mx - 60, wy);
+    for (let x = mx - 60; x < mx + 140; x += 10) {
+      ctx.lineTo(x, wy + Math.sin((x + Date.now() * 0.001) * 0.1) * 3);
+    }
+    ctx.stroke();
+  }
+
+  // Draw ports
+  for (let i = 0; i < 4; i++) {
+    const [px, py] = portPositions[i];
+    const isHere = i === port;
+    ctx.fillStyle = isHere ? PORT_COLORS[i] : '#334433';
+    ctx.beginPath();
+    ctx.arc(px, py, isHere ? 8 : 5, 0, Math.PI * 2);
+    ctx.fill();
+    if (isHere) {
+      ctx.strokeStyle = PORT_COLORS[i];
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(px, py, 12, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    txt(PORTS[i].substring(0, 3), px - 12, py + 20, isHere ? PORT_COLORS[i] : '#445544', FONT_SM);
+  }
+}
+
+function drawBuyScreen() {
+  drawHeader();
+  txt('--- Buy Goods ---', 40, 80, COL_HEADER, FONT_MD);
+  txt('Gold: ' + gold, 40, 105, COL_GOLD, FONT_SM);
+  txt('Free space: ' + (capacity - totalCargo()), 200, 105, COL_DIM, FONT_SM);
+  drawHLine(115);
+
+  for (let i = 0; i < 4; i++) {
+    const y = 140 + i * 40;
+    const selected = i === selectedGood;
+    const maxAfford = Math.floor(gold / prices[i]);
+    const maxSpace = capacity - totalCargo();
+    const maxBuy = Math.min(maxAfford, maxSpace);
+
+    if (selected) {
+      ctx.fillStyle = '#002200';
+      ctx.fillRect(35, y - 16, W - 70, 36);
+    }
+
+    txt((selected ? '> ' : '  ') + GOODS[i], 50, y, selected ? COL_HIGHLIGHT : GOOD_COLORS[i], FONT_MD);
+    txt('Price: ' + prices[i] + 'g', 200, y, COL_TEXT, FONT_SM);
+    txt('Max: ' + maxBuy, 340, y, COL_DIM, FONT_SM);
+    txt('Have: ' + cargo[i], 440, y, COL_DIM, FONT_SM);
+  }
+
+  drawHLine(310);
+  if (selectedGood >= 0) {
+    const maxAfford = Math.floor(gold / prices[selectedGood]);
+    const maxSpace = capacity - totalCargo();
+    const maxBuy = Math.min(maxAfford, maxSpace);
+    const cost = quantity * prices[selectedGood];
+
+    txt('Quantity: ' + quantity + ' / ' + maxBuy, 60, 340, COL_TEXT, FONT_LG);
+    txt('Cost: ' + cost + 'g', 60, 368, COL_GOLD, FONT_MD);
+    txt('Up/Down: adjust  |  Enter: confirm  |  Esc: back', 60, 400, COL_DIM, FONT_SM);
+    txt('Left/Right: change good', 60, 420, COL_DIM, FONT_SM);
+
+    // Quantity bar
+    if (maxBuy > 0) {
+      const barX = 60, barY = 445, barW = 400, barH = 14;
+      ctx.fillStyle = '#222';
+      ctx.fillRect(barX, barY, barW, barH);
+      ctx.fillStyle = COL_HIGHLIGHT;
+      ctx.fillRect(barX, barY, barW * (quantity / maxBuy), barH);
+    }
+  }
+
+  drawMsgLog();
+}
+
+function drawSellScreen() {
+  drawHeader();
+  txt('--- Sell Goods ---', 40, 80, COL_HEADER, FONT_MD);
+  txt('Gold: ' + gold, 40, 105, COL_GOLD, FONT_SM);
+  drawHLine(115);
+
+  for (let i = 0; i < 4; i++) {
+    const y = 140 + i * 40;
+    const selected = i === selectedGood;
+
+    if (selected) {
+      ctx.fillStyle = '#002200';
+      ctx.fillRect(35, y - 16, W - 70, 36);
+    }
+
+    txt((selected ? '> ' : '  ') + GOODS[i], 50, y, selected ? COL_HIGHLIGHT : GOOD_COLORS[i], FONT_MD);
+    txt('Price: ' + prices[i] + 'g', 200, y, COL_TEXT, FONT_SM);
+    txt('Have: ' + cargo[i], 340, y, cargo[i] > 0 ? COL_TEXT : COL_DIM, FONT_SM);
+  }
+
+  drawHLine(310);
+  if (selectedGood >= 0) {
+    const maxSell = cargo[selectedGood];
+    const revenue = quantity * prices[selectedGood];
+
+    txt('Quantity: ' + quantity + ' / ' + maxSell, 60, 340, COL_TEXT, FONT_LG);
+    txt('Revenue: ' + revenue + 'g', 60, 368, COL_GOLD, FONT_MD);
+    txt('Up/Down: adjust  |  Enter: confirm  |  Esc: back', 60, 400, COL_DIM, FONT_SM);
+    txt('Left/Right: change good', 60, 420, COL_DIM, FONT_SM);
+
+    if (maxSell > 0) {
+      const barX = 60, barY = 445, barW = 400, barH = 14;
+      ctx.fillStyle = '#222';
+      ctx.fillRect(barX, barY, barW, barH);
+      ctx.fillStyle = COL_GOLD;
+      ctx.fillRect(barX, barY, barW * (quantity / maxSell), barH);
+    }
+  }
+
+  drawMsgLog();
+}
+
+function drawSailScreen() {
+  drawHeader();
+  txt('--- Sail to Port ---', 40, 80, COL_HEADER, FONT_MD);
+  txt('Current port: ' + PORTS[port], 40, 105, PORT_COLORS[port], FONT_SM);
+  drawHLine(115);
+
+  for (let i = 0; i < 4; i++) {
+    if (i === port) continue;
+    const y = 140 + i * 40;
+    const selected = i === selectedPort;
+
+    if (selected) {
+      ctx.fillStyle = '#002200';
+      ctx.fillRect(35, y - 16, W - 70, 36);
+    }
+
+    txt((selected ? '> ' : '  ') + PORTS[i], 50, y, selected ? COL_HIGHLIGHT : PORT_COLORS[i], FONT_MD);
+
+    // Show base price hints
+    let hint = '';
+    for (let g = 0; g < 4; g++) {
+      const base = BASE_PRICES[g][i];
+      const currentBase = BASE_PRICES[g][port];
+      const diff = base - currentBase;
+      if (diff > 20) hint += GOODS[g][0] + '+ ';
+      else if (diff < -20) hint += GOODS[g][0] + '- ';
+    }
+    if (hint) txt(hint, 300, y, COL_DIM, FONT_SM);
+  }
+
+  drawHLine(310);
+  txt('Left/Right: choose port  |  Enter: set sail  |  Esc: back', 60, 340, COL_DIM, FONT_SM);
+  txt('(Sailing takes 1 turn. Pirates and storms may await.)', 60, 365, COL_DIM, FONT_SM);
+  if (turn >= PIRATE_RAMP_TURN) {
+    txt('WARNING: Pirate activity is high!', 60, 395, COL_DANGER, FONT_SM);
+  }
+
+  drawMsgLog();
+}
+
+function drawRepairScreen() {
+  drawHeader();
+  txt('--- Hong Kong Shipyard ---', 40, 80, COL_HEADER, FONT_MD);
+  drawHLine(95);
+
+  txt('Ship Hull: ' + hp + '/100', 60, 125, hp > 60 ? COL_TEXT : hp > 30 ? COL_WARN : COL_DANGER, FONT_MD);
+  txt('Cargo Capacity: ' + capacity, 60, 150, COL_TEXT, FONT_MD);
+
+  drawHLine(170);
+  txt('--- Services ---', 40, 195, COL_HEADER, FONT_MD);
+
+  const cost25 = 50;
+  const costFull = Math.ceil((100 - hp) * 2);
+  const upgCost = 200 + (capacity - START_CAPACITY) * 10;
+
+  txt('1. Quick Repair (+25 HP) ........ ' + cost25 + 'g',
+     60, 225, hp < 100 && gold >= cost25 ? COL_HIGHLIGHT : COL_DIM, FONT_MD);
+  txt('2. Full Repair (to 100 HP) ...... ' + costFull + 'g',
+     60, 255, hp < 100 && gold >= costFull ? COL_HIGHLIGHT : COL_DIM, FONT_MD);
+  txt('3. Upgrade Capacity (+10) ....... ' + upgCost + 'g',
+     60, 285, gold >= upgCost ? COL_HIGHLIGHT : COL_DIM, FONT_MD);
+
+  drawHLine(310);
+  txt('Esc: back', 60, 340, COL_DIM, FONT_SM);
+
+  drawMsgLog();
+}
+
+function drawStatusScreen() {
+  drawHeader();
+  txt('--- Ship Status ---', 40, 80, COL_HEADER, FONT_MD);
+  drawHLine(95);
+
+  txt('Captain\'s Ledger', 60, 125, COL_BRIGHT, FONT_LG);
+  drawHLine(135);
+
+  txt('Gold:', 60, 165, COL_DIM, FONT_MD);
+  txtRight(gold + '', 350, 165, COL_GOLD, FONT_MD);
+
+  txt('Ship Hull:', 60, 190, COL_DIM, FONT_MD);
+  txtRight(hp + '/100', 350, 190, hp > 60 ? COL_TEXT : hp > 30 ? COL_WARN : COL_DANGER, FONT_MD);
+
+  txt('Cargo:', 60, 215, COL_DIM, FONT_MD);
+  txtRight(totalCargo() + '/' + capacity, 350, 215, COL_TEXT, FONT_MD);
+
+  txt('Turn:', 60, 240, COL_DIM, FONT_MD);
+  txtRight(turn + '', 350, 240, COL_TEXT, FONT_MD);
+
+  txt('Port:', 60, 265, COL_DIM, FONT_MD);
+  txtRight(PORTS[port], 350, 265, PORT_COLORS[port], FONT_MD);
+
+  drawHLine(285);
+  txt('--- Cargo Hold ---', 40, 310, COL_HEADER, FONT_MD);
+
+  for (let i = 0; i < 4; i++) {
+    const y = 340 + i * LINE_H;
+    txt(GOODS[i] + ':', 60, y, GOOD_COLORS[i], FONT_MD);
+    txtRight(cargo[i] + ' units', 250, y, COL_TEXT, FONT_MD);
+    if (cargo[i] > 0) {
+      txtRight('(worth ' + (cargo[i] * prices[i]) + 'g here)', 450, y, COL_DIM, FONT_SM);
+    }
+  }
+
+  drawHLine(430);
+  txt('Total cargo value at this port: ' + cargoValue() + 'g', 60, 455, COL_GOLD, FONT_MD);
+  txt('Net worth: ' + (gold + cargoValue()) + 'g', 60, 480, COL_BRIGHT, FONT_MD);
+
+  // Progress bar to win
+  const progress = Math.min(gold / WIN_GOLD, 1);
+  txt('Goal: ' + WIN_GOLD + 'g', 60, 515, COL_DIM, FONT_SM);
+  ctx.fillStyle = '#222';
+  ctx.fillRect(60, 525, 400, 14);
+  ctx.fillStyle = progress >= 1 ? COL_BRIGHT : COL_GOLD;
+  ctx.fillRect(60, 525, 400 * progress, 14);
+  txtRight(Math.floor(progress * 100) + '%', 480, 537, COL_DIM, FONT_SM);
+
+  txt('Esc/Enter: back', 60, 565, COL_DIM, FONT_SM);
+
+  drawMsgLog();
+}
+
+function drawCombatScreen() {
+  ctx.fillStyle = '#110000';
+  ctx.fillRect(0, 0, W, H);
+
+  // Pirate ship ASCII art
+  txtCenter('PIRATES!', 60, COL_DANGER, FONT_TITLE);
+
+  // Simple pirate ship
+  const shipX = W / 2, shipY = 150;
+  ctx.strokeStyle = '#884422';
+  ctx.lineWidth = 3;
+  // Hull
+  ctx.beginPath();
+  ctx.moveTo(shipX - 80, shipY);
+  ctx.lineTo(shipX - 60, shipY + 30);
+  ctx.lineTo(shipX + 60, shipY + 30);
+  ctx.lineTo(shipX + 80, shipY);
+  ctx.closePath();
+  ctx.stroke();
+  ctx.fillStyle = '#331100';
+  ctx.fill();
+  // Mast
+  ctx.beginPath();
+  ctx.moveTo(shipX, shipY + 10);
+  ctx.lineTo(shipX, shipY - 60);
+  ctx.stroke();
+  // Sail
+  ctx.fillStyle = '#222';
+  ctx.beginPath();
+  ctx.moveTo(shipX, shipY - 55);
+  ctx.lineTo(shipX + 35, shipY - 25);
+  ctx.lineTo(shipX, shipY - 10);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  // Skull
+  ctx.fillStyle = COL_DANGER;
+  ctx.font = '20px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('\u2620', shipX + 17, shipY - 28);
+
+  // Pirate HP bar
+  const hpBarX = W / 2 - 100, hpBarY = 200;
+  txt('Pirate HP:', hpBarX, hpBarY, COL_DANGER, FONT_SM);
+  ctx.fillStyle = '#330000';
+  ctx.fillRect(hpBarX + 90, hpBarY - 12, 150, 16);
+  ctx.fillStyle = COL_DANGER;
+  ctx.fillRect(hpBarX + 90, hpBarY - 12, 150 * (pirateHP / pirateMaxHP), 16);
+  txt(pirateHP + '/' + pirateMaxHP, hpBarX + 250, hpBarY, COL_TEXT, FONT_SM);
+
+  // Your HP
+  txt('Your Hull:', hpBarX, hpBarY + 25, COL_TEXT, FONT_SM);
+  ctx.fillStyle = '#003300';
+  ctx.fillRect(hpBarX + 90, hpBarY + 13, 150, 16);
+  const myHpCol = hp > 60 ? '#00cc00' : hp > 30 ? '#cccc00' : '#cc0000';
+  ctx.fillStyle = myHpCol;
+  ctx.fillRect(hpBarX + 90, hpBarY + 13, 150 * (hp / 100), 16);
+  txt(hp + '/100', hpBarX + 250, hpBarY + 25, COL_TEXT, FONT_SM);
+
+  // Combat log
+  drawHLine(260, '#440000');
+  const logY = 285;
+  for (let i = 0; i < combatLog.length; i++) {
+    txt(combatLog[i], 60, logY + i * LINE_H, i === combatLog.length - 1 ? COL_WARN : COL_DIM, FONT_SM);
+  }
+
+  drawHLine(440, '#440000');
+  txt('SPACE: Fire Cannons    F: Flee (lose cargo)', W / 2 - 200, 470, COL_HIGHLIGHT, FONT_MD);
+
+  // Cannon flash effect
+  if (combatTimer < 3) {
+    ctx.fillStyle = 'rgba(255,200,50,0.1)';
+    ctx.fillRect(0, 0, W, H);
+  }
+  combatTimer++;
+}
+
+function drawStormScreen() {
+  ctx.fillStyle = '#000511';
+  ctx.fillRect(0, 0, W, H);
+
+  // Lightning effect
+  const flashOn = eventTimer < 10 || (eventTimer > 30 && eventTimer < 35);
+  if (flashOn) {
+    ctx.fillStyle = 'rgba(150,150,200,0.05)';
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // Rain
+  ctx.strokeStyle = '#335577';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 40; i++) {
+    const rx = (i * 23 + eventTimer * 7) % W;
+    const ry = (i * 17 + eventTimer * 11) % H;
+    ctx.beginPath();
+    ctx.moveTo(rx, ry);
+    ctx.lineTo(rx - 3, ry + 15);
+    ctx.stroke();
+  }
+
+  txtCenter('STORM!', 120, '#6688aa', FONT_TITLE);
+
+  for (let i = 0; i < eventMsg.length; i++) {
+    txtCenter(eventMsg[i], 200 + i * 30, i === 0 ? COL_WARN : COL_TEXT, FONT_MD);
+  }
+
+  txtCenter('Hull: ' + hp + '/100', 340, hp > 30 ? COL_TEXT : COL_DANGER, FONT_MD);
+
+  if (eventTimer > 30) {
+    txtCenter('Press Enter to continue', 420, COL_DIM, FONT_SM);
+  }
+}
+
+function drawWindScreen() {
+  ctx.fillStyle = '#001108';
+  ctx.fillRect(0, 0, W, H);
+
+  txtCenter('FAVORABLE WINDS!', 120, COL_BRIGHT, FONT_TITLE);
+
+  for (let i = 0; i < eventMsg.length; i++) {
+    txtCenter(eventMsg[i], 220 + i * 30, COL_TEXT, FONT_MD);
+  }
+
+  // Animated wind lines
+  ctx.strokeStyle = '#225533';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 15; i++) {
+    const wy = 300 + i * 15;
+    ctx.beginPath();
+    for (let x = 0; x < W; x += 5) {
+      ctx.lineTo(x, wy + Math.sin((x + eventTimer * 5) * 0.02) * 8);
+    }
+    ctx.stroke();
+  }
+
+  if (eventTimer > 30) {
+    txtCenter('Press Enter to continue', 530, COL_DIM, FONT_SM);
+  }
+}
+
+function drawWinScreen() {
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, H);
+
+  // Gold shimmer
+  for (let i = 0; i < 30; i++) {
+    const sx = (Math.sin(Date.now() * 0.001 + i) * 0.5 + 0.5) * W;
+    const sy = (Math.cos(Date.now() * 0.0013 + i * 2) * 0.5 + 0.5) * H;
+    ctx.fillStyle = 'rgba(255,215,0,' + (0.1 + Math.random() * 0.15) + ')';
+    ctx.beginPath();
+    ctx.arc(sx, sy, 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  txtCenter('YOU RETIRE IN GLORY!', 180, COL_GOLD, FONT_TITLE);
+  txtCenter('The Taipan of the South China Sea', 230, COL_BRIGHT, FONT_LG);
+
+  drawHLine(260, COL_GOLD);
+  txtCenter('Final Gold: ' + gold, 300, COL_GOLD, FONT_LG);
+  txtCenter('Turns Taken: ' + turn, 330, COL_TEXT, FONT_MD);
+  txtCenter('Cargo Remaining: ' + totalCargo() + ' units', 360, COL_TEXT, FONT_MD);
+  drawHLine(390, COL_GOLD);
+
+  txtCenter('Press R to play again', 440, COL_DIM, FONT_MD);
+}
+
+function drawLoseScreen() {
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, H);
+
+  txtCenter('GAME OVER', 200, COL_DANGER, FONT_TITLE);
+  for (let i = 0; i < eventMsg.length; i++) {
+    txtCenter(eventMsg[i], 260 + i * 30, COL_WARN, FONT_MD);
+  }
+
+  drawHLine(340);
+  txtCenter('Final Gold: ' + gold, 380, COL_GOLD, FONT_MD);
+  txtCenter('Turns Survived: ' + turn, 410, COL_TEXT, FONT_MD);
+
+  txtCenter('Press R to try again', 480, COL_DIM, FONT_MD);
+}
+
+// --- DRAW ---
+function draw() {
+  ctx.fillStyle = COL_BG;
+  ctx.fillRect(0, 0, W, H);
+
+  switch (screen) {
+    case SCREEN.PORT: drawPortScreen(); break;
+    case SCREEN.BUY: drawBuyScreen(); break;
+    case SCREEN.SELL: drawSellScreen(); break;
+    case SCREEN.SAIL: drawSailScreen(); break;
+    case SCREEN.REPAIR: drawRepairScreen(); break;
+    case SCREEN.STATUS: drawStatusScreen(); break;
+    case SCREEN.COMBAT: drawCombatScreen(); break;
+    case SCREEN.STORM: drawStormScreen(); break;
+    case SCREEN.WIND: drawWindScreen(); break;
+    case SCREEN.WIN: drawWinScreen(); break;
+    case SCREEN.LOSE: drawLoseScreen(); break;
+  }
+
+  // Title badge (always on top)
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(8, 8, 245, 28);
+  ctx.fillStyle = '#555';
+  ctx.font = '13px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('SIM-001 \u00b7 TRADE VOYAGE  [?]', 16, 26);
+}
+
+// --- MAIN LOOP ---
+initGame();
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: dpad2+fire ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("dpad2+fire");
+</script>
+</body>
+</html>

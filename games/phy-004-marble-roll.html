@@ -1,0 +1,1066 @@
+<!--
+PROTOTYPE: marble-roll
+SERIES: phy
+NUMBER: 004
+DATE: 2026-03-22
+MECHANIC: roll marble through isometric course with physics and obstacles
+ANCESTRY: Marble Madness (1984, Mark Cerny, Atari), Cameltry (1989, Taito)
+CONTROLS: Arrow keys — tilt/accelerate marble | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — real-time physics simulation)
+AI-INSIGHT: Marble Madness was the first arcade game to use a full physics simulation for its core mechanic. The trackball-to-momentum mapping presaged modern physics engines and the continuous-state control problems that deep reinforcement learning would later tackle.
+NOTES: Isometric perspective with real momentum creates satisfying skill curve.
+       Time pressure adds urgency without adding complexity.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PHY-004 · MARBLE ROLL</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>PHY-004 · MARBLE ROLL</h1>
+    <p><span class="tag series">PHY — Physics</span> <span class="tag">Prototype #004</span> <span class="tag">★★★★☆</span></p>
+
+    <h2>How to Play</h2>
+    <p>Roll a marble down an isometric course to reach the finish goal before time runs out. Arrow keys tilt the surface, applying force to the marble. Momentum and inertia are real — plan your moves.</p>
+    <ul>
+      <li><kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd> — Tilt surface / apply force to marble</li>
+      <li><kbd>R</kbd> — Restart level (or full restart after Game Over)</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Momentum is real:</strong> The marble keeps moving after you release keys. Brake early.</li>
+      <li><strong>Slopes accelerate you:</strong> Darker tiles slope downhill — use them, but stay in control.</li>
+      <li><strong>Avoid gaps:</strong> Falling off the course costs a life and resets position.</li>
+      <li><strong>Black marbles:</strong> Enemy marbles will push you off course on contact.</li>
+      <li><strong>Time bonus:</strong> Remaining seconds become score points at the finish.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Marble Madness (1984, Atari) → Cameltry (1989, Taito) → Super Monkey Ball (2001, Amusement Vision)</p>
+    <p>Marble Madness (1984) was designed by Mark Cerny at Atari Games when he was just 18 years old. It was the first arcade game built around a real physics simulation — the marble obeyed Newtonian mechanics with friction, gravity, and momentum. The trackball controller gave players analog, continuous control over a physical system.</p>
+    <p>The isometric perspective was groundbreaking, creating a convincing 3D world on 2D hardware. The game's six courses were short but brutally difficult, demanding precision physics intuition. It was also the first arcade game to use Atari's System 1 hardware and one of the first to use an FM sound chip (Yamaha YM2151).</p>
+    <p>Cerny would go on to become one of gaming's most important architects — lead designer of Crash Bandicoot, Ratchet & Clank, and lead architect of the PlayStation 4 and 5.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 3 — Knowledge Explosion (1980–1987)</p>
+    <p><strong>Contemporary AI:</strong> Expert systems were booming. LISP machines were selling. The Boltzmann machine (1985) and backpropagation revival were just around the corner.</p>
+    <p><strong>Hidden Intelligence:</strong> Marble Madness embeds a continuous control problem — the player must learn the transfer function between trackball input and marble trajectory through a complex force field (gravity, slopes, friction, collisions). This is exactly the kind of problem that model-based reinforcement learning excels at: learn a dynamics model, then plan through it.</p>
+    <p><strong>The Convergence:</strong> Modern physics engines (Havok, PhysX, Bullet) solve the same rigid-body dynamics that Marble Madness hand-coded in 68000 assembly. DeepMind's MuJoCo-based continuous control benchmarks are spiritual descendants — an agent learning to navigate physics is learning what Marble Madness players learned by feel.</p>
+    <p><strong>If AI Had Designed This:</strong> Procedurally generated courses with difficulty curves tuned by inverse reinforcement learning — observe human trajectories, infer their cost function, then generate courses that maximize learning rate while staying within the flow channel.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: PHY — Physics</h3>
+    <p>Games where Newtonian mechanics are the primary challenge. Marble Madness is the purest expression: the entire game IS physics. No weapons, no inventory — just mass, force, and friction.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Continuous force application to a rolling body.</strong> Analog input maps to acceleration vector. Surface topology creates force fields. Time pressure creates urgency. Obstacle avoidance requires momentum planning.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Physics feel — does momentum feel satisfying and learnable?</li>
+      <li>Course readability — can players see slopes and gaps before hitting them?</li>
+      <li>Time pressure — does the countdown create flow without frustration?</li>
+      <li>Isometric clarity — does the perspective help or hinder navigation?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Isometric tile-based rendering. Physics simulation with velocity, acceleration, friction, and slope forces. Multiple courses with increasing difficulty. Enemy marbles with simple patrol AI.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+// --- CONSTANTS ---
+const TW = 40; // tile width (isometric half-width)
+const TH = 20; // tile height (isometric half-height)
+const ACCEL = 0.12;
+const FRICTION = 0.92;
+const SLOPE_FORCE = 0.05;
+const MARBLE_R = 8;
+const ENEMY_SPEED = 0.5;
+
+// --- TILE TYPES ---
+const T = {
+  VOID: 0,    // gap — fall through
+  FLAT: 1,    // normal floor
+  SLOPE_N: 2, // slopes push marble in direction
+  SLOPE_S: 3,
+  SLOPE_E: 4,
+  SLOPE_W: 5,
+  START: 6,   // start position
+  GOAL: 7,    // finish goal
+  ACID: 8,    // acid pool — instant death
+  BUMPER: 9,  // bounces marble away
+  NARROW: 10, // narrow bridge (visual cue, same physics as flat)
+  ICE: 11     // low friction
+};
+
+// --- LEVELS ---
+const levels = [
+  { // Level 1 — Gentle Introduction
+    name: 'BEGINNER',
+    time: 45,
+    cols: 12, rows: 16,
+    map: [
+      0,0,0,0,0,6,1,0,0,0,0,0,
+      0,0,0,0,0,1,1,0,0,0,0,0,
+      0,0,0,0,1,1,1,1,0,0,0,0,
+      0,0,0,0,1,1,1,1,0,0,0,0,
+      0,0,0,1,1,3,3,1,1,0,0,0,
+      0,0,0,1,1,1,1,1,1,0,0,0,
+      0,0,1,1,0,0,0,0,1,1,0,0,
+      0,0,1,1,0,0,0,0,1,1,0,0,
+      0,0,1,1,1,1,1,1,1,1,0,0,
+      0,0,0,1,1,9,9,1,1,0,0,0,
+      0,0,0,1,1,1,1,1,1,0,0,0,
+      0,0,0,0,1,3,3,1,0,0,0,0,
+      0,0,0,0,1,1,1,1,0,0,0,0,
+      0,0,0,1,1,1,1,1,1,0,0,0,
+      0,0,0,1,1,7,7,1,1,0,0,0,
+      0,0,0,0,1,1,1,1,0,0,0,0
+    ],
+    enemies: [
+      { r: 8, c0: 2, c1: 9, row: 8, axis: 'c' }
+    ]
+  },
+  { // Level 2 — Acid and Ice
+    name: 'INTERMEDIATE',
+    time: 55,
+    cols: 14, rows: 18,
+    map: [
+      0,0,0,0,0,0,6,1,0,0,0,0,0,0,
+      0,0,0,0,0,1,1,1,1,0,0,0,0,0,
+      0,0,0,0,1,1,8,8,1,1,0,0,0,0,
+      0,0,0,0,1,1,1,1,1,1,0,0,0,0,
+      0,0,0,1,1,3,3,3,3,1,1,0,0,0,
+      0,0,0,1,1,1,1,1,1,1,1,0,0,0,
+      0,0,1,1,11,11,0,0,11,11,1,1,0,0,
+      0,0,1,1,11,11,0,0,11,11,1,1,0,0,
+      0,0,0,1,1,1,1,1,1,1,1,0,0,0,
+      0,0,0,0,1,9,1,1,9,1,0,0,0,0,
+      0,0,0,0,1,1,8,8,1,1,0,0,0,0,
+      0,0,0,1,1,1,1,1,1,1,1,0,0,0,
+      0,0,1,1,4,4,1,1,5,5,1,1,0,0,
+      0,0,1,1,1,1,0,0,1,1,1,1,0,0,
+      0,0,0,1,1,1,0,0,1,1,1,0,0,0,
+      0,0,0,0,1,1,1,1,1,1,0,0,0,0,
+      0,0,0,0,1,1,7,7,1,1,0,0,0,0,
+      0,0,0,0,0,1,1,1,1,0,0,0,0,0
+    ],
+    enemies: [
+      { r: 5, c0: 3, c1: 10, row: 5, axis: 'c' },
+      { r: 11, c0: 3, c1: 10, row: 11, axis: 'c' }
+    ]
+  },
+  { // Level 3 — Gauntlet
+    name: 'EXPERT',
+    time: 65,
+    cols: 14, rows: 20,
+    map: [
+      0,0,0,0,0,0,6,1,0,0,0,0,0,0,
+      0,0,0,0,0,1,1,1,1,0,0,0,0,0,
+      0,0,0,0,1,1,1,1,1,1,0,0,0,0,
+      0,0,0,0,1,3,3,3,3,1,0,0,0,0,
+      0,0,0,1,1,1,8,8,1,1,1,0,0,0,
+      0,0,0,10,0,0,0,0,0,0,10,0,0,0,
+      0,0,0,1,1,1,1,1,1,1,1,0,0,0,
+      0,0,1,1,9,1,11,11,1,9,1,1,0,0,
+      0,0,1,1,1,1,11,11,1,1,1,1,0,0,
+      0,0,0,1,4,4,1,1,5,5,1,0,0,0,
+      0,0,0,0,1,1,0,0,1,1,0,0,0,0,
+      0,0,0,0,1,1,0,0,1,1,0,0,0,0,
+      0,0,0,1,1,1,10,10,1,1,1,0,0,0,
+      0,0,1,1,8,1,1,1,1,8,1,1,0,0,
+      0,0,1,1,1,1,3,3,1,1,1,1,0,0,
+      0,0,0,1,1,9,1,1,9,1,1,0,0,0,
+      0,0,0,0,1,1,1,1,1,1,0,0,0,0,
+      0,0,0,0,1,1,3,3,1,1,0,0,0,0,
+      0,0,0,0,1,1,7,7,1,1,0,0,0,0,
+      0,0,0,0,0,1,1,1,1,0,0,0,0,0
+    ],
+    enemies: [
+      { r: 6, c0: 3, c1: 10, row: 6, axis: 'c' },
+      { r: 8, c0: 2, c1: 11, row: 8, axis: 'c' },
+      { r: 14, c0: 2, c1: 11, row: 14, axis: 'c' }
+    ]
+  },
+  { // Level 4 — The Nightmare
+    name: 'NIGHTMARE',
+    time: 75,
+    cols: 16, rows: 22,
+    map: [
+      0,0,0,0,0,0,0,6,1,0,0,0,0,0,0,0,
+      0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,0,
+      0,0,0,0,0,1,1,3,3,1,1,0,0,0,0,0,
+      0,0,0,0,1,1,8,1,1,8,1,1,0,0,0,0,
+      0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0,
+      0,0,0,10,0,0,0,0,0,0,0,0,10,0,0,0,
+      0,0,0,1,1,9,1,11,11,1,9,1,1,0,0,0,
+      0,0,1,1,4,4,1,11,11,1,5,5,1,1,0,0,
+      0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,
+      0,0,0,1,1,1,0,0,0,0,1,1,1,0,0,0,
+      0,0,0,0,1,1,1,10,10,1,1,1,0,0,0,0,
+      0,0,0,0,1,8,1,1,1,1,8,1,0,0,0,0,
+      0,0,0,1,1,1,3,3,3,3,1,1,1,0,0,0,
+      0,0,1,1,9,1,1,1,1,1,1,9,1,1,0,0,
+      0,0,1,1,1,11,11,0,0,11,11,1,1,1,0,0,
+      0,0,0,1,1,11,11,0,0,11,11,1,1,0,0,0,
+      0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0,
+      0,0,0,0,1,4,8,1,1,8,5,1,0,0,0,0,
+      0,0,0,1,1,1,1,3,3,1,1,1,1,0,0,0,
+      0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0,
+      0,0,0,0,0,1,1,7,7,1,1,0,0,0,0,0,
+      0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,0
+    ],
+    enemies: [
+      { r: 4, c0: 3, c1: 12, row: 4, axis: 'c' },
+      { r: 7, c0: 2, c1: 13, row: 7, axis: 'c' },
+      { r: 13, c0: 2, c1: 13, row: 13, axis: 'c' },
+      { r: 19, c0: 3, c1: 12, row: 19, axis: 'c' }
+    ]
+  }
+];
+
+// --- GAME STATE ---
+let keys = {};
+let level = 0;
+let lives = 3;
+let score = 0;
+let totalScore = 0;
+let marble = { x: 0, y: 0, vx: 0, vy: 0 };
+let timer = 0;
+let state = 'title'; // title, play, dead, levelComplete, gameOver, win
+let stateTimer = 0;
+let enemies = [];
+let deathType = '';
+let camOffX = 0, camOffY = 0;
+
+function getTile(lvl, r, c) {
+  if (r < 0 || r >= lvl.rows || c < 0 || c >= lvl.cols) return T.VOID;
+  return lvl.map[r * lvl.cols + c];
+}
+
+function findTile(lvl, type) {
+  for (let r = 0; r < lvl.rows; r++)
+    for (let c = 0; c < lvl.cols; c++)
+      if (lvl.map[r * lvl.cols + c] === type) return { r, c };
+  return { r: 0, c: 0 };
+}
+
+// Isometric projection: grid (c, r) -> screen (sx, sy)
+function isoProject(c, r) {
+  return {
+    x: (c - r) * TW,
+    y: (c + r) * TH
+  };
+}
+
+function initLevel() {
+  const lvl = levels[level];
+  const sp = findTile(lvl, T.START);
+  marble.x = sp.c + 0.5;
+  marble.y = sp.r + 0.5;
+  marble.vx = 0;
+  marble.vy = 0;
+  timer = lvl.time * 60; // frames at 60fps
+  // init enemies
+  enemies = lvl.enemies.map(e => ({
+    ...e,
+    pos: e.c0,
+    dir: 1,
+    r: e.row,
+    c: e.c0
+  }));
+  // compute camera offset to center the map
+  const midC = lvl.cols / 2;
+  const midR = lvl.rows / 2;
+  const center = isoProject(midC, midR);
+  camOffX = W / 2 - center.x;
+  camOffY = 60 - isoProject(0, 0).y;
+  state = 'play';
+}
+
+function resetGame() {
+  level = 0;
+  lives = 3;
+  score = 0;
+  totalScore = 0;
+  initLevel();
+}
+
+// --- INPUT ---
+window.addEventListener('keydown', e => {
+  keys[e.key] = true;
+  if (e.key === 'r' || e.key === 'R') {
+    if (state === 'gameOver' || state === 'title' || state === 'win') {
+      resetGame();
+    } else if (state === 'play') {
+      initLevel();
+    }
+    e.preventDefault();
+  }
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault();
+});
+window.addEventListener('keyup', e => { keys[e.key] = false; });
+
+// --- COLORS ---
+const COLORS = {
+  bg: '#1a1a2e',
+  flat: '#3a5a8c',
+  flatTop: '#4a6a9c',
+  flatEdge: '#2a4a7c',
+  slopeN: '#5a7aac',
+  slopeS: '#2a4060',
+  slopeE: '#4a6a90',
+  slopeW: '#3a5a80',
+  start: '#2a8a4a',
+  goal: '#ffd700',
+  acid: '#40ff40',
+  bumper: '#ff6060',
+  narrow: '#556688',
+  ice: '#aaddff',
+  void: 'transparent',
+  marble: '#e04040',
+  marbleHi: '#ff8080',
+  marbleSh: '#801010',
+  enemy: '#222222',
+  enemyHi: '#555555',
+  shadow: 'rgba(0,0,0,0.3)'
+};
+
+function tileColor(type) {
+  switch(type) {
+    case T.FLAT: return COLORS.flat;
+    case T.SLOPE_N: return COLORS.slopeN;
+    case T.SLOPE_S: return COLORS.slopeS;
+    case T.SLOPE_E: return COLORS.slopeE;
+    case T.SLOPE_W: return COLORS.slopeW;
+    case T.START: return COLORS.start;
+    case T.GOAL: return COLORS.goal;
+    case T.ACID: return COLORS.acid;
+    case T.BUMPER: return COLORS.bumper;
+    case T.NARROW: return COLORS.narrow;
+    case T.ICE: return COLORS.ice;
+    default: return COLORS.void;
+  }
+}
+
+function tileTopColor(type) {
+  switch(type) {
+    case T.FLAT: return COLORS.flatTop;
+    case T.SLOPE_N: return '#6a8abc';
+    case T.SLOPE_S: return '#3a506a';
+    case T.SLOPE_E: return '#5a7aa0';
+    case T.SLOPE_W: return '#4a6a90';
+    case T.START: return '#3aaa5a';
+    case T.GOAL: return '#ffe040';
+    case T.ACID: return '#60ff60';
+    case T.BUMPER: return '#ff8888';
+    case T.NARROW: return '#667799';
+    case T.ICE: return '#cceeFF';
+    default: return 'transparent';
+  }
+}
+
+// --- DRAW ISOMETRIC TILE ---
+function drawTile(c, r, type) {
+  if (type === T.VOID) return;
+  const p = isoProject(c, r);
+  const sx = p.x + camOffX;
+  const sy = p.y + camOffY;
+  const tileH = 8; // height of tile extrusion
+
+  // Top face
+  ctx.fillStyle = tileTopColor(type);
+  ctx.beginPath();
+  ctx.moveTo(sx, sy);
+  ctx.lineTo(sx + TW, sy + TH);
+  ctx.lineTo(sx, sy + 2 * TH);
+  ctx.lineTo(sx - TW, sy + TH);
+  ctx.closePath();
+  ctx.fill();
+
+  // Right face
+  ctx.fillStyle = tileColor(type);
+  ctx.beginPath();
+  ctx.moveTo(sx, sy + 2 * TH);
+  ctx.lineTo(sx + TW, sy + TH);
+  ctx.lineTo(sx + TW, sy + TH + tileH);
+  ctx.lineTo(sx, sy + 2 * TH + tileH);
+  ctx.closePath();
+  ctx.fill();
+
+  // Left face (darker)
+  ctx.fillStyle = COLORS.flatEdge;
+  ctx.beginPath();
+  ctx.moveTo(sx, sy + 2 * TH);
+  ctx.lineTo(sx - TW, sy + TH);
+  ctx.lineTo(sx - TW, sy + TH + tileH);
+  ctx.lineTo(sx, sy + 2 * TH + tileH);
+  ctx.closePath();
+  ctx.fill();
+
+  // Outline
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+  ctx.lineWidth = 0.5;
+  ctx.beginPath();
+  ctx.moveTo(sx, sy);
+  ctx.lineTo(sx + TW, sy + TH);
+  ctx.lineTo(sx, sy + 2 * TH);
+  ctx.lineTo(sx - TW, sy + TH);
+  ctx.closePath();
+  ctx.stroke();
+
+  // Tile decorations
+  if (type === T.GOAL) {
+    // Pulsing goal marker
+    const pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.005);
+    ctx.fillStyle = `rgba(255,215,0,${0.3 + 0.3 * pulse})`;
+    ctx.beginPath();
+    ctx.moveTo(sx, sy + 4);
+    ctx.lineTo(sx + TW * 0.6, sy + TH * 0.6 + 4);
+    ctx.lineTo(sx, sy + 2 * TH * 0.6 + 4);
+    ctx.lineTo(sx - TW * 0.6, sy + TH * 0.6 + 4);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  if (type === T.ACID) {
+    // Bubbling effect
+    const t = Date.now() * 0.003;
+    ctx.fillStyle = 'rgba(100,255,100,0.6)';
+    for (let i = 0; i < 3; i++) {
+      const bx = sx + Math.sin(t + i * 2.1) * TW * 0.3;
+      const by = sy + TH + Math.cos(t + i * 1.7) * TH * 0.3;
+      const br = 2 + Math.sin(t * 1.5 + i) * 1;
+      ctx.beginPath();
+      ctx.arc(bx, by, br, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  if (type === T.BUMPER) {
+    // Bumper X mark
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(sx - 6, sy + TH - 4);
+    ctx.lineTo(sx + 6, sy + TH + 4);
+    ctx.moveTo(sx + 6, sy + TH - 4);
+    ctx.lineTo(sx - 6, sy + TH + 4);
+    ctx.stroke();
+  }
+
+  if (type === T.SLOPE_N || type === T.SLOPE_S || type === T.SLOPE_E || type === T.SLOPE_W) {
+    // Arrow showing slope direction
+    ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+    ctx.lineWidth = 1.5;
+    const cx = sx, cy = sy + TH;
+    let dx = 0, dy = 0;
+    if (type === T.SLOPE_N) { dx = 0; dy = -6; }
+    if (type === T.SLOPE_S) { dx = 0; dy = 6; }
+    if (type === T.SLOPE_E) { dx = 6; dy = 0; }
+    if (type === T.SLOPE_W) { dx = -6; dy = 0; }
+    ctx.beginPath();
+    ctx.moveTo(cx - dx, cy - dy);
+    ctx.lineTo(cx + dx, cy + dy);
+    ctx.lineTo(cx + dx - dy * 0.4 - dx * 0.3, cy + dy - dx * 0.4 - dy * 0.3);
+    ctx.moveTo(cx + dx, cy + dy);
+    ctx.lineTo(cx + dx + dy * 0.4 - dx * 0.3, cy + dy + dx * 0.4 - dy * 0.3);
+    ctx.stroke();
+  }
+
+  if (type === T.ICE) {
+    // Ice sparkle
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    const t = Date.now() * 0.002;
+    for (let i = 0; i < 2; i++) {
+      const ix = sx + Math.sin(t + i * 3.14) * 8;
+      const iy = sy + TH + Math.cos(t + i * 2) * 5;
+      ctx.fillRect(ix - 1, iy - 1, 2, 2);
+    }
+  }
+}
+
+// --- DRAW MARBLE ---
+function drawMarble(mx, my, color, hiColor, shColor, radius) {
+  const p = isoProject(mx, my);
+  const sx = p.x + camOffX;
+  const sy = p.y + camOffY;
+
+  // Shadow on tile surface
+  ctx.fillStyle = COLORS.shadow;
+  ctx.beginPath();
+  ctx.ellipse(sx + 2, sy + TH - 2, radius * 1.2, radius * 0.6, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Marble body — raised above tile surface
+  const marbleY = sy + TH - radius - 2;
+  const grad = ctx.createRadialGradient(sx - radius * 0.3, marbleY - radius * 0.3, radius * 0.1, sx, marbleY, radius);
+  grad.addColorStop(0, hiColor);
+  grad.addColorStop(0.6, color);
+  grad.addColorStop(1, shColor);
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(sx, marbleY, radius, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Specular highlight
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.beginPath();
+  ctx.arc(sx - radius * 0.25, marbleY - radius * 0.45, radius * 0.25, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// --- UPDATE ---
+function update() {
+  if (infoOpen) return;
+
+  if (state === 'title') return;
+
+  if (state === 'dead' || state === 'levelComplete' || state === 'gameOver' || state === 'win') {
+    stateTimer--;
+    if (stateTimer <= 0) {
+      if (state === 'dead') {
+        if (lives > 0) {
+          initLevel();
+        } else {
+          state = 'gameOver';
+          stateTimer = 180;
+        }
+      } else if (state === 'levelComplete') {
+        level++;
+        if (level >= levels.length) {
+          state = 'win';
+          stateTimer = 300;
+        } else {
+          initLevel();
+        }
+      }
+    }
+    return;
+  }
+
+  if (state !== 'play') return;
+
+  const lvl = levels[level];
+
+  // Apply input forces
+  if (keys['ArrowLeft']) marble.vx -= ACCEL;
+  if (keys['ArrowRight']) marble.vx += ACCEL;
+  if (keys['ArrowUp']) marble.vy -= ACCEL;
+  if (keys['ArrowDown']) marble.vy += ACCEL;
+
+  // Get current tile
+  const tileC = Math.floor(marble.x);
+  const tileR = Math.floor(marble.y);
+  const currentTile = getTile(lvl, tileR, tileC);
+
+  // Slope forces
+  if (currentTile === T.SLOPE_N) marble.vy -= SLOPE_FORCE;
+  if (currentTile === T.SLOPE_S) marble.vy += SLOPE_FORCE;
+  if (currentTile === T.SLOPE_E) marble.vx += SLOPE_FORCE;
+  if (currentTile === T.SLOPE_W) marble.vx -= SLOPE_FORCE;
+
+  // Friction
+  let fric = FRICTION;
+  if (currentTile === T.ICE) fric = 0.97;
+  marble.vx *= fric;
+  marble.vy *= fric;
+
+  // Speed cap
+  const maxSpd = 2.0;
+  const spd = Math.sqrt(marble.vx * marble.vx + marble.vy * marble.vy);
+  if (spd > maxSpd) {
+    marble.vx = (marble.vx / spd) * maxSpd;
+    marble.vy = (marble.vy / spd) * maxSpd;
+  }
+
+  // Edge repulsion — gentle push away from void tile borders
+  const fracX = marble.x - tileC;
+  const fracY = marble.y - tileR;
+  const edgeZone = 0.3; // how close to edge before repulsion kicks in
+  const edgePush = 0.04;
+  // Check adjacent tiles and push away from void edges
+  if (fracX < edgeZone && getTile(lvl, tileR, tileC - 1) === T.VOID) marble.vx += edgePush;
+  if (fracX > 1 - edgeZone && getTile(lvl, tileR, tileC + 1) === T.VOID) marble.vx -= edgePush;
+  if (fracY < edgeZone && getTile(lvl, tileR - 1, tileC) === T.VOID) marble.vy += edgePush;
+  if (fracY > 1 - edgeZone && getTile(lvl, tileR + 1, tileC) === T.VOID) marble.vy -= edgePush;
+
+  // Move marble
+  const newX = marble.x + marble.vx * 0.1;
+  const newY = marble.y + marble.vy * 0.1;
+
+  // Check destination tile
+  const destC = Math.floor(newX);
+  const destR = Math.floor(newY);
+  const destTile = getTile(lvl, destR, destC);
+
+  if (destTile === T.VOID) {
+    // Edge barrier: bounce back if marble is still on a valid tile
+    // Check if we can stay on current tile by bouncing back
+    const curTile = getTile(lvl, Math.floor(marble.y), Math.floor(marble.x));
+    if (curTile !== T.VOID) {
+      // Bounce back from edge with damping
+      if (Math.floor(newX) !== Math.floor(marble.x)) {
+        marble.vx *= -0.3;
+      }
+      if (Math.floor(newY) !== Math.floor(marble.y)) {
+        marble.vy *= -0.3;
+      }
+      // Nudge marble away from edge
+      const pushBack = 0.02;
+      if (newX > marble.x) marble.x -= pushBack;
+      else if (newX < marble.x) marble.x += pushBack;
+      if (newY > marble.y) marble.y -= pushBack;
+      else if (newY < marble.y) marble.y += pushBack;
+      // Clamp marble to stay within current tile bounds
+      const clampMargin = 0.05;
+      marble.x = Math.max(Math.floor(marble.x) + clampMargin, Math.min(Math.floor(marble.x) + 1 - clampMargin, marble.x));
+      marble.y = Math.max(Math.floor(marble.y) + clampMargin, Math.min(Math.floor(marble.y) + 1 - clampMargin, marble.y));
+    } else {
+      // Already on void tile — fall
+      deathType = 'fall';
+      lives--;
+      state = 'dead';
+      stateTimer = 90;
+      return;
+    }
+  } else if (destTile === T.ACID) {
+    deathType = 'acid';
+    lives--;
+    state = 'dead';
+    stateTimer = 90;
+    return;
+  } else if (destTile === T.BUMPER) {
+    // Bounce back
+    marble.vx *= -1.5;
+    marble.vy *= -1.5;
+    // Don't move into bumper
+  } else {
+    marble.x = newX;
+    marble.y = newY;
+  }
+
+  // Goal check
+  if (currentTile === T.GOAL || destTile === T.GOAL) {
+    const timeBonus = Math.ceil(timer / 60) * 100;
+    score += timeBonus;
+    totalScore += timeBonus;
+    state = 'levelComplete';
+    stateTimer = 120;
+    return;
+  }
+
+  // Enemy update and collision
+  for (let e of enemies) {
+    e.pos += e.dir * ENEMY_SPEED * 0.02;
+    if (e.pos >= e.c1) { e.pos = e.c1; e.dir = -1; }
+    if (e.pos <= e.c0) { e.pos = e.c0; e.dir = 1; }
+    e.c = e.pos;
+
+    // Collision with marble
+    const dx = marble.x - e.c;
+    const dy = marble.y - e.r;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < 0.8) {
+      // Push marble away
+      const pushForce = 1.5;
+      if (dist > 0.01) {
+        marble.vx += (dx / dist) * pushForce;
+        marble.vy += (dy / dist) * pushForce;
+      }
+    }
+  }
+
+  // Timer
+  timer--;
+  if (timer <= 0) {
+    deathType = 'time';
+    lives--;
+    state = 'dead';
+    stateTimer = 90;
+  }
+}
+
+// --- DRAW ---
+function draw() {
+  ctx.fillStyle = COLORS.bg;
+  ctx.fillRect(0, 0, W, H);
+
+  if (state === 'title') {
+    drawTitle();
+    return;
+  }
+
+  const lvl = levels[level];
+
+  // Draw tiles back-to-front (isometric sort: row by row, col by col)
+  for (let r = 0; r < lvl.rows; r++) {
+    for (let c = 0; c < lvl.cols; c++) {
+      drawTile(c, r, getTile(lvl, r, c));
+    }
+
+    // Draw enemies on this row
+    for (let e of enemies) {
+      if (Math.round(e.r) === r) {
+        drawMarble(e.c, e.r + 0.5, '#222', '#555', '#000', MARBLE_R * 0.9);
+      }
+    }
+
+    // Draw player marble on its row
+    if (Math.round(marble.y - 0.5) === r && (state === 'play' || state === 'levelComplete')) {
+      drawMarble(marble.x, marble.y, COLORS.marble, COLORS.marbleHi, COLORS.marbleSh, MARBLE_R);
+    }
+  }
+
+  // HUD
+  drawHUD(lvl);
+
+  // State overlays
+  if (state === 'dead') drawDeathOverlay();
+  if (state === 'levelComplete') drawLevelCompleteOverlay();
+  if (state === 'gameOver') drawGameOverOverlay();
+  if (state === 'win') drawWinOverlay();
+}
+
+function drawHUD(lvl) {
+  // Title badge
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(0, 0, W, 32);
+
+  ctx.font = '14px monospace';
+  ctx.fillStyle = '#7bf';
+  ctx.textAlign = 'left';
+  ctx.fillText('PHY-004 \u00B7 MARBLE ROLL  [?]', 12, 21);
+
+  // Level name
+  ctx.fillStyle = '#f80';
+  ctx.textAlign = 'center';
+  ctx.fillText('COURSE ' + (level + 1) + ': ' + lvl.name, W / 2, 21);
+
+  // Lives
+  ctx.fillStyle = '#e04040';
+  ctx.textAlign = 'right';
+  let livesStr = '';
+  for (let i = 0; i < lives; i++) livesStr += '\u25CF ';
+  ctx.fillText(livesStr + '  ', W - 120, 21);
+
+  // Timer
+  const secs = Math.max(0, Math.ceil(timer / 60));
+  ctx.fillStyle = secs <= 10 ? '#ff4040' : '#fff';
+  ctx.fillText('TIME: ' + secs, W - 12, 21);
+
+  // Score
+  ctx.fillStyle = '#ffd700';
+  ctx.textAlign = 'left';
+  ctx.fillText('SCORE: ' + totalScore, 12, H - 10);
+
+  // Speed indicator
+  const spd = Math.sqrt(marble.vx * marble.vx + marble.vy * marble.vy);
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  ctx.textAlign = 'right';
+  ctx.font = '11px monospace';
+  ctx.fillText('SPD: ' + spd.toFixed(1), W - 12, H - 10);
+}
+
+function drawTitle() {
+  // Background grid
+  ctx.strokeStyle = 'rgba(58,90,140,0.15)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 30; i++) {
+    for (let j = 0; j < 30; j++) {
+      const p = isoProject(j - 10, i - 5);
+      const sx = p.x + W / 2;
+      const sy = p.y + 50;
+      if (sx > -50 && sx < W + 50 && sy > -50 && sy < H + 50) {
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(sx + TW, sy + TH);
+        ctx.lineTo(sx, sy + 2 * TH);
+        ctx.lineTo(sx - TW, sy + TH);
+        ctx.closePath();
+        ctx.stroke();
+      }
+    }
+  }
+
+  // Floating marble animation
+  const t = Date.now() * 0.002;
+  const bx = W / 2 + Math.sin(t) * 30;
+  const by = 200 + Math.cos(t * 0.7) * 15;
+  const grad = ctx.createRadialGradient(bx - 8, by - 8, 3, bx, by, 25);
+  grad.addColorStop(0, '#ff8080');
+  grad.addColorStop(0.6, '#e04040');
+  grad.addColorStop(1, '#801010');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(bx, by, 25, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  ctx.beginPath();
+  ctx.arc(bx - 7, by - 9, 6, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath();
+  ctx.ellipse(bx + 4, by + 35, 30, 8, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.font = 'bold 36px monospace';
+  ctx.fillStyle = '#7bf';
+  ctx.textAlign = 'center';
+  ctx.fillText('MARBLE ROLL', W / 2, 310);
+
+  ctx.font = '14px monospace';
+  ctx.fillStyle = '#f80';
+  ctx.fillText('PHY-004 \u00B7 PHYSICS SERIES', W / 2, 340);
+
+  ctx.font = '13px monospace';
+  ctx.fillStyle = '#aaa';
+  ctx.fillText('Roll through isometric courses before time runs out', W / 2, 380);
+  ctx.fillText('Momentum is real. Plan your moves.', W / 2, 400);
+
+  ctx.font = '14px monospace';
+  ctx.fillStyle = '#556';
+  ctx.fillText('Arrow keys: tilt/accelerate | R: restart | ?: info', W / 2, 450);
+
+  const pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.004);
+  ctx.fillStyle = `rgba(255,255,255,${0.4 + 0.4 * pulse})`;
+  ctx.fillText('Press any ARROW KEY to start', W / 2, 500);
+
+  ctx.font = '11px monospace';
+  ctx.fillStyle = '#445';
+  ctx.fillText('After Marble Madness (1984, Mark Cerny, Atari)', W / 2, 560);
+}
+
+function drawDeathOverlay() {
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.fillRect(0, 0, W, H);
+  ctx.font = 'bold 24px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ff4040';
+  if (deathType === 'fall') ctx.fillText('FELL OFF!', W / 2, H / 2 - 10);
+  else if (deathType === 'acid') ctx.fillText('DISSOLVED!', W / 2, H / 2 - 10);
+  else if (deathType === 'time') ctx.fillText('TIME UP!', W / 2, H / 2 - 10);
+  ctx.font = '14px monospace';
+  ctx.fillStyle = '#aaa';
+  if (lives > 0) ctx.fillText('Lives remaining: ' + lives, W / 2, H / 2 + 20);
+  else ctx.fillText('No lives remaining...', W / 2, H / 2 + 20);
+}
+
+function drawLevelCompleteOverlay() {
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.fillRect(0, 0, W, H);
+  ctx.font = 'bold 28px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ffd700';
+  ctx.fillText('COURSE COMPLETE!', W / 2, H / 2 - 20);
+  ctx.font = '16px monospace';
+  ctx.fillStyle = '#fff';
+  const timeBonus = Math.ceil(timer / 60) * 100;
+  ctx.fillText('Time bonus: +' + timeBonus, W / 2, H / 2 + 15);
+  ctx.font = '13px monospace';
+  ctx.fillStyle = '#aaa';
+  if (level + 1 < levels.length) ctx.fillText('Next course loading...', W / 2, H / 2 + 45);
+  else ctx.fillText('All courses cleared!', W / 2, H / 2 + 45);
+}
+
+function drawGameOverOverlay() {
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(0, 0, W, H);
+  ctx.font = 'bold 32px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ff4040';
+  ctx.fillText('GAME OVER', W / 2, H / 2 - 30);
+  ctx.font = '16px monospace';
+  ctx.fillStyle = '#ffd700';
+  ctx.fillText('Final Score: ' + totalScore, W / 2, H / 2 + 10);
+  ctx.font = '14px monospace';
+  ctx.fillStyle = '#aaa';
+  ctx.fillText('Press R to restart', W / 2, H / 2 + 45);
+}
+
+function drawWinOverlay() {
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(0, 0, W, H);
+  ctx.font = 'bold 32px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ffd700';
+  ctx.fillText('ALL COURSES CLEARED!', W / 2, H / 2 - 40);
+  ctx.font = '18px monospace';
+  ctx.fillStyle = '#fff';
+  ctx.fillText('Final Score: ' + totalScore, W / 2, H / 2);
+  ctx.font = '14px monospace';
+  ctx.fillStyle = '#7bf';
+  ctx.fillText('Master of Momentum', W / 2, H / 2 + 30);
+  ctx.fillStyle = '#aaa';
+  ctx.fillText('Press R to play again', W / 2, H / 2 + 60);
+}
+
+// --- TITLE INPUT ---
+window.addEventListener('keydown', e => {
+  if (state === 'title' && ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) {
+    resetGame();
+  }
+});
+
+// --- GAME LOOP ---
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

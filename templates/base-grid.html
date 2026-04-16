@@ -1,0 +1,142 @@
+<!--
+TEMPLATE: base-grid
+PURPOSE: Canvas + clickable tile grid + grid state + turn-based or real-time
+USAGE: Copy for board games, puzzles, Tetris-style, strategy games
+
+PROTOTYPE: [name]
+SERIES: [series]
+NUMBER: [NNN]
+DATE: YYYY-MM-DD
+MECHANIC: [primary verb]
+ANCESTRY: [which historical games inspired this]
+CONTROLS: Mouse click on grid cells, Arrow keys optional
+STATUS: sketch
+VISIBILITY: private
+RATING: [1-5 stars after 10 min play]
+NOTES: [one-line observation]
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PROTOTYPE</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0b0e11; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+canvas { border: 1px solid #333; cursor: pointer; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// --- GRID CONFIG ---
+const COLS = 20;
+const ROWS = 15;
+const CELL = 32;         // pixels per cell
+const W = COLS * CELL;
+const H = ROWS * CELL;
+canvas.width = W; canvas.height = H;
+
+function resize() {
+  const scale = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = (W * scale) + 'px';
+  canvas.style.height = (H * scale) + 'px';
+}
+resize();
+window.addEventListener('resize', resize);
+
+// --- GRID STATE ---
+// 0 = empty, other values = your game objects
+const grid = [];
+for (let r = 0; r < ROWS; r++) {
+  grid[r] = new Array(COLS).fill(0);
+}
+
+// --- INPUT ---
+const keys = {};
+window.addEventListener('keydown', e => { keys[e.code] = true; e.preventDefault(); });
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+let mouseCell = { col: -1, row: -1 };
+
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = W / rect.width;
+  const scaleY = H / rect.height;
+  mouseCell.col = Math.floor((e.clientX - rect.left) * scaleX / CELL);
+  mouseCell.row = Math.floor((e.clientY - rect.top) * scaleY / CELL);
+});
+
+canvas.addEventListener('click', e => {
+  const { col, row } = mouseCell;
+  if (col >= 0 && col < COLS && row >= 0 && row < ROWS) {
+    onCellClick(col, row);
+  }
+});
+
+function onCellClick(col, row) {
+  // Handle cell click here — place piece, toggle state, etc.
+  grid[row][col] = grid[row][col] === 0 ? 1 : 0;
+}
+
+// --- GAME STATE ---
+let score = 0;
+let frame = 0;
+
+// --- UPDATE ---
+function update() {
+  frame++;
+  // Your game logic here
+}
+
+// --- DRAW ---
+function draw() {
+  ctx.fillStyle = '#0b0e11';
+  ctx.fillRect(0, 0, W, H);
+
+  // Draw grid
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const x = c * CELL;
+      const y = r * CELL;
+
+      // Cell content
+      if (grid[r][c] !== 0) {
+        ctx.fillStyle = '#3871dc';
+        ctx.fillRect(x + 1, y + 1, CELL - 2, CELL - 2);
+      }
+
+      // Grid lines
+      ctx.strokeStyle = '#1a1d23';
+      ctx.strokeRect(x, y, CELL, CELL);
+    }
+  }
+
+  // Hover highlight
+  if (mouseCell.col >= 0 && mouseCell.col < COLS && mouseCell.row >= 0 && mouseCell.row < ROWS) {
+    ctx.strokeStyle = '#73bf69';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(mouseCell.col * CELL, mouseCell.row * CELL, CELL, CELL);
+    ctx.lineWidth = 1;
+  }
+
+  // Score
+  ctx.fillStyle = '#e8e9eb';
+  ctx.font = '16px monospace';
+  ctx.fillText('SCORE: ' + score, 10, H - 10);
+}
+
+// --- LOOP ---
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>

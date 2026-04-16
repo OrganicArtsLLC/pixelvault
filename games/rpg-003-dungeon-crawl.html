@@ -1,0 +1,1310 @@
+<!--
+PROTOTYPE: dungeon-crawl
+SERIES: rpg
+NUMBER: 003
+DATE: 2026-03-22
+MECHANIC: top-down dungeon crawl with class selection, food timer, monster generators
+ANCESTRY: Gauntlet (1985, Ed Logg, Atari), Dandy (1983, John Palevich)
+CONTROLS: Arrow keys — move | Space — attack | 1-4 — class select | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — swarm AI and generator-based spawning)
+AI-INSIGHT: Gauntlet's monster generators create a producer-consumer dynamic — spawners produce threats faster than the player can eliminate them, forcing strategic prioritization of generators over individual enemies. This resource-pressure model appears in modern multi-agent swarm simulations.
+NOTES: Health-as-timer creates constant forward pressure.
+       Class differentiation with shared dungeon is proto-cooperative RPG design.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RPG-003 · DUNGEON CRAWL</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #111; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>RPG-003 &middot; GAUNTLET</h1>
+    <p><span class="tag series">RPG &mdash; Role-Playing Game</span> <span class="tag">Prototype #003</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Choose a class, then fight through monster-filled dungeons. Destroy generators before they overwhelm you with enemies. Find food to survive, keys to open doors, and the exit staircase to descend deeper.</p>
+    <ul>
+      <li><kbd>1</kbd>-<kbd>4</kbd> &mdash; Select class (Warrior / Valkyrie / Wizard / Elf)</li>
+      <li><kbd>&uarr;</kbd> <kbd>&darr;</kbd> <kbd>&larr;</kbd> <kbd>&rarr;</kbd> &mdash; Move</li>
+      <li><kbd>Space</kbd> &mdash; Shoot / Attack</li>
+      <li><kbd>R</kbd> &mdash; Restart</li>
+      <li><kbd>?</kbd> &mdash; Toggle this info panel</li>
+    </ul>
+    <h3>Classes</h3>
+    <ul>
+      <li><strong>Warrior (1):</strong> Melee axe. High armor, high damage, slow. Can destroy walls.</li>
+      <li><strong>Valkyrie (2):</strong> Balanced sword. Good armor, moderate damage, moderate speed.</li>
+      <li><strong>Wizard (3):</strong> Ranged magic. Low HP, powerful projectile, slow movement.</li>
+      <li><strong>Elf (4):</strong> Fast ranged arrows. Low armor, quick movement, rapid fire.</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Prioritize generators:</strong> Kill spawners first or you will be overrun.</li>
+      <li><strong>Health drains:</strong> Your health constantly ticks down. Keep moving forward.</li>
+      <li><strong>Food heals:</strong> Turkey restores health. Do not waste it.</li>
+      <li><strong>Potions:</strong> Clear all visible enemies &mdash; save for emergencies.</li>
+      <li><strong>Keys:</strong> Collect keys before approaching locked doors.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Gauntlet (1985, Ed Logg, Atari) &larr; Dandy (1983, John Palevich) &larr; Dungeons &amp; Dragons (1974)</p>
+    <p>Ed Logg designed Gauntlet at Atari in 1985, inspired by John Palevich's Dandy (1983) on the Atari 800. Gauntlet was one of the first arcade games to support four simultaneous players, each with a distinct class. The famous "Warrior needs food badly!" voice callouts became iconic.</p>
+    <p>The coin-eating model was revolutionary: health constantly drained, and inserting more quarters added health. This created an economic pressure loop that was both brilliant game design and brilliant business. Players collectively spent more because the game never truly ended &mdash; it just got harder.</p>
+    <p>Dandy, the predecessor, was a student project that pioneered the multi-player dungeon crawl format. Palevich created it as a PDP-11 game before porting to the Atari 800. Atari hired Logg to create Gauntlet after seeing Dandy's popularity.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 3 &mdash; Knowledge Explosion (1980&ndash;1987)</p>
+    <p><strong>Contemporary AI:</strong> Expert systems peak, early connectionism revival. Multi-agent coordination was a research frontier.</p>
+    <p><strong>Hidden Intelligence:</strong> Gauntlet's monster generators create a producer-consumer dynamic. Spawners produce threats faster than one player can eliminate them, forcing strategic prioritization: destroy the source, not the symptoms. This is the same resource-pressure model that appears in modern multi-agent swarm simulations and economic modeling.</p>
+    <p><strong>Swarm Behavior:</strong> Individual enemies are simple (move toward player, attack), but in aggregate they create emergent swarm dynamics. Ghosts phase through walls, grunts bottleneck in corridors, demons provide ranged pressure. The combination creates tactical depth from simple individual rules &mdash; a core principle of swarm intelligence.</p>
+    <p><strong>If AI Had Designed This:</strong> Dynamic difficulty adjustment via generator spawn rates, adaptive enemy routing to exploit player weaknesses, and procedural dungeon generation optimized for "flow state" maintenance. The constant health drain would be calibrated per-player to maximize coin insertion rate.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: RPG &mdash; Role-Playing Game</h3>
+    <p>Class-based character selection with stat differentiation. Dungeon exploration with combat, items, and progression through increasingly difficult levels.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Top-down dungeon crawl with monster generators.</strong> Class selection determines playstyle. Generators create constant enemy pressure. Health-as-timer forces forward movement. Keys gate exploration. Food sustains survival.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Generator pressure &mdash; does the spawner mechanic create meaningful tactical decisions?</li>
+      <li>Class differentiation &mdash; do the four classes feel distinct in solo play?</li>
+      <li>Health drain pacing &mdash; does the constant drain create urgency without frustration?</li>
+      <li>Dungeon generation &mdash; do procedural rooms feel explorable and interesting?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Procedurally generated dungeons with rooms and corridors. Four enemy types (Ghost, Grunt, Demon, Sorcerer). Four classes with distinct stats and attack styles. Monster generators that spawn until destroyed. Food, keys, potions, treasure pickups. Exit staircase advances levels.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+
+// --- CONSTANTS ---
+const T = 32; // tile size
+const COLS = 25; // map columns (25 * 32 = 800)
+const ROWS = 17; // map rows visible (17 * 32 = 544, leaving 56px for HUD)
+const MAP_W = 50; // full map width in tiles
+const MAP_H = 50; // full map height in tiles
+const HUD_H = 56;
+const VIEW_Y = HUD_H;
+
+// Tile types
+const EMPTY = 0, WALL = 1, FLOOR = 2, DOOR = 3, EXIT = 4;
+const GENERATOR = 5, FOOD = 6, KEY = 7, POTION = 8, TREASURE = 9;
+
+// Enemy types
+const GHOST = 0, GRUNT = 1, DEMON = 2, SORCERER = 3;
+
+// Class definitions
+const CLASSES = [
+  { name: 'WARRIOR',  color: '#f44', melee: true,  damage: 3, armor: 3, speed: 1.8, hp: 800, projSpeed: 0, range: 40, fireRate: 18, desc: 'Axe' },
+  { name: 'VALKYRIE', color: '#4cf', melee: true,  damage: 2, armor: 2, speed: 2.2, hp: 700, projSpeed: 0, range: 36, fireRate: 14, desc: 'Sword' },
+  { name: 'WIZARD',   color: '#c6f', melee: false, damage: 4, armor: 1, speed: 1.6, hp: 500, projSpeed: 5, range: 200, fireRate: 22, desc: 'Magic' },
+  { name: 'ELF',      color: '#4f4', melee: false, damage: 2, armor: 1, speed: 2.8, hp: 600, projSpeed: 6, range: 180, fireRate: 10, desc: 'Arrows' }
+];
+
+const ENEMY_DATA = [
+  { name: 'Ghost',    color: '#aaf', hp: 2, speed: 1.2, damage: 1, score: 10, phaseWalls: true,  shoots: false },
+  { name: 'Grunt',    color: '#a84', hp: 3, speed: 1.0, damage: 2, score: 20, phaseWalls: false, shoots: false },
+  { name: 'Demon',    color: '#f66', hp: 4, speed: 0.8, damage: 2, score: 30, phaseWalls: false, shoots: true  },
+  { name: 'Sorcerer', color: '#f0f', hp: 3, speed: 0.6, damage: 3, score: 50, phaseWalls: false, shoots: false, teleports: true }
+];
+
+// --- GAME STATE ---
+let state = 'select'; // select, play, dead
+let player, map, enemies, projectiles, enemyProjectiles, generators, pickups;
+let keys, score, level, camX, camY, tick;
+let lastDir = { x: 0, y: 1 }; // default facing down
+let fireCooldown = 0;
+let healthDrainTimer = 0;
+let spawnTimer = 0;
+let selectedClass = 0;
+let flashTimer = 0;
+let flashColor = '';
+let deathTimer = 0;
+
+const keysDown = {};
+window.addEventListener('keydown', e => {
+  keysDown[e.key] = true;
+  if (state === 'select') {
+    if (e.key >= '1' && e.key <= '4') {
+      selectedClass = parseInt(e.key) - 1;
+      startGame();
+      e.preventDefault();
+    }
+  }
+  if (e.key === 'r' || e.key === 'R') { state = 'select'; e.preventDefault(); }
+  if (e.key === ' ') e.preventDefault();
+});
+window.addEventListener('keyup', e => { keysDown[e.key] = false; });
+
+// --- MAP GENERATION ---
+function createMap() {
+  const m = [];
+  for (let y = 0; y < MAP_H; y++) {
+    m[y] = [];
+    for (let x = 0; x < MAP_W; x++) m[y][x] = WALL;
+  }
+  return m;
+}
+
+function carveRoom(m, rx, ry, rw, rh) {
+  for (let y = ry; y < ry + rh && y < MAP_H - 1; y++)
+    for (let x = rx; x < rx + rw && x < MAP_W - 1; x++)
+      if (y > 0 && x > 0) m[y][x] = FLOOR;
+}
+
+function carveCorridor(m, x1, y1, x2, y2) {
+  let x = x1, y = y1;
+  while (x !== x2) {
+    if (x > 0 && x < MAP_W - 1 && y > 0 && y < MAP_H - 1) m[y][x] = FLOOR;
+    x += x < x2 ? 1 : -1;
+  }
+  while (y !== y2) {
+    if (x > 0 && x < MAP_W - 1 && y > 0 && y < MAP_H - 1) m[y][x] = FLOOR;
+    y += y < y2 ? 1 : -1;
+  }
+}
+
+function generateDungeon(lvl) {
+  const m = createMap();
+  const rooms = [];
+  const numRooms = 8 + Math.min(lvl, 8);
+
+  // Place rooms
+  for (let i = 0; i < numRooms * 10 && rooms.length < numRooms; i++) {
+    const rw = 4 + Math.floor(Math.random() * 5);
+    const rh = 4 + Math.floor(Math.random() * 5);
+    const rx = 1 + Math.floor(Math.random() * (MAP_W - rw - 2));
+    const ry = 1 + Math.floor(Math.random() * (MAP_H - rh - 2));
+
+    let overlap = false;
+    for (const r of rooms) {
+      if (rx < r.x + r.w + 1 && rx + rw + 1 > r.x && ry < r.y + r.h + 1 && ry + rh + 1 > r.y) {
+        overlap = true; break;
+      }
+    }
+    if (!overlap) {
+      carveRoom(m, rx, ry, rw, rh);
+      rooms.push({ x: rx, y: ry, w: rw, h: rh, cx: Math.floor(rx + rw / 2), cy: Math.floor(ry + rh / 2) });
+    }
+  }
+
+  // Connect rooms with corridors
+  for (let i = 1; i < rooms.length; i++) {
+    carveCorridor(m, rooms[i - 1].cx, rooms[i - 1].cy, rooms[i].cx, rooms[i].cy);
+  }
+
+  return { map: m, rooms: rooms };
+}
+
+function populateDungeon(m, rooms, lvl) {
+  generators = [];
+  pickups = [];
+  enemies = [];
+
+  if (rooms.length < 2) return;
+
+  // Place exit in last room
+  const exitRoom = rooms[rooms.length - 1];
+  m[exitRoom.cy][exitRoom.cx] = EXIT;
+
+  // Place generators in rooms (not first or last)
+  const genCount = Math.min(3 + lvl, rooms.length - 2);
+  for (let i = 1; i < rooms.length - 1 && generators.length < genCount; i++) {
+    const r = rooms[i];
+    const gx = r.x + 1 + Math.floor(Math.random() * (r.w - 2));
+    const gy = r.y + 1 + Math.floor(Math.random() * (r.h - 2));
+    if (m[gy][gx] === FLOOR) {
+      m[gy][gx] = GENERATOR;
+      const etype = Math.floor(Math.random() * Math.min(2 + Math.floor(lvl / 2), 4));
+      generators.push({ x: gx, y: gy, type: etype, hp: 5 + lvl * 2, timer: 0, alive: true });
+    }
+  }
+
+  // Place doors between some corridors
+  const doorCount = 2 + Math.floor(lvl / 2);
+  let doorsPlaced = 0;
+  for (let attempt = 0; attempt < 200 && doorsPlaced < doorCount; attempt++) {
+    const dx = 2 + Math.floor(Math.random() * (MAP_W - 4));
+    const dy = 2 + Math.floor(Math.random() * (MAP_H - 4));
+    if (m[dy][dx] === FLOOR) {
+      // Check if it's a corridor-like position (walls on two opposite sides)
+      const hWall = m[dy][dx - 1] === WALL && m[dy][dx + 1] === WALL;
+      const vWall = m[dy - 1][dx] === WALL && m[dy + 1][dx] === WALL;
+      if (hWall || vWall) {
+        m[dy][dx] = DOOR;
+        doorsPlaced++;
+      }
+    }
+  }
+
+  // Place pickups in rooms
+  for (let i = 1; i < rooms.length; i++) {
+    const r = rooms[i];
+    // Food
+    if (Math.random() < 0.5) {
+      const fx = r.x + 1 + Math.floor(Math.random() * (r.w - 2));
+      const fy = r.y + 1 + Math.floor(Math.random() * (r.h - 2));
+      if (m[fy][fx] === FLOOR) { m[fy][fx] = FOOD; pickups.push({ x: fx, y: fy, type: FOOD }); }
+    }
+    // Key
+    if (Math.random() < 0.4) {
+      const kx = r.x + 1 + Math.floor(Math.random() * (r.w - 2));
+      const ky = r.y + 1 + Math.floor(Math.random() * (r.h - 2));
+      if (m[ky][kx] === FLOOR) { m[ky][kx] = KEY; pickups.push({ x: kx, y: ky, type: KEY }); }
+    }
+    // Treasure
+    if (Math.random() < 0.6) {
+      const tx = r.x + 1 + Math.floor(Math.random() * (r.w - 2));
+      const ty = r.y + 1 + Math.floor(Math.random() * (r.h - 2));
+      if (m[ty][tx] === FLOOR) { m[ty][tx] = TREASURE; pickups.push({ x: tx, y: ty, type: TREASURE }); }
+    }
+    // Potion (rare)
+    if (Math.random() < 0.15) {
+      const px = r.x + 1 + Math.floor(Math.random() * (r.w - 2));
+      const py = r.y + 1 + Math.floor(Math.random() * (r.h - 2));
+      if (m[py][px] === FLOOR) { m[py][px] = POTION; pickups.push({ x: px, y: py, type: POTION }); }
+    }
+  }
+
+  // Spawn initial enemies near generators
+  for (const g of generators) {
+    const count = 2 + Math.floor(Math.random() * 2);
+    for (let i = 0; i < count; i++) {
+      const ex = g.x + Math.floor(Math.random() * 3) - 1;
+      const ey = g.y + Math.floor(Math.random() * 3) - 1;
+      if (ex > 0 && ex < MAP_W - 1 && ey > 0 && ey < MAP_H - 1 && m[ey][ex] === FLOOR) {
+        spawnEnemy(ex, ey, g.type);
+      }
+    }
+  }
+}
+
+function spawnEnemy(tx, ty, type) {
+  const ed = ENEMY_DATA[type];
+  enemies.push({
+    x: tx * T + T / 2, y: ty * T + T / 2,
+    type: type, hp: ed.hp + Math.floor(level / 3),
+    moveTimer: 0, shootTimer: 0, teleTimer: 0, alive: true
+  });
+}
+
+// --- START GAME ---
+function startGame() {
+  state = 'play';
+  level = 1;
+  score = 0;
+  keys = 0;
+  tick = 0;
+  projectiles = [];
+  enemyProjectiles = [];
+  initLevel();
+}
+
+function initLevel() {
+  const { map: m, rooms } = generateDungeon(level);
+  map = m;
+  projectiles = [];
+  enemyProjectiles = [];
+  fireCooldown = 0;
+  spawnTimer = 0;
+  healthDrainTimer = 0;
+
+  // Place player in first room
+  const startRoom = rooms[0];
+  const cls = CLASSES[selectedClass];
+  if (!player || player.hp <= 0) {
+    player = {
+      x: startRoom.cx * T + T / 2, y: startRoom.cy * T + T / 2,
+      hp: cls.hp, maxHp: cls.hp, cls: selectedClass
+    };
+  } else {
+    player.x = startRoom.cx * T + T / 2;
+    player.y = startRoom.cy * T + T / 2;
+  }
+
+  populateDungeon(m, rooms, level);
+  lastDir = { x: 0, y: 1 };
+}
+
+// --- COLLISION HELPERS ---
+function tileAt(px, py) {
+  const tx = Math.floor(px / T), ty = Math.floor(py / T);
+  if (tx < 0 || tx >= MAP_W || ty < 0 || ty >= MAP_H) return WALL;
+  return map[ty][tx];
+}
+
+function solid(px, py) {
+  const t = tileAt(px, py);
+  return t === WALL || t === DOOR;
+}
+
+function dist(x1, y1, x2, y2) {
+  const dx = x1 - x2, dy = y1 - y2;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+// --- UPDATE ---
+function update() {
+  if (infoOpen) return;
+  if (state !== 'play') return;
+
+  tick++;
+  const cls = CLASSES[player.cls];
+
+  // --- Player Movement ---
+  let dx = 0, dy = 0;
+  if (keysDown['ArrowLeft']  || keysDown['a']) dx -= 1;
+  if (keysDown['ArrowRight'] || keysDown['d']) dx += 1;
+  if (keysDown['ArrowUp']    || keysDown['w']) dy -= 1;
+  if (keysDown['ArrowDown']  || keysDown['s']) dy += 1;
+
+  if (dx !== 0 || dy !== 0) {
+    lastDir = { x: dx, y: dy };
+    const len = Math.sqrt(dx * dx + dy * dy);
+    dx = dx / len * cls.speed;
+    dy = dy / len * cls.speed;
+
+    const nx = player.x + dx;
+    const ny = player.y + dy;
+    const r = 10; // player radius
+
+    if (!solid(nx - r, player.y - r) && !solid(nx + r, player.y - r) &&
+        !solid(nx - r, player.y + r) && !solid(nx + r, player.y + r)) {
+      player.x = nx;
+    }
+    if (!solid(player.x - r, ny - r) && !solid(player.x + r, ny - r) &&
+        !solid(player.x - r, ny + r) && !solid(player.x + r, ny + r)) {
+      player.y = ny;
+    }
+  }
+
+  // Clamp player to map
+  player.x = Math.max(12, Math.min(player.x, MAP_W * T - 12));
+  player.y = Math.max(12, Math.min(player.y, MAP_H * T - 12));
+
+  // --- Pickup Collisions ---
+  const ptx = Math.floor(player.x / T), pty = Math.floor(player.y / T);
+  const tile = map[pty] && map[pty][ptx] !== undefined ? map[pty][ptx] : WALL;
+
+  if (tile === FOOD) {
+    player.hp = Math.min(player.hp + 150, player.maxHp);
+    map[pty][ptx] = FLOOR;
+    flashTimer = 8; flashColor = '#0f0';
+  } else if (tile === KEY) {
+    keys++;
+    map[pty][ptx] = FLOOR;
+    flashTimer = 8; flashColor = '#ff0';
+  } else if (tile === POTION) {
+    // Clear all visible enemies
+    map[pty][ptx] = FLOOR;
+    flashTimer = 12; flashColor = '#fff';
+    for (const e of enemies) {
+      if (e.alive) {
+        const edx = e.x - player.x, edy = e.y - player.y;
+        if (Math.abs(edx) < W && Math.abs(edy) < H) {
+          e.alive = false;
+          score += ENEMY_DATA[e.type].score;
+        }
+      }
+    }
+  } else if (tile === TREASURE) {
+    score += 100 + level * 25;
+    map[pty][ptx] = FLOOR;
+    flashTimer = 8; flashColor = '#fc0';
+  } else if (tile === EXIT) {
+    level++;
+    flashTimer = 20; flashColor = '#0ff';
+    initLevel();
+    return;
+  } else if (tile === DOOR) {
+    if (keys > 0) {
+      keys--;
+      map[pty][ptx] = FLOOR;
+      flashTimer = 6; flashColor = '#ff0';
+    }
+  }
+
+  // --- Health Drain ---
+  healthDrainTimer++;
+  if (healthDrainTimer >= 60) {
+    healthDrainTimer = 0;
+    player.hp -= 1;
+  }
+
+  // --- Player Attack ---
+  if (fireCooldown > 0) fireCooldown--;
+  if (keysDown[' '] && fireCooldown <= 0) {
+    fireCooldown = cls.fireRate;
+    if (cls.melee) {
+      // Melee attack - damage enemies in arc in front
+      const atkX = player.x + lastDir.x * 24;
+      const atkY = player.y + lastDir.y * 24;
+      for (const e of enemies) {
+        if (!e.alive) continue;
+        if (dist(atkX, atkY, e.x, e.y) < cls.range) {
+          e.hp -= cls.damage;
+          if (e.hp <= 0) {
+            e.alive = false;
+            score += ENEMY_DATA[e.type].score;
+          }
+        }
+      }
+      // Melee can also damage generators
+      for (const g of generators) {
+        if (!g.alive) continue;
+        if (dist(atkX, atkY, g.x * T + T / 2, g.y * T + T / 2) < cls.range) {
+          g.hp -= cls.damage;
+          if (g.hp <= 0) {
+            g.alive = false;
+            map[g.y][g.x] = FLOOR;
+            score += 100;
+          }
+        }
+      }
+      flashTimer = 4; flashColor = cls.color;
+    } else {
+      // Ranged attack
+      const len = Math.sqrt(lastDir.x * lastDir.x + lastDir.y * lastDir.y) || 1;
+      projectiles.push({
+        x: player.x, y: player.y,
+        vx: (lastDir.x / len) * cls.projSpeed,
+        vy: (lastDir.y / len) * cls.projSpeed,
+        damage: cls.damage, life: Math.floor(cls.range / cls.projSpeed),
+        color: cls.color
+      });
+    }
+  }
+
+  // --- Update Projectiles ---
+  for (let i = projectiles.length - 1; i >= 0; i--) {
+    const p = projectiles[i];
+    p.x += p.vx; p.y += p.vy; p.life--;
+
+    if (p.life <= 0 || solid(p.x, p.y)) {
+      projectiles.splice(i, 1); continue;
+    }
+
+    // Hit enemies
+    let hit = false;
+    for (const e of enemies) {
+      if (!e.alive) continue;
+      if (dist(p.x, p.y, e.x, e.y) < 14) {
+        e.hp -= p.damage;
+        if (e.hp <= 0) { e.alive = false; score += ENEMY_DATA[e.type].score; }
+        hit = true; break;
+      }
+    }
+    // Hit generators
+    if (!hit) {
+      for (const g of generators) {
+        if (!g.alive) continue;
+        if (dist(p.x, p.y, g.x * T + T / 2, g.y * T + T / 2) < 16) {
+          g.hp -= p.damage;
+          if (g.hp <= 0) { g.alive = false; map[g.y][g.x] = FLOOR; score += 100; }
+          hit = true; break;
+        }
+      }
+    }
+    if (hit) projectiles.splice(i, 1);
+  }
+
+  // --- Update Enemy Projectiles ---
+  for (let i = enemyProjectiles.length - 1; i >= 0; i--) {
+    const p = enemyProjectiles[i];
+    p.x += p.vx; p.y += p.vy; p.life--;
+    if (p.life <= 0 || solid(p.x, p.y)) {
+      enemyProjectiles.splice(i, 1); continue;
+    }
+    if (dist(p.x, p.y, player.x, player.y) < 12) {
+      const dmg = Math.max(1, p.damage - CLASSES[player.cls].armor);
+      player.hp -= dmg;
+      enemyProjectiles.splice(i, 1);
+    }
+  }
+
+  // --- Update Enemies ---
+  for (const e of enemies) {
+    if (!e.alive) continue;
+    const ed = ENEMY_DATA[e.type];
+    const d = dist(e.x, e.y, player.x, player.y);
+
+    // Movement
+    e.moveTimer++;
+    const moveInterval = Math.max(2, Math.floor(6 / ed.speed));
+    if (e.moveTimer >= moveInterval && d < 400) {
+      e.moveTimer = 0;
+
+      // Sorcerer teleport
+      if (ed.teleports) {
+        e.teleTimer++;
+        if (e.teleTimer > 60 && d > 80) {
+          e.teleTimer = 0;
+          // Teleport near player
+          const ang = Math.random() * Math.PI * 2;
+          const tdist = 60 + Math.random() * 40;
+          const nx = player.x + Math.cos(ang) * tdist;
+          const ny = player.y + Math.sin(ang) * tdist;
+          if (!solid(nx, ny)) { e.x = nx; e.y = ny; }
+        }
+      }
+
+      // Move toward player
+      const edx = player.x - e.x, edy = player.y - e.y;
+      const elen = Math.sqrt(edx * edx + edy * edy) || 1;
+      const mx = (edx / elen) * ed.speed;
+      const my = (edy / elen) * ed.speed;
+
+      if (ed.phaseWalls) {
+        // Ghosts phase through walls
+        e.x += mx; e.y += my;
+      } else {
+        const nx = e.x + mx, ny = e.y + my;
+        if (!solid(nx, e.y)) e.x = nx;
+        if (!solid(e.x, ny)) e.y = ny;
+      }
+    }
+
+    // Enemy attacks
+    if (d < 20 && !ed.shoots) {
+      // Melee attack
+      const dmg = Math.max(1, ed.damage - CLASSES[player.cls].armor);
+      if (tick % 20 === 0) player.hp -= dmg;
+    }
+
+    if (ed.shoots && d < 250 && d > 30) {
+      e.shootTimer++;
+      if (e.shootTimer >= 80) {
+        e.shootTimer = 0;
+        const edx2 = player.x - e.x, edy2 = player.y - e.y;
+        const elen2 = Math.sqrt(edx2 * edx2 + edy2 * edy2) || 1;
+        enemyProjectiles.push({
+          x: e.x, y: e.y,
+          vx: (edx2 / elen2) * 3, vy: (edy2 / elen2) * 3,
+          damage: ed.damage, life: 60, color: '#f44'
+        });
+      }
+    }
+  }
+
+  // Cull dead enemies
+  enemies = enemies.filter(e => e.alive);
+
+  // --- Generator Spawning ---
+  spawnTimer++;
+  if (spawnTimer >= Math.max(90, 180 - level * 10)) {
+    spawnTimer = 0;
+    for (const g of generators) {
+      if (!g.alive) continue;
+      if (enemies.length >= 30 + level * 5) break; // cap
+      // Only spawn if player is somewhat near (within 15 tiles)
+      if (dist(player.x, player.y, g.x * T + T / 2, g.y * T + T / 2) < 15 * T) {
+        // Find an adjacent floor tile
+        const dirs = [[-1,0],[1,0],[0,-1],[0,1]];
+        const d = dirs[Math.floor(Math.random() * 4)];
+        const sx = g.x + d[0], sy = g.y + d[1];
+        if (sx > 0 && sx < MAP_W - 1 && sy > 0 && sy < MAP_H - 1 && map[sy][sx] === FLOOR) {
+          spawnEnemy(sx, sy, g.type);
+        }
+      }
+    }
+  }
+
+  // --- Death Check ---
+  if (player.hp <= 0) {
+    player.hp = 0;
+    state = 'dead';
+    deathTimer = 0;
+  }
+
+  if (flashTimer > 0) flashTimer--;
+
+  // --- Camera ---
+  camX = Math.floor(player.x - W / 2);
+  camY = Math.floor(player.y - (H - HUD_H) / 2);
+  camX = Math.max(0, Math.min(camX, MAP_W * T - W));
+  camY = Math.max(0, Math.min(camY, MAP_H * T - (H - HUD_H)));
+}
+
+// --- DRAW ---
+function draw() {
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, H);
+
+  if (state === 'select') {
+    drawSelectScreen();
+    return;
+  }
+
+  // Draw map
+  const startTX = Math.floor(camX / T);
+  const startTY = Math.floor(camY / T);
+  const endTX = Math.min(startTX + COLS + 2, MAP_W);
+  const endTY = Math.min(startTY + ROWS + 2, MAP_H);
+
+  for (let ty = startTY; ty < endTY; ty++) {
+    for (let tx = startTX; tx < endTX; tx++) {
+      const sx = tx * T - camX;
+      const sy = ty * T - camY + VIEW_Y;
+      const tile = map[ty] ? map[ty][tx] : WALL;
+
+      if (tile === WALL) {
+        ctx.fillStyle = '#334';
+        ctx.fillRect(sx, sy, T, T);
+        ctx.fillStyle = '#445';
+        ctx.fillRect(sx + 1, sy + 1, T - 2, T - 2);
+        // Brick pattern
+        ctx.fillStyle = '#334';
+        ctx.fillRect(sx + T / 2 - 1, sy, 2, T);
+        ctx.fillRect(sx, sy + T / 2 - 1, T, 2);
+      } else if (tile === FLOOR) {
+        ctx.fillStyle = '#1a1a2e';
+        ctx.fillRect(sx, sy, T, T);
+        // Subtle floor pattern
+        if ((tx + ty) % 2 === 0) {
+          ctx.fillStyle = '#1e1e34';
+          ctx.fillRect(sx, sy, T, T);
+        }
+      } else if (tile === DOOR) {
+        ctx.fillStyle = '#1a1a2e';
+        ctx.fillRect(sx, sy, T, T);
+        ctx.fillStyle = '#864';
+        ctx.fillRect(sx + 2, sy + 2, T - 4, T - 4);
+        ctx.fillStyle = '#a86';
+        ctx.fillRect(sx + 4, sy + 4, T - 8, T - 8);
+        // Keyhole
+        ctx.fillStyle = '#432';
+        ctx.fillRect(sx + T / 2 - 2, sy + T / 2 - 2, 4, 6);
+      } else if (tile === EXIT) {
+        ctx.fillStyle = '#1a1a2e';
+        ctx.fillRect(sx, sy, T, T);
+        // Staircase
+        const pulse = Math.sin(tick * 0.08) * 0.3 + 0.7;
+        ctx.fillStyle = `rgba(0,255,255,${pulse * 0.3})`;
+        ctx.fillRect(sx, sy, T, T);
+        ctx.fillStyle = '#0cc';
+        for (let s = 0; s < 4; s++) {
+          ctx.fillRect(sx + 4 + s * 2, sy + 4 + s * 6, T - 8 - s * 4, 4);
+        }
+        // Arrow
+        ctx.fillStyle = '#fff';
+        ctx.font = '18px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('\u2193', sx + T / 2, sy + T / 2 + 6);
+      } else if (tile === GENERATOR) {
+        ctx.fillStyle = '#1a1a2e';
+        ctx.fillRect(sx, sy, T, T);
+        const g = generators.find(g => g.x === tx && g.y === ty);
+        if (g && g.alive) {
+          const gPulse = Math.sin(tick * 0.1) * 0.3 + 0.7;
+          ctx.fillStyle = `rgba(180,0,180,${gPulse})`;
+          ctx.fillRect(sx + 2, sy + 2, T - 4, T - 4);
+          ctx.fillStyle = '#f0f';
+          ctx.fillRect(sx + 6, sy + 6, T - 12, T - 12);
+          // Skull decoration
+          ctx.fillStyle = '#fff';
+          ctx.font = '14px monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText('\u2620', sx + T / 2, sy + T / 2 + 5);
+        }
+      } else if (tile === FOOD) {
+        ctx.fillStyle = '#1a1a2e';
+        ctx.fillRect(sx, sy, T, T);
+        // Turkey leg
+        ctx.fillStyle = '#a64';
+        ctx.fillRect(sx + 10, sy + 8, 12, 8);
+        ctx.fillStyle = '#c86';
+        ctx.fillRect(sx + 12, sy + 10, 8, 4);
+        ctx.fillStyle = '#864';
+        ctx.fillRect(sx + 8, sy + 12, 4, 8);
+      } else if (tile === KEY) {
+        ctx.fillStyle = '#1a1a2e';
+        ctx.fillRect(sx, sy, T, T);
+        const kBob = Math.sin(tick * 0.06 + tx) * 2;
+        ctx.fillStyle = '#ff0';
+        // Key shape
+        ctx.beginPath();
+        ctx.arc(sx + T / 2, sy + 10 + kBob, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillRect(sx + T / 2 - 1, sy + 14 + kBob, 2, 10);
+        ctx.fillRect(sx + T / 2, sy + 20 + kBob, 4, 2);
+        ctx.fillRect(sx + T / 2, sy + 16 + kBob, 3, 2);
+      } else if (tile === POTION) {
+        ctx.fillStyle = '#1a1a2e';
+        ctx.fillRect(sx, sy, T, T);
+        const pBob = Math.sin(tick * 0.05 + tx) * 2;
+        // Potion bottle
+        ctx.fillStyle = '#44f';
+        ctx.fillRect(sx + 11, sy + 6 + pBob, 10, 4);
+        ctx.fillStyle = '#66f';
+        ctx.fillRect(sx + 9, sy + 10 + pBob, 14, 12);
+        ctx.fillStyle = '#88f';
+        ctx.fillRect(sx + 11, sy + 14 + pBob, 10, 6);
+      } else if (tile === TREASURE) {
+        ctx.fillStyle = '#1a1a2e';
+        ctx.fillRect(sx, sy, T, T);
+        const tBob = Math.sin(tick * 0.07 + tx * 3) * 2;
+        // Chest
+        ctx.fillStyle = '#a80';
+        ctx.fillRect(sx + 6, sy + 12 + tBob, 20, 12);
+        ctx.fillStyle = '#fc0';
+        ctx.fillRect(sx + 8, sy + 14 + tBob, 16, 8);
+        ctx.fillStyle = '#a80';
+        ctx.fillRect(sx + 6, sy + 10 + tBob, 20, 4);
+        ctx.fillStyle = '#ff0';
+        ctx.fillRect(sx + 14, sy + 16 + tBob, 4, 4);
+      }
+    }
+  }
+
+  // Draw enemies
+  for (const e of enemies) {
+    if (!e.alive) continue;
+    const sx = e.x - camX;
+    const sy = e.y - camY + VIEW_Y;
+    if (sx < -T || sx > W + T || sy < VIEW_Y - T || sy > H + T) continue;
+
+    const ed = ENEMY_DATA[e.type];
+    ctx.fillStyle = ed.color;
+
+    if (e.type === GHOST) {
+      // Ghost - wavy bottom
+      const wave = Math.sin(tick * 0.15 + e.x) * 2;
+      ctx.beginPath();
+      ctx.arc(sx, sy - 4, 10, Math.PI, 0);
+      ctx.lineTo(sx + 10, sy + 6 + wave);
+      ctx.lineTo(sx + 6, sy + 3 + wave);
+      ctx.lineTo(sx + 2, sy + 6 + wave);
+      ctx.lineTo(sx - 2, sy + 3 + wave);
+      ctx.lineTo(sx - 6, sy + 6 + wave);
+      ctx.lineTo(sx - 10, sy + 3 + wave);
+      ctx.closePath();
+      ctx.globalAlpha = 0.7;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      // Eyes
+      ctx.fillStyle = '#000';
+      ctx.fillRect(sx - 4, sy - 6, 3, 3);
+      ctx.fillRect(sx + 2, sy - 6, 3, 3);
+    } else if (e.type === GRUNT) {
+      // Grunt - blocky
+      ctx.fillRect(sx - 8, sy - 10, 16, 20);
+      ctx.fillStyle = '#654';
+      ctx.fillRect(sx - 6, sy - 8, 12, 6);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(sx - 4, sy - 7, 3, 3);
+      ctx.fillRect(sx + 2, sy - 7, 3, 3);
+    } else if (e.type === DEMON) {
+      // Demon - horned
+      ctx.fillRect(sx - 8, sy - 6, 16, 16);
+      // Horns
+      ctx.fillRect(sx - 10, sy - 12, 4, 8);
+      ctx.fillRect(sx + 6, sy - 12, 4, 8);
+      // Eyes
+      ctx.fillStyle = '#ff0';
+      ctx.fillRect(sx - 4, sy - 4, 3, 3);
+      ctx.fillRect(sx + 2, sy - 4, 3, 3);
+    } else if (e.type === SORCERER) {
+      // Sorcerer - with hat
+      const sFlicker = Math.sin(tick * 0.2 + e.y) * 0.3 + 0.7;
+      ctx.globalAlpha = sFlicker;
+      ctx.fillRect(sx - 8, sy - 4, 16, 16);
+      // Hat
+      ctx.beginPath();
+      ctx.moveTo(sx, sy - 16);
+      ctx.lineTo(sx - 10, sy - 4);
+      ctx.lineTo(sx + 10, sy - 4);
+      ctx.closePath();
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      // Eyes
+      ctx.fillStyle = '#0ff';
+      ctx.fillRect(sx - 4, sy, 3, 3);
+      ctx.fillRect(sx + 2, sy, 3, 3);
+    }
+
+    // HP bar for enemies
+    if (e.hp < ENEMY_DATA[e.type].hp + Math.floor(level / 3)) {
+      const maxEHP = ENEMY_DATA[e.type].hp + Math.floor(level / 3);
+      ctx.fillStyle = '#400';
+      ctx.fillRect(sx - 10, sy - 16, 20, 3);
+      ctx.fillStyle = '#f00';
+      ctx.fillRect(sx - 10, sy - 16, 20 * (e.hp / maxEHP), 3);
+    }
+  }
+
+  // Draw player projectiles
+  ctx.fillStyle = CLASSES[player.cls].color;
+  for (const p of projectiles) {
+    const sx = p.x - camX, sy = p.y - camY + VIEW_Y;
+    if (player.cls === 2) {
+      // Wizard magic - sparkle
+      ctx.fillStyle = `hsl(${(tick * 8) % 360},100%,70%)`;
+      ctx.fillRect(sx - 4, sy - 4, 8, 8);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(sx - 2, sy - 2, 4, 4);
+    } else {
+      // Elf arrows
+      ctx.fillStyle = '#4f4';
+      ctx.fillRect(sx - 3, sy - 1, 6, 2);
+      ctx.fillRect(sx - 1, sy - 3, 2, 6);
+    }
+  }
+
+  // Draw enemy projectiles
+  for (const p of enemyProjectiles) {
+    const sx = p.x - camX, sy = p.y - camY + VIEW_Y;
+    ctx.fillStyle = '#f44';
+    ctx.beginPath();
+    ctx.arc(sx, sy, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#fa0';
+    ctx.beginPath();
+    ctx.arc(sx, sy, 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Draw player
+  {
+    const cls = CLASSES[player.cls];
+    const sx = player.x - camX;
+    const sy = player.y - camY + VIEW_Y;
+
+    // Body
+    ctx.fillStyle = cls.color;
+    ctx.fillRect(sx - 8, sy - 10, 16, 20);
+
+    // Class-specific details
+    if (player.cls === 0) {
+      // Warrior - helmet
+      ctx.fillStyle = '#888';
+      ctx.fillRect(sx - 9, sy - 12, 18, 6);
+      ctx.fillRect(sx - 3, sy - 8, 6, 4);
+      // Axe hint
+      ctx.fillStyle = '#ccc';
+      ctx.fillRect(sx + 8 + lastDir.x * 4, sy - 2 + lastDir.y * 4, 6, 3);
+    } else if (player.cls === 1) {
+      // Valkyrie - helmet with wings
+      ctx.fillStyle = '#8cf';
+      ctx.fillRect(sx - 7, sy - 14, 14, 6);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(sx - 10, sy - 16, 4, 6);
+      ctx.fillRect(sx + 6, sy - 16, 4, 6);
+    } else if (player.cls === 2) {
+      // Wizard - hat
+      ctx.fillStyle = '#a4e';
+      ctx.beginPath();
+      ctx.moveTo(sx, sy - 20);
+      ctx.lineTo(sx - 10, sy - 8);
+      ctx.lineTo(sx + 10, sy - 8);
+      ctx.closePath();
+      ctx.fill();
+      // Star
+      ctx.fillStyle = '#ff0';
+      ctx.font = '8px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('*', sx, sy - 11);
+    } else {
+      // Elf - pointed ears
+      ctx.fillStyle = '#2a2';
+      ctx.fillRect(sx - 6, sy - 12, 12, 4);
+      ctx.fillStyle = cls.color;
+      ctx.fillRect(sx - 10, sy - 10, 4, 4);
+      ctx.fillRect(sx + 6, sy - 10, 4, 4);
+    }
+
+    // Eyes
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(sx - 4, sy - 6, 3, 3);
+    ctx.fillRect(sx + 1, sy - 6, 3, 3);
+
+    // Attack flash
+    if (flashTimer > 0 && cls.melee && keysDown[' ']) {
+      ctx.globalAlpha = 0.5;
+      ctx.fillStyle = cls.color;
+      const atkX = sx + lastDir.x * 24;
+      const atkY = sy + lastDir.y * 24;
+      ctx.beginPath();
+      ctx.arc(atkX, atkY, cls.range * 0.6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  // Screen flash effect
+  if (flashTimer > 0) {
+    ctx.globalAlpha = flashTimer * 0.03;
+    ctx.fillStyle = flashColor;
+    ctx.fillRect(0, VIEW_Y, W, H - VIEW_Y);
+    ctx.globalAlpha = 1;
+  }
+
+  // --- HUD ---
+  drawHUD();
+
+  // --- Death Screen ---
+  if (state === 'dead') {
+    deathTimer++;
+    ctx.fillStyle = `rgba(80,0,0,${Math.min(deathTimer * 0.02, 0.7)})`;
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#f44';
+    ctx.font = 'bold 36px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('GAME OVER', W / 2, H / 2 - 30);
+    ctx.fillStyle = '#fc0';
+    ctx.font = '18px monospace';
+    ctx.fillText('SCORE: ' + score, W / 2, H / 2 + 10);
+    ctx.fillText('LEVEL: ' + level, W / 2, H / 2 + 35);
+    ctx.fillStyle = '#888';
+    ctx.font = '14px monospace';
+    ctx.fillText('Press R to restart', W / 2, H / 2 + 70);
+  }
+}
+
+function drawHUD() {
+  // HUD background
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0, 0, W, HUD_H);
+  ctx.fillStyle = '#333';
+  ctx.fillRect(0, HUD_H - 1, W, 1);
+
+  const cls = CLASSES[player.cls];
+
+  // Title badge
+  ctx.fillStyle = '#7bf';
+  ctx.font = 'bold 14px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('RPG-003 \u00B7 GAUNTLET  [?]', 10, 16);
+
+  // Class name
+  ctx.fillStyle = cls.color;
+  ctx.font = '12px monospace';
+  ctx.fillText(cls.name, 10, 34);
+
+  // Health bar
+  const hpBarX = 110, hpBarW = 180, hpBarY = 24, hpBarH = 14;
+  ctx.fillStyle = '#400';
+  ctx.fillRect(hpBarX, hpBarY, hpBarW, hpBarH);
+  const hpFrac = Math.max(0, player.hp / player.maxHp);
+  const hpColor = hpFrac > 0.5 ? '#0c0' : hpFrac > 0.25 ? '#cc0' : '#c00';
+  ctx.fillStyle = hpColor;
+  ctx.fillRect(hpBarX, hpBarY, hpBarW * hpFrac, hpBarH);
+  ctx.strokeStyle = '#666';
+  ctx.strokeRect(hpBarX, hpBarY, hpBarW, hpBarH);
+  ctx.fillStyle = '#fff';
+  ctx.font = '10px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(player.hp + '/' + player.maxHp, hpBarX + hpBarW / 2, hpBarY + 11);
+
+  // HP label
+  ctx.fillStyle = '#aaa';
+  ctx.textAlign = 'left';
+  ctx.font = '10px monospace';
+  ctx.fillText('HP', hpBarX - 20, hpBarY + 11);
+
+  // Keys
+  ctx.fillStyle = '#ff0';
+  ctx.font = '14px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('\u{1F511}', 310, 34);
+  ctx.fillStyle = '#ff0';
+  ctx.font = '13px monospace';
+  ctx.fillText('KEY:' + keys, 310, 34);
+
+  // Score
+  ctx.fillStyle = '#fc0';
+  ctx.textAlign = 'left';
+  ctx.fillText('SCORE:' + score, 410, 34);
+
+  // Level
+  ctx.fillStyle = '#0cc';
+  ctx.fillText('LV:' + level, 560, 34);
+
+  // Enemy count
+  ctx.fillStyle = '#f88';
+  const aliveEnemies = enemies.filter(e => e.alive).length;
+  const aliveGens = generators.filter(g => g.alive).length;
+  ctx.fillText('EN:' + aliveEnemies, 640, 34);
+  ctx.fillStyle = '#f0f';
+  ctx.fillText('GEN:' + aliveGens, 720, 34);
+
+  // Health warning
+  if (player.hp < player.maxHp * 0.25 && tick % 40 < 20) {
+    ctx.fillStyle = '#f00';
+    ctx.font = 'bold 12px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(cls.name + ' NEEDS FOOD BADLY!', W / 2, 50);
+  }
+}
+
+function drawSelectScreen() {
+  // Background
+  ctx.fillStyle = '#0a0a1a';
+  ctx.fillRect(0, 0, W, H);
+
+  // Title
+  ctx.fillStyle = '#f80';
+  ctx.font = 'bold 42px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('GAUNTLET', W / 2, 100);
+
+  ctx.fillStyle = '#7bf';
+  ctx.font = '14px monospace';
+  ctx.fillText('RPG-003 \u00B7 PIXEL VAULT PROTOTYPE', W / 2, 130);
+
+  ctx.fillStyle = '#888';
+  ctx.font = '16px monospace';
+  ctx.fillText('SELECT YOUR CLASS', W / 2, 180);
+
+  // Draw class selection boxes
+  const boxW = 160, boxH = 200, gap = 20;
+  const startX = (W - (boxW * 4 + gap * 3)) / 2;
+  const boxY = 210;
+
+  for (let i = 0; i < 4; i++) {
+    const cls = CLASSES[i];
+    const bx = startX + i * (boxW + gap);
+
+    // Box
+    ctx.fillStyle = '#181828';
+    ctx.fillRect(bx, boxY, boxW, boxH);
+    ctx.strokeStyle = cls.color;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(bx, boxY, boxW, boxH);
+
+    // Number
+    ctx.fillStyle = '#ff0';
+    ctx.font = 'bold 24px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText((i + 1).toString(), bx + boxW / 2, boxY + 30);
+
+    // Name
+    ctx.fillStyle = cls.color;
+    ctx.font = 'bold 14px monospace';
+    ctx.fillText(cls.name, bx + boxW / 2, boxY + 55);
+
+    // Character preview
+    const pcx = bx + boxW / 2;
+    const pcy = boxY + 95;
+    ctx.fillStyle = cls.color;
+    ctx.fillRect(pcx - 12, pcy - 16, 24, 32);
+
+    if (i === 0) {
+      ctx.fillStyle = '#888';
+      ctx.fillRect(pcx - 14, pcy - 20, 28, 8);
+    } else if (i === 1) {
+      ctx.fillStyle = '#8cf';
+      ctx.fillRect(pcx - 12, pcy - 22, 24, 8);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(pcx - 16, pcy - 24, 6, 8);
+      ctx.fillRect(pcx + 10, pcy - 24, 6, 8);
+    } else if (i === 2) {
+      ctx.fillStyle = '#a4e';
+      ctx.beginPath();
+      ctx.moveTo(pcx, pcy - 32);
+      ctx.lineTo(pcx - 14, pcy - 14);
+      ctx.lineTo(pcx + 14, pcy - 14);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      ctx.fillStyle = '#2a2';
+      ctx.fillRect(pcx - 10, pcy - 20, 20, 6);
+      ctx.fillStyle = cls.color;
+      ctx.fillRect(pcx - 16, pcy - 16, 6, 6);
+      ctx.fillRect(pcx + 10, pcy - 16, 6, 6);
+    }
+
+    // Eyes
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(pcx - 6, pcy - 10, 4, 4);
+    ctx.fillRect(pcx + 2, pcy - 10, 4, 4);
+
+    // Stats
+    ctx.font = '11px monospace';
+    ctx.textAlign = 'left';
+    const sx = bx + 10;
+    let sy = boxY + 130;
+
+    ctx.fillStyle = '#f88';
+    ctx.fillText('HP:  ' + cls.hp, sx, sy); sy += 16;
+    ctx.fillStyle = '#fa0';
+    ctx.fillText('DMG: ' + cls.damage, sx, sy); sy += 16;
+    ctx.fillStyle = '#8af';
+    ctx.fillText('ARM: ' + cls.armor, sx, sy); sy += 16;
+    ctx.fillStyle = '#8f8';
+    ctx.fillText('SPD: ' + cls.speed.toFixed(1), sx, sy); sy += 16;
+    ctx.fillStyle = '#aaa';
+    ctx.fillText(cls.melee ? 'MELEE' : 'RANGED', sx, sy);
+  }
+
+  // Instructions
+  ctx.fillStyle = '#666';
+  ctx.font = '13px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('Press 1-4 to choose your class', W / 2, 460);
+
+  ctx.fillStyle = '#555';
+  ctx.font = '11px monospace';
+  ctx.fillText('Arrow keys: Move | Space: Attack | R: Restart | ?: Info', W / 2, 490);
+
+  // Lore
+  ctx.fillStyle = '#444';
+  ctx.font = '11px monospace';
+  ctx.fillText('"Warrior needs food badly!"', W / 2, 540);
+  ctx.fillText('Gauntlet (1985) \u00B7 Ed Logg \u00B7 Atari', W / 2, 558);
+}
+
+// --- GAME LOOP ---
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

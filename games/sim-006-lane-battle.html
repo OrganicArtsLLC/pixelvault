@@ -1,0 +1,936 @@
+<!--
+PROTOTYPE: lane-battle
+SERIES: sim
+NUMBER: 006
+DATE: 2026-03-23
+MECHANIC: lane-based real-time card battler with elixir economy and auto-battling units
+ANCESTRY: Clash Royale (2016, Supercell), Defense of the Ancients (2003, Eul), Herzog Zwei (1989, Technosoft)
+CONTROLS: Mouse — select card and deploy | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 6 (Transformer Era — real-time resource management, unit composition strategy)
+AI-INSIGHT: Clash Royale compressed the MOBA formula into 3-minute matches by making units autonomous. The player's only decisions are what to deploy, where, and when — reducing real-time strategy to pure resource management and timing. This abstraction made deep strategy accessible on mobile.
+NOTES: MOBA meets card game in miniature. Elixir economy forces constant
+       trade-off between defense and offense, patience and aggression.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SIM-006 · LANE BATTLE</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: crosshair; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+</style>
+</head>
+<body>
+<canvas id="c" width="800" height="600"></canvas>
+<div id="info-panel">
+<span class="close-btn" onclick="toggleInfo()">&times;</span>
+<div class="inner">
+<h1>SIM-006 · LANE BATTLE</h1>
+<p>Lane-based real-time card battler with elixir economy</p>
+
+<h2>How to Play</h2>
+<ul>
+<li>Click a card in your hand (bottom bar) to select it</li>
+<li>Click on your side of the arena (below the river) to deploy</li>
+<li>Cards cost elixir (purple bar) which regenerates over time</li>
+<li>Destroy enemy towers to win — lane towers must fall before the king tower</li>
+<li>Match lasts 3 minutes — double elixir in the last minute</li>
+<li>Most tower destruction wins; sudden death if tied</li>
+</ul>
+
+<h2>Card Types</h2>
+<ul>
+<li><b>Knight (4)</b> — Melee tank, good HP</li>
+<li><b>Archer (3)</b> — Ranged attacker, moderate damage</li>
+<li><b>Giant (5)</b> — High HP, only targets buildings</li>
+<li><b>Goblin (2)</b> — Fast swarm of 3, low HP</li>
+<li><b>Fireball (4)</b> — Area damage spell</li>
+<li><b>Musketeer (4)</b> — Long-range single target</li>
+<li><b>Mini PEKKA (4)</b> — High damage melee</li>
+<li><b>Skel Army (3)</b> — Swarm of skeletons</li>
+</ul>
+
+<h2>History</h2>
+<p>Clash Royale (2016) by Supercell distilled the MOBA genre into real-time 3-minute card battles.
+It drew from tower defense, collectible card games, and the MOBA lane structure to create
+a new hybrid genre. Its ancestry traces through Defense of the Ancients (2003) and
+Herzog Zwei (1989), the proto-RTS that first combined direct control with autonomous units.</p>
+
+<h2>AI Archaeology</h2>
+<p><span class="tag">ERA 6</span> <span class="tag">Transformer Era</span></p>
+<p>Clash Royale compressed the MOBA formula into 3-minute matches by making units autonomous.
+The player's only decisions are what to deploy, where, and when — reducing real-time strategy
+to pure resource management and timing. This abstraction made deep strategy accessible on mobile.</p>
+
+<h2>Classification</h2>
+<p><span class="tag series">sim</span> <span class="tag">card-battler</span> <span class="tag">lane-defense</span> <span class="tag">real-time</span> <span class="tag">resource-management</span></p>
+
+<h2>Prototype Notes</h2>
+<p>MOBA meets card game in miniature. Elixir economy forces constant trade-off between defense
+and offense, patience and aggression. Eight card types provide enough variety for emergent strategy
+while keeping the cognitive load manageable for a 3-minute match.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+</div>
+</div>
+<script>
+var C = document.getElementById('c'), X = C.getContext('2d');
+var W = 800, H = 600;
+var infoOpen = false;
+
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// ─── CARD DEFINITIONS ───
+var CARDS = {
+  knight:   { name:'Knight',     cost:4, hp:600, dmg:75,  spd:1.2, range:25, atkSpd:1.2, color:'#e8a', icon:'K', count:1, targetsBuildings:false },
+  archer:   { name:'Archer',     cost:3, hp:250, dmg:50,  spd:1.2, range:120, atkSpd:1.1, color:'#f8f', icon:'A', count:1, targetsBuildings:false },
+  giant:    { name:'Giant',      cost:5, hp:1200, dmg:100, spd:0.7, range:25, atkSpd:1.5, color:'#fa4', icon:'G', count:1, targetsBuildings:true },
+  goblin:   { name:'Goblin',     cost:2, hp:100, dmg:50,  spd:2.0, range:20, atkSpd:1.0, color:'#4f4', icon:'g', count:3, targetsBuildings:false },
+  fireball: { name:'Fireball',   cost:4, hp:0, dmg:400, spd:0, range:80, atkSpd:0, color:'#f60', icon:'F', count:0, targetsBuildings:false, spell:true },
+  musketeer:{ name:'Musketeer',  cost:4, hp:340, dmg:80,  spd:1.0, range:150, atkSpd:1.1, color:'#88f', icon:'M', count:1, targetsBuildings:false },
+  pekka:    { name:'Mini PEKKA', cost:4, hp:500, dmg:180, spd:1.4, range:22, atkSpd:1.8, color:'#48f', icon:'P', count:1, targetsBuildings:false },
+  skeleton: { name:'Skel Army',  cost:3, hp:50,  dmg:35,  spd:1.8, range:18, atkSpd:1.0, color:'#ccc', icon:'S', count:6, targetsBuildings:false }
+};
+var CARD_KEYS = ['knight','archer','giant','goblin','fireball','musketeer','pekka','skeleton'];
+
+// ─── GAME STATE ───
+var units = [], towers = [], particles = [], spells = [];
+var playerElixir = 5, aiElixir = 5;
+var ELIXIR_MAX = 10, ELIXIR_RATE = 1/2.8; // per second
+var doubleElixir = false;
+var matchTime = 180; // 3 minutes
+var timer = 0;
+var gameOver = false, winner = '';
+var suddenDeath = false;
+
+// Card hand management
+var playerDeck = [], playerHand = [], playerNext = -1;
+var aiDeck = [], aiHand = [], aiNext = -1;
+var selectedCard = -1;
+var deployPreview = false;
+
+// Arena layout
+var ARENA_LEFT = 170, ARENA_RIGHT = 630, ARENA_TOP = 30, ARENA_BOTTOM = 520;
+var RIVER_Y = 275, RIVER_H = 16;
+var BRIDGE_W = 60;
+var LANE_MID = (ARENA_LEFT + ARENA_RIGHT) / 2;
+var BRIDGE1_X = ARENA_LEFT + 80;
+var BRIDGE2_X = ARENA_RIGHT - 80 - BRIDGE_W;
+
+// Tower positions
+var TOWER_W = 36, TOWER_H = 40;
+
+function initGame() {
+  units = []; towers = []; particles = []; spells = [];
+  playerElixir = 5; aiElixir = 5;
+  timer = 0; gameOver = false; winner = '';
+  suddenDeath = false; doubleElixir = false;
+  selectedCard = -1; deployPreview = false;
+
+  // Setup decks (shuffle)
+  playerDeck = shuffle(CARD_KEYS.slice());
+  playerHand = playerDeck.splice(0, 4);
+  playerNext = 0;
+  aiDeck = shuffle(CARD_KEYS.slice());
+  aiHand = aiDeck.splice(0, 4);
+  aiNext = 0;
+
+  // Towers: player (team=0), AI (team=1)
+  var tDefs = [
+    // Player towers (bottom)
+    { team:0, x:LANE_MID - 90, y:ARENA_BOTTOM - 50, hp:1200, maxHp:1200, king:false, lane:0 },
+    { team:0, x:LANE_MID + 90, y:ARENA_BOTTOM - 50, hp:1200, maxHp:1200, king:false, lane:1 },
+    { team:0, x:LANE_MID, y:ARENA_BOTTOM - 15, hp:2000, maxHp:2000, king:true, lane:-1 },
+    // AI towers (top)
+    { team:1, x:LANE_MID - 90, y:ARENA_TOP + 50, hp:1200, maxHp:1200, king:false, lane:0 },
+    { team:1, x:LANE_MID + 90, y:ARENA_TOP + 50, hp:1200, maxHp:1200, king:false, lane:1 },
+    { team:1, x:LANE_MID, y:ARENA_TOP + 15, hp:2000, maxHp:2000, king:true, lane:-1 }
+  ];
+  for (var i = 0; i < tDefs.length; i++) {
+    var t = tDefs[i];
+    t.w = t.king ? 42 : TOWER_W;
+    t.h = t.king ? 46 : TOWER_H;
+    t.alive = true;
+    t.atkTimer = 0;
+    t.atkRange = 120;
+    t.atkDmg = 50;
+    t.atkSpd = 1.0;
+    t.flashTimer = 0;
+    towers.push(t);
+  }
+}
+
+function shuffle(a) {
+  for (var i = a.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var t = a[i]; a[i] = a[j]; a[j] = t;
+  }
+  return a;
+}
+
+function drawCard(hand, deck) {
+  if (deck.length === 0) deck.push.apply(deck, shuffle(CARD_KEYS.slice()));
+  hand.push(deck.shift());
+}
+
+function dist(a, b) {
+  var dx = a.x - b.x, dy = a.y - b.y;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+function spawnUnit(cardKey, team, x, y) {
+  var def = CARDS[cardKey];
+  if (def.spell) {
+    // Spell effect
+    spells.push({ x:x, y:y, radius:def.range, dmg:def.dmg, team:team, timer:0.4 });
+    // Immediate damage
+    for (var i = 0; i < units.length; i++) {
+      var u = units[i];
+      if (u.team !== team && u.alive && dist(u, {x:x,y:y}) < def.range) {
+        u.hp -= def.dmg;
+      }
+    }
+    for (var i = 0; i < towers.length; i++) {
+      var t = towers[i];
+      if (t.team !== team && t.alive && dist(t, {x:x,y:y}) < def.range) {
+        t.hp -= def.dmg;
+        t.flashTimer = 0.3;
+      }
+    }
+    for (var j = 0; j < 20; j++) {
+      var a = Math.random() * Math.PI * 2, r = Math.random() * def.range;
+      particles.push({ x:x+Math.cos(a)*r, y:y+Math.sin(a)*r, vx:(Math.random()-0.5)*60, vy:(Math.random()-0.5)*60-30, life:0.6, color:'#f60' });
+    }
+    return;
+  }
+  var cnt = def.count;
+  for (var c = 0; c < cnt; c++) {
+    var ox = cnt > 1 ? (c - (cnt-1)/2) * 14 : 0;
+    var oy = cnt > 1 ? (c % 2) * 10 : 0;
+    units.push({
+      x: x + ox, y: y + oy,
+      team: team,
+      type: cardKey,
+      hp: def.hp, maxHp: def.hp,
+      dmg: def.dmg, spd: def.spd,
+      range: def.range, atkSpd: def.atkSpd,
+      color: def.color, icon: def.icon,
+      alive: true,
+      atkTimer: 0,
+      target: null,
+      targetsBuildings: def.targetsBuildings,
+      flashTimer: 0,
+      size: cnt > 2 ? 6 : 8
+    });
+  }
+}
+
+// ─── FIND TARGET ───
+function findTarget(unit) {
+  var best = null, bestDist = Infinity;
+
+  if (unit.targetsBuildings) {
+    // Only target enemy towers
+    for (var i = 0; i < towers.length; i++) {
+      var t = towers[i];
+      if (t.team === unit.team || !t.alive) continue;
+      if (t.king && !kingExposed(t.team, t.lane)) continue;
+      var d = dist(unit, t);
+      if (d < bestDist) { bestDist = d; best = t; }
+    }
+    return best;
+  }
+
+  // Target nearest enemy unit or tower
+  for (var i = 0; i < units.length; i++) {
+    var u = units[i];
+    if (u.team === unit.team || !u.alive) continue;
+    var d = dist(unit, u);
+    if (d < bestDist) { bestDist = d; best = u; }
+  }
+  // Also consider towers
+  for (var i = 0; i < towers.length; i++) {
+    var t = towers[i];
+    if (t.team === unit.team || !t.alive) continue;
+    if (t.king && !kingExposed(t.team, t.lane)) continue;
+    var d = dist(unit, t);
+    if (d < bestDist) { bestDist = d; best = t; }
+  }
+  return best;
+}
+
+function kingExposed(team) {
+  // King is exposed if at least one lane tower is destroyed
+  for (var i = 0; i < towers.length; i++) {
+    if (towers[i].team === team && !towers[i].king && !towers[i].alive) return true;
+  }
+  return false;
+}
+
+// ─── CAN CROSS RIVER ───
+function canCross(x, y, ny) {
+  // Check if unit is crossing river and needs to use bridge
+  var crossingDown = y <= RIVER_Y && ny > RIVER_Y;
+  var crossingUp = y >= RIVER_Y + RIVER_H && ny < RIVER_Y + RIVER_H;
+  if (!crossingDown && !crossingUp) return true;
+  // Must be on a bridge
+  if (x >= BRIDGE1_X && x <= BRIDGE1_X + BRIDGE_W) return true;
+  if (x >= BRIDGE2_X && x <= BRIDGE2_X + BRIDGE_W) return true;
+  return false;
+}
+
+function nearestBridge(x) {
+  var b1c = BRIDGE1_X + BRIDGE_W / 2;
+  var b2c = BRIDGE2_X + BRIDGE_W / 2;
+  return Math.abs(x - b1c) < Math.abs(x - b2c) ? b1c : b2c;
+}
+
+// ─── UPDATE ───
+var lastTime = 0;
+function update(ts) {
+  requestAnimationFrame(update);
+  if (infoOpen) { draw(); return; }
+  if (!lastTime) { lastTime = ts; return; }
+  var dt = Math.min((ts - lastTime) / 1000, 0.05);
+  lastTime = ts;
+
+  if (gameOver) { draw(); return; }
+
+  timer += dt;
+  var remaining = matchTime - timer;
+  if (remaining <= 60) doubleElixir = true;
+
+  // Elixir regen
+  var rate = ELIXIR_RATE * (doubleElixir ? 2 : 1);
+  playerElixir = Math.min(ELIXIR_MAX, playerElixir + rate * dt);
+  aiElixir = Math.min(ELIXIR_MAX, aiElixir + rate * dt);
+
+  // Update spells
+  for (var i = spells.length - 1; i >= 0; i--) {
+    spells[i].timer -= dt;
+    if (spells[i].timer <= 0) spells.splice(i, 1);
+  }
+
+  // Update units
+  for (var i = 0; i < units.length; i++) {
+    var u = units[i];
+    if (!u.alive) continue;
+    if (u.hp <= 0) {
+      u.alive = false;
+      for (var j = 0; j < 5; j++) {
+        particles.push({ x:u.x, y:u.y, vx:(Math.random()-0.5)*40, vy:(Math.random()-0.5)*40, life:0.4, color:u.color });
+      }
+      continue;
+    }
+    u.flashTimer = Math.max(0, u.flashTimer - dt);
+    u.atkTimer = Math.max(0, u.atkTimer - dt);
+
+    var tgt = findTarget(u);
+    u.target = tgt;
+    if (!tgt) continue;
+
+    var d = dist(u, tgt);
+    if (d <= u.range + 10) {
+      // Attack
+      if (u.atkTimer <= 0) {
+        u.atkTimer = u.atkSpd;
+        if (tgt.hp !== undefined) {
+          tgt.hp -= u.dmg;
+          tgt.flashTimer = 0.2;
+          if (u.range > 50) {
+            particles.push({ x:tgt.x, y:tgt.y, vx:0, vy:-10, life:0.3, color:'#ff0' });
+          }
+        }
+      }
+    } else {
+      // Move toward target
+      var dx = tgt.x - u.x, dy = tgt.y - u.y;
+      var len = Math.sqrt(dx*dx + dy*dy);
+      var mx = dx/len * u.spd * dt * 60;
+      var my = dy/len * u.spd * dt * 60;
+      var ny = u.y + my;
+
+      // River crossing check
+      if (!canCross(u.x, u.y, ny)) {
+        // Navigate to bridge
+        var bx = nearestBridge(u.x);
+        var bdx = bx - u.x;
+        var blen = Math.abs(bdx);
+        if (blen > 2) {
+          u.x += (bdx/blen) * u.spd * dt * 60;
+        } else {
+          u.y += my;
+        }
+      } else {
+        u.x += mx;
+        u.y += my;
+      }
+      // Clamp to arena
+      u.x = Math.max(ARENA_LEFT + 8, Math.min(ARENA_RIGHT - 8, u.x));
+      u.y = Math.max(ARENA_TOP + 8, Math.min(ARENA_BOTTOM - 8, u.y));
+    }
+  }
+
+  // Tower attacks
+  for (var i = 0; i < towers.length; i++) {
+    var t = towers[i];
+    if (!t.alive) continue;
+    if (t.hp <= 0) {
+      t.alive = false;
+      for (var j = 0; j < 15; j++) {
+        particles.push({ x:t.x, y:t.y, vx:(Math.random()-0.5)*80, vy:(Math.random()-0.5)*80, life:0.8, color:'#fa0' });
+      }
+      continue;
+    }
+    t.flashTimer = Math.max(0, t.flashTimer - dt);
+    t.atkTimer = Math.max(0, t.atkTimer - dt);
+    if (t.atkTimer <= 0) {
+      // Find nearest enemy unit
+      var best = null, bestD = Infinity;
+      for (var j = 0; j < units.length; j++) {
+        var u = units[j];
+        if (u.team === t.team || !u.alive) continue;
+        var d = dist(t, u);
+        if (d < t.atkRange && d < bestD) { bestD = d; best = u; }
+      }
+      if (best) {
+        t.atkTimer = t.atkSpd;
+        best.hp -= t.atkDmg;
+        best.flashTimer = 0.2;
+        particles.push({ x:best.x, y:best.y, vx:0, vy:-15, life:0.25, color:'#ff8' });
+      }
+    }
+  }
+
+  // Clean dead units
+  for (var i = units.length - 1; i >= 0; i--) {
+    if (!units[i].alive) units.splice(i, 1);
+  }
+
+  // Update particles
+  for (var i = particles.length - 1; i >= 0; i--) {
+    var p = particles[i];
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    p.life -= dt;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+
+  // AI logic
+  updateAI(dt);
+
+  // Check win condition
+  checkWin();
+
+  // Timer up
+  if (timer >= matchTime && !gameOver) {
+    if (suddenDeath) return; // already in sudden death
+    // Count tower HP
+    var pH = 0, aH = 0, pD = 0, aD = 0;
+    for (var i = 0; i < towers.length; i++) {
+      var t = towers[i];
+      if (t.team === 0) { if (!t.alive) aD++; pH += Math.max(0, t.hp); }
+      else { if (!t.alive) pD++; aH += Math.max(0, t.hp); }
+    }
+    if (pD !== aD) {
+      gameOver = true;
+      winner = pD > aD ? 'PLAYER WINS!' : 'AI WINS!';
+    } else if (pH !== aH) {
+      gameOver = true;
+      winner = aH < pH ? 'PLAYER WINS!' : 'AI WINS!';
+    } else {
+      // Sudden death
+      suddenDeath = true;
+      matchTime += 60;
+    }
+  }
+
+  draw();
+}
+
+function checkWin() {
+  // Check if king tower destroyed
+  for (var i = 0; i < towers.length; i++) {
+    var t = towers[i];
+    if (t.king && !t.alive) {
+      gameOver = true;
+      winner = t.team === 1 ? 'PLAYER WINS!' : 'AI WINS!';
+    }
+  }
+}
+
+// ─── AI ───
+var aiTimer = 0;
+function updateAI(dt) {
+  aiTimer += dt;
+  if (aiTimer < 1.5) return; // Think every 1.5 seconds
+  aiTimer = 0;
+
+  if (aiHand.length === 0) return;
+
+  // Evaluate best play
+  var bestIdx = -1, bestScore = -Infinity;
+  for (var i = 0; i < aiHand.length; i++) {
+    var card = CARDS[aiHand[i]];
+    if (card.cost > aiElixir) continue;
+    var score = evaluateAIPlay(aiHand[i]);
+    if (score > bestScore) { bestScore = score; bestIdx = i; }
+  }
+
+  if (bestIdx >= 0 && bestScore > 0) {
+    var cardKey = aiHand[bestIdx];
+    var card = CARDS[cardKey];
+    var pos = getAIDeployPos(cardKey);
+    aiElixir -= card.cost;
+    spawnUnit(cardKey, 1, pos.x, pos.y);
+    aiHand.splice(bestIdx, 1);
+    drawCard(aiHand, aiDeck);
+  }
+}
+
+function evaluateAIPlay(cardKey) {
+  var card = CARDS[cardKey];
+  var score = 0;
+
+  // More aggressive when elixir is high
+  if (aiElixir >= 8) score += 3;
+  else if (aiElixir >= 6) score += 1;
+
+  // Count enemy units on AI's side
+  var threats = 0;
+  for (var i = 0; i < units.length; i++) {
+    if (units[i].team === 0 && units[i].alive && units[i].y < RIVER_Y) threats++;
+  }
+
+  // Defend if threatened
+  if (threats > 0) {
+    if (cardKey === 'fireball') score += 4;
+    if (cardKey === 'skeleton' || cardKey === 'goblin') score += 3;
+    if (cardKey === 'knight' || cardKey === 'pekka') score += 2;
+  }
+
+  // Push if no threats and enough elixir
+  if (threats === 0 && aiElixir >= card.cost + 2) {
+    if (cardKey === 'giant') score += 3;
+    if (cardKey === 'knight') score += 2;
+    if (cardKey === 'musketeer' || cardKey === 'archer') score += 2;
+  }
+
+  // Support existing push
+  var aiUnitsOnField = 0;
+  for (var i = 0; i < units.length; i++) {
+    if (units[i].team === 1 && units[i].alive) aiUnitsOnField++;
+  }
+  if (aiUnitsOnField > 0 && (cardKey === 'archer' || cardKey === 'musketeer')) score += 2;
+
+  // Don't waste elixir at low amounts unless defending
+  if (aiElixir < 4 && threats === 0) score -= 3;
+
+  // Random variance
+  score += Math.random() * 1.5;
+
+  return score;
+}
+
+function getAIDeployPos(cardKey) {
+  var card = CARDS[cardKey];
+  // Deploy on AI's side
+  var y = ARENA_TOP + 80 + Math.random() * 40;
+
+  // Choose lane — prefer lane with more threats
+  var leftThreats = 0, rightThreats = 0;
+  for (var i = 0; i < units.length; i++) {
+    var u = units[i];
+    if (u.team === 0 && u.alive) {
+      if (u.x < LANE_MID) leftThreats++;
+      else rightThreats++;
+    }
+  }
+
+  var x;
+  if (card.spell) {
+    // Target cluster of enemy units
+    var bestX = LANE_MID, bestY = RIVER_Y;
+    var maxNear = 0;
+    for (var i = 0; i < units.length; i++) {
+      var u = units[i];
+      if (u.team !== 0 || !u.alive) continue;
+      var near = 0;
+      for (var j = 0; j < units.length; j++) {
+        if (units[j].team === 0 && units[j].alive && dist(u, units[j]) < 80) near++;
+      }
+      if (near > maxNear) { maxNear = near; bestX = u.x; bestY = u.y; }
+    }
+    return { x: bestX, y: bestY };
+  }
+
+  if (leftThreats > rightThreats) {
+    x = LANE_MID - 70 + Math.random() * 30;
+  } else if (rightThreats > leftThreats) {
+    x = LANE_MID + 40 + Math.random() * 30;
+  } else {
+    x = Math.random() < 0.5 ? LANE_MID - 60 + Math.random() * 20 : LANE_MID + 40 + Math.random() * 20;
+  }
+
+  return { x: x, y: y };
+}
+
+// ─── DRAW ───
+function draw() {
+  X.fillStyle = '#1a3a1a';
+  X.fillRect(0, 0, W, H);
+
+  // Arena background
+  X.fillStyle = '#2a5a2a';
+  X.fillRect(ARENA_LEFT, ARENA_TOP, ARENA_RIGHT - ARENA_LEFT, ARENA_BOTTOM - ARENA_TOP);
+
+  // Lane divider
+  X.strokeStyle = '#1a4a1a';
+  X.lineWidth = 1;
+  X.setLineDash([4, 4]);
+  X.beginPath();
+  X.moveTo(LANE_MID, ARENA_TOP);
+  X.lineTo(LANE_MID, RIVER_Y);
+  X.moveTo(LANE_MID, RIVER_Y + RIVER_H);
+  X.lineTo(LANE_MID, ARENA_BOTTOM);
+  X.stroke();
+  X.setLineDash([]);
+
+  // River
+  X.fillStyle = '#2244aa';
+  X.fillRect(ARENA_LEFT, RIVER_Y, ARENA_RIGHT - ARENA_LEFT, RIVER_H);
+  // River shimmer
+  X.fillStyle = '#3366cc';
+  for (var rx = ARENA_LEFT; rx < ARENA_RIGHT; rx += 12) {
+    var sy = Math.sin(timer * 2 + rx * 0.1) * 2;
+    X.fillRect(rx, RIVER_Y + 4 + sy, 6, 2);
+  }
+
+  // Bridges
+  X.fillStyle = '#8b7355';
+  X.fillRect(BRIDGE1_X, RIVER_Y - 2, BRIDGE_W, RIVER_H + 4);
+  X.fillRect(BRIDGE2_X, RIVER_Y - 2, BRIDGE_W, RIVER_H + 4);
+  X.strokeStyle = '#6b5335';
+  X.lineWidth = 2;
+  X.strokeRect(BRIDGE1_X, RIVER_Y - 2, BRIDGE_W, RIVER_H + 4);
+  X.strokeRect(BRIDGE2_X, RIVER_Y - 2, BRIDGE_W, RIVER_H + 4);
+
+  // Towers
+  for (var i = 0; i < towers.length; i++) {
+    var t = towers[i];
+    if (!t.alive) {
+      X.fillStyle = '#444';
+      X.fillRect(t.x - t.w/2, t.y - t.h/2, t.w, t.h);
+      X.strokeStyle = '#333';
+      X.lineWidth = 1;
+      X.strokeRect(t.x - t.w/2, t.y - t.h/2, t.w, t.h);
+      continue;
+    }
+    var c = t.team === 0 ? (t.flashTimer > 0 ? '#fff' : '#4488ff') : (t.flashTimer > 0 ? '#fff' : '#ff4444');
+    X.fillStyle = c;
+    X.fillRect(t.x - t.w/2, t.y - t.h/2, t.w, t.h);
+    X.strokeStyle = t.team === 0 ? '#2266dd' : '#cc2222';
+    X.lineWidth = 2;
+    X.strokeRect(t.x - t.w/2, t.y - t.h/2, t.w, t.h);
+
+    // Crown on king tower
+    if (t.king) {
+      X.fillStyle = '#ff0';
+      X.font = '14px monospace';
+      X.textAlign = 'center';
+      X.fillText('\u265A', t.x, t.y - t.h/2 + 14);
+    }
+
+    // HP bar
+    var bw = t.w + 4;
+    var bhp = Math.max(0, t.hp / t.maxHp);
+    X.fillStyle = '#300';
+    X.fillRect(t.x - bw/2, t.y - t.h/2 - 8, bw, 4);
+    X.fillStyle = bhp > 0.5 ? '#0a0' : bhp > 0.25 ? '#aa0' : '#a00';
+    X.fillRect(t.x - bw/2, t.y - t.h/2 - 8, bw * bhp, 4);
+  }
+
+  // Spells
+  for (var i = 0; i < spells.length; i++) {
+    var s = spells[i];
+    X.globalAlpha = s.timer;
+    X.fillStyle = '#f60';
+    X.beginPath();
+    X.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
+    X.fill();
+    X.globalAlpha = 1;
+  }
+
+  // Units
+  for (var i = 0; i < units.length; i++) {
+    var u = units[i];
+    if (!u.alive) continue;
+    var sz = u.size;
+    X.fillStyle = u.flashTimer > 0 ? '#fff' : u.color;
+    X.beginPath();
+    X.arc(u.x, u.y, sz, 0, Math.PI * 2);
+    X.fill();
+    // Team indicator ring
+    X.strokeStyle = u.team === 0 ? '#4488ff' : '#ff4444';
+    X.lineWidth = 1.5;
+    X.stroke();
+    // HP bar
+    if (u.hp < u.maxHp) {
+      var bw = sz * 2 + 4;
+      var bhp = Math.max(0, u.hp / u.maxHp);
+      X.fillStyle = '#300';
+      X.fillRect(u.x - bw/2, u.y - sz - 7, bw, 3);
+      X.fillStyle = bhp > 0.5 ? '#0a0' : '#a00';
+      X.fillRect(u.x - bw/2, u.y - sz - 7, bw * bhp, 3);
+    }
+    // Icon
+    X.fillStyle = '#000';
+    X.font = (sz > 6 ? '9' : '7') + 'px monospace';
+    X.textAlign = 'center';
+    X.textBaseline = 'middle';
+    X.fillText(u.icon, u.x, u.y + 1);
+  }
+
+  // Particles
+  for (var i = 0; i < particles.length; i++) {
+    var p = particles[i];
+    X.globalAlpha = p.life;
+    X.fillStyle = p.color;
+    X.fillRect(p.x - 2, p.y - 2, 4, 4);
+  }
+  X.globalAlpha = 1;
+
+  // Deploy preview
+  if (selectedCard >= 0 && deployPreview && mouseY >= RIVER_Y + RIVER_H && mouseY <= ARENA_BOTTOM && mouseX >= ARENA_LEFT && mouseX <= ARENA_RIGHT) {
+    X.strokeStyle = 'rgba(100,200,255,0.5)';
+    X.lineWidth = 2;
+    X.setLineDash([4, 4]);
+    X.beginPath();
+    X.arc(mouseX, mouseY, 20, 0, Math.PI * 2);
+    X.stroke();
+    X.setLineDash([]);
+  }
+
+  // ─── UI ───
+  // Elixir bar
+  var barX = ARENA_LEFT, barY = ARENA_BOTTOM + 8, barW = ARENA_RIGHT - ARENA_LEFT, barH = 14;
+  X.fillStyle = '#201';
+  X.fillRect(barX, barY, barW, barH);
+  X.fillStyle = '#c4f';
+  X.fillRect(barX, barY, barW * (playerElixir / ELIXIR_MAX), barH);
+  X.strokeStyle = '#808';
+  X.lineWidth = 1;
+  X.strokeRect(barX, barY, barW, barH);
+  X.fillStyle = '#fff';
+  X.font = '11px monospace';
+  X.textAlign = 'center';
+  X.textBaseline = 'middle';
+  X.fillText('ELIXIR: ' + Math.floor(playerElixir) + '/' + ELIXIR_MAX, barX + barW/2, barY + barH/2);
+
+  // Card hand
+  var cardW = 90, cardH = 55, cardGap = 8;
+  var handX = ARENA_LEFT + (barW - (cardW * 4 + cardGap * 3)) / 2;
+  var handY = ARENA_BOTTOM + 28;
+  for (var i = 0; i < playerHand.length; i++) {
+    var card = CARDS[playerHand[i]];
+    var cx = handX + i * (cardW + cardGap);
+    var sel = (selectedCard === i);
+    var canAfford = playerElixir >= card.cost;
+
+    X.fillStyle = sel ? '#335' : (canAfford ? '#223' : '#111');
+    X.fillRect(cx, handY, cardW, cardH);
+    X.strokeStyle = sel ? '#8bf' : (canAfford ? '#556' : '#333');
+    X.lineWidth = sel ? 2 : 1;
+    X.strokeRect(cx, handY, cardW, cardH);
+
+    // Card icon
+    X.fillStyle = canAfford ? card.color : '#555';
+    X.font = '18px monospace';
+    X.textAlign = 'center';
+    X.fillText(card.icon, cx + cardW/2, handY + 20);
+
+    // Card name
+    X.fillStyle = canAfford ? '#ccc' : '#555';
+    X.font = '9px monospace';
+    X.fillText(card.name, cx + cardW/2, handY + 36);
+
+    // Cost
+    X.fillStyle = canAfford ? '#c4f' : '#535';
+    X.font = 'bold 11px monospace';
+    X.textAlign = 'left';
+    X.fillText(card.cost, cx + 4, handY + 12);
+  }
+
+  // Timer
+  var rem = Math.max(0, matchTime - timer);
+  var min = Math.floor(rem / 60);
+  var sec = Math.floor(rem % 60);
+  X.fillStyle = doubleElixir ? '#f84' : '#fff';
+  X.font = '16px monospace';
+  X.textAlign = 'center';
+  X.fillText(min + ':' + (sec < 10 ? '0' : '') + sec, W/2, ARENA_TOP - 8);
+  if (doubleElixir) {
+    X.fillStyle = '#f60';
+    X.font = '10px monospace';
+    X.fillText('x2 ELIXIR', W/2, ARENA_TOP - 20);
+  }
+  if (suddenDeath) {
+    X.fillStyle = '#f00';
+    X.font = '12px monospace';
+    X.fillText('SUDDEN DEATH', W/2, ARENA_TOP + 10);
+  }
+
+  // Side labels
+  X.fillStyle = '#4488ff';
+  X.font = '11px monospace';
+  X.textAlign = 'left';
+  X.fillText('PLAYER', ARENA_LEFT, ARENA_BOTTOM + 4);
+  X.fillStyle = '#ff4444';
+  X.fillText('AI', ARENA_LEFT, ARENA_TOP - 4);
+
+  // Tower HP on sides
+  X.font = '9px monospace';
+  X.textAlign = 'right';
+  for (var i = 0; i < towers.length; i++) {
+    var t = towers[i];
+    var lbl = (t.king ? 'K' : 'T') + ':' + (t.alive ? Math.max(0, Math.floor(t.hp)) : 'X');
+    X.fillStyle = t.team === 0 ? '#4488ff' : '#ff4444';
+    var tx = t.team === 0 ? ARENA_LEFT - 6 : ARENA_RIGHT + 56;
+    var ty = t.y + 4;
+    X.textAlign = t.team === 0 ? 'right' : 'left';
+    X.fillText(lbl, tx, ty);
+  }
+
+  // Controls hint
+  X.fillStyle = '#555';
+  X.font = '10px monospace';
+  X.textAlign = 'left';
+  X.fillText('R: Restart  ?: Info', 10, H - 8);
+
+  // Game over
+  if (gameOver) {
+    X.fillStyle = 'rgba(0,0,0,0.7)';
+    X.fillRect(0, 0, W, H);
+    X.fillStyle = winner.indexOf('PLAYER') >= 0 ? '#4f4' : '#f44';
+    X.font = 'bold 36px monospace';
+    X.textAlign = 'center';
+    X.fillText(winner, W/2, H/2 - 20);
+    X.fillStyle = '#aaa';
+    X.font = '16px monospace';
+    X.fillText('Press R to restart', W/2, H/2 + 20);
+  }
+}
+
+// ─── INPUT ───
+var mouseX = 0, mouseY = 0;
+C.addEventListener('mousemove', function(e) {
+  var r = C.getBoundingClientRect();
+  mouseX = (e.clientX - r.left) * (W / r.width);
+  mouseY = (e.clientY - r.top) * (H / r.height);
+  if (selectedCard >= 0) deployPreview = true;
+});
+
+C.addEventListener('click', function(e) {
+  if (gameOver || infoOpen) return;
+  var r = C.getBoundingClientRect();
+  var mx = (e.clientX - r.left) * (W / r.width);
+  var my = (e.clientY - r.top) * (H / r.height);
+
+  // Check card clicks
+  var cardW = 90, cardH = 55, cardGap = 8;
+  var barW = ARENA_RIGHT - ARENA_LEFT;
+  var handX = ARENA_LEFT + (barW - (cardW * 4 + cardGap * 3)) / 2;
+  var handY = ARENA_BOTTOM + 28;
+
+  for (var i = 0; i < playerHand.length; i++) {
+    var cx = handX + i * (cardW + cardGap);
+    if (mx >= cx && mx <= cx + cardW && my >= handY && my <= handY + cardH) {
+      if (selectedCard === i) {
+        selectedCard = -1;
+        deployPreview = false;
+      } else {
+        selectedCard = i;
+        deployPreview = false;
+      }
+      return;
+    }
+  }
+
+  // Deploy unit if card selected and clicking on player's side
+  if (selectedCard >= 0 && selectedCard < playerHand.length) {
+    var cardKey = playerHand[selectedCard];
+    var card = CARDS[cardKey];
+
+    // Spells can be deployed anywhere in arena
+    if (card.spell) {
+      if (mx >= ARENA_LEFT && mx <= ARENA_RIGHT && my >= ARENA_TOP && my <= ARENA_BOTTOM) {
+        if (playerElixir >= card.cost) {
+          playerElixir -= card.cost;
+          spawnUnit(cardKey, 0, mx, my);
+          playerHand.splice(selectedCard, 1);
+          drawCard(playerHand, playerDeck);
+          selectedCard = -1;
+          deployPreview = false;
+        }
+      }
+    } else {
+      // Units deploy on player side (below river)
+      if (mx >= ARENA_LEFT && mx <= ARENA_RIGHT && my >= RIVER_Y + RIVER_H && my <= ARENA_BOTTOM - 20) {
+        if (playerElixir >= card.cost) {
+          playerElixir -= card.cost;
+          spawnUnit(cardKey, 0, mx, my);
+          playerHand.splice(selectedCard, 1);
+          drawCard(playerHand, playerDeck);
+          selectedCard = -1;
+          deployPreview = false;
+        }
+      }
+    }
+  }
+});
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
+    toggleInfo();
+    e.preventDefault();
+  } else if (e.key === 'Escape') {
+    if (infoOpen) { toggleInfo(); e.preventDefault(); }
+  } else if (!infoOpen) {
+    if (e.key === 'r' || e.key === 'R') { initGame(); }
+    if ([' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault();
+  }
+});
+
+// ─── START ───
+initGame();
+requestAnimationFrame(update);
+</script>
+</body>
+</html>

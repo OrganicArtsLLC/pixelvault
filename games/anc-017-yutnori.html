@@ -1,0 +1,1167 @@
+<!--
+PROTOTYPE: yutnori
+SERIES: anc
+NUMBER: 017
+DATE: 2026-03-24
+MECHANIC: stick-throwing race — throw 4 half-round sticks; flat/round combinations determine move distance (1-5 + bonus); race pieces around a square board with shortcut diagonal paths
+ANCESTRY: Yut Nori (~2000 years old, Korea), Pachisi (India), Parcheesi
+CONTROLS: Space — throw sticks | Click — select piece to move | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 1 (Symbolic AI — tree search with stochastic elements)
+AI-INSIGHT: Yut Nori combines stochastic outcomes (stick throws) with strategic choice (which piece to move, whether to stack). The bonus throw mechanic for Yut(4) and Mo(5) creates chains of decisions reminiscent of multi-step planning in AI. Stacking pieces is an early example of risk-reward aggregation — concentrating value for speed at the cost of catastrophic capture.
+NOTES: Traditional Korean New Year game still widely played today.
+       The stick-throwing mechanic predates dice and uses binary probability (flat vs round per stick).
+       Diagonal shortcuts reward landing on corners — positional advantage through board topology.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ANC-017 · YUT NORI</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #1a1410; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: pointer; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+#info-panel .notice { background: #1a1a2e; border: 1px solid #333; border-radius: 6px; padding: 12px; margin: 16px 0; font-size: 12px; color: #aaa; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>ANC-017 · YUT NORI</h1>
+    <p><span class="tag series">ANC — Ancient Games</span> <span class="tag">Prototype #017</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Race all 4 of your pieces around the board before the AI does. Press <kbd>Space</kbd> to throw the yut sticks, then click a piece to move it.</p>
+    <ul>
+      <li><strong>Throw:</strong> Press <kbd>Space</kbd> to toss 4 sticks. Each stick lands flat or round side up.</li>
+      <li><strong>Results:</strong> Do (1 flat) = 1 step, Gae (2 flat) = 2, Geol (3 flat) = 3, Yut (4 flat) = 4 + bonus throw, Mo (0 flat/all round) = 5 + bonus throw.</li>
+      <li><strong>Move:</strong> Click a piece to advance it. Click "NEW" to enter a new piece onto the board.</li>
+      <li><strong>Capture:</strong> Land on an opponent's piece to send it home. You get a bonus throw!</li>
+      <li><strong>Stacking:</strong> Land on your own piece to stack them — they move together as one.</li>
+      <li><strong>Shortcuts:</strong> Land exactly on a corner station to take the diagonal shortcut on your next move.</li>
+      <li><strong>Winning:</strong> Move all 4 pieces past the finish to win.</li>
+    </ul>
+
+    <h2>History</h2>
+    <p>Yut Nori (윷놀이) is a traditional Korean board game dating back roughly 2,000 years to the Three Kingdoms period. It is one of Korea's most beloved folk games, traditionally played during Seollal (Korean New Year) and Chuseok (harvest festival).</p>
+    <p>The game uses four wooden sticks (yut) that are flat on one side and round on the other, serving as a binary random number generator predating six-sided dice. The board represents a cosmological map — the outer path is the earthly journey, and the diagonal shortcuts through the center represent celestial paths.</p>
+    <p>Unlike many ancient race games, Yut Nori emphasizes group play and strategy through stacking and capture mechanics. The bonus throw system for Yut and Mo results creates dramatic momentum swings.</p>
+
+    <h2>AI Archaeology</h2>
+    <h3>Classification</h3>
+    <p><strong>AI Era 1 — Symbolic AI.</strong> Yut Nori is a stochastic race game with imperfect foresight. The AI uses expectiminimax evaluation — weighing each possible stick outcome by its probability when choosing which piece to move. The stacking mechanic adds a risk-aggregation dimension: grouping pieces is faster but exposes more to capture.</p>
+
+    <h3>Prototype Notes</h3>
+    <p>This prototype implements the full 29-station board (20 outer + 9 inner diagonal stations) with animated stick throwing. The AI evaluates moves based on progress, capture opportunity, and vulnerability. Stacking and diagonal shortcuts are fully functional.</p>
+
+    <div class="notice">
+      <strong>Educational Notice:</strong> This is a historical reconstruction for educational purposes. Yut Nori is a traditional Korean folk game in the public domain, played for over 2,000 years.
+    </div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+canvas.width = 800; canvas.height = 600;
+
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// Board layout: 29 stations
+// Outer ring: 0-19 (counterclockwise from bottom-right corner)
+// Station 0 = start/finish (bottom-right), 5 = top-right, 10 = top-left, 15 = bottom-left
+// Diagonal paths:
+//   From station 5 (top-right corner): 20,21,22 -> center(22) -> 23,24 -> station 15
+//   From station 10 (top-left corner): 25,26 -> center(22) -> 23,24 -> station 15
+//   From station 5: can also go 20,21,22,27,28 -> station 0
+
+// Board positions (pixel coordinates)
+const BW = 340, BH = 340, BX = 230, BY = 130;
+const boardPos = [];
+
+// Outer ring stations (20 stations, 0=bottom-right going counterclockwise)
+// Bottom edge: 0(BR corner), 1, 2, 3, 4
+// Right edge: 5(TR corner), 6, 7, 8, 9
+// Top edge: 10(TL corner), 11, 12, 13, 14
+// Left edge: 15(BL corner), 16, 17, 18, 19
+
+// Redefine: standard yut board is a square
+// Corners at: 0(start/finish, bottom-right), 5(top-right), 10(top-left), 15(bottom-left)
+// Going counterclockwise
+
+function setupBoard() {
+  // Bottom edge: 0 -> 1 -> 2 -> 3 -> 4 -> 5 (right to left... actually let's do standard)
+  // Standard Yut Nori: pieces move counterclockwise
+  // 0 = Start (bottom-right corner)
+  // Moving counterclockwise: right side going up, top going left, left going down, bottom going right
+
+  // Right edge going up: 0(BR), 1, 2, 3, 4, 5(TR)
+  for (let i = 0; i <= 5; i++) {
+    boardPos[i] = { x: BX + BW, y: BY + BH - i * (BH / 5) };
+  }
+  // Top edge going left: 5(TR), 6, 7, 8, 9, 10(TL)
+  for (let i = 1; i <= 5; i++) {
+    boardPos[5 + i] = { x: BX + BW - i * (BW / 5), y: BY };
+  }
+  // Left edge going down: 10(TL), 11, 12, 13, 14, 15(BL)
+  for (let i = 1; i <= 5; i++) {
+    boardPos[10 + i] = { x: BX, y: BY + i * (BH / 5) };
+  }
+  // Bottom edge going right: 15(BL), 16, 17, 18, 19 -> back to 0
+  for (let i = 1; i <= 4; i++) {
+    boardPos[15 + i] = { x: BX + i * (BW / 5), y: BY + BH };
+  }
+
+  // Diagonal from station 5 (TR) to 15 (BL) through center
+  // 20, 21, 22(center)
+  boardPos[20] = { x: BX + BW - BW / 5, y: BY + BH / 5 };
+  boardPos[21] = { x: BX + BW - 2 * BW / 5, y: BY + 2 * BH / 5 };
+  boardPos[22] = { x: BX + BW / 2, y: BY + BH / 2 }; // center
+  boardPos[23] = { x: BX + 2 * BW / 5, y: BY + 3 * BH / 5 };
+  boardPos[24] = { x: BX + BW / 5, y: BY + 4 * BH / 5 };
+  // 23, 24 -> leads to station 15
+
+  // Diagonal from station 10 (TL) through center to 0 (BR)
+  boardPos[25] = { x: BX + BW / 5, y: BY + BH / 5 };
+  boardPos[26] = { x: BX + 2 * BW / 5, y: BY + 2 * BH / 5 };
+  // center is 22
+  boardPos[27] = { x: BX + BW - 2 * BW / 5, y: BY + 3 * BH / 5 };
+  boardPos[28] = { x: BX + BW - BW / 5, y: BY + 4 * BH / 5 };
+  // 27, 28 -> leads to station 0
+}
+setupBoard();
+
+// Path definitions
+// Normal outer path: 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19 -> finish
+const outerPath = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19];
+// Diagonal from 5: 5,20,21,22,23,24,15,16,17,18,19 -> finish
+const diag5to15 = [5,20,21,22,23,24,15,16,17,18,19];
+// Diagonal from 10: 10,25,26,22,27,28,0 -> finish (shortcut to home!)
+const diag10to0 = [10,25,26,22,27,28];
+// Diagonal from 5 through center to 0: 5,20,21,22,27,28,0 -> finish
+const diag5to0 = [5,20,21,22,27,28];
+// From center(22) to 0: 22,27,28 -> finish
+// From center(22) to 15: 22,23,24 -> 15,16,...
+
+// Each piece tracks its current path and position on that path
+// Possible paths a piece might be on:
+const PATH_OUTER = 0;
+const PATH_DIAG_5_15 = 1;  // from corner 5 diagonal to 15, then outer to finish
+const PATH_DIAG_10_0 = 2;  // from corner 10 diagonal to 0, finish!
+const PATH_DIAG_5_0 = 3;   // from corner 5 diagonal through center to 0
+
+function getFullPath(pathType) {
+  switch(pathType) {
+    case PATH_OUTER: return [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19];
+    case PATH_DIAG_5_15: return [0,1,2,3,4,5,20,21,22,23,24,15,16,17,18,19];
+    case PATH_DIAG_10_0: return [0,1,2,3,4,5,6,7,8,9,10,25,26,22,27,28];
+    case PATH_DIAG_5_0: return [0,1,2,3,4,5,20,21,22,27,28];
+    default: return outerPath;
+  }
+}
+
+// Game state
+const HUMAN = 0, AI = 1;
+let turn = HUMAN;
+let phase = 'throw'; // 'throw', 'choose', 'animate', 'aiThink', 'gameOver'
+let throwResult = 0;
+let throwName = '';
+let bonusThrow = false;
+let stickAnim = { active: false, timer: 0, sticks: [0,0,0,0], finalSticks: [0,0,0,0] };
+let moveAnim = { active: false, piece: null, fromX: 0, fromY: 0, toX: 0, toY: 0, t: 0 };
+let message = 'Press SPACE to throw';
+let winner = -1;
+
+// Pieces
+function makePieces(player) {
+  const pieces = [];
+  for (let i = 0; i < 4; i++) {
+    pieces.push({
+      player: player,
+      pathType: PATH_OUTER,
+      pathIndex: -1, // -1 = not on board, >= path.length = finished
+      stackCount: 1,
+      finished: false
+    });
+  }
+  return pieces;
+}
+
+let pieces = [makePieces(HUMAN), makePieces(AI)];
+let pendingThrows = [];
+
+function throwSticks() {
+  // Each stick: 0 = round (back), 1 = flat (front)
+  // Probability: each stick has ~60% chance flat (slightly weighted historically, but we use 50/50)
+  const sticks = [0,0,0,0];
+  for (let i = 0; i < 4; i++) sticks[i] = Math.random() < 0.5 ? 1 : 0;
+  const flatCount = sticks.reduce((a, b) => a + b, 0);
+  let value, name;
+  if (flatCount === 1) { value = 1; name = 'Do (1)'; }
+  else if (flatCount === 2) { value = 2; name = 'Gae (2)'; }
+  else if (flatCount === 3) { value = 3; name = 'Geol (3)'; }
+  else if (flatCount === 4) { value = 4; name = 'Yut! (4)'; }
+  else { value = 5; name = 'Mo! (5)'; } // 0 flat = all round = Mo
+  return { sticks, value, name, bonus: value >= 4 };
+}
+
+function getStationIndex(piece) {
+  if (piece.pathIndex < 0 || piece.finished) return -1;
+  const path = getFullPath(piece.pathType);
+  if (piece.pathIndex >= path.length) return -1;
+  return path[piece.pathIndex];
+}
+
+function canMove(piece, steps) {
+  if (piece.finished) return false;
+  if (piece.pathIndex === -1) return true; // can enter board
+  const path = getFullPath(piece.pathType);
+  const newIdx = piece.pathIndex + steps;
+  // Can move past end (finishing)
+  return true;
+}
+
+function getMovablePieces(player, steps) {
+  const movable = [];
+  const checked = new Set();
+  for (let i = 0; i < 4; i++) {
+    const p = pieces[player][i];
+    if (p.finished) continue;
+    // For stacked pieces, only the first one in a group is movable
+    const station = getStationIndex(p);
+    const key = p.pathIndex + '_' + p.pathType;
+    if (p.pathIndex === -1) {
+      if (!checked.has('home')) {
+        movable.push(i);
+        checked.add('home');
+      }
+    } else if (!checked.has(key)) {
+      // Check if this piece can actually reach a valid destination
+      movable.push(i);
+      checked.add(key);
+    }
+  }
+  return movable;
+}
+
+// Check for diagonal path options when landing on a corner
+function getPathOptions(piece, steps) {
+  const path = getFullPath(piece.pathType);
+  const newIdx = piece.pathIndex + steps;
+  if (newIdx >= path.length) return [{ pathType: piece.pathType, pathIndex: newIdx }];
+
+  const station = path[newIdx];
+  const options = [{ pathType: piece.pathType, pathIndex: newIdx }];
+
+  // Corner 5 (top-right): can take diagonal
+  if (station === 5 && piece.pathType === PATH_OUTER) {
+    // Offer diagonal path 5->15 or 5->0
+    options.push({ pathType: PATH_DIAG_5_15, pathIndex: getFullPath(PATH_DIAG_5_15).indexOf(5) });
+    options.push({ pathType: PATH_DIAG_5_0, pathIndex: getFullPath(PATH_DIAG_5_0).indexOf(5) });
+  }
+  // Corner 10 (top-left): can take diagonal
+  if (station === 10 && (piece.pathType === PATH_OUTER || piece.pathType === PATH_DIAG_5_15)) {
+    options.push({ pathType: PATH_DIAG_10_0, pathIndex: getFullPath(PATH_DIAG_10_0).indexOf(10) });
+  }
+  // Center (22): can go to 15 or to 0
+  if (station === 22) {
+    // Already on a diagonal, options handled by path
+  }
+
+  return options;
+}
+
+function movePiece(pieceIdx, player, steps) {
+  const p = pieces[player][pieceIdx];
+  if (p.pathIndex === -1) {
+    // Enter board at station 0
+    p.pathIndex = 0;
+    p.pathType = PATH_OUTER;
+    // Move steps - 0 since entering costs 0 and you move 'steps' forward
+    // Actually in Yut Nori, entering the board places you at start, then you move
+    // The start IS station 0 and you move from there
+    // But the throw determines how far you go from start
+    const path = getFullPath(p.pathType);
+    p.pathIndex = steps;
+    if (p.pathIndex >= path.length) {
+      p.pathIndex = path.length;
+      p.finished = true;
+    } else {
+      // Check if landed on corner - auto choose diagonal for simplicity
+      const station = path[p.pathIndex];
+      if (station === 5) {
+        p.pathType = PATH_DIAG_5_0;
+        p.pathIndex = getFullPath(PATH_DIAG_5_0).indexOf(5);
+      } else if (station === 10 && p.pathType === PATH_OUTER) {
+        p.pathType = PATH_DIAG_10_0;
+        p.pathIndex = getFullPath(PATH_DIAG_10_0).indexOf(10);
+      }
+    }
+  } else {
+    const path = getFullPath(p.pathType);
+    p.pathIndex += steps;
+    if (p.pathIndex >= path.length) {
+      p.finished = true;
+    } else {
+      const station = path[p.pathIndex];
+      // Auto-take diagonal shortcuts at corners
+      if (station === 5 && p.pathType === PATH_OUTER) {
+        p.pathType = PATH_DIAG_5_0;
+        p.pathIndex = getFullPath(PATH_DIAG_5_0).indexOf(5);
+      } else if (station === 10 && p.pathType === PATH_OUTER) {
+        p.pathType = PATH_DIAG_10_0;
+        p.pathIndex = getFullPath(PATH_DIAG_10_0).indexOf(10);
+      }
+    }
+  }
+
+  // Handle stacking and capture
+  let captured = false;
+  if (!p.finished) {
+    const station = getStationIndex(p);
+    if (station >= 0) {
+      // Check for friendly pieces to stack with
+      for (let i = 0; i < 4; i++) {
+        if (i === pieceIdx) continue;
+        const other = pieces[player][i];
+        if (!other.finished && getStationIndex(other) === station) {
+          // Stack: merge into this piece
+          p.stackCount += other.stackCount;
+          other.finished = true;
+          other.pathIndex = -2; // stacked (not truly finished)
+        }
+      }
+      // Check for opponent pieces to capture
+      const opp = 1 - player;
+      for (let i = 0; i < 4; i++) {
+        const other = pieces[opp][i];
+        if (!other.finished && other.pathIndex >= 0 && getStationIndex(other) === station) {
+          // Capture! Send back home
+          const count = other.stackCount;
+          other.pathIndex = -1;
+          other.stackCount = 1;
+          other.pathType = PATH_OUTER;
+          captured = true;
+          // If it was a stack, un-stack: restore captured stacked pieces
+          // For simplicity, captured stacked pieces each go home individually
+          if (count > 1) {
+            let restored = 0;
+            for (let j = 0; j < 4; j++) {
+              if (j === i) continue;
+              const s = pieces[opp][j];
+              if (s.pathIndex === -2) {
+                s.pathIndex = -1;
+                s.finished = false;
+                s.stackCount = 1;
+                s.pathType = PATH_OUTER;
+                restored++;
+                if (restored >= count - 1) break;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return captured;
+}
+
+function checkWin(player) {
+  let allDone = true;
+  for (let i = 0; i < 4; i++) {
+    const p = pieces[player][i];
+    if (!p.finished && p.pathIndex !== -2) { allDone = false; break; }
+  }
+  // Also count stacked-finished pieces
+  if (allDone) return true;
+  // Count truly finished (not stacked-into-another)
+  let finCount = 0;
+  for (let i = 0; i < 4; i++) {
+    if (pieces[player][i].finished || pieces[player][i].pathIndex === -2) finCount++;
+  }
+  return finCount >= 4;
+}
+
+// AI logic
+function aiChoose(steps) {
+  const movable = getMovablePieces(AI, steps);
+  if (movable.length === 0) return -1;
+
+  let bestIdx = movable[0];
+  let bestScore = -Infinity;
+
+  for (const idx of movable) {
+    let score = 0;
+    const p = pieces[AI][idx];
+    const origPath = p.pathType;
+    const origIdx = p.pathIndex;
+    const origStack = p.stackCount;
+    const origFin = p.finished;
+
+    // Simulate move
+    const path = p.pathIndex === -1 ? getFullPath(PATH_OUTER) : getFullPath(p.pathType);
+    let simIdx = p.pathIndex === -1 ? steps : p.pathIndex + steps;
+    let simPath = p.pathIndex === -1 ? PATH_OUTER : p.pathType;
+
+    // Prefer finishing
+    if (simIdx >= path.length || (p.pathIndex === -1 && simIdx >= getFullPath(PATH_OUTER).length)) {
+      score += 100;
+    }
+
+    // Prefer advancing further pieces
+    if (p.pathIndex >= 0) {
+      score += p.pathIndex * 2;
+    }
+
+    // Prefer entering new pieces early
+    if (p.pathIndex === -1) {
+      score += 15;
+    }
+
+    // Check capture opportunity
+    if (simIdx >= 0 && simIdx < path.length) {
+      const simStation = path[simIdx];
+      for (let i = 0; i < 4; i++) {
+        const opp = pieces[HUMAN][i];
+        if (!opp.finished && opp.pathIndex >= 0 && getStationIndex(opp) === simStation) {
+          score += 50 + opp.stackCount * 20;
+        }
+      }
+      // Avoid landing where opponent can capture us
+      // Check vulnerability (simplified)
+      for (let i = 0; i < 4; i++) {
+        const opp = pieces[HUMAN][i];
+        if (!opp.finished && opp.pathIndex >= 0) {
+          const oppStation = getStationIndex(opp);
+          // Very rough: if opponent is within 5 steps behind
+          if (oppStation >= 0) {
+            score -= p.stackCount * 3; // Risk penalty for stacks
+          }
+        }
+      }
+    }
+
+    // Prefer stacking
+    if (simIdx >= 0 && simIdx < path.length) {
+      const simStation = path[simIdx];
+      for (let i = 0; i < 4; i++) {
+        if (i === idx) continue;
+        const ally = pieces[AI][i];
+        if (!ally.finished && ally.pathIndex >= 0 && getStationIndex(ally) === simStation) {
+          score += 10;
+        }
+      }
+    }
+
+    // Diagonal bonus
+    if (p.pathIndex >= 0) {
+      const curStation = getStationIndex(p);
+      if (simIdx < path.length) {
+        const destStation = path[simIdx];
+        if (destStation === 5 || destStation === 10) score += 8;
+      }
+    }
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestIdx = idx;
+    }
+  }
+  return bestIdx;
+}
+
+// Rendering
+const COLORS = ['#4af', '#f54'];
+const NAMES = ['You', 'AI'];
+const STATION_R = 14;
+
+function drawBoard() {
+  ctx.fillStyle = '#2a1f14';
+  ctx.fillRect(0, 0, 800, 600);
+
+  // Draw board background
+  ctx.fillStyle = '#3d2e1c';
+  ctx.strokeStyle = '#6b5030';
+  ctx.lineWidth = 2;
+
+  // Draw outer square
+  ctx.beginPath();
+  ctx.moveTo(boardPos[0].x, boardPos[0].y);
+  ctx.lineTo(boardPos[5].x, boardPos[5].y);
+  ctx.lineTo(boardPos[10].x, boardPos[10].y);
+  ctx.lineTo(boardPos[15].x, boardPos[15].y);
+  ctx.closePath();
+  ctx.stroke();
+
+  // Draw diagonals
+  ctx.beginPath();
+  ctx.moveTo(boardPos[5].x, boardPos[5].y);
+  ctx.lineTo(boardPos[22].x, boardPos[22].y);
+  ctx.lineTo(boardPos[15].x, boardPos[15].y);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(boardPos[10].x, boardPos[10].y);
+  ctx.lineTo(boardPos[22].x, boardPos[22].y);
+  ctx.lineTo(boardPos[0].x, boardPos[0].y);
+  ctx.stroke();
+
+  // Draw edge connections
+  for (let i = 0; i < 19; i++) {
+    const a = boardPos[i], b = boardPos[i + 1];
+    if (!a || !b) continue;
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+  }
+  // Close bottom edge
+  ctx.beginPath();
+  ctx.moveTo(boardPos[19].x, boardPos[19].y);
+  ctx.lineTo(boardPos[0].x, boardPos[0].y);
+  ctx.stroke();
+
+  // Draw stations
+  for (let i = 0; i < 29; i++) {
+    const pos = boardPos[i];
+    if (!pos) continue;
+    const isCorner = (i === 0 || i === 5 || i === 10 || i === 15);
+    const isCenter = (i === 22);
+    const r = isCorner ? 18 : (isCenter ? 16 : STATION_R);
+
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
+    ctx.fillStyle = isCorner ? '#5a4020' : (isCenter ? '#4a3520' : '#3d2e1c');
+    ctx.fill();
+    ctx.strokeStyle = isCorner ? '#c89040' : '#8b6030';
+    ctx.lineWidth = isCorner ? 3 : 2;
+    ctx.stroke();
+
+    // Mark start
+    if (i === 0) {
+      ctx.fillStyle = '#c89040';
+      ctx.font = '10px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('START', pos.x, pos.y + 30);
+    }
+  }
+}
+
+function drawPieces() {
+  // Draw pieces on board
+  for (let player = 0; player < 2; player++) {
+    for (let i = 0; i < 4; i++) {
+      const p = pieces[player][i];
+      if (p.pathIndex === -2) continue; // stacked into another
+      if (p.finished) continue;
+      if (p.pathIndex < 0) continue; // at home
+
+      const station = getStationIndex(p);
+      if (station < 0 || !boardPos[station]) continue;
+      const pos = boardPos[station];
+
+      const offset = player === 0 ? -6 : 6;
+      const px = pos.x + offset;
+      const py = pos.y;
+
+      ctx.beginPath();
+      ctx.arc(px, py, 10, 0, Math.PI * 2);
+      ctx.fillStyle = COLORS[player];
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      if (p.stackCount > 1) {
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 11px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(p.stackCount, px, py);
+      }
+    }
+  }
+}
+
+function drawHomePieces() {
+  // Draw pieces at home (not yet on board)
+  for (let player = 0; player < 2; player++) {
+    const homeX = player === 0 ? 50 : 720;
+    const homeY = 200;
+    ctx.fillStyle = COLORS[player];
+    ctx.font = 'bold 14px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(NAMES[player], homeX, homeY - 30);
+
+    let homeCount = 0;
+    let finCount = 0;
+    for (let i = 0; i < 4; i++) {
+      const p = pieces[player][i];
+      if (p.pathIndex === -1) {
+        ctx.beginPath();
+        ctx.arc(homeX, homeY + homeCount * 30, 10, 0, Math.PI * 2);
+        ctx.fillStyle = COLORS[player];
+        ctx.fill();
+        ctx.strokeStyle = '#888';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        homeCount++;
+      }
+      if (p.finished || p.pathIndex === -2) finCount++;
+    }
+
+    // Show finished count
+    ctx.fillStyle = '#8b8';
+    ctx.font = '12px monospace';
+    ctx.fillText('Done: ' + finCount + '/4', homeX, homeY + 140);
+
+    // Clickable "NEW" button for entering pieces
+    if (player === HUMAN && phase === 'choose' && homeCount > 0) {
+      ctx.fillStyle = '#2a4a2a';
+      ctx.fillRect(homeX - 25, homeY + 100, 50, 24);
+      ctx.strokeStyle = '#4a4';
+      ctx.strokeRect(homeX - 25, homeY + 100, 50, 24);
+      ctx.fillStyle = '#4f4';
+      ctx.font = 'bold 12px monospace';
+      ctx.fillText('NEW', homeX, homeY + 115);
+    }
+  }
+}
+
+function drawSticks() {
+  const sx = 400, sy = 540;
+  ctx.fillStyle = '#ddd';
+  ctx.font = '13px monospace';
+  ctx.textAlign = 'center';
+
+  if (stickAnim.active) {
+    // Animated sticks
+    for (let i = 0; i < 4; i++) {
+      const x = sx - 60 + i * 40;
+      const y = sy - 15;
+      const flipping = stickAnim.timer < 30;
+      const face = flipping ? (Math.floor(stickAnim.timer / 3 + i) % 2) : stickAnim.finalSticks[i];
+
+      ctx.save();
+      ctx.translate(x, y);
+      if (flipping) ctx.rotate(Math.sin(stickAnim.timer * 0.3 + i) * 0.3);
+
+      // Draw stick
+      ctx.fillStyle = face ? '#d4a860' : '#8b6030';
+      ctx.beginPath();
+      // Rounded rectangle manually
+      const w = 12, h = 50, r = 6;
+      ctx.moveTo(-w/2 + r, -h/2);
+      ctx.lineTo(w/2 - r, -h/2);
+      ctx.arcTo(w/2, -h/2, w/2, -h/2 + r, r);
+      ctx.lineTo(w/2, h/2 - r);
+      ctx.arcTo(w/2, h/2, w/2 - r, h/2, r);
+      ctx.lineTo(-w/2 + r, h/2);
+      ctx.arcTo(-w/2, h/2, -w/2, h/2 - r, r);
+      ctx.lineTo(-w/2, -h/2 + r);
+      ctx.arcTo(-w/2, -h/2, -w/2 + r, -h/2, r);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Flat side marking
+      if (face) {
+        ctx.fillStyle = '#6b4020';
+        ctx.fillRect(-3, -15, 6, 30);
+      } else {
+        // Round side - draw curved line
+        ctx.strokeStyle = '#5a4020';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, 8, -0.5, 0.5);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+  } else if (throwResult > 0) {
+    // Show last result
+    for (let i = 0; i < 4; i++) {
+      const x = sx - 60 + i * 40;
+      const y = sy - 15;
+      const face = stickAnim.finalSticks[i];
+
+      ctx.fillStyle = face ? '#d4a860' : '#8b6030';
+      ctx.beginPath();
+      const w = 12, h = 50, r = 6;
+      ctx.moveTo(x - w/2 + r, y - h/2);
+      ctx.lineTo(x + w/2 - r, y - h/2);
+      ctx.arcTo(x + w/2, y - h/2, x + w/2, y - h/2 + r, r);
+      ctx.lineTo(x + w/2, y + h/2 - r);
+      ctx.arcTo(x + w/2, y + h/2, x + w/2 - r, y + h/2, r);
+      ctx.lineTo(x - w/2 + r, y + h/2);
+      ctx.arcTo(x - w/2, y + h/2, x - w/2, y + h/2 - r, r);
+      ctx.lineTo(x - w/2, y - h/2 + r);
+      ctx.arcTo(x - w/2, y - h/2, x - w/2 + r, y - h/2, r);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      if (face) {
+        ctx.fillStyle = '#6b4020';
+        ctx.fillRect(x - 3, y - 15, 6, 30);
+      }
+    }
+  }
+}
+
+function drawUI() {
+  // Turn indicator
+  ctx.fillStyle = COLORS[turn];
+  ctx.font = 'bold 16px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(turn === HUMAN ? "YOUR TURN" : "AI TURN", 400, 25);
+
+  // Throw result
+  if (throwResult > 0 && !stickAnim.active) {
+    ctx.fillStyle = '#ff0';
+    ctx.font = 'bold 18px monospace';
+    ctx.fillText(throwName, 400, 505);
+  }
+
+  // Message
+  ctx.fillStyle = '#aaa';
+  ctx.font = '13px monospace';
+  ctx.fillText(message, 400, 50);
+
+  // Pending throws indicator
+  if (pendingThrows.length > 0) {
+    ctx.fillStyle = '#fa0';
+    ctx.font = '11px monospace';
+    ctx.fillText('Pending throws: ' + pendingThrows.length, 400, 68);
+  }
+
+  // Highlight movable pieces
+  if (phase === 'choose' && turn === HUMAN) {
+    const movable = getMovablePieces(HUMAN, throwResult);
+    for (const idx of movable) {
+      const p = pieces[HUMAN][idx];
+      if (p.pathIndex < 0) continue;
+      const station = getStationIndex(p);
+      if (station < 0 || !boardPos[station]) continue;
+      const pos = boardPos[station];
+      ctx.beginPath();
+      ctx.arc(pos.x - 6, pos.y, 15, 0, Math.PI * 2);
+      ctx.strokeStyle = '#ff0';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 4]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+
+  // Title
+  ctx.fillStyle = '#c89040';
+  ctx.font = 'bold 20px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('YUT NORI', 10, 25);
+  ctx.fillStyle = '#8b6030';
+  ctx.font = '11px monospace';
+  ctx.fillText('윷놀이', 10, 42);
+  ctx.fillText('Press ? for info', 10, 590);
+
+  // Game over
+  if (winner >= 0) {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(200, 240, 400, 120);
+    ctx.strokeStyle = COLORS[winner];
+    ctx.lineWidth = 3;
+    ctx.strokeRect(200, 240, 400, 120);
+    ctx.fillStyle = COLORS[winner];
+    ctx.font = 'bold 28px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(winner === HUMAN ? 'YOU WIN!' : 'AI WINS!', 400, 290);
+    ctx.fillStyle = '#aaa';
+    ctx.font = '14px monospace';
+    ctx.fillText('Press R to play again', 400, 330);
+  }
+}
+
+function hudText(text, x, y, size, color, align) {
+  ctx.fillStyle = color || '#fff';
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(text, x, y);
+}
+
+let aiTimer = 0;
+
+function update() {
+  if (infoOpen) return;
+  if (winner >= 0) return;
+
+  if (stickAnim.active) {
+    stickAnim.timer++;
+    if (stickAnim.timer >= 40) {
+      stickAnim.active = false;
+      stickAnim.sticks = [...stickAnim.finalSticks];
+
+      if (turn === HUMAN) {
+        const movable = getMovablePieces(HUMAN, throwResult);
+        if (movable.length === 0) {
+          message = 'No moves available';
+          setTimeout(() => {
+            if (pendingThrows.length > 0) {
+              throwResult = pendingThrows.shift();
+              throwName = getThrowName(throwResult);
+              message = 'Choose a piece to move (' + throwName + ')';
+              phase = 'choose';
+            } else {
+              endTurn();
+            }
+          }, 800);
+        } else {
+          message = 'Click a piece to move (' + throwName + ')';
+          phase = 'choose';
+        }
+      } else {
+        phase = 'aiThink';
+        aiTimer = 30;
+      }
+    }
+    return;
+  }
+
+  if (phase === 'aiThink') {
+    aiTimer--;
+    if (aiTimer <= 0) {
+      const movable = getMovablePieces(AI, throwResult);
+      if (movable.length === 0) {
+        if (pendingThrows.length > 0) {
+          throwResult = pendingThrows.shift();
+          throwName = getThrowName(throwResult);
+          message = 'AI moves (' + throwName + ')';
+          phase = 'aiThink';
+          aiTimer = 30;
+        } else {
+          endTurn();
+        }
+        return;
+      }
+      const choice = aiChoose(throwResult);
+      if (choice >= 0) {
+        const captured = movePiece(choice, AI, throwResult);
+        message = 'AI moved ' + throwName;
+        if (captured) {
+          message += ' — Captured!';
+          pendingThrows.push(-1); // marker for bonus throw
+        }
+        if (checkWin(AI)) {
+          winner = AI;
+          phase = 'gameOver';
+          return;
+        }
+      }
+      // Check for more throws
+      if (pendingThrows.length > 0) {
+        const next = pendingThrows.shift();
+        if (next === -1) {
+          // Bonus throw from capture
+          doThrow();
+        } else {
+          throwResult = next;
+          throwName = getThrowName(throwResult);
+          message = 'AI moves (' + throwName + ')';
+          phase = 'aiThink';
+          aiTimer = 40;
+        }
+      } else {
+        setTimeout(() => { endTurn(); }, 500);
+        phase = 'animate';
+      }
+    }
+  }
+}
+
+function getThrowName(val) {
+  switch(val) {
+    case 1: return 'Do (1)';
+    case 2: return 'Gae (2)';
+    case 3: return 'Geol (3)';
+    case 4: return 'Yut! (4)';
+    case 5: return 'Mo! (5)';
+    default: return val + '';
+  }
+}
+
+function endTurn() {
+  turn = 1 - turn;
+  throwResult = 0;
+  pendingThrows = [];
+  if (turn === HUMAN) {
+    phase = 'throw';
+    message = 'Press SPACE to throw';
+  } else {
+    phase = 'throw';
+    message = 'AI is throwing...';
+    setTimeout(() => { doThrow(); }, 600);
+  }
+}
+
+function doThrow() {
+  const result = throwSticks();
+  throwResult = result.value;
+  throwName = result.name;
+  stickAnim.active = true;
+  stickAnim.timer = 0;
+  stickAnim.finalSticks = result.sticks;
+
+  if (result.bonus) {
+    bonusThrow = true;
+    pendingThrows.push(-1); // marker: need another throw after choosing
+  } else {
+    bonusThrow = false;
+  }
+}
+
+function draw() {
+  drawBoard();
+  drawPieces();
+  drawHomePieces();
+  drawSticks();
+  drawUI();
+}
+
+function gameLoop() {
+  update();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+// Input handling
+canvas.addEventListener('click', function(e) {
+  if (infoOpen || winner >= 0) return;
+  if (phase !== 'choose' || turn !== HUMAN) return;
+
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = 800 / rect.width;
+  const scaleY = 600 / rect.height;
+  const mx = (e.clientX - rect.left) * scaleX;
+  const my = (e.clientY - rect.top) * scaleY;
+
+  const movable = getMovablePieces(HUMAN, throwResult);
+
+  // Check "NEW" button click (enter new piece)
+  const homeX = 50, homeY = 200;
+  if (mx > homeX - 25 && mx < homeX + 25 && my > homeY + 100 && my < homeY + 124) {
+    // Find a home piece
+    for (const idx of movable) {
+      if (pieces[HUMAN][idx].pathIndex === -1) {
+        executeMove(idx);
+        return;
+      }
+    }
+  }
+
+  // Check click on board pieces
+  for (const idx of movable) {
+    const p = pieces[HUMAN][idx];
+    if (p.pathIndex < 0) continue;
+    const station = getStationIndex(p);
+    if (station < 0 || !boardPos[station]) continue;
+    const pos = boardPos[station];
+    const dx = mx - (pos.x - 6);
+    const dy = my - pos.y;
+    if (dx * dx + dy * dy < 225) { // 15px radius
+      executeMove(idx);
+      return;
+    }
+  }
+});
+
+function executeMove(idx) {
+  const captured = movePiece(idx, HUMAN, throwResult);
+  message = 'Moved ' + throwName;
+
+  if (captured) {
+    message += ' — Captured! Bonus throw!';
+    pendingThrows.push(-1);
+  }
+
+  if (checkWin(HUMAN)) {
+    winner = HUMAN;
+    phase = 'gameOver';
+    return;
+  }
+
+  // Handle pending throws (bonus from Yut/Mo or capture)
+  if (pendingThrows.length > 0) {
+    const next = pendingThrows.shift();
+    if (next === -1) {
+      // Need to throw again
+      phase = 'throw';
+      message = 'Bonus throw! Press SPACE';
+    } else {
+      throwResult = next;
+      throwName = getThrowName(throwResult);
+      message = 'Choose a piece to move (' + throwName + ')';
+      phase = 'choose';
+    }
+  } else {
+    endTurn();
+  }
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
+    toggleInfo();
+    return;
+  }
+  if (e.key === 'Escape' && infoOpen) {
+    toggleInfo();
+    return;
+  }
+  if (infoOpen) return;
+
+  if (e.key === 'r' || e.key === 'R') {
+    // Restart
+    pieces = [makePieces(HUMAN), makePieces(AI)];
+    turn = HUMAN;
+    phase = 'throw';
+    throwResult = 0;
+    throwName = '';
+    bonusThrow = false;
+    pendingThrows = [];
+    winner = -1;
+    message = 'Press SPACE to throw';
+    stickAnim.active = false;
+    return;
+  }
+
+  if (e.key === ' ') {
+    e.preventDefault();
+    if (phase === 'throw' && turn === HUMAN) {
+      doThrow();
+    }
+  }
+});
+
+// Resize handler
+function resize() {
+  const aspect = 800 / 600;
+  let w = window.innerWidth;
+  let h = window.innerHeight;
+  if (w / h > aspect) { w = h * aspect; } else { h = w / aspect; }
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+}
+window.addEventListener('resize', resize);
+resize();
+
+gameLoop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

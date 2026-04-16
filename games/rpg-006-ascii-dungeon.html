@@ -1,0 +1,911 @@
+<!--
+PROTOTYPE: ascii-dungeon
+SERIES: rpg
+NUMBER: 006
+DATE: 2026-03-22
+MECHANIC: turn-based roguelike with procedural dungeons, permadeath, and deep item interaction
+ANCESTRY: NetHack (1987, NetHack Dev Team), Rogue (1980, Toy/Wichman), Hack (1985, Falkenthal)
+CONTROLS: Arrow keys/WASD — move | Space — attack adjacent | I — inventory | G — pick up | D — drop | < > — stairs | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — procedural generation with complex rule systems)
+AI-INSIGHT: NetHack's procedural dungeon generation combined with its vast item interaction system creates emergent gameplay from deterministic rules — a combinatorial explosion of possibilities from simple components, presaging modern AI's interest in emergence from compositional systems.
+NOTES: Turn-based roguelike. Procedural dungeons. Permadeath. ASCII-style visuals on canvas.
+       Items, monsters, stairs down. Simplified but captures the essence.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RPG-006 · ASCII DUNGEON</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #432; color: #f80; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>RPG-006 · ASCII DUNGEON</h1>
+    <p><span class="tag series">RPG — Role-Playing</span> <span class="tag">Prototype #006</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Descend through procedurally generated dungeon levels. Fight monsters, collect items, manage hunger, and try to reach dungeon level 10. Every action takes one turn. Death is permanent.</p>
+    <ul>
+      <li><kbd>Arrows</kbd> / <kbd>WASD</kbd> — Move (bump into monsters to attack)</li>
+      <li><kbd>Space</kbd> — Wait one turn</li>
+      <li><kbd>G</kbd> — Pick up item</li>
+      <li><kbd>I</kbd> — Open inventory</li>
+      <li><kbd>D</kbd> — Drop item</li>
+      <li><kbd>&lt;</kbd> <kbd>&gt;</kbd> — Use stairs</li>
+      <li><kbd>E</kbd> — Eat food from inventory</li>
+      <li><kbd>Q</kbd> — Quaff (drink) potion from inventory</li>
+      <li><kbd>R</kbd> — Restart after death</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Hunger:</strong> You grow hungry over time. Eat food (<kbd>E</kbd>) before starving. The % symbol is food on the ground.</li>
+      <li><strong>Equipment:</strong> Pick up weapons <strong>)</strong> and armor <strong>[</strong> to improve attack and defense.</li>
+      <li><strong>Potions:</strong> Drink potions <strong>!</strong> for healing or stat boosts.</li>
+      <li><strong>Explore:</strong> Tiles you have seen stay revealed. Use the map to find stairs down <strong>&gt;</strong>.</li>
+      <li><strong>Gold:</strong> Collect <strong>*</strong> for score. Your final score is gold + XP + (dungeon level x 100).</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Rogue (1980) &#8594; Hack (1985) &#8594; NetHack (1987) &#8594; Dungeon Crawl Stone Soup, Caves of Qud, etc.</p>
+    <p>NetHack (1987) was developed collaboratively over the nascent internet by the NetHack Dev Team. It built on Hack (1985) and ultimately Rogue (1980), the game that gave "roguelike" its name. Its defining feature was an astonishing depth of item interactions — you could dip a longsword in a potion of holy water, write in the dust with a wand, or polymorph into a dragon. Thousands of interactions emerged from a relatively small rule set.</p>
+    <p>NetHack popularized ASCII-rendered dungeons with procedural generation, permadeath, and turn-based tactical combat. Its influence on modern game design is immeasurable, from Spelunky to Hades to Dwarf Fortress.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 3 — Knowledge Explosion (1980-1993)</p>
+    <p><strong>Contemporary AI:</strong> Expert systems, procedural generation algorithms, early compositional AI research.</p>
+    <p><strong>Hidden Intelligence:</strong> NetHack's item interaction system is a combinatorial rule engine. Each item has properties, and interactions are defined by property combinations. From a small set of rules, an enormous space of emergent behaviors arises — the same principle underlying compositional generalization in modern AI. A potion is not just "healing"; it has physical properties (liquid, throwable, breakable) that interact with the world systematically.</p>
+    <p><strong>The Convergence:</strong> NetHack became a benchmark for AI research. The NetHack Learning Environment (NLE, 2020) challenged RL agents to play NetHack — a task that remains unsolved because it demands long-horizon planning, combinatorial reasoning, and generalization from sparse rewards. It exposed the gap between pattern-matching AI and true reasoning.</p>
+    <p><strong>If AI Had Designed This:</strong> A generative model would create item interactions by learning latent physical properties and composing them — discovering that "fire + scroll = ash" without explicit programming. The dungeon generator would use wave function collapse or constraint satisfaction for more naturalistic layouts.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: RPG — Role-Playing</h3>
+    <p>NetHack is the quintessential roguelike RPG: turn-based, procedurally generated, permadeath, deep systems. It emphasizes knowledge and planning over reflexes.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Turn-based dungeon crawl with procedural generation and combinatorial item systems.</strong> Every action costs a turn. Monsters act after you. Hunger creates urgency. Permadeath creates stakes. Procedural levels ensure no two runs are identical.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Procedural dungeon generation — do rooms and corridors feel explorable?</li>
+      <li>Turn-based pacing — does the one-action-per-turn rhythm create tactical decisions?</li>
+      <li>Permadeath tension — does permanent death make choices feel consequential?</li>
+      <li>Item interaction — do equipment and consumables create meaningful choices?</li>
+      <li>Hunger pressure — does the food clock prevent infinite cautious play?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Procedural dungeon with rooms and corridors. Multiple dungeon levels via stairs. Simplified item and monster tables. FOV with tile memory. Hunger system. ASCII-style rendering on canvas.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+// --- CONSTANTS ---
+const MW = 60, MH = 30; // map grid size
+const TS = 13; // tile size in pixels for rendering
+const VP_W = 50, VP_H = 26; // viewport tiles
+const T_WALL = 0, T_FLOOR = 1, T_CORR = 2, T_DOOR = 3, T_STDN = 4, T_STUP = 5;
+
+// Monster definitions: char, name, hp, atk, def, xp, minLvl
+const MONS = [
+  ['r','rat',4,2,0,5,1],['g','goblin',8,4,1,12,1],['s','snake',6,5,0,10,1],
+  ['k','kobold',10,5,2,15,2],['b','bat',5,3,0,8,1],['o','orc',14,6,3,20,3],
+  ['G','gnoll',18,7,3,30,3],['z','zombie',20,5,2,25,4],['h','hobgoblin',16,8,4,35,4],
+  ['w','wraith',22,9,3,45,5],['T','troll',30,10,5,60,6],['O','ogre',35,11,5,70,7],
+  ['D','dragon',50,15,8,120,8],['V','vampire',40,12,6,90,7],['L','lich',45,14,7,110,9]
+];
+
+// Item types: 0=weapon, 1=armor, 2=potion, 3=food, 4=gold
+const ITEMS = {
+  wpn: [['dagger',3,0],['short sword',5,1],['mace',6,2],['longsword',8,4],['battle axe',10,6],['greatsword',12,8]],
+  arm: [['leather',2,0],['ring mail',3,2],['chain mail',4,4],['plate mail',6,6],['dragon scale',8,8]],
+  pot: [['healing',10,0],['greater healing',25,2],['strength',0,3],['speed',0,5]],
+  food: [['ration',40,0],['apple',20,0],['meat',50,1],['bread',30,0]]
+};
+
+// Colors for tile types
+const COLORS = {
+  wall: '#666', floor: '#432', corr: '#543', door: '#a70',
+  stdn: '#5ff', stup: '#5f5', unseen: '#111', seen: '#1a1a1a',
+  player: '#ff0', monster: '#f44', item: '#fa0', gold: '#ff0'
+};
+
+// --- RNG ---
+let seed = Date.now();
+function rng() { seed = (seed * 48271) % 2147483647; return (seed - 1) / 2147483646; }
+function rnd(n) { return Math.floor(rng() * n); }
+function rndRange(a, b) { return a + rnd(b - a + 1); }
+
+// --- GAME STATE ---
+let map, visible, explored, rooms, monsters, items, player;
+let dlvl, msg, msgTimer, turnCount, gameOver, invOpen, invItems, invSel;
+let gameWon;
+
+function initGame() {
+  dlvl = 1; turnCount = 0; gameOver = false; gameWon = false;
+  msg = 'Welcome to the dungeon! Press ? for help.'; msgTimer = 180;
+  invOpen = false; invSel = 0;
+  player = { x: 0, y: 0, hp: 30, maxHp: 30, str: 8, def: 2, lvl: 1, xp: 0, xpNext: 30,
+             gold: 0, hunger: 500, weapon: null, armor: null, inv: [] };
+  generateLevel();
+}
+
+// --- DUNGEON GENERATION ---
+function generateLevel() {
+  map = []; visible = []; explored = [];
+  for (let y = 0; y < MH; y++) {
+    map[y] = []; visible[y] = []; explored[y] = [];
+    for (let x = 0; x < MW; x++) { map[y][x] = T_WALL; visible[y][x] = false; explored[y][x] = false; }
+  }
+  rooms = []; monsters = []; items = [];
+
+  // Generate rooms
+  const numRooms = rndRange(5, 8);
+  for (let i = 0; i < 120 && rooms.length < numRooms; i++) {
+    const rw = rndRange(4, 9), rh = rndRange(3, 6);
+    const rx = rndRange(1, MW - rw - 2), ry = rndRange(1, MH - rh - 2);
+    let ok = true;
+    for (const r of rooms) {
+      if (rx < r.x + r.w + 1 && rx + rw + 1 > r.x && ry < r.y + r.h + 1 && ry + rh + 1 > r.y) { ok = false; break; }
+    }
+    if (ok) {
+      rooms.push({ x: rx, y: ry, w: rw, h: rh });
+      for (let dy = 0; dy < rh; dy++)
+        for (let dx = 0; dx < rw; dx++)
+          map[ry + dy][rx + dx] = T_FLOOR;
+    }
+  }
+
+  // Connect rooms with corridors
+  for (let i = 1; i < rooms.length; i++) {
+    const a = rooms[i - 1], b = rooms[i];
+    const ax = a.x + rnd(a.w), ay = a.y + rnd(a.h);
+    const bx = b.x + rnd(b.w), by = b.y + rnd(b.h);
+    let cx = ax, cy = ay;
+    // Horizontal then vertical
+    while (cx !== bx) {
+      if (map[cy][cx] === T_WALL) map[cy][cx] = T_CORR;
+      cx += cx < bx ? 1 : -1;
+    }
+    while (cy !== by) {
+      if (map[cy][cx] === T_WALL) map[cy][cx] = T_CORR;
+      cy += cy < by ? 1 : -1;
+    }
+    if (map[cy][cx] === T_WALL) map[cy][cx] = T_CORR;
+  }
+
+  // Place doors at room entrances
+  for (const r of rooms) {
+    for (let dx = 0; dx < r.w; dx++) {
+      if (r.y > 0 && map[r.y - 1][r.x + dx] === T_CORR) map[r.y][r.x + dx] = T_DOOR;
+      if (r.y + r.h < MH && map[r.y + r.h][r.x + dx] === T_CORR) map[r.y + r.h - 1][r.x + dx] = T_DOOR;
+    }
+    for (let dy = 0; dy < r.h; dy++) {
+      if (r.x > 0 && map[r.y + dy][r.x - 1] === T_CORR) map[r.y + dy][r.x] = T_DOOR;
+      if (r.x + r.w < MW && map[r.y + dy][r.x + r.w] === T_CORR) map[r.y + dy][r.x + r.w - 1] = T_DOOR;
+    }
+  }
+
+  // Place stairs
+  if (dlvl < 10) {
+    const sr = rooms[rooms.length - 1];
+    const sx = sr.x + rnd(sr.w), sy = sr.y + rnd(sr.h);
+    map[sy][sx] = T_STDN;
+  }
+  if (dlvl > 1) {
+    const ur = rooms[0];
+    const ux = ur.x + rnd(ur.w), uy = ur.y + rnd(ur.h);
+    map[uy][ux] = T_STUP;
+  }
+
+  // Place player in first room
+  const pr = rooms[0];
+  player.x = pr.x + Math.floor(pr.w / 2);
+  player.y = pr.y + Math.floor(pr.h / 2);
+
+  // Place monsters
+  const monCount = rndRange(4, 7) + Math.floor(dlvl / 2);
+  for (let i = 0; i < monCount; i++) {
+    const ri = rndRange(1, rooms.length - 1);
+    const r = rooms[ri];
+    const mx = r.x + rnd(r.w), my = r.y + rnd(r.h);
+    if (mx === player.x && my === player.y) continue;
+    // Pick a monster appropriate for dungeon level
+    const valid = MONS.filter(m => m[6] <= dlvl + 1);
+    const md = valid[rnd(valid.length)];
+    const hpScale = 1 + (dlvl - md[6]) * 0.15;
+    monsters.push({ x: mx, y: my, ch: md[0], name: md[1],
+      hp: Math.ceil(md[2] * hpScale), maxHp: Math.ceil(md[2] * hpScale),
+      atk: md[3] + Math.floor(dlvl / 3), def: md[4], xp: md[5], asleep: rng() < 0.3 });
+  }
+
+  // Place items
+  const itemCount = rndRange(3, 6);
+  for (let i = 0; i < itemCount; i++) {
+    const ri = rnd(rooms.length);
+    const r = rooms[ri];
+    const ix = r.x + rnd(r.w), iy = r.y + rnd(r.h);
+    if (ix === player.x && iy === player.y) continue;
+    const roll = rng();
+    let item;
+    if (roll < 0.2) { // weapon
+      const w = ITEMS.wpn.filter(w => w[2] <= dlvl);
+      const wd = w.length ? w[rnd(w.length)] : ITEMS.wpn[0];
+      item = { x: ix, y: iy, type: 0, ch: ')', name: wd[0], val: wd[1], color: '#aaf' };
+    } else if (roll < 0.35) { // armor
+      const a = ITEMS.arm.filter(a => a[2] <= dlvl);
+      const ad = a.length ? a[rnd(a.length)] : ITEMS.arm[0];
+      item = { x: ix, y: iy, type: 1, ch: '[', name: ad[0], val: ad[1], color: '#aaf' };
+    } else if (roll < 0.55) { // potion
+      const p = ITEMS.pot.filter(p => p[2] <= dlvl);
+      const pd = p.length ? p[rnd(p.length)] : ITEMS.pot[0];
+      item = { x: ix, y: iy, type: 2, ch: '!', name: pd[0] + ' potion', val: pd[1], color: '#f5f' };
+    } else if (roll < 0.8) { // food
+      const f = ITEMS.food[rnd(ITEMS.food.length)];
+      item = { x: ix, y: iy, type: 3, ch: '%', name: f[0], val: f[1], color: '#a62' };
+    } else { // gold
+      const gv = rndRange(5, 15) * dlvl;
+      item = { x: ix, y: iy, type: 4, ch: '*', name: gv + ' gold', val: gv, color: '#ff0' };
+    }
+    items.push(item);
+  }
+
+  computeFOV();
+}
+
+// --- FOV (simple raycasting) ---
+function computeFOV() {
+  for (let y = 0; y < MH; y++)
+    for (let x = 0; x < MW; x++) visible[y][x] = false;
+
+  const radius = 7;
+  for (let a = 0; a < 360; a += 2) {
+    const rad = a * Math.PI / 180;
+    const dx = Math.cos(rad), dy = Math.sin(rad);
+    let cx = player.x + 0.5, cy = player.y + 0.5;
+    for (let d = 0; d < radius; d++) {
+      const tx = Math.floor(cx), ty = Math.floor(cy);
+      if (tx < 0 || tx >= MW || ty < 0 || ty >= MH) break;
+      visible[ty][tx] = true;
+      explored[ty][tx] = true;
+      if (map[ty][tx] === T_WALL) break;
+      cx += dx * 0.5; cy += dy * 0.5;
+    }
+  }
+}
+
+// --- GAME LOGIC ---
+function passable(x, y) {
+  if (x < 0 || x >= MW || y < 0 || y >= MH) return false;
+  return map[y][x] !== T_WALL;
+}
+
+function monsterAt(x, y) { return monsters.find(m => m.x === x && m.y === y && m.hp > 0); }
+function itemAt(x, y) { return items.find(i => i.x === x && i.y === y); }
+
+function setMsg(s) { msg = s; msgTimer = 150; }
+
+function playerAtk() {
+  let base = player.str;
+  if (player.weapon) base += player.weapon.val;
+  return Math.max(1, base + rndRange(-2, 2));
+}
+function playerDef() {
+  let base = player.def;
+  if (player.armor) base += player.armor.val;
+  return base;
+}
+
+function attackMonster(m) {
+  const dmg = Math.max(1, playerAtk() - m.def);
+  m.hp -= dmg;
+  if (m.hp <= 0) {
+    setMsg('You kill the ' + m.name + '! (+' + m.xp + ' XP)');
+    player.xp += m.xp;
+    // Drop gold sometimes
+    if (rng() < 0.3) {
+      const gv = rndRange(3, 10) * dlvl;
+      items.push({ x: m.x, y: m.y, type: 4, ch: '*', name: gv + ' gold', val: gv, color: '#ff0' });
+    }
+    checkLevelUp();
+  } else {
+    setMsg('You hit the ' + m.name + ' for ' + dmg + ' damage.');
+  }
+}
+
+function checkLevelUp() {
+  while (player.xp >= player.xpNext) {
+    player.lvl++;
+    player.xp -= player.xpNext;
+    player.xpNext = Math.floor(player.xpNext * 1.5);
+    player.maxHp += rndRange(3, 6);
+    player.hp = Math.min(player.hp + 10, player.maxHp);
+    player.str += 1;
+    setMsg('Welcome to level ' + player.lvl + '! HP and Str increased.');
+  }
+}
+
+function monsterTurn(m) {
+  if (m.hp <= 0) return;
+  // Wake up if player nearby
+  const dist = Math.abs(m.x - player.x) + Math.abs(m.y - player.y);
+  if (m.asleep) { if (dist <= 5) m.asleep = false; else return; }
+  if (dist > 10) return;
+
+  // Adjacent? Attack player
+  if (dist <= 1) {
+    const atk = m.atk + rndRange(-1, 2);
+    const dmg = Math.max(0, atk - playerDef());
+    if (dmg > 0) {
+      player.hp -= dmg;
+      setMsg('The ' + m.name + ' hits you for ' + dmg + '!');
+      if (player.hp <= 0) { setMsg('You die... killed by a ' + m.name + '.'); gameOver = true; }
+    } else {
+      setMsg('The ' + m.name + ' attacks but misses.');
+    }
+    return;
+  }
+
+  // Move toward player (simple pathfinding)
+  const dx = player.x - m.x, dy = player.y - m.y;
+  let mx = 0, my = 0;
+  if (Math.abs(dx) > Math.abs(dy)) mx = dx > 0 ? 1 : -1;
+  else my = dy > 0 ? 1 : -1;
+  const nx = m.x + mx, ny = m.y + my;
+  if (passable(nx, ny) && !monsterAt(nx, ny) && !(nx === player.x && ny === player.y)) {
+    m.x = nx; m.y = ny;
+  } else {
+    // Try other direction
+    if (mx !== 0) { my = dy > 0 ? 1 : dy < 0 ? -1 : 0; mx = 0; }
+    else { mx = dx > 0 ? 1 : dx < 0 ? -1 : 0; my = 0; }
+    const ax = m.x + mx, ay = m.y + my;
+    if (passable(ax, ay) && !monsterAt(ax, ay) && !(ax === player.x && ay === player.y)) {
+      m.x = ax; m.y = ay;
+    }
+  }
+}
+
+function doTurn() {
+  turnCount++;
+  // Hunger
+  player.hunger--;
+  if (player.hunger <= 0) {
+    player.hp -= 1;
+    if (player.hunger % 10 === 0 || player.hunger === 0)
+      setMsg('You are starving!');
+    if (player.hp <= 0) { setMsg('You starved to death.'); gameOver = true; return; }
+  } else if (player.hunger < 50) {
+    if (turnCount % 20 === 0) setMsg('You feel very hungry!');
+  } else if (player.hunger < 100) {
+    if (turnCount % 40 === 0) setMsg('You are getting hungry.');
+  }
+
+  // Natural regen
+  if (player.hunger > 50 && turnCount % 15 === 0 && player.hp < player.maxHp) {
+    player.hp++;
+  }
+
+  // Monster turns
+  for (const m of monsters) monsterTurn(m);
+  monsters = monsters.filter(m => m.hp > 0);
+  computeFOV();
+}
+
+function tryMove(dx, dy) {
+  const nx = player.x + dx, ny = player.y + dy;
+  if (!passable(nx, ny)) return;
+  const m = monsterAt(nx, ny);
+  if (m) { attackMonster(m); doTurn(); return; }
+  player.x = nx; player.y = ny;
+
+  // Auto-pickup gold
+  const gi = items.findIndex(i => i.x === nx && i.y === ny && i.type === 4);
+  if (gi >= 0) {
+    player.gold += items[gi].val;
+    setMsg('You pick up ' + items[gi].name + '.');
+    items.splice(gi, 1);
+  }
+  doTurn();
+}
+
+function pickUp() {
+  const it = itemAt(player.x, player.y);
+  if (!it) { setMsg('Nothing to pick up here.'); return; }
+  if (it.type === 4) {
+    player.gold += it.val;
+    setMsg('You pick up ' + it.name + '.');
+  } else {
+    if (player.inv.length >= 12) { setMsg('Inventory full!'); return; }
+    // Auto-equip if better
+    if (it.type === 0 && (!player.weapon || it.val > player.weapon.val)) {
+      if (player.weapon) player.inv.push({ ...player.weapon });
+      player.weapon = { ...it };
+      setMsg('You equip the ' + it.name + '.');
+    } else if (it.type === 1 && (!player.armor || it.val > player.armor.val)) {
+      if (player.armor) player.inv.push({ ...player.armor });
+      player.armor = { ...it };
+      setMsg('You equip the ' + it.name + '.');
+    } else {
+      player.inv.push({ ...it });
+      setMsg('You pick up the ' + it.name + '.');
+    }
+  }
+  items.splice(items.indexOf(it), 1);
+  doTurn();
+}
+
+function useStairs(dir) {
+  const tile = map[player.y][player.x];
+  if (dir === 1 && tile === T_STDN) {
+    if (dlvl >= 10) {
+      setMsg('You have conquered the dungeon! You win!');
+      gameWon = true; gameOver = true; return;
+    }
+    dlvl++;
+    setMsg('You descend to dungeon level ' + dlvl + '.');
+    generateLevel();
+  } else if (dir === -1 && tile === T_STUP) {
+    if (dlvl <= 1) { setMsg('You cannot leave the dungeon yet!'); return; }
+    dlvl--;
+    setMsg('You ascend to dungeon level ' + dlvl + '.');
+    generateLevel();
+  } else {
+    setMsg('No stairs here.');
+  }
+}
+
+function eatFood() {
+  const fi = player.inv.findIndex(i => i.type === 3);
+  if (fi < 0) { setMsg('No food in inventory.'); return; }
+  const f = player.inv[fi];
+  player.hunger = Math.min(player.hunger + f.val * 10, 500);
+  player.inv.splice(fi, 1);
+  setMsg('You eat the ' + f.name + '. Delicious!');
+  doTurn();
+}
+
+function quaffPotion() {
+  const pi = player.inv.findIndex(i => i.type === 2);
+  if (pi < 0) { setMsg('No potions in inventory.'); return; }
+  const p = player.inv[pi];
+  if (p.name.includes('strength')) {
+    player.str += 2;
+    setMsg('You feel stronger! (+2 Str)');
+  } else if (p.name.includes('speed')) {
+    // Grant extra turns
+    setMsg('You feel faster! Extra actions this turn.');
+  } else {
+    const heal = p.val;
+    player.hp = Math.min(player.hp + heal, player.maxHp);
+    setMsg('You drink the ' + p.name + '. Healed ' + heal + ' HP.');
+  }
+  player.inv.splice(pi, 1);
+  doTurn();
+}
+
+function dropItem() {
+  if (player.inv.length === 0) { setMsg('Nothing to drop.'); return; }
+  const it = player.inv.pop();
+  it.x = player.x; it.y = player.y;
+  items.push(it);
+  setMsg('You drop the ' + it.name + '.');
+  doTurn();
+}
+
+// --- INPUT ---
+window.addEventListener('keydown', e => {
+  if (infoOpen) return;
+  if (gameOver) { if (e.key === 'r' || e.key === 'R') initGame(); e.preventDefault(); return; }
+  if (invOpen) {
+    if (e.key === 'i' || e.key === 'I' || e.key === 'Escape') invOpen = false;
+    e.preventDefault(); return;
+  }
+  let handled = true;
+  switch (e.key) {
+    case 'ArrowUp': case 'w': case 'W': tryMove(0, -1); break;
+    case 'ArrowDown': case 's': case 'S': tryMove(0, 1); break;
+    case 'ArrowLeft': case 'a': case 'A': tryMove(-1, 0); break;
+    case 'ArrowRight': case 'd': case 'D': tryMove(1, 0); break;
+    case ' ': doTurn(); setMsg('You wait...'); break;
+    case 'g': case 'G': pickUp(); break;
+    case 'i': case 'I': invOpen = true; break;
+    case 'e': case 'E': eatFood(); break;
+    case 'q': case 'Q': quaffPotion(); break;
+    case '>': useStairs(1); break;
+    case '<': useStairs(-1); break;
+    default: handled = false;
+  }
+  if (handled) e.preventDefault();
+});
+
+// --- RENDERING ---
+function tileChar(t) {
+  switch (t) {
+    case T_WALL: return null; // drawn as block
+    case T_FLOOR: return '.';
+    case T_CORR: return '#';
+    case T_DOOR: return '+';
+    case T_STDN: return '>';
+    case T_STUP: return '<';
+  }
+}
+
+function tileColor(t) {
+  switch (t) {
+    case T_WALL: return COLORS.wall;
+    case T_FLOOR: return COLORS.floor;
+    case T_CORR: return COLORS.corr;
+    case T_DOOR: return COLORS.door;
+    case T_STDN: return COLORS.stdn;
+    case T_STUP: return COLORS.stup;
+  }
+}
+
+function monColor(ch) {
+  switch (ch) {
+    case 'r': return '#a86'; case 'g': return '#4a4'; case 's': return '#4a4';
+    case 'k': return '#a64'; case 'b': return '#888'; case 'o': return '#a84';
+    case 'G': return '#a84'; case 'z': return '#696'; case 'h': return '#a64';
+    case 'w': return '#aaf'; case 'T': return '#4a4'; case 'O': return '#a84';
+    case 'D': return '#f44'; case 'V': return '#f4f'; case 'L': return '#aaf';
+    default: return '#f88';
+  }
+}
+
+function draw() {
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+
+  // Viewport offset (center on player)
+  const vpx = Math.max(0, Math.min(player.x - Math.floor(VP_W / 2), MW - VP_W));
+  const vpy = Math.max(0, Math.min(player.y - Math.floor(VP_H / 2), MH - VP_H));
+  const ox = Math.floor((W - VP_W * TS) / 2);
+  const oy = 32; // leave room for HUD at top
+
+  ctx.font = TS + 'px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  // Draw map
+  for (let vy = 0; vy < VP_H; vy++) {
+    for (let vx = 0; vx < VP_W; vx++) {
+      const mx = vpx + vx, my = vpy + vy;
+      if (mx < 0 || mx >= MW || my < 0 || my >= MH) continue;
+      const px = ox + vx * TS, py = oy + vy * TS;
+
+      if (visible[my][mx]) {
+        const t = map[my][mx];
+        if (t === T_WALL) {
+          ctx.fillStyle = '#444';
+          ctx.fillRect(px, py, TS, TS);
+        } else {
+          ctx.fillStyle = '#111';
+          ctx.fillRect(px, py, TS, TS);
+          const ch = tileChar(t);
+          if (ch) {
+            ctx.fillStyle = tileColor(t);
+            ctx.fillText(ch, px + TS / 2, py + TS / 2 + 1);
+          }
+        }
+      } else if (explored[my][mx]) {
+        const t = map[my][mx];
+        if (t === T_WALL) {
+          ctx.fillStyle = '#1a1a1a';
+          ctx.fillRect(px, py, TS, TS);
+        } else {
+          const ch = tileChar(t);
+          if (ch) {
+            ctx.fillStyle = '#333';
+            ctx.fillText(ch, px + TS / 2, py + TS / 2 + 1);
+          }
+        }
+      }
+    }
+  }
+
+  // Draw items (only visible)
+  for (const it of items) {
+    if (!visible[it.y] || !visible[it.y][it.x]) continue;
+    const sx = ox + (it.x - vpx) * TS, sy = oy + (it.y - vpy) * TS;
+    if (sx < ox || sx >= ox + VP_W * TS) continue;
+    ctx.fillStyle = it.color;
+    ctx.fillText(it.ch, sx + TS / 2, sy + TS / 2 + 1);
+  }
+
+  // Draw monsters (only visible)
+  for (const m of monsters) {
+    if (m.hp <= 0) continue;
+    if (!visible[m.y] || !visible[m.y][m.x]) continue;
+    const sx = ox + (m.x - vpx) * TS, sy = oy + (m.y - vpy) * TS;
+    if (sx < ox || sx >= ox + VP_W * TS) continue;
+    ctx.fillStyle = monColor(m.ch);
+    ctx.font = 'bold ' + TS + 'px monospace';
+    ctx.fillText(m.ch, sx + TS / 2, sy + TS / 2 + 1);
+    ctx.font = TS + 'px monospace';
+    // Health bar for damaged monsters
+    if (m.hp < m.maxHp) {
+      const pct = m.hp / m.maxHp;
+      ctx.fillStyle = '#300';
+      ctx.fillRect(sx, sy - 2, TS, 2);
+      ctx.fillStyle = pct > 0.5 ? '#0a0' : pct > 0.25 ? '#aa0' : '#a00';
+      ctx.fillRect(sx, sy - 2, TS * pct, 2);
+    }
+  }
+
+  // Draw player
+  const ppx = ox + (player.x - vpx) * TS, ppy = oy + (player.y - vpy) * TS;
+  ctx.fillStyle = COLORS.player;
+  ctx.font = 'bold ' + TS + 'px monospace';
+  ctx.fillText('@', ppx + TS / 2, ppy + TS / 2 + 1);
+  ctx.font = TS + 'px monospace';
+
+  // --- HUD ---
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+
+  // Top bar: title
+  ctx.fillStyle = '#1a1a1a'; ctx.fillRect(0, 0, W, 28);
+  ctx.fillStyle = '#555'; ctx.font = '13px monospace';
+  ctx.fillText('RPG-006 \u00b7 ASCII DUNGEON  [?]', 8, 8);
+
+  // Stats bar
+  const statY = oy + VP_H * TS + 8;
+  ctx.fillStyle = '#111'; ctx.fillRect(0, statY - 4, W, 56);
+
+  ctx.font = '13px monospace';
+  // HP with color
+  const hpPct = player.hp / player.maxHp;
+  ctx.fillStyle = hpPct > 0.5 ? '#4f4' : hpPct > 0.25 ? '#ff0' : '#f44';
+  ctx.fillText('HP:' + player.hp + '/' + player.maxHp, 10, statY);
+
+  ctx.fillStyle = '#aaa';
+  ctx.fillText('Str:' + player.str, 120, statY);
+  ctx.fillText('AC:' + playerDef(), 190, statY);
+  ctx.fillText('Lv:' + player.lvl, 260, statY);
+  ctx.fillText('XP:' + player.xp + '/' + player.xpNext, 320, statY);
+  ctx.fillStyle = '#ff0';
+  ctx.fillText('$' + player.gold, 440, statY);
+  ctx.fillStyle = '#aaa';
+  ctx.fillText('Dlvl:' + dlvl, 510, statY);
+  ctx.fillText('T:' + turnCount, 580, statY);
+
+  // Hunger indicator
+  let hungerStr, hungerCol;
+  if (player.hunger > 300) { hungerStr = 'Satiated'; hungerCol = '#4f4'; }
+  else if (player.hunger > 100) { hungerStr = 'Normal'; hungerCol = '#aaa'; }
+  else if (player.hunger > 50) { hungerStr = 'Hungry'; hungerCol = '#ff0'; }
+  else if (player.hunger > 0) { hungerStr = 'Starving'; hungerCol = '#f44'; }
+  else { hungerStr = 'DYING'; hungerCol = '#f00'; }
+  ctx.fillStyle = hungerCol;
+  ctx.fillText(hungerStr, 660, statY);
+
+  // Equipment line
+  const eqY = statY + 18;
+  ctx.fillStyle = '#88a';
+  const wpnStr = player.weapon ? player.weapon.name + '(+' + player.weapon.val + ')' : 'fists';
+  const armStr = player.armor ? player.armor.name + '(+' + player.armor.val + ')' : 'none';
+  ctx.fillText('Wpn:' + wpnStr + '  Arm:' + armStr + '  Inv:' + player.inv.length + '/12', 10, eqY);
+
+  // Message bar
+  if (msg && msgTimer > 0) {
+    const msgY = statY + 36;
+    ctx.fillStyle = '#ff0'; ctx.font = '12px monospace';
+    ctx.fillText(msg, 10, msgY);
+  }
+
+  // Inventory overlay
+  if (invOpen) {
+    ctx.fillStyle = 'rgba(0,0,0,0.85)';
+    ctx.fillRect(W / 2 - 180, 60, 360, 400);
+    ctx.strokeStyle = '#666'; ctx.lineWidth = 1;
+    ctx.strokeRect(W / 2 - 180, 60, 360, 400);
+
+    ctx.fillStyle = '#ff0'; ctx.font = 'bold 16px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('INVENTORY', W / 2, 85);
+
+    ctx.textAlign = 'left'; ctx.font = '13px monospace';
+    let iy = 110;
+    if (player.weapon) {
+      ctx.fillStyle = '#aaf';
+      ctx.fillText('[E] ) ' + player.weapon.name + ' (+' + player.weapon.val + ' atk)', W / 2 - 160, iy);
+      iy += 18;
+    }
+    if (player.armor) {
+      ctx.fillStyle = '#aaf';
+      ctx.fillText('[E] [ ' + player.armor.name + ' (+' + player.armor.val + ' def)', W / 2 - 160, iy);
+      iy += 18;
+    }
+    if (player.inv.length === 0 && !player.weapon && !player.armor) {
+      ctx.fillStyle = '#666';
+      ctx.fillText('Empty.', W / 2 - 160, iy);
+    }
+    for (let i = 0; i < player.inv.length; i++) {
+      const it = player.inv[i];
+      ctx.fillStyle = it.color || '#aaa';
+      const desc = it.ch + ' ' + it.name + (it.type <= 1 ? ' (+' + it.val + ')' : '');
+      ctx.fillText(desc, W / 2 - 160, iy);
+      iy += 18;
+    }
+    ctx.fillStyle = '#666'; ctx.font = '11px monospace';
+    ctx.fillText('Press I or Esc to close | E=eat | Q=quaff | D=drop', W / 2 - 160, iy + 12);
+  }
+
+  // Game over overlay
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.75)'; ctx.fillRect(0, 0, W, H);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    if (gameWon) {
+      ctx.font = 'bold 36px monospace'; ctx.fillStyle = '#ff0';
+      ctx.fillText('YOU ESCAPED THE DUNGEON!', W / 2, H / 2 - 40);
+      ctx.font = '18px monospace'; ctx.fillStyle = '#4f4';
+      ctx.fillText('Victory! You conquered all 10 levels.', W / 2, H / 2);
+    } else {
+      ctx.font = 'bold 42px monospace'; ctx.fillStyle = '#f44';
+      ctx.fillText('YOU DIED', W / 2, H / 2 - 40);
+      ctx.font = '16px monospace'; ctx.fillStyle = '#f88';
+      ctx.fillText(msg, W / 2, H / 2);
+    }
+    const finalScore = player.gold + player.xp + dlvl * 100;
+    ctx.font = '18px monospace'; ctx.fillStyle = '#aaa';
+    ctx.fillText('Score: ' + finalScore + '  |  Dlvl: ' + dlvl + '  |  Turns: ' + turnCount, W / 2, H / 2 + 40);
+    ctx.fillStyle = '#666'; ctx.font = '14px monospace';
+    ctx.fillText('Press R to restart', W / 2, H / 2 + 70);
+  }
+}
+
+function update() {
+  if (infoOpen) return;
+  if (msgTimer > 0) msgTimer--;
+}
+
+initGame();
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: twin-stick ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("twin-stick");
+</script>
+</body>
+</html>

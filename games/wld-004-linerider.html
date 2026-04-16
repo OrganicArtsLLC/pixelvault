@@ -1,0 +1,650 @@
+<!--
+PROTOTYPE: linerider
+SERIES: wld
+NUMBER: 004
+DATE: 2026-03-24
+MECHANIC: physics sandbox drawing — draw lines on the canvas, then press play to watch a tiny sledder ride them following physics; no objectives, pure creative toy
+ANCESTRY: Line Rider (2006, Boštjan Čadež), Crayon Physics (2007, Petri Purho)
+CONTROLS: Mouse — draw/erase lines | Space — toggle draw/play | E — eraser tool | P — pencil tool | C — clear all | R — restart sledder | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 5 (Deep Learning Dawn — GPU acceleration, early neural nets)
+AI-INSIGHT: Line Rider is a physics sandbox where the player IS the level designer. The core loop — draw, simulate, observe, iterate — mirrors the scientific method. AI could optimize tracks but would miss the creative joy of experimentation.
+NOTES: Pure creative toy with no win/lose state. The satisfaction comes from watching physics play out on your hand-drawn track.
+       Drawing + physics simulation = emergent complexity from simple rules.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WLD-004 · LINE RIDER</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>WLD-004 · LINE RIDER</h1>
+    <p><span class="tag series">WLD — World Builder</span> <span class="tag">Prototype #004</span> <span class="tag">★★★★☆</span></p>
+
+    <h2>How to Play</h2>
+    <p>Draw lines to create a track, then press Space to watch a tiny sledder ride your creation following realistic physics. There are no objectives — this is a pure creative toy.</p>
+    <ul>
+      <li><kbd>Mouse drag</kbd> — Draw lines (pencil) or erase (eraser)</li>
+      <li><kbd>Space</kbd> — Toggle between DRAW and PLAY modes</li>
+      <li><kbd>P</kbd> — Select pencil tool</li>
+      <li><kbd>E</kbd> — Select eraser tool</li>
+      <li><kbd>C</kbd> — Clear all lines</li>
+      <li><kbd>R</kbd> — Restart sledder position</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Start gentle:</strong> Draw a slight downhill slope to get the sledder moving.</li>
+      <li><strong>Curves matter:</strong> Smooth curves feel better than sharp angles.</li>
+      <li><strong>Momentum:</strong> The sledder gains speed going downhill and loses it going uphill.</li>
+      <li><strong>Iterate:</strong> Switch back to DRAW mode to add more track, then PLAY again.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Line Rider (2006, Boštjan Čadež) → Crayon Physics (2007) → various physics sandboxes</p>
+    <p>Line Rider was created by Boštjan Čadež, a Slovenian university student, as a Flash game in September 2006. It went viral almost instantly — the concept of drawing lines and watching a sledder ride them was irresistible. No score, no timer, no enemies. Just physics and creativity.</p>
+    <p>The game spawned a massive community of track artists who created elaborate courses set to music, essentially inventing a new art form. Line Rider proved that a game doesn't need objectives to be deeply engaging — the draw-simulate-iterate loop is inherently satisfying.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 5 — Deep Learning Dawn (2006–2012)</p>
+    <p><strong>Contemporary AI:</strong> Geoffrey Hinton's breakthrough with deep belief networks (2006). GPU-accelerated training beginning. The foundations of modern deep learning being laid.</p>
+    <p><strong>Hidden Intelligence:</strong> Line Rider is a physics simulation sandbox — the player explores a continuous state space through iterative design. Each drawn line changes the dynamics of the entire system. This is essentially manual parameter search in a physics engine, the same kind of exploration that automated hyperparameter tuning would later formalize.</p>
+    <p><strong>The Convergence:</strong> Modern AI can generate optimized Line Rider tracks using evolutionary algorithms or reinforcement learning, but the generated tracks lack the artistic intent and narrative arc that human creators bring. The game is a perfect example of human creativity augmented by computational physics.</p>
+    <p><strong>If AI Had Designed This:</strong> Procedural track suggestions that complete partial drawings, auto-smoothing curves, and difficulty-adaptive starting slopes.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: WLD — World Builder</h3>
+    <p>Line Rider is the purest world builder: the player creates the entire environment, then observes an agent navigating it. No pre-built levels, no constraints beyond physics.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Physics sandbox drawing.</strong> Draw lines that become physical surfaces. A simulated rider follows gravity, friction, and momentum along your creation. The core loop is draw → simulate → observe → iterate.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Drawing feel — does line creation feel smooth and responsive?</li>
+      <li>Physics satisfaction — does the sledder move convincingly along curves?</li>
+      <li>Iterate loop — is switching between draw/play seamless enough to encourage experimentation?</li>
+      <li>Emergent complexity — do simple lines create surprising physics outcomes?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Simple physics model with gravity, surface sliding, friction, and momentum. Drawing creates line segments that the sledder collides with. Eraser removes nearby segments.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = 800, H = 600;
+canvas.width = W;
+canvas.height = H;
+
+// --- STATE ---
+let mode = 'draw'; // 'draw' or 'play'
+let tool = 'pencil'; // 'pencil' or 'eraser'
+let lines = []; // [{x1,y1,x2,y2}, ...]
+let drawing = false;
+let lastMouse = null;
+
+// Sledder start position
+const START_X = 100, START_Y = 150;
+
+// Sledder state
+let sled = { x: START_X, y: START_Y, vx: 0, vy: 0, onGround: false, angle: 0 };
+
+// Physics constants
+const GRAVITY = 0.35;
+const FRICTION = 0.992;
+const BOUNCE = 0.3;
+const RIDER_RADIUS = 6;
+const LINE_WIDTH_DRAW = 3;
+const ERASER_RADIUS = 20;
+const SUB_STEPS = 4;
+
+// Trail for visual effect
+let trail = [];
+const MAX_TRAIL = 60;
+
+// Camera offset for following sledder
+let camX = 0, camY = 0;
+let targetCamX = 0, targetCamY = 0;
+
+// --- MOUSE HANDLING ---
+function getMousePos(e) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = W / rect.width;
+  const scaleY = H / rect.height;
+  return {
+    x: (e.clientX - rect.left) * scaleX + camX,
+    y: (e.clientY - rect.top) * scaleY + camY
+  };
+}
+
+canvas.addEventListener('mousedown', e => {
+  if (infoOpen || mode !== 'draw') return;
+  drawing = true;
+  lastMouse = getMousePos(e);
+  if (tool === 'eraser') eraseAt(lastMouse.x, lastMouse.y);
+});
+
+canvas.addEventListener('mousemove', e => {
+  if (infoOpen || !drawing || mode !== 'draw') return;
+  const pos = getMousePos(e);
+  if (tool === 'pencil') {
+    const dx = pos.x - lastMouse.x;
+    const dy = pos.y - lastMouse.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist > 3) {
+      lines.push({ x1: lastMouse.x, y1: lastMouse.y, x2: pos.x, y2: pos.y });
+      lastMouse = pos;
+    }
+  } else {
+    eraseAt(pos.x, pos.y);
+    lastMouse = pos;
+  }
+});
+
+canvas.addEventListener('mouseup', () => { drawing = false; lastMouse = null; });
+canvas.addEventListener('mouseleave', () => { drawing = false; lastMouse = null; });
+
+// Touch support
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  if (infoOpen || mode !== 'draw') return;
+  drawing = true;
+  const t = e.touches[0];
+  lastMouse = getMousePos(t);
+  if (tool === 'eraser') eraseAt(lastMouse.x, lastMouse.y);
+}, { passive: false });
+
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (infoOpen || !drawing || mode !== 'draw') return;
+  const t = e.touches[0];
+  const pos = getMousePos(t);
+  if (tool === 'pencil') {
+    const dx = pos.x - lastMouse.x;
+    const dy = pos.y - lastMouse.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist > 3) {
+      lines.push({ x1: lastMouse.x, y1: lastMouse.y, x2: pos.x, y2: pos.y });
+      lastMouse = pos;
+    }
+  } else {
+    eraseAt(pos.x, pos.y);
+    lastMouse = pos;
+  }
+}, { passive: false });
+
+canvas.addEventListener('touchend', e => {
+  e.preventDefault();
+  drawing = false;
+  lastMouse = null;
+}, { passive: false });
+
+function eraseAt(x, y) {
+  lines = lines.filter(l => {
+    const mx = (l.x1 + l.x2) / 2;
+    const my = (l.y1 + l.y2) / 2;
+    // Check distance to line segment
+    const d = distToSegment(x, y, l.x1, l.y1, l.x2, l.y2);
+    return d > ERASER_RADIUS;
+  });
+}
+
+function distToSegment(px, py, x1, y1, x2, y2) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const len2 = dx * dx + dy * dy;
+  if (len2 === 0) return Math.sqrt((px - x1) ** 2 + (py - y1) ** 2);
+  let t = ((px - x1) * dx + (py - y1) * dy) / len2;
+  t = Math.max(0, Math.min(1, t));
+  const cx = x1 + t * dx;
+  const cy = y1 + t * dy;
+  return Math.sqrt((px - cx) ** 2 + (py - cy) ** 2);
+}
+
+// --- KEYBOARD ---
+window.addEventListener('keydown', e => {
+  if (infoOpen) return;
+  if (e.key === ' ' || e.code === 'Space') {
+    e.preventDefault();
+    if (mode === 'draw') {
+      mode = 'play';
+      resetSledder();
+    } else {
+      mode = 'draw';
+      camX = 0;
+      camY = 0;
+    }
+  }
+  if (e.key === 'e' || e.key === 'E') { tool = 'eraser'; }
+  if (e.key === 'p' || e.key === 'P') { tool = 'pencil'; }
+  if (e.key === 'c' || e.key === 'C') { if (mode === 'draw') lines = []; }
+  if (e.key === 'r' || e.key === 'R') { if (mode === 'play') resetSledder(); }
+});
+
+function resetSledder() {
+  sled.x = START_X;
+  sled.y = START_Y;
+  sled.vx = 0;
+  sled.vy = 0;
+  sled.onGround = false;
+  sled.angle = 0;
+  trail = [];
+  camX = 0;
+  camY = 0;
+  targetCamX = 0;
+  targetCamY = 0;
+}
+
+// --- PHYSICS ---
+function closestPointOnSegment(px, py, x1, y1, x2, y2) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const len2 = dx * dx + dy * dy;
+  if (len2 === 0) return { x: x1, y: y1, t: 0 };
+  let t = ((px - x1) * dx + (py - y1) * dy) / len2;
+  t = Math.max(0, Math.min(1, t));
+  return { x: x1 + t * dx, y: y1 + t * dy, t };
+}
+
+function updatePhysics() {
+  const dt = 1 / SUB_STEPS;
+
+  for (let step = 0; step < SUB_STEPS; step++) {
+    // Apply gravity
+    sled.vy += GRAVITY * dt;
+
+    // Move
+    sled.x += sled.vx * dt;
+    sled.y += sled.vy * dt;
+
+    // Collision with lines
+    sled.onGround = false;
+    for (let i = 0; i < lines.length; i++) {
+      const l = lines[i];
+      const cp = closestPointOnSegment(sled.x, sled.y, l.x1, l.y1, l.x2, l.y2);
+      const ddx = sled.x - cp.x;
+      const ddy = sled.y - cp.y;
+      const dist = Math.sqrt(ddx * ddx + ddy * ddy);
+
+      if (dist < RIDER_RADIUS) {
+        // Calculate line normal (perpendicular, pointing "up" relative to rider)
+        const lx = l.x2 - l.x1;
+        const ly = l.y2 - l.y1;
+        const len = Math.sqrt(lx * lx + ly * ly);
+        if (len === 0) continue;
+
+        // Normal perpendicular to line
+        let nx = -ly / len;
+        let ny = lx / len;
+
+        // Make sure normal points toward the sledder
+        if (nx * ddx + ny * ddy < 0) {
+          nx = -nx;
+          ny = -ny;
+        }
+
+        // Push out
+        const overlap = RIDER_RADIUS - dist;
+        sled.x += nx * overlap;
+        sled.y += ny * overlap;
+
+        // Decompose velocity into normal and tangent
+        const vDotN = sled.vx * nx + sled.vy * ny;
+
+        if (vDotN < 0) {
+          // Remove normal component (with slight bounce)
+          sled.vx -= nx * vDotN * (1 + BOUNCE);
+          sled.vy -= ny * vDotN * (1 + BOUNCE);
+        }
+
+        // Apply friction along surface
+        sled.vx *= FRICTION;
+        sled.vy *= FRICTION;
+
+        sled.onGround = true;
+        sled.angle = Math.atan2(ly, lx);
+      }
+    }
+  }
+
+  // Trail
+  trail.push({ x: sled.x, y: sled.y });
+  if (trail.length > MAX_TRAIL) trail.shift();
+
+  // Camera follow in play mode
+  targetCamX = sled.x - W / 2;
+  targetCamY = sled.y - H / 2;
+  camX += (targetCamX - camX) * 0.08;
+  camY += (targetCamY - camY) * 0.08;
+
+  // Check if sledder fell way off screen
+  if (sled.y > camY + H + 200) {
+    resetSledder();
+  }
+}
+
+// --- RENDER ---
+function drawGrid() {
+  ctx.strokeStyle = '#1a1a2e';
+  ctx.lineWidth = 1;
+  const gridSize = 40;
+  const startX = Math.floor(camX / gridSize) * gridSize;
+  const startY = Math.floor(camY / gridSize) * gridSize;
+  for (let x = startX; x < camX + W + gridSize; x += gridSize) {
+    ctx.beginPath();
+    ctx.moveTo(x - camX, 0);
+    ctx.lineTo(x - camX, H);
+    ctx.stroke();
+  }
+  for (let y = startY; y < camY + H + gridSize; y += gridSize) {
+    ctx.beginPath();
+    ctx.moveTo(0, y - camY);
+    ctx.lineTo(W, y - camY);
+    ctx.stroke();
+  }
+}
+
+function drawLines() {
+  ctx.strokeStyle = '#667';
+  ctx.lineWidth = LINE_WIDTH_DRAW;
+  ctx.lineCap = 'round';
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
+    ctx.beginPath();
+    ctx.moveTo(l.x1 - camX, l.y1 - camY);
+    ctx.lineTo(l.x2 - camX, l.y2 - camY);
+    ctx.stroke();
+  }
+}
+
+function drawTrail() {
+  for (let i = 1; i < trail.length; i++) {
+    const alpha = i / trail.length * 0.5;
+    ctx.strokeStyle = `rgba(100,180,255,${alpha})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(trail[i - 1].x - camX, trail[i - 1].y - camY);
+    ctx.lineTo(trail[i].x - camX, trail[i].y - camY);
+    ctx.stroke();
+  }
+}
+
+function drawSledder() {
+  const sx = sled.x - camX;
+  const sy = sled.y - camY;
+
+  ctx.save();
+  ctx.translate(sx, sy);
+  ctx.rotate(sled.angle);
+
+  // Sled (rectangle beneath rider)
+  ctx.fillStyle = '#a52';
+  ctx.fillRect(-10, 2, 20, 4);
+  // Sled runners
+  ctx.strokeStyle = '#ddd';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(-12, 7);
+  ctx.lineTo(14, 7);
+  ctx.stroke();
+
+  // Body (circle)
+  ctx.fillStyle = '#4af';
+  ctx.beginPath();
+  ctx.arc(0, -4, RIDER_RADIUS, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Head
+  ctx.fillStyle = '#fda';
+  ctx.beginPath();
+  ctx.arc(0, -14, 4, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Scarf
+  ctx.strokeStyle = '#f44';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(2, -10);
+  ctx.lineTo(10, -8);
+  ctx.lineTo(14, -12);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+function drawStartMarker() {
+  const sx = START_X - camX;
+  const sy = START_Y - camY;
+  ctx.fillStyle = '#4f4';
+  ctx.beginPath();
+  ctx.moveTo(sx - 5, sy - 20);
+  ctx.lineTo(sx + 10, sy - 12);
+  ctx.lineTo(sx - 5, sy - 4);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillRect(sx - 7, sy - 22, 3, 22);
+}
+
+function drawUI() {
+  // Mode indicator
+  const modeText = mode === 'draw' ? 'DRAW MODE' : 'PLAY MODE';
+  const modeColor = mode === 'draw' ? '#4f4' : '#f80';
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(0, 0, W, 36);
+
+  ctx.font = '14px monospace';
+  ctx.fillStyle = modeColor;
+  ctx.textAlign = 'left';
+  ctx.fillText(modeText, 12, 24);
+
+  if (mode === 'draw') {
+    // Tool indicator
+    const toolText = tool === 'pencil' ? 'PENCIL' : 'ERASER';
+    const toolColor = tool === 'pencil' ? '#7bf' : '#f66';
+    ctx.fillStyle = toolColor;
+    ctx.fillText('Tool: ' + toolText, 150, 24);
+
+    ctx.fillStyle = '#888';
+    ctx.fillText('Lines: ' + lines.length, 310, 24);
+  } else {
+    // Speed indicator
+    const speed = Math.sqrt(sled.vx * sled.vx + sled.vy * sled.vy);
+    ctx.fillStyle = '#888';
+    ctx.fillText('Speed: ' + speed.toFixed(1), 150, 24);
+  }
+
+  // Controls hint
+  ctx.fillStyle = '#555';
+  ctx.textAlign = 'right';
+  ctx.font = '12px monospace';
+  if (mode === 'draw') {
+    ctx.fillText('SPACE=play  E=eraser  P=pencil  C=clear  ?=info', W - 12, 24);
+  } else {
+    ctx.fillText('SPACE=draw  R=restart  ?=info', W - 12, 24);
+  }
+}
+
+function drawCursorPreview(e) {
+  if (mode !== 'draw' || !e) return;
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = W / rect.width;
+  const scaleY = H / rect.height;
+  const mx = (e.clientX - rect.left) * scaleX;
+  const my = (e.clientY - rect.top) * scaleY;
+
+  if (tool === 'eraser') {
+    ctx.strokeStyle = 'rgba(255,100,100,0.5)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(mx, my, ERASER_RADIUS, 0, Math.PI * 2);
+    ctx.stroke();
+  } else {
+    ctx.fillStyle = 'rgba(102,119,119,0.8)';
+    ctx.beginPath();
+    ctx.arc(mx, my, 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+let currentMouseEvent = null;
+canvas.addEventListener('mousemove', e => { currentMouseEvent = e; });
+canvas.addEventListener('mouseleave', () => { currentMouseEvent = null; });
+
+// --- MAIN LOOP ---
+function update() {
+  if (infoOpen) return;
+
+  // Background
+  ctx.fillStyle = '#0d0d1a';
+  ctx.fillRect(0, 0, W, H);
+
+  drawGrid();
+  drawLines();
+  drawStartMarker();
+
+  if (mode === 'play') {
+    updatePhysics();
+    drawTrail();
+    drawSledder();
+  }
+
+  drawUI();
+  drawCursorPreview(currentMouseEvent);
+
+  requestAnimationFrame(update);
+}
+
+// Start when not in info
+requestAnimationFrame(update);
+
+// Ensure the loop restarts after closing info panel
+const origToggle = toggleInfo;
+toggleInfo = function() {
+  origToggle();
+  if (!infoOpen) requestAnimationFrame(update);
+};
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

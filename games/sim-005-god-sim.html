@@ -1,0 +1,874 @@
+<!--
+PROTOTYPE: god-sim
+SERIES: sim
+NUMBER: 005
+DATE: 2026-03-22
+MECHANIC: god game — terraform land and guide followers to dominate opposing tribe
+ANCESTRY: Populous (1989, Peter Molyneux, Bullfrog), Powermonger (1990, Bullfrog)
+CONTROLS: Mouse — raise/lower terrain, select powers | 1-4 — select divine power | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — agent-based population simulation)
+AI-INSIGHT: Populous pioneered the god game genre where the player influences rather than directly controls — followers are autonomous agents that respond to environmental changes. This indirect control paradigm mirrors principal-agent problems in economics and multi-agent AI systems.
+NOTES: God game. Raise/lower terrain to help followers build and expand.
+       Oppose enemy god's tribe. Use divine powers strategically.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SIM-005 · GOD SIM</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: crosshair; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SIM-005 · GOD SIM</h1>
+    <p><span class="tag series">SIM — Simulation</span> <span class="tag">Prototype #005</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>You are a god. Shape the land to help your blue tribe thrive and destroy the red enemy tribe. Followers are autonomous -- they settle, build, and multiply on flat terrain.</p>
+    <ul>
+      <li><kbd>Left Click</kbd> — Use selected power (raise land, earthquake, etc.)</li>
+      <li><kbd>Right Click</kbd> — Lower terrain</li>
+      <li><kbd>1</kbd> — Raise Land (flatten terrain for building, costs 5 mana)</li>
+      <li><kbd>2</kbd> — Lower Land (create water/obstacles, costs 5 mana)</li>
+      <li><kbd>3</kbd> — Earthquake (damage enemy buildings in area, costs 30 mana)</li>
+      <li><kbd>4</kbd> — Flood (raise water level temporarily, costs 40 mana)</li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Flatten land:</strong> Followers build bigger settlements on flat terrain. Raise low land and lower high land to create plateaus.</li>
+      <li><strong>Mana comes from followers:</strong> More followers = more mana = more powers. Grow your tribe first.</li>
+      <li><strong>Earthquake:</strong> Devastating to enemy settlements but expensive. Save it for clusters of enemy buildings.</li>
+      <li><strong>Watch the enemy god:</strong> The red god also terraforms and uses powers. Counter their moves.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Populous (1989, Bullfrog) &rarr; Powermonger (1990) &rarr; Black & White (2001)</p>
+    <p>Populous (1989) created the god game genre. Designed by Peter Molyneux at Bullfrog Productions, it gave the player indirect control over a tribe of followers by reshaping the terrain. Rather than commanding units directly, the player influences the environment and the followers autonomously respond.</p>
+    <p>The key insight was that flattening terrain allowed followers to build larger settlements, which produced more followers, which generated more mana for divine powers. This created a positive feedback loop -- the core economic engine of the god game.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 3 — Knowledge Explosion (1980-1993)</p>
+    <p><strong>Contemporary AI:</strong> Expert systems were dominant. Early neural networks were being explored. Multi-agent simulation was emerging in academic research.</p>
+    <p><strong>Hidden Intelligence:</strong> Populous's followers are autonomous agents with simple rules: walk, find flat land, settle, build, multiply. These emergent behaviors arise from agent-environment interaction -- a principle that would later become central to reinforcement learning and multi-agent systems. The player's indirect control mirrors the principal-agent problem in economics.</p>
+    <p><strong>The Convergence:</strong> The god game's "influence, don't control" paradigm anticipates modern AI alignment challenges. How do you steer agents toward desired outcomes without direct control? Populous solved this through environmental design -- shaping the world so that agents' autonomous behavior naturally aligns with the player's goals.</p>
+    <p><strong>If AI Had Designed This:</strong> Adaptive terrain generation that responds to player strategy. Enemy AI that learns from player patterns. Follower agents with more complex decision trees that create genuinely emergent settlements.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: SIM — Simulation</h3>
+    <p>Populous is the origin of the god game subgenre. The player operates at a macro level, shaping the world rather than controlling individual units.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Indirect control through terraforming.</strong> Raise and lower terrain to create flat areas for settlement. Followers autonomously respond to terrain changes. Divine powers provide direct intervention at high mana cost. Opposing god creates adversarial pressure.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Indirect control — does shaping terrain feel like guiding a tribe?</li>
+      <li>Emergent behavior — do simple follower rules create interesting patterns?</li>
+      <li>Economic loop — does mana generation from followers create meaningful resource decisions?</li>
+      <li>Adversarial AI — does the enemy god create strategic tension?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Top-down terrain grid with height-based coloring. Autonomous follower agents with simple settlement AI. Enemy god with basic terraforming and power usage. Win by population dominance or total destruction of enemy settlements.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+// --- CONSTANTS ---
+const COLS = 40, ROWS = 30;
+const TW = 20, TH = 18; // tile width/height
+const MAP_OX = 0, MAP_OY = 40; // map offset (leave top for HUD)
+const MAX_HEIGHT = 5;
+const WATER_LEVEL = 1;
+const POWER_RAISE = 0, POWER_LOWER = 1, POWER_QUAKE = 2, POWER_FLOOD = 3;
+const POWER_COST = [5, 5, 30, 40];
+const POWER_NAMES = ['RAISE', 'LOWER', 'QUAKE', 'FLOOD'];
+const BLUE = 0, RED = 1;
+
+// --- STATE ---
+let terrain, followers, settlements, mana, selectedPower, frame, gameOver, winner;
+let floodTimer, floodLevel, particles, enemyActionTimer;
+let mouseX, mouseY, mouseDown, rightDown;
+
+// --- INPUT ---
+const keys = {};
+window.addEventListener('keydown', e => {
+  if (infoOpen) return;
+  keys[e.code] = true;
+  if (e.key === '1') selectedPower = POWER_RAISE;
+  if (e.key === '2') selectedPower = POWER_LOWER;
+  if (e.key === '3') selectedPower = POWER_QUAKE;
+  if (e.key === '4') selectedPower = POWER_FLOOD;
+  if (e.key === 'r' || e.key === 'R') initGame();
+  e.preventDefault();
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+mouseX = 0; mouseY = 0; mouseDown = false; rightDown = false;
+
+function getCanvasPos(e) {
+  const r = canvas.getBoundingClientRect();
+  return { x: (e.clientX - r.left) * W / r.width, y: (e.clientY - r.top) * H / r.height };
+}
+canvas.addEventListener('mousemove', e => {
+  const p = getCanvasPos(e);
+  mouseX = p.x; mouseY = p.y;
+});
+canvas.addEventListener('mousedown', e => {
+  e.preventDefault();
+  if (e.button === 0) mouseDown = true;
+  if (e.button === 2) rightDown = true;
+});
+canvas.addEventListener('mouseup', e => {
+  if (e.button === 0) mouseDown = false;
+  if (e.button === 2) rightDown = false;
+});
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+function getTileAt(px, py) {
+  const c = Math.floor((px - MAP_OX) / TW);
+  const r = Math.floor((py - MAP_OY) / TH);
+  if (c >= 0 && c < COLS && r >= 0 && r < ROWS) return { c, r };
+  return null;
+}
+
+// --- INIT ---
+function initGame() {
+  terrain = [];
+  for (let r = 0; r < ROWS; r++) {
+    terrain[r] = [];
+    for (let c = 0; c < COLS; c++) {
+      terrain[r][c] = 2; // start at mid height
+    }
+  }
+  // Generate terrain with simple noise
+  for (let i = 0; i < 18; i++) {
+    const cx = Math.floor(Math.random() * COLS);
+    const cy = Math.floor(Math.random() * ROWS);
+    const rad = 3 + Math.floor(Math.random() * 5);
+    const h = Math.random() > 0.4 ? 1 : -1;
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const dx = c - cx, dy = r - cy;
+        const d = Math.sqrt(dx * dx + dy * dy);
+        if (d < rad) {
+          terrain[r][c] = Math.max(0, Math.min(MAX_HEIGHT, terrain[r][c] + h));
+        }
+      }
+    }
+  }
+  // Ensure starting areas are flat
+  flattenArea(3, Math.floor(ROWS / 2) - 2, 5, 5, 3);
+  flattenArea(COLS - 8, Math.floor(ROWS / 2) - 2, 5, 5, 3);
+
+  followers = [];
+  settlements = [];
+  mana = [50, 50]; // player blue, enemy red
+  selectedPower = POWER_RAISE;
+  frame = 0;
+  gameOver = false;
+  winner = -1;
+  floodTimer = 0;
+  floodLevel = 0;
+  particles = [];
+  enemyActionTimer = 0;
+
+  // Spawn initial followers
+  for (let i = 0; i < 6; i++) {
+    spawnFollower(BLUE, 3 + Math.random() * 4, Math.floor(ROWS / 2) - 1 + Math.random() * 3);
+    spawnFollower(RED, COLS - 8 + Math.random() * 4, Math.floor(ROWS / 2) - 1 + Math.random() * 3);
+  }
+}
+
+function flattenArea(sx, sy, w, h, targetH) {
+  for (let r = sy; r < sy + h && r < ROWS; r++) {
+    for (let c = sx; c < sx + w && c < COLS; c++) {
+      if (r >= 0 && c >= 0) terrain[r][c] = targetH;
+    }
+  }
+}
+
+function spawnFollower(team, fx, fy) {
+  followers.push({
+    team: team,
+    x: fx, y: fy,
+    tx: fx, ty: fy, // target
+    settled: false,
+    settleTimer: 0,
+    homeSettlement: -1,
+    alive: true,
+    walkTimer: 0
+  });
+}
+
+initGame();
+
+// --- TERRAIN HELPERS ---
+function getHeight(c, r) {
+  if (c < 0 || c >= COLS || r < 0 || r >= ROWS) return 0;
+  return terrain[r][c];
+}
+
+function effectiveWater() {
+  return WATER_LEVEL + floodLevel;
+}
+
+function isWater(c, r) {
+  return getHeight(c, r) <= effectiveWater();
+}
+
+function flatness(c, r) {
+  // How flat is the area around this tile? Lower = flatter
+  let diff = 0;
+  const h = getHeight(c, r);
+  for (let dr = -1; dr <= 1; dr++) {
+    for (let dc = -1; dc <= 1; dc++) {
+      if (dr === 0 && dc === 0) continue;
+      diff += Math.abs(getHeight(c + dc, r + dr) - h);
+    }
+  }
+  return diff;
+}
+
+// --- SETTLEMENT ---
+function findSettlement(c, r) {
+  for (let i = 0; i < settlements.length; i++) {
+    if (settlements[i].c === c && settlements[i].r === r && settlements[i].alive) return i;
+  }
+  return -1;
+}
+
+function createSettlement(team, c, r) {
+  const idx = settlements.length;
+  settlements.push({
+    team: team,
+    c: c, r: r,
+    population: 1,
+    level: 1,
+    alive: true,
+    spawnTimer: 200 + Math.floor(Math.random() * 100)
+  });
+  return idx;
+}
+
+// --- UPDATE ---
+function update() {
+  if (infoOpen) return;
+  if (gameOver) return;
+  frame++;
+
+  // Handle mouse input
+  if (frame % 6 === 0) {
+    if (mouseDown) handlePower(false);
+    if (rightDown) handleLower();
+  }
+
+  // Mana generation from followers and settlements
+  if (frame % 60 === 0) {
+    let bCount = 0, rCount = 0;
+    for (const f of followers) {
+      if (!f.alive) continue;
+      if (f.team === BLUE) bCount++;
+      else rCount++;
+    }
+    for (const s of settlements) {
+      if (!s.alive) continue;
+      if (s.team === BLUE) { bCount += s.population; }
+      else { rCount += s.population; }
+    }
+    mana[BLUE] = Math.min(200, mana[BLUE] + Math.max(1, Math.floor(bCount / 3)));
+    mana[RED] = Math.min(200, mana[RED] + Math.max(1, Math.floor(rCount / 3)));
+  }
+
+  // Flood timer
+  if (floodTimer > 0) {
+    floodTimer--;
+    if (floodTimer <= 0) floodLevel = 0;
+  }
+
+  // Update followers
+  for (const f of followers) {
+    if (!f.alive) continue;
+    const fc = Math.floor(f.x), fr = Math.floor(f.y);
+
+    // Die in water
+    if (fc >= 0 && fc < COLS && fr >= 0 && fr < ROWS && isWater(fc, fr)) {
+      f.alive = false;
+      addParticle(f.x * TW + MAP_OX + TW / 2, f.y * TH + MAP_OY + TH / 2, f.team === BLUE ? '#48f' : '#f44');
+      continue;
+    }
+
+    // Settled follower behavior
+    if (f.settled && f.homeSettlement >= 0) {
+      const s = settlements[f.homeSettlement];
+      if (!s || !s.alive) {
+        f.settled = false;
+        f.homeSettlement = -1;
+        continue;
+      }
+      continue; // settled followers stay put
+    }
+
+    // Walking behavior
+    f.walkTimer--;
+    if (f.walkTimer <= 0) {
+      f.walkTimer = 10 + Math.floor(Math.random() * 20);
+      // Find a good destination: flat, not water, near team territory
+      let bestC = -1, bestR = -1, bestScore = -999;
+      for (let tries = 0; tries < 8; tries++) {
+        const nc = Math.max(0, Math.min(COLS - 1, fc + Math.floor(Math.random() * 7) - 3));
+        const nr = Math.max(0, Math.min(ROWS - 1, fr + Math.floor(Math.random() * 7) - 3));
+        if (isWater(nc, nr)) continue;
+        const flat = 8 - flatness(nc, nr);
+        const h = getHeight(nc, nr);
+        // Prefer flat high land
+        let score = flat + h * 0.5;
+        // Avoid enemy settlements
+        const si = findSettlement(nc, nr);
+        if (si >= 0 && settlements[si].team !== f.team) score -= 10;
+        // Slight preference toward own side
+        if (f.team === BLUE) score += (COLS - nc) * 0.02;
+        else score += nc * 0.02;
+        if (score > bestScore) { bestScore = score; bestC = nc; bestR = nr; }
+      }
+      if (bestC >= 0) { f.tx = bestC + 0.5; f.ty = bestR + 0.5; }
+    }
+
+    // Move toward target
+    const dx = f.tx - f.x, dy = f.ty - f.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist > 0.15) {
+      const speed = 0.05;
+      f.x += (dx / dist) * speed;
+      f.y += (dy / dist) * speed;
+    } else {
+      // Arrived — try to settle
+      const tc = Math.floor(f.x), tr = Math.floor(f.y);
+      if (tc >= 0 && tc < COLS && tr >= 0 && tr < ROWS && !isWater(tc, tr)) {
+        const flat = flatness(tc, tr);
+        if (flat <= 2 && getHeight(tc, tr) > effectiveWater()) {
+          // Check for existing settlement here
+          const si = findSettlement(tc, tr);
+          if (si >= 0) {
+            if (settlements[si].team === f.team) {
+              // Join existing settlement
+              settlements[si].population++;
+              settlements[si].level = Math.min(5, 1 + Math.floor(settlements[si].population / 2));
+              f.settled = true;
+              f.homeSettlement = si;
+            }
+            // Enemy settlement — don't settle, wander away
+          } else {
+            // Create new settlement
+            const ni = createSettlement(f.team, tc, tr);
+            f.settled = true;
+            f.homeSettlement = ni;
+          }
+        }
+      }
+    }
+
+    // Clamp position
+    f.x = Math.max(0, Math.min(COLS - 0.1, f.x));
+    f.y = Math.max(0, Math.min(ROWS - 0.1, f.y));
+  }
+
+  // Settlement spawning
+  for (const s of settlements) {
+    if (!s.alive) continue;
+    // Check if still on valid terrain
+    if (isWater(s.c, s.r) || flatness(s.c, s.r) > 4) {
+      s.alive = false;
+      // Release followers
+      for (const f of followers) {
+        if (f.homeSettlement === settlements.indexOf(s)) {
+          f.settled = false;
+          f.homeSettlement = -1;
+        }
+      }
+      addParticle(s.c * TW + MAP_OX + TW / 2, s.r * TH + MAP_OY + TH / 2, '#fa0');
+      continue;
+    }
+
+    // Grow level based on flatness
+    s.level = Math.min(5, 1 + Math.floor(s.population / 2));
+    if (flatness(s.c, s.r) <= 1) s.level = Math.min(5, s.level + 1);
+
+    // Spawn new followers
+    s.spawnTimer--;
+    if (s.spawnTimer <= 0 && s.population >= 2) {
+      s.spawnTimer = Math.max(80, 250 - s.level * 30);
+      // Spawn a new follower nearby
+      const angle = Math.random() * Math.PI * 2;
+      const nx = s.c + Math.cos(angle) * 2;
+      const ny = s.r + Math.sin(angle) * 2;
+      if (nx >= 0 && nx < COLS && ny >= 0 && ny < ROWS) {
+        spawnFollower(s.team, nx, ny);
+      }
+    }
+  }
+
+  // Remove dead
+  followers = followers.filter(f => f.alive);
+
+  // Enemy god AI
+  enemyActionTimer--;
+  if (enemyActionTimer <= 0) {
+    enemyActionTimer = 30 + Math.floor(Math.random() * 40);
+    enemyGodAI();
+  }
+
+  // Update particles
+  particles = particles.filter(p => {
+    p.life--;
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.05;
+    return p.life > 0;
+  });
+
+  // Win/loss check
+  if (frame % 120 === 0 && frame > 300) {
+    let blueTotal = 0, redTotal = 0;
+    for (const f of followers) {
+      if (f.team === BLUE) blueTotal++;
+      else redTotal++;
+    }
+    for (const s of settlements) {
+      if (!s.alive) continue;
+      if (s.team === BLUE) blueTotal += s.population;
+      else redTotal += s.population;
+    }
+    if (redTotal === 0 && blueTotal > 0) { gameOver = true; winner = BLUE; }
+    if (blueTotal === 0 && redTotal > 0) { gameOver = true; winner = RED; }
+    // Time-based win at frame ~10800 (about 3 min)
+    if (frame > 10800) {
+      gameOver = true;
+      winner = blueTotal >= redTotal ? BLUE : RED;
+    }
+  }
+}
+
+// --- PLAYER POWERS ---
+function handlePower(isEnemy) {
+  const tile = getTileAt(mouseX, mouseY);
+  if (!tile) return;
+  const team = isEnemy ? RED : BLUE;
+  const power = selectedPower;
+  const cost = POWER_COST[power];
+  if (mana[team] < cost) return;
+
+  if (power === POWER_RAISE) {
+    if (terrain[tile.r][tile.c] < MAX_HEIGHT) {
+      terrain[tile.r][tile.c]++;
+      mana[team] -= cost;
+    }
+  } else if (power === POWER_LOWER) {
+    if (terrain[tile.r][tile.c] > 0) {
+      terrain[tile.r][tile.c]--;
+      mana[team] -= cost;
+    }
+  } else if (power === POWER_QUAKE) {
+    doQuake(tile.c, tile.r, team);
+    mana[team] -= cost;
+  } else if (power === POWER_FLOOD) {
+    floodLevel = 1;
+    floodTimer = 300;
+    mana[team] -= cost;
+  }
+}
+
+function handleLower() {
+  const tile = getTileAt(mouseX, mouseY);
+  if (!tile) return;
+  if (mana[BLUE] < POWER_COST[POWER_LOWER]) return;
+  if (terrain[tile.r][tile.c] > 0) {
+    terrain[tile.r][tile.c]--;
+    mana[BLUE] -= POWER_COST[POWER_LOWER];
+  }
+}
+
+function doQuake(cx, cy, team) {
+  const rad = 3;
+  for (let r = cy - rad; r <= cy + rad; r++) {
+    for (let c = cx - rad; c <= cx + rad; c++) {
+      if (r < 0 || r >= ROWS || c < 0 || c >= COLS) continue;
+      const d = Math.sqrt((c - cx) * (c - cx) + (r - cy) * (r - cy));
+      if (d > rad) continue;
+      // Damage terrain
+      terrain[r][c] = Math.max(0, terrain[r][c] + (Math.random() > 0.5 ? 1 : -2));
+      terrain[r][c] = Math.min(MAX_HEIGHT, terrain[r][c]);
+      // Damage enemy settlements
+      const si = findSettlement(c, r);
+      if (si >= 0 && settlements[si].team !== team) {
+        settlements[si].population = Math.max(0, settlements[si].population - 2);
+        if (settlements[si].population <= 0) {
+          settlements[si].alive = false;
+          for (const f of followers) {
+            if (f.homeSettlement === si) { f.settled = false; f.homeSettlement = -1; }
+          }
+        }
+        addParticle(c * TW + MAP_OX + TW / 2, r * TH + MAP_OY + TH / 2, '#fa0');
+      }
+    }
+  }
+  // Screen shake effect via particles
+  for (let i = 0; i < 8; i++) {
+    addParticle(cx * TW + MAP_OX + TW / 2 + (Math.random() - 0.5) * 40,
+                cy * TH + MAP_OY + TH / 2 + (Math.random() - 0.5) * 40, '#ff0');
+  }
+}
+
+// --- ENEMY GOD AI ---
+function enemyGodAI() {
+  // Find enemy followers and settlements
+  const mySettlements = settlements.filter(s => s.alive && s.team === RED);
+  const enemySettlements = settlements.filter(s => s.alive && s.team === BLUE);
+  const myFollowers = followers.filter(f => f.team === RED);
+
+  // Priority: terraform near own followers (flatten land)
+  if (mana[RED] >= 5 && Math.random() < 0.6) {
+    // Find a follower and flatten nearby terrain
+    if (myFollowers.length > 0) {
+      const f = myFollowers[Math.floor(Math.random() * myFollowers.length)];
+      const fc = Math.floor(f.x), fr = Math.floor(f.y);
+      // Find neighboring tile that could be flatter
+      for (let dr = -2; dr <= 2; dr++) {
+        for (let dc = -2; dc <= 2; dc++) {
+          const nc = fc + dc, nr = fr + dr;
+          if (nc < 0 || nc >= COLS || nr < 0 || nr >= ROWS) continue;
+          const targetH = 3;
+          if (terrain[nr][nc] < targetH && mana[RED] >= 5) {
+            terrain[nr][nc]++;
+            mana[RED] -= 5;
+            return;
+          } else if (terrain[nr][nc] > targetH && mana[RED] >= 5) {
+            terrain[nr][nc]--;
+            mana[RED] -= 5;
+            return;
+          }
+        }
+      }
+    }
+  }
+
+  // Use earthquake on player settlements
+  if (mana[RED] >= 30 && enemySettlements.length > 0 && Math.random() < 0.15) {
+    const target = enemySettlements[Math.floor(Math.random() * enemySettlements.length)];
+    doQuake(target.c, target.r, RED);
+    mana[RED] -= 30;
+    return;
+  }
+
+  // Occasionally use flood
+  if (mana[RED] >= 40 && Math.random() < 0.03 && floodTimer <= 0) {
+    floodLevel = 1;
+    floodTimer = 300;
+    mana[RED] -= 40;
+  }
+}
+
+// --- PARTICLES ---
+function addParticle(x, y, color) {
+  for (let i = 0; i < 3; i++) {
+    particles.push({
+      x: x, y: y,
+      vx: (Math.random() - 0.5) * 3,
+      vy: -Math.random() * 2,
+      life: 20 + Math.floor(Math.random() * 20),
+      color: color
+    });
+  }
+}
+
+// --- DRAW ---
+const TERRAIN_COLORS = [
+  '#1a3a6a', // 0 deep water
+  '#2a5a4a', // 1 shallow/marsh
+  '#3a7a2a', // 2 grass
+  '#5a9a3a', // 3 light grass
+  '#8aba5a', // 4 hill
+  '#b0b080'  // 5 mountain
+];
+const WATER_COLORS = ['#0a2848', '#1a4868'];
+
+function draw() {
+  ctx.fillStyle = '#0a0a1a';
+  ctx.fillRect(0, 0, W, H);
+
+  // Draw terrain
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const h = terrain[r][c];
+      const x = MAP_OX + c * TW;
+      const y = MAP_OY + r * TH;
+
+      if (h <= effectiveWater()) {
+        // Water
+        const waveOff = Math.sin((frame * 0.03) + c * 0.5 + r * 0.3) > 0 ? 0 : 1;
+        ctx.fillStyle = WATER_COLORS[waveOff];
+      } else {
+        ctx.fillStyle = TERRAIN_COLORS[h];
+        // Add slight height shading
+        const shade = h * 8;
+        const baseR = parseInt(TERRAIN_COLORS[h].substr(1, 2), 16);
+        const baseG = parseInt(TERRAIN_COLORS[h].substr(3, 2), 16);
+        const baseB = parseInt(TERRAIN_COLORS[h].substr(5, 2), 16);
+        ctx.fillStyle = 'rgb(' + Math.min(255, baseR + shade) + ',' +
+                        Math.min(255, baseG + shade) + ',' +
+                        Math.min(255, baseB + shade) + ')';
+      }
+      ctx.fillRect(x, y, TW, TH);
+
+      // Grid lines (subtle)
+      ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+      ctx.lineWidth = 0.5;
+      ctx.strokeRect(x, y, TW, TH);
+    }
+  }
+
+  // Draw settlements
+  for (const s of settlements) {
+    if (!s.alive) continue;
+    const x = MAP_OX + s.c * TW;
+    const y = MAP_OY + s.r * TH;
+    const sz = Math.min(TW - 2, 4 + s.level * 3);
+    const ox = (TW - sz) / 2;
+    const oy = (TH - sz) / 2;
+
+    // Building
+    ctx.fillStyle = s.team === BLUE ? '#3366cc' : '#cc3333';
+    ctx.fillRect(x + ox, y + oy, sz, sz);
+
+    // Roof (triangle-ish top line)
+    ctx.fillStyle = s.team === BLUE ? '#4488ee' : '#ee4444';
+    ctx.fillRect(x + ox - 1, y + oy - 2, sz + 2, 3);
+
+    // Population indicator
+    if (s.population > 2) {
+      ctx.fillStyle = '#fff';
+      ctx.font = '8px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(s.population, x + TW / 2, y + TH - 1);
+    }
+  }
+
+  // Draw followers
+  for (const f of followers) {
+    if (!f.alive) continue;
+    if (f.settled) continue; // settled followers are "inside" the building
+    const x = MAP_OX + f.x * TW;
+    const y = MAP_OY + f.y * TH;
+
+    ctx.fillStyle = f.team === BLUE ? '#5588ff' : '#ff5544';
+    ctx.fillRect(x - 2, y - 2, 4, 4);
+    // Head dot
+    ctx.fillStyle = f.team === BLUE ? '#88bbff' : '#ffaa88';
+    ctx.fillRect(x - 1, y - 4, 2, 2);
+  }
+
+  // Draw particles
+  for (const p of particles) {
+    ctx.fillStyle = p.color;
+    ctx.globalAlpha = p.life / 40;
+    ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+  }
+  ctx.globalAlpha = 1;
+
+  // Hover highlight
+  const hover = getTileAt(mouseX, mouseY);
+  if (hover && !gameOver) {
+    const hx = MAP_OX + hover.c * TW;
+    const hy = MAP_OY + hover.r * TH;
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(hx, hy, TW, TH);
+
+    // Power radius for quake
+    if (selectedPower === POWER_QUAKE) {
+      ctx.strokeStyle = 'rgba(255,160,0,0.3)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(hx + TW / 2, hy + TH / 2, 3 * TW, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+
+  // --- HUD ---
+  // Background bar
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0, 0, W, 38);
+
+  // Title badge
+  ctx.fillStyle = '#1a1a1a'; ctx.fillRect(8, 6, 230, 26);
+  ctx.fillStyle = '#555'; ctx.font = '13px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('SIM-005 \u00b7 GOD SIM  [?]', 16, 22);
+
+  // Population counts
+  let bluePop = 0, redPop = 0;
+  for (const f of followers) {
+    if (f.team === BLUE) bluePop++;
+    else redPop++;
+  }
+  for (const s of settlements) {
+    if (!s.alive) continue;
+    if (s.team === BLUE) bluePop += s.population;
+    else redPop += s.population;
+  }
+
+  ctx.textAlign = 'center';
+  ctx.font = '13px monospace';
+  ctx.fillStyle = '#5588ff';
+  ctx.fillText('BLUE: ' + bluePop, 320, 14);
+  ctx.fillStyle = '#48f';
+  ctx.fillText('MANA: ' + mana[BLUE], 320, 30);
+
+  ctx.fillStyle = '#ff5544';
+  ctx.fillText('RED: ' + redPop, 420, 14);
+  ctx.fillStyle = '#f44';
+  ctx.fillText('MANA: ' + mana[RED], 420, 30);
+
+  // Power selector
+  ctx.textAlign = 'left';
+  for (let i = 0; i < 4; i++) {
+    const px = 510 + i * 72;
+    const selected = (i === selectedPower);
+    ctx.fillStyle = selected ? '#333' : '#1a1a1a';
+    ctx.fillRect(px, 4, 66, 30);
+    ctx.strokeStyle = selected ? '#ff0' : '#444';
+    ctx.lineWidth = selected ? 2 : 1;
+    ctx.strokeRect(px, 4, 66, 30);
+    ctx.fillStyle = selected ? '#ff0' : '#888';
+    ctx.font = '10px monospace';
+    ctx.fillText((i + 1) + ':' + POWER_NAMES[i], px + 4, 16);
+    ctx.fillStyle = mana[BLUE] >= POWER_COST[i] ? '#4f4' : '#622';
+    ctx.font = '9px monospace';
+    ctx.fillText('Cost:' + POWER_COST[i], px + 4, 28);
+  }
+
+  // Flood warning
+  if (floodTimer > 0) {
+    ctx.fillStyle = '#48f';
+    ctx.font = '14px monospace';
+    ctx.textAlign = 'center';
+    const alpha = Math.abs(Math.sin(frame * 0.1));
+    ctx.globalAlpha = 0.5 + alpha * 0.5;
+    ctx.fillText('~~ FLOOD ~~  ' + Math.ceil(floodTimer / 60) + 's', W / 2, H - 8);
+    ctx.globalAlpha = 1;
+  }
+
+  // Tile info tooltip
+  if (hover && !gameOver) {
+    const h = terrain[hover.r][hover.c];
+    const flat = flatness(hover.c, hover.r);
+    const si = findSettlement(hover.c, hover.r);
+    let info = 'H:' + h + ' F:' + flat;
+    if (isWater(hover.c, hover.r)) info += ' [water]';
+    if (si >= 0) info += ' [' + (settlements[si].team === BLUE ? 'B' : 'R') + ' pop:' + settlements[si].population + ']';
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(mouseX + 10, mouseY - 20, info.length * 7 + 8, 18);
+    ctx.fillStyle = '#ddd';
+    ctx.font = '11px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText(info, mouseX + 14, mouseY - 7);
+  }
+
+  // Time indicator
+  const timeLeft = Math.max(0, Math.ceil((10800 - frame) / 60));
+  ctx.fillStyle = '#666';
+  ctx.font = '11px monospace';
+  ctx.textAlign = 'right';
+  ctx.fillText('TIME: ' + Math.floor(timeLeft / 60) + ':' + ('0' + (timeLeft % 60)).slice(-2), W - 10, H - 8);
+
+  // Game over
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.font = 'bold 40px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = winner === BLUE ? '#5588ff' : '#ff5544';
+    ctx.fillText(winner === BLUE ? 'BLUE TRIBE WINS!' : 'RED TRIBE WINS!', W / 2, H / 2 - 30);
+    ctx.fillStyle = '#aaa';
+    ctx.font = '16px monospace';
+    ctx.fillText('Blue: ' + bluePop + '  Red: ' + redPop, W / 2, H / 2 + 10);
+    ctx.fillText('Press R to restart', W / 2, H / 2 + 40);
+  }
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+</body>
+</html>

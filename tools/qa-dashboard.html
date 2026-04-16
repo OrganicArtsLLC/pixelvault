@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pixel Vault — QA Dashboard</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0a0a0a; color: #ccc; font-family: 'SF Mono', 'Menlo', 'Monaco', monospace; font-size: 13px; }
+
+.header {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+  background: #111; border-bottom: 1px solid #333; padding: 10px 20px;
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+}
+.header h1 { color: #7bf; font-size: 16px; white-space: nowrap; }
+.header .stats { display: flex; gap: 8px; font-size: 12px; flex-wrap: wrap; }
+.header .stat { padding: 3px 8px; border-radius: 3px; cursor: pointer; }
+.header .stat:hover { opacity: 0.8; }
+.stat-certified { background: #251; color: #6f4; border: 1px solid #362; }
+.stat-ok { background: #142; color: #4f6; }
+.stat-playable { background: #234; color: #7bf; }
+.stat-broken { background: #421; color: #f64; }
+.stat-skip { background: #222; color: #888; }
+.stat-total { background: #333; color: #fff; }
+
+.filters { display: flex; gap: 8px; align-items: center; }
+.filters select, .filters input {
+  background: #222; border: 1px solid #444; color: #ccc; padding: 4px 8px;
+  border-radius: 3px; font-family: inherit; font-size: 12px;
+}
+.filters input { width: 160px; }
+.btn {
+  background: #234; color: #7bf; border: 1px solid #345; padding: 4px 12px;
+  border-radius: 3px; cursor: pointer; font-family: inherit; font-size: 12px;
+}
+.btn:hover { background: #345; }
+.btn-export { background: #142; color: #4f6; border-color: #253; }
+
+.container { margin-top: 56px; padding: 10px; }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 8px;
+}
+
+.card {
+  background: #151515; border: 1px solid #2a2a2a; border-radius: 6px;
+  overflow: hidden; cursor: pointer; transition: border-color 0.15s;
+}
+.card:hover { border-color: #555; }
+.card.status-certified { border-left: 3px solid #6f4; background: #0f1a0f; }
+.card.status-ok { border-left: 3px solid #4f6; }
+.card.status-playable { border-left: 3px solid #48f; }
+.card.status-broken { border-left: 3px solid #f42; }
+.card.status-untested { border-left: 3px solid #555; }
+.card.updated-since { position: relative; }
+.card.updated-since::after {
+  content: 'UPDATED'; position: absolute; top: 6px; right: 6px;
+  background: #a80; color: #fff; font-size: 8px; font-weight: bold;
+  padding: 1px 5px; border-radius: 2px; letter-spacing: 0.5px;
+}
+.stat-updated { background: #432; color: #fa0; }
+
+.card-header {
+  padding: 6px 10px; display: flex; justify-content: space-between; align-items: center;
+  background: #1a1a1a; border-bottom: 1px solid #2a2a2a;
+}
+.card-title { font-size: 11px; font-weight: bold; color: #ddd; }
+.card-badge { display: flex; gap: 4px; align-items: center; }
+.card-series { font-size: 10px; padding: 1px 6px; border-radius: 2px; background: #234; color: #7bf; }
+.card-certified-badge { font-size: 9px; padding: 1px 5px; border-radius: 2px; background: #251; color: #6f4; font-weight: bold; }
+
+.card-preview { height: 160px; background: #0a0a0a; position: relative; overflow: hidden; }
+.card-preview iframe { width: 800px; height: 600px; border: none; transform: scale(0.35); transform-origin: top left; pointer-events: none; }
+.card-preview .loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #555; font-size: 11px; }
+
+.card-actions {
+  padding: 6px 10px; display: flex; gap: 4px; align-items: center; background: #1a1a1a;
+}
+.card-actions button {
+  padding: 2px 6px; border-radius: 3px; border: 1px solid #444;
+  background: #222; color: #ccc; font-size: 10px; cursor: pointer; font-family: inherit;
+}
+.card-actions button:hover { background: #333; }
+.card-actions button.active-certified { background: #251; color: #6f4; border-color: #362; }
+.card-actions button.active-ok { background: #142; color: #4f6; border-color: #253; }
+.card-actions button.active-playable { background: #123; color: #48f; border-color: #234; }
+.card-actions button.active-broken { background: #311; color: #f64; border-color: #422; }
+.card-actions .notes-input {
+  flex: 1; background: #1a1a1a; border: 1px solid #333; color: #aaa;
+  padding: 2px 6px; font-size: 10px; border-radius: 2px; font-family: inherit;
+}
+
+.fullscreen-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.95); z-index: 100; }
+.fullscreen-overlay.active { display: flex; flex-direction: column; }
+.fullscreen-bar { background: #111; padding: 8px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; }
+.fullscreen-bar .title { color: #7bf; font-size: 14px; }
+.fullscreen-bar .status-label { font-size: 12px; padding: 2px 8px; border-radius: 3px; margin-left: 8px; }
+.fullscreen-bar .close-btn { color: #888; font-size: 24px; cursor: pointer; }
+.fullscreen-bar .close-btn:hover { color: #fff; }
+.fullscreen-content { flex: 1; display: flex; align-items: center; justify-content: center; }
+.fullscreen-content iframe { width: 800px; height: 600px; border: 2px solid #333; border-radius: 4px; }
+.fullscreen-actions { background: #111; padding: 8px 16px; display: flex; gap: 8px; align-items: center; border-top: 1px solid #333; }
+.fullscreen-actions button { padding: 4px 12px; border-radius: 3px; border: 1px solid #444; background: #222; color: #ccc; cursor: pointer; font-family: inherit; font-size: 12px; }
+.fullscreen-actions button:hover { background: #333; }
+.fullscreen-actions .notes-full { flex: 1; background: #1a1a1a; border: 1px solid #333; color: #ccc; padding: 4px 8px; font-family: inherit; font-size: 12px; border-radius: 3px; }
+
+.keyboard-hint { position: fixed; bottom: 10px; right: 10px; background: #1a1a1a; border: 1px solid #333; padding: 6px 12px; border-radius: 4px; font-size: 10px; color: #666; z-index: 40; }
+kbd { background: #333; border: 1px solid #555; padding: 0 4px; border-radius: 2px; color: #aaa; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>QA Dashboard</h1>
+  <div class="stats">
+    <span class="stat stat-certified" id="stat-certified" onclick="filterTo('certified')">Certified: 0</span>
+    <span class="stat stat-ok" id="stat-ok" onclick="filterTo('ok')">OK: 0</span>
+    <span class="stat stat-playable" id="stat-playable" onclick="filterTo('playable')">Playable: 0</span>
+    <span class="stat stat-broken" id="stat-broken" onclick="filterTo('broken')">Broken: 0</span>
+    <span class="stat stat-updated" id="stat-updated" onclick="filterTo('updated')">Re-check: 0</span>
+    <span class="stat stat-skip" id="stat-skip" onclick="filterTo('untested')">Untested: 0</span>
+    <span class="stat stat-total" id="stat-total" onclick="filterTo('all')">Total: 0</span>
+  </div>
+  <div class="filters">
+    <select id="filter-status"><option value="all">All</option><option value="untested">Untested</option><option value="broken">Broken</option><option value="playable">Playable</option><option value="ok">OK</option><option value="certified">Certified</option><option value="updated">Re-check (updated)</option></select>
+    <select id="filter-track"><option value="all">All Tracks</option><option value="prototypes">Prototypes</option><option value="ai-archaeology">AI Archaeology</option><option value="ai-evolution">AI Evolution</option></select>
+    <select id="filter-series"><option value="all">All Series</option></select>
+    <input type="text" id="filter-search" placeholder="Search games...">
+    <button class="btn btn-export" onclick="exportReport()">Export Report</button>
+    <button class="btn" onclick="loadAllPreviews()">Load Previews</button>
+  </div>
+</div>
+
+<div class="container"><div class="grid" id="grid"></div></div>
+
+<div class="fullscreen-overlay" id="fullscreen">
+  <div class="fullscreen-bar">
+    <div style="display:flex;align-items:center">
+      <span class="title" id="fs-title"></span>
+      <span class="status-label" id="fs-status-label"></span>
+    </div>
+    <span class="close-btn" onclick="closeFullscreen()">&times;</span>
+  </div>
+  <div class="fullscreen-content">
+    <iframe id="fs-iframe" sandbox="allow-scripts allow-same-origin"></iframe>
+  </div>
+  <div class="fullscreen-actions">
+    <button onclick="markGame('certified')" style="background:#251;color:#6f4;font-weight:bold">&#9733; Certify</button>
+    <button onclick="markGame('ok')" style="background:#142;color:#4f6">&#10004; OK</button>
+    <button onclick="markGame('playable')" style="background:#123;color:#48f">~ Playable</button>
+    <button onclick="markGame('broken')" style="background:#311;color:#f64">&#10008; Broken</button>
+    <button onclick="prevGame()">&#9664; Prev</button>
+    <button onclick="nextGame()">Next &#9654;</button>
+    <input type="text" class="notes-full" id="fs-notes" placeholder="Notes (bugs, speed, balance, polish...)..." onchange="saveNotes()">
+  </div>
+</div>
+
+<div class="keyboard-hint">
+  <kbd>Click</kbd> open &nbsp; <kbd>4</kbd> Certify &nbsp; <kbd>1</kbd> OK &nbsp; <kbd>2</kbd> Playable &nbsp; <kbd>3</kbd> Broken &nbsp;
+  <kbd>←</kbd><kbd>→</kbd> Nav &nbsp; <kbd>Esc</kbd> Close
+</div>
+
+<script>
+let games = [];
+let currentIndex = -1;
+const STORAGE_KEY = 'pv-qa-v2';
+
+// Status tiers:
+//   certified — fully QA'd, approved, production-ready. Persists across resets.
+//   ok        — works correctly, quick check passed. May need deeper testing later.
+//   playable  — functional but has minor issues (speed, balance, polish, boring).
+//                Does NOT need immediate fixing. Second-pass improvement candidate.
+//   broken    — won't start, major bugs, unplayable. Needs fixing.
+//   untested  — not yet checked.
+
+const STATUS_COLORS = { certified:'#6f4', ok:'#4f6', playable:'#48f', broken:'#f42', untested:'#555' };
+const STATUS_BG = { certified:'#251', ok:'#142', playable:'#234', broken:'#421', untested:'#222' };
+
+function loadState() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}'); } catch { return {}; } }
+function saveState(s) { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); }
+
+// Migrate from older storage keys
+function migrate() {
+  for (const oldKey of ['pv-qa-dashboard', 'pv-qa-dashboard-v2']) {
+    try {
+      const old = JSON.parse(localStorage.getItem(oldKey) || 'null');
+      if (!old) continue;
+      const cur = loadState();
+      let n = 0;
+      for (const [file, data] of Object.entries(old)) {
+        // Certified status always wins — never overwrite it
+        if (cur[file] && cur[file].status === 'certified') continue;
+        if (!cur[file] || cur[file].status === 'untested') { cur[file] = data; n++; }
+      }
+      if (n > 0) { saveState(cur); console.log(`Migrated ${n} from ${oldKey}`); }
+    } catch {}
+  }
+}
+migrate();
+
+let state = loadState();
+let fileTimestamps = {};
+
+async function init() {
+  try {
+    // Load file timestamps for "updated since last check" detection
+    try {
+      const tsResp = await fetch('qa-timestamps.json?t=' + Date.now());
+      fileTimestamps = await tsResp.json();
+    } catch { fileTimestamps = {}; }
+
+    const resp = await fetch('../manifest.json?t=' + Date.now());
+    const manifest = await resp.json();
+    games = (manifest.prototypes || []).map(p => {
+      const file = p.file || '';
+      const series = (p.series || '?').toUpperCase();
+      const name = p.name || p.prototype || '?';
+      const number = String(p.number || '0').padStart(3, '0');
+      const track = file.startsWith('ai-archaeology') ? 'ai-archaeology' : file.startsWith('ai-evolution') ? 'ai-evolution' : 'prototypes';
+      // Check if file was updated since user last rated it
+      const savedData = state[file] || {};
+      const fileModified = fileTimestamps[file] || null;
+      const ratedAt = savedData.ratedAt || null;
+      const wasUpdated = fileModified && ratedAt && new Date(fileModified) > new Date(ratedAt)
+                         && savedData.status !== 'untested' && savedData.status !== 'certified';
+      return { id: p.id||`${series}-${number}-${name}`, file, track, series, name, number,
+               title: `${series}-${number} ${name}`,
+               status: (state[file]||{}).status || 'untested',
+               notes: (state[file]||{}).notes || '',
+               updatedSince: !!wasUpdated };
+    });
+    const ss = new Set(games.map(g=>g.series));
+    const sel = document.getElementById('filter-series');
+    [...ss].sort().forEach(s => { const o=document.createElement('option'); o.value=s; o.textContent=s; sel.appendChild(o); });
+    renderGrid(); updateStats();
+  } catch(e) {
+    document.getElementById('grid').innerHTML = `<p style="color:#f64;padding:20px">Error: ${e.message}<br><code>python3 -m http.server 8080</code></p>`;
+  }
+}
+
+function filterTo(s) { document.getElementById('filter-status').value = s; renderGrid(); }
+
+function getFiltered() {
+  const sf=document.getElementById('filter-status').value, tf=document.getElementById('filter-track').value;
+  const rf=document.getElementById('filter-series').value, q=document.getElementById('filter-search').value.toLowerCase();
+  return games.filter(g => {
+    if (sf === 'updated') { if (!g.updatedSince) return false; }
+    else if (sf !== 'all' && g.status !== sf) return false;
+    if (tf !== 'all' && g.track !== tf) return false;
+    if (rf !== 'all' && g.series !== rf) return false;
+    if (q && !g.title.toLowerCase().includes(q) && !g.name.toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+
+function renderGrid() {
+  const filtered = getFiltered(), grid = document.getElementById('grid');
+  grid.innerHTML = '';
+  filtered.forEach(g => {
+    const idx = games.indexOf(g), cert = g.status==='certified';
+    const card = document.createElement('div');
+    card.className = `card status-${g.status}${g.updatedSince ? ' updated-since' : ''}`;
+    card.innerHTML = `
+      <div class="card-header"><span class="card-title">${g.title}</span>
+        <div class="card-badge">${cert?'<span class="card-certified-badge">CERTIFIED</span>':''}<span class="card-series">${g.series}</span></div></div>
+      <div class="card-preview" data-file="${g.file}"><div class="loading">Click to test</div></div>
+      <div class="card-actions">
+        <button title="Certify" class="${g.status==='certified'?'active-certified':''}" onclick="event.stopPropagation();setStatus(${idx},'certified')">&#9733;</button>
+        <button title="OK" class="${g.status==='ok'?'active-ok':''}" onclick="event.stopPropagation();setStatus(${idx},'ok')">&#10004;</button>
+        <button title="Playable" class="${g.status==='playable'?'active-playable':''}" onclick="event.stopPropagation();setStatus(${idx},'playable')">~</button>
+        <button title="Broken" class="${g.status==='broken'?'active-broken':''}" onclick="event.stopPropagation();setStatus(${idx},'broken')">&#10008;</button>
+        <input class="notes-input" placeholder="notes..." value="${esc(g.notes)}" onclick="event.stopPropagation()" onchange="setNotes(${idx},this.value)">
+      </div>`;
+    card.addEventListener('click', () => openFS(idx));
+    grid.appendChild(card);
+  });
+}
+
+function esc(s) { return s.replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+function setStatus(idx, status) {
+  games[idx].status = status;
+  games[idx].updatedSince = false; // clear the flag once re-rated
+  const s = state[games[idx].file] = state[games[idx].file] || {};
+  s.status = status;
+  s.ratedAt = new Date().toISOString(); // track when this rating was made
+  if (status === 'certified') s.certifiedAt = new Date().toISOString();
+  saveState(state); renderGrid(); updateStats(); updateFsLabel();
+}
+
+function setNotes(idx, notes) {
+  games[idx].notes = notes;
+  (state[games[idx].file] = state[games[idx].file] || {}).notes = notes;
+  saveState(state);
+}
+
+function updateStats() {
+  const c = { certified:0, ok:0, playable:0, broken:0, untested:0 };
+  let updated = 0;
+  games.forEach(g => { c[g.status]=(c[g.status]||0)+1; if (g.updatedSince) updated++; });
+  document.getElementById('stat-certified').textContent = `Certified: ${c.certified}`;
+  document.getElementById('stat-ok').textContent = `OK: ${c.ok}`;
+  document.getElementById('stat-playable').textContent = `Playable: ${c.playable}`;
+  document.getElementById('stat-broken').textContent = `Broken: ${c.broken}`;
+  document.getElementById('stat-updated').textContent = `Re-check: ${updated}`;
+  document.getElementById('stat-skip').textContent = `Untested: ${c.untested}`;
+  document.getElementById('stat-total').textContent = `Total: ${games.length}`;
+}
+
+function loadAllPreviews() {
+  let d=0; document.querySelectorAll('.card-preview').forEach(p => { setTimeout(()=>loadPrev(p),d); d+=100; });
+}
+function loadPrev(c) {
+  if (c.querySelector('iframe')) return;
+  c.innerHTML='';
+  const f=document.createElement('iframe'); f.sandbox='allow-scripts allow-same-origin';
+  f.src='../'+c.dataset.file+'?t='+Date.now(); f.loading='lazy'; c.appendChild(f);
+}
+
+function openFS(idx) {
+  currentIndex = idx; const g = games[idx];
+  document.getElementById('fs-title').textContent = g.title;
+  document.getElementById('fs-iframe').src = '../'+g.file+'?t='+Date.now();
+  document.getElementById('fs-notes').value = g.notes;
+  document.getElementById('fullscreen').classList.add('active');
+  updateFsLabel();
+}
+function updateFsLabel() {
+  if (currentIndex<0) return; const g=games[currentIndex], l=document.getElementById('fs-status-label');
+  l.textContent = (g.status==='certified'?'CERTIFIED':g.status.toUpperCase());
+  l.style.background = STATUS_BG[g.status]||'#222'; l.style.color = STATUS_COLORS[g.status]||'#888';
+}
+function closeFS() { document.getElementById('fullscreen').classList.remove('active'); document.getElementById('fs-iframe').src='about:blank'; currentIndex=-1; }
+function closeFullscreen() { closeFS(); }
+function nextGame() { if(currentIndex<0)return; const f=getFiltered(),i=f.indexOf(games[currentIndex]); if(i<f.length-1)openFS(games.indexOf(f[i+1])); }
+function prevGame() { if(currentIndex<0)return; const f=getFiltered(),i=f.indexOf(games[currentIndex]); if(i>0)openFS(games.indexOf(f[i-1])); }
+function markGame(s) { if(currentIndex>=0) setStatus(currentIndex,s); }
+function saveNotes() { if(currentIndex>=0) setNotes(currentIndex, document.getElementById('fs-notes').value); }
+
+function exportReport() {
+  const c={certified:0,ok:0,playable:0,broken:0,untested:0};
+  games.forEach(g=>c[g.status]=(c[g.status]||0)+1);
+  const report = { generated: new Date().toISOString(), summary: {total:games.length,...c},
+    games: games.map(g => ({id:g.id,file:g.file,track:g.track,series:g.series,status:g.status,notes:g.notes,certifiedAt:(state[g.file]||{}).certifiedAt||null})) };
+  const b=new Blob([JSON.stringify(report,null,2)],{type:'application/json'});
+  const u=URL.createObjectURL(b), a=document.createElement('a');
+  a.href=u; a.download=`qa-report-${new Date().toISOString().slice(0,10)}.json`; a.click(); URL.revokeObjectURL(u);
+}
+
+document.addEventListener('keydown', e => {
+  if (!document.getElementById('fullscreen').classList.contains('active')) return;
+  if (e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA') return;
+  if (e.key==='Escape') { closeFS(); e.preventDefault(); }
+  else if (e.key==='4') { markGame('certified'); e.preventDefault(); }
+  else if (e.key==='1') { markGame('ok'); e.preventDefault(); }
+  else if (e.key==='2') { markGame('playable'); e.preventDefault(); }
+  else if (e.key==='3') { markGame('broken'); e.preventDefault(); }
+  else if (e.key==='ArrowRight') { nextGame(); e.preventDefault(); }
+  else if (e.key==='ArrowLeft') { prevGame(); e.preventDefault(); }
+});
+
+['filter-status','filter-track','filter-series'].forEach(id => document.getElementById(id).addEventListener('change', renderGrid));
+document.getElementById('filter-search').addEventListener('input', renderGrid);
+init();
+</script>
+</body>
+</html>

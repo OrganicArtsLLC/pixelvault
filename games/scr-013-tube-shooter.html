@@ -1,0 +1,886 @@
+<!--
+PROTOTYPE: tube-shooter
+SERIES: scr
+NUMBER: 013
+DATE: 2026-03-24
+MECHANIC: tube-rim abstract shooter — move along the rim of geometric shapes and shoot inward at enemies climbing toward you; vector-style graphics
+ANCESTRY: Tempest (1981, Dave Theurer, Atari)
+CONTROLS: Left/Right or A/D — move along rim | Space or Z — shoot | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 2 (Discrete Logic — hardware-driven vector rendering and lane-based movement)
+AI-INSIGHT: Tempest's lane-based movement is a clever discrete spatial representation — the continuous tube is quantized into segments, reducing the movement problem to a 1D array. This discretization makes enemy AI trivial (climb your lane) while creating emergent complexity through lane-switching Flippers.
+NOTES: Vector-style neon graphics on black. Tube shapes change per level.
+       Dave Theurer also created Missile Command. Tempest was inspired by a nightmare about monsters climbing out of a hole.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SCR-013 · TUBE SHOOTER</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SCR-013 &middot; TUBE SHOOTER</h1>
+    <p><span class="tag series">SCR &mdash; Scrolling Shooter</span> <span class="tag">Prototype #013</span> <span class="tag">&starf;&starf;&starf;&starf;&star;</span></p>
+
+    <h2>How to Play</h2>
+    <p>You are a claw-shaped blaster sitting on the rim of a geometric tube. Enemies emerge from the center and climb toward you. Shoot them before they reach the rim!</p>
+    <ul>
+      <li><kbd>&larr;</kbd> <kbd>&rarr;</kbd> or <kbd>A</kbd> <kbd>D</kbd> &mdash; Move along the rim</li>
+      <li><kbd>Space</kbd> or <kbd>Z</kbd> &mdash; Shoot into the tube</li>
+      <li><kbd>R</kbd> &mdash; Restart after game over</li>
+      <li><kbd>?</kbd> &mdash; Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Flippers:</strong> Climb lanes and flip between adjacent lanes at the rim. Kill them before they reach you.</li>
+      <li><strong>Tankers:</strong> Split into two Flippers when destroyed. Clear the lane quickly.</li>
+      <li><strong>Spikers:</strong> Leave spikes in lanes. Spikes kill you during the descent at level end &mdash; avoid spiked lanes.</li>
+      <li><strong>Descent:</strong> After clearing all enemies, you descend into the tube. Avoid lanes with spikes!</li>
+      <li><strong>Tube shapes:</strong> Each level has a different geometric shape. The shape changes the tactical landscape.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Tempest (1981, Dave Theurer, Atari)</p>
+    <p>Tempest was designed by Dave Theurer, who also created Missile Command. The game originated from a nightmare Theurer had about monsters climbing out of a hole in the ground. Originally conceived as a first-person version of Space Invaders looking down a tube, the design evolved into something far more original.</p>
+    <p>Tempest was one of the first games to use Atari's Color-QuadScan vector display, producing vivid color vector graphics. The tube-rim perspective was revolutionary &mdash; a pseudo-3D viewpoint years before true 3D became common. The spinner controller allowed fluid analog movement around the rim.</p>
+    <p>The game introduced the concept of "zapping" &mdash; clearing a level by destroying all enemies, then descending through the tube to the next shape. Jeff Minter's Tempest 2000 (1994, Jaguar) later revitalized the franchise with techno music and particle effects.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 2 &mdash; Discrete Logic (1971&ndash;1977 influence, hardware-era design)</p>
+    <p><strong>Contemporary AI:</strong> Early neural network research existed but game AI relied on discrete state logic and hardware-driven behavior.</p>
+    <p><strong>Hidden Intelligence:</strong> Tempest's lane system is a brilliant spatial discretization. The continuous tube surface is quantized into segments (lanes), reducing player movement to a 1D circular array. Enemy AI is lane-aware: Flippers climb their lane then pathfind to the player's lane at the rim. This creates a discrete graph problem where enemies navigate a simple topology.</p>
+    <p><strong>The Convergence:</strong> Modern navigation meshes in 3D games use the same principle &mdash; discretize continuous space into traversable regions. Tempest's lanes are essentially a 1D navmesh. The Flipper's lane-switching behavior at the rim is a primitive form of last-mile pathfinding.</p>
+    <p><strong>If AI Had Designed This:</strong> Dynamic tube deformation based on player skill. Enemy spawn patterns would adapt using reinforcement learning. The tube shape itself would evolve procedurally, creating novel geometric challenges.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: SCR &mdash; Scrolling Shooter</h3>
+    <p>While Tempest doesn't scroll in the traditional sense, its tube-rim perspective and shoot-inward mechanic place it in the abstract shooter lineage. The "descent" between levels is a form of forward scrolling.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Tube-rim movement with inward shooting.</strong> The player moves in 1D (around the rim) while enemies approach from a vanishing point. The geometric tube shape defines the tactical space. Lane management &mdash; knowing which lanes are dangerous &mdash; is the core skill.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Tube perspective &mdash; does the pseudo-3D depth illusion work with vector-style lines?</li>
+      <li>Lane-based combat &mdash; is lane switching fast and responsive enough?</li>
+      <li>Enemy variety &mdash; do Flippers, Tankers, and Spikers create distinct threats?</li>
+      <li>Descent mechanic &mdash; does the level-end transition feel rewarding?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Vector-style neon graphics on black background. Five tube shapes: circle (16 segments), square (16), triangle (12), cross (20), flat (16). Three enemy types: Flippers, Tankers, Spikers. Descent animation between levels with spike avoidance. Progressive difficulty with more enemies and faster climbing per level.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+const keys = {};
+window.addEventListener('keydown', e => {
+  if (infoOpen) return;
+  keys[e.code] = true;
+  if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+// --- TUBE SHAPES ---
+// Each shape is an array of [x, y] points on the rim (outer edge)
+const CX = 400, CY = 280; // Center of tube (vanishing point)
+const RIM_SCALE = 1.0;
+const CENTER_SCALE = 0.08; // How small the center is
+
+function makeCircle(n) {
+  const pts = [];
+  const r = 240;
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2 - Math.PI / 2;
+    pts.push([CX + Math.cos(a) * r, CY + Math.sin(a) * r]);
+  }
+  return pts;
+}
+
+function makeSquare(n) {
+  const pts = [];
+  const s = 220;
+  const perSide = n / 4;
+  // top, right, bottom, left
+  for (let i = 0; i < perSide; i++) pts.push([CX - s + (2 * s * i / perSide), CY - s]);
+  for (let i = 0; i < perSide; i++) pts.push([CX + s, CY - s + (2 * s * i / perSide)]);
+  for (let i = 0; i < perSide; i++) pts.push([CX + s - (2 * s * i / perSide), CY + s]);
+  for (let i = 0; i < perSide; i++) pts.push([CX - s, CY + s - (2 * s * i / perSide)]);
+  return pts;
+}
+
+function makeTriangle(n) {
+  const pts = [];
+  const r = 260;
+  const verts = [];
+  for (let i = 0; i < 3; i++) {
+    const a = (i / 3) * Math.PI * 2 - Math.PI / 2;
+    verts.push([CX + Math.cos(a) * r, CY + Math.sin(a) * r]);
+  }
+  const perSide = n / 3;
+  for (let s = 0; s < 3; s++) {
+    const [x1, y1] = verts[s];
+    const [x2, y2] = verts[(s + 1) % 3];
+    for (let i = 0; i < perSide; i++) {
+      const t = i / perSide;
+      pts.push([x1 + (x2 - x1) * t, y1 + (y2 - y1) * t]);
+    }
+  }
+  return pts;
+}
+
+function makeCross(n) {
+  const pts = [];
+  const outer = 240, inner = 80;
+  // Define cross shape vertices (12 corners of a plus sign)
+  const crossVerts = [
+    [CX - inner, CY - outer], [CX + inner, CY - outer],
+    [CX + inner, CY - inner], [CX + outer, CY - inner],
+    [CX + outer, CY + inner], [CX + inner, CY + inner],
+    [CX + inner, CY + outer], [CX - inner, CY + outer],
+    [CX - inner, CY + inner], [CX - outer, CY + inner],
+    [CX - outer, CY - inner], [CX - inner, CY - inner]
+  ];
+  const totalPerim = crossVerts.reduce((sum, v, i) => {
+    const nv = crossVerts[(i + 1) % crossVerts.length];
+    return sum + Math.hypot(nv[0] - v[0], nv[1] - v[1]);
+  }, 0);
+  // Distribute n points evenly along perimeter
+  const segLen = totalPerim / n;
+  let acc = 0, vi = 0;
+  for (let i = 0; i < n; i++) {
+    const target = i * segLen;
+    while (vi < crossVerts.length) {
+      const [x1, y1] = crossVerts[vi];
+      const [x2, y2] = crossVerts[(vi + 1) % crossVerts.length];
+      const edgeLen = Math.hypot(x2 - x1, y2 - y1);
+      if (acc + edgeLen >= target) {
+        const t = (target - acc) / edgeLen;
+        pts.push([x1 + (x2 - x1) * t, y1 + (y2 - y1) * t]);
+        break;
+      }
+      acc += edgeLen;
+      vi++;
+    }
+  }
+  // Fallback: fill any missing points
+  while (pts.length < n) pts.push([CX, CY - 240]);
+  return pts;
+}
+
+function makeFlat(n) {
+  const pts = [];
+  const w = 350, y = CY + 100;
+  for (let i = 0; i < n; i++) {
+    pts.push([CX - w + (2 * w * i / (n - 1)), y]);
+  }
+  return pts;
+}
+
+const SHAPES = [
+  { name: 'circle', make: () => makeCircle(16), n: 16 },
+  { name: 'square', make: () => makeSquare(16), n: 16 },
+  { name: 'triangle', make: () => makeTriangle(12), n: 12 },
+  { name: 'cross', make: () => makeCross(20), n: 20 },
+  { name: 'flat', make: () => makeFlat(16), n: 16 },
+];
+
+// --- LEVEL COLORS ---
+const LEVEL_COLORS = [
+  '#00f', '#0ff', '#0f0', '#ff0', '#f00',
+  '#f0f', '#f80', '#8f0', '#08f', '#f08',
+  '#0f8', '#80f', '#ff8', '#8ff', '#f8f', '#88f'
+];
+
+// --- GAME STATE ---
+let level, lives, score, gameOver, state;
+let rimPts, numLanes, playerLane;
+let bullets, enemies, spikes;
+let spawnTimer, spawnInterval, enemiesLeft, totalEnemies;
+let descendTimer, descendProgress, descendLane;
+let moveTimer, shootTimer;
+let flashTimer;
+
+function getLaneColor(level) {
+  return LEVEL_COLORS[level % LEVEL_COLORS.length];
+}
+
+function lanePoint(lane, depth) {
+  // depth: 0 = rim, 1 = center
+  const pt = rimPts[lane % numLanes];
+  const x = pt[0] + (CX - pt[0]) * depth;
+  const y = pt[1] + (CY - pt[1]) * depth;
+  return [x, y];
+}
+
+function initLevel() {
+  const shape = SHAPES[level % SHAPES.length];
+  rimPts = shape.make();
+  numLanes = shape.n;
+  if (playerLane >= numLanes) playerLane = 0;
+  bullets = [];
+  enemies = [];
+  spikes = [];
+  totalEnemies = 8 + level * 3;
+  if (totalEnemies > 40) totalEnemies = 40;
+  enemiesLeft = totalEnemies;
+  spawnTimer = 0;
+  spawnInterval = Math.max(20, 60 - level * 3);
+  descendTimer = 0;
+  descendProgress = 0;
+  state = 'play';
+  flashTimer = 0;
+}
+
+function initGame() {
+  level = 0;
+  lives = 3;
+  score = 0;
+  gameOver = false;
+  playerLane = 0;
+  moveTimer = 0;
+  shootTimer = 0;
+  initLevel();
+}
+
+initGame();
+
+// --- ENEMY TYPES ---
+// Flipper: climbs lane, at rim flips to adjacent lane toward player
+// Tanker: climbs lane, splits into 2 flippers when shot
+// Spiker: climbs lane leaving spike, retreats
+
+function spawnEnemy() {
+  if (enemiesLeft <= 0) return;
+  enemiesLeft--;
+  const lane = Math.floor(Math.random() * numLanes);
+  const r = Math.random();
+  let type;
+  if (level < 2) {
+    type = 'flipper';
+  } else if (level < 4) {
+    type = r < 0.6 ? 'flipper' : (r < 0.8 ? 'tanker' : 'spiker');
+  } else {
+    type = r < 0.4 ? 'flipper' : (r < 0.7 ? 'tanker' : 'spiker');
+  }
+  const speed = 0.003 + level * 0.0005;
+  const clampedSpeed = Math.min(speed, 0.012);
+  enemies.push({ lane, depth: 1, type, speed: clampedSpeed, atRim: false, rimTimer: 0, retreating: false });
+}
+
+// --- UPDATE ---
+function update() {
+  if (infoOpen) return;
+
+  if (gameOver) {
+    if (keys['KeyR']) initGame();
+    return;
+  }
+
+  if (state === 'descend') {
+    descendProgress += 0.015;
+    if (descendProgress >= 1) {
+      // Check if player hits a spike during descent
+      level++;
+      score += 100;
+      initLevel();
+    }
+    return;
+  }
+
+  if (state === 'dying') {
+    flashTimer--;
+    if (flashTimer <= 0) {
+      lives--;
+      if (lives <= 0) {
+        gameOver = true;
+      } else {
+        state = 'play';
+      }
+    }
+    return;
+  }
+
+  // Player movement
+  moveTimer--;
+  if (moveTimer < 0) moveTimer = 0;
+  if ((keys['ArrowLeft'] || keys['KeyA']) && moveTimer <= 0) {
+    playerLane = (playerLane - 1 + numLanes) % numLanes;
+    moveTimer = 6;
+  }
+  if ((keys['ArrowRight'] || keys['KeyD']) && moveTimer <= 0) {
+    playerLane = (playerLane + 1) % numLanes;
+    moveTimer = 6;
+  }
+
+  // Shooting
+  shootTimer--;
+  if (shootTimer < 0) shootTimer = 0;
+  if ((keys['Space'] || keys['KeyZ']) && shootTimer <= 0) {
+    bullets.push({ lane: playerLane, depth: 0, speed: 0.03 });
+    shootTimer = 8;
+  }
+
+  // Update bullets
+  for (let i = bullets.length - 1; i >= 0; i--) {
+    const b = bullets[i];
+    b.depth += b.speed;
+    if (b.depth >= 1) { bullets.splice(i, 1); continue; }
+
+    // Bullet-enemy collision
+    let hit = false;
+    for (let j = enemies.length - 1; j >= 0; j--) {
+      const en = enemies[j];
+      if (en.lane === b.lane && Math.abs(en.depth - b.depth) < 0.05) {
+        hit = true;
+        if (en.type === 'tanker') {
+          // Split into two flippers
+          const l1 = (en.lane - 1 + numLanes) % numLanes;
+          const l2 = (en.lane + 1) % numLanes;
+          enemies.push({ lane: l1, depth: en.depth, type: 'flipper', speed: en.speed * 1.2, atRim: false, rimTimer: 0, retreating: false });
+          enemies.push({ lane: l2, depth: en.depth, type: 'flipper', speed: en.speed * 1.2, atRim: false, rimTimer: 0, retreating: false });
+          score += 200;
+        } else if (en.type === 'spiker') {
+          // Leave partial spike
+          const existingSpike = spikes.find(s => s.lane === en.lane);
+          if (existingSpike) {
+            existingSpike.depth = Math.min(existingSpike.depth, en.depth);
+          } else if (en.depth < 0.9) {
+            spikes.push({ lane: en.lane, depth: en.depth });
+          }
+          score += 100;
+        } else {
+          score += 150;
+        }
+        enemies.splice(j, 1);
+        break;
+      }
+    }
+    if (hit) { bullets.splice(i, 1); }
+
+    // Bullet-spike collision (clear spikes by shooting)
+    for (let j = spikes.length - 1; j >= 0; j--) {
+      if (spikes[j].lane === b.lane && b.depth >= spikes[j].depth) {
+        spikes.splice(j, 1);
+        bullets.splice(i, 1);
+        score += 50;
+        break;
+      }
+    }
+  }
+
+  // Spawn enemies
+  spawnTimer++;
+  if (spawnTimer >= spawnInterval && enemiesLeft > 0) {
+    spawnEnemy();
+    spawnTimer = 0;
+  }
+
+  // Update enemies
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    const en = enemies[i];
+
+    if (en.type === 'spiker') {
+      if (!en.retreating) {
+        en.depth -= en.speed * 0.7;
+        // Leave spike trail
+        const existingSpike = spikes.find(s => s.lane === en.lane);
+        if (existingSpike) {
+          existingSpike.depth = Math.min(existingSpike.depth, en.depth);
+        } else {
+          spikes.push({ lane: en.lane, depth: en.depth });
+        }
+        if (en.depth <= 0.15) {
+          en.retreating = true;
+        }
+      } else {
+        en.depth += en.speed * 1.5;
+        if (en.depth >= 1) { enemies.splice(i, 1); continue; }
+      }
+    } else {
+      // Flipper or split flipper
+      if (!en.atRim) {
+        en.depth -= en.speed;
+        if (en.depth <= 0) {
+          en.depth = 0;
+          en.atRim = true;
+          en.rimTimer = 0;
+        }
+      } else {
+        // At rim: move toward player
+        en.rimTimer++;
+        if (en.rimTimer % 15 === 0) {
+          const diff = playerLane - en.lane;
+          const absDiff = Math.abs(diff);
+          const wrapDiff = numLanes - absDiff;
+          if (absDiff > 0) {
+            if (absDiff <= wrapDiff) {
+              en.lane = (en.lane + Math.sign(diff) + numLanes) % numLanes;
+            } else {
+              en.lane = (en.lane - Math.sign(diff) + numLanes) % numLanes;
+            }
+          }
+        }
+        // Kill player if in same lane at rim
+        if (en.lane === playerLane) {
+          state = 'dying';
+          flashTimer = 60;
+          enemies.splice(i, 1);
+          continue;
+        }
+      }
+    }
+  }
+
+  // Check level clear
+  if (enemiesLeft <= 0 && enemies.length === 0 && state === 'play') {
+    // Start descent
+    state = 'descend';
+    descendProgress = 0;
+    descendLane = playerLane;
+    // Check for spikes in player's lane
+  }
+}
+
+// --- DRAW ---
+function drawLane(i, color, lineWidth) {
+  const [x1, y1] = rimPts[i];
+  const [x2, y2] = rimPts[(i + 1) % numLanes];
+  const cx1 = CX + (x1 - CX) * CENTER_SCALE;
+  const cy1 = CY + (y1 - CY) * CENTER_SCALE;
+  const cx2 = CX + (x2 - CX) * CENTER_SCALE;
+  const cy2 = CY + (y2 - CY) * CENTER_SCALE;
+
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lineWidth || 1;
+
+  // Rim edge
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+
+  // Lane walls (from rim to center)
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(cx1, cy1);
+  ctx.stroke();
+
+  // Center edge
+  ctx.beginPath();
+  ctx.moveTo(cx1, cy1);
+  ctx.lineTo(cx2, cy2);
+  ctx.stroke();
+}
+
+function drawPlayer(lane) {
+  const [x1, y1] = rimPts[lane];
+  const [x2, y2] = rimPts[(lane + 1) % numLanes];
+  const mx = (x1 + x2) / 2;
+  const my = (y1 + y2) / 2;
+
+  // Direction toward center
+  const dx = CX - mx;
+  const dy = CY - my;
+  const dist = Math.hypot(dx, dy);
+  const nx = dx / dist;
+  const ny = dy / dist;
+
+  // Perpendicular
+  const px = -ny;
+  const py = nx;
+
+  const sz = 12;
+  ctx.strokeStyle = '#ff0';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  // Claw shape
+  ctx.moveTo(mx - px * sz, my - py * sz);
+  ctx.lineTo(mx + nx * sz * 1.2, my + ny * sz * 1.2);
+  ctx.lineTo(mx + px * sz, my + py * sz);
+  // Feet
+  ctx.moveTo(mx - px * sz, my - py * sz);
+  ctx.lineTo(mx - px * sz * 0.5 - nx * sz * 0.5, my - py * sz * 0.5 - ny * sz * 0.5);
+  ctx.moveTo(mx + px * sz, my + py * sz);
+  ctx.lineTo(mx + px * sz * 0.5 - nx * sz * 0.5, my + py * sz * 0.5 - ny * sz * 0.5);
+  ctx.stroke();
+}
+
+function drawEnemy(en) {
+  const [x1, y1] = lanePoint(en.lane, en.depth);
+  const [x2, y2] = lanePoint((en.lane + 1) % numLanes, en.depth);
+  const mx = (x1 + x2) / 2;
+  const my = (y1 + y2) / 2;
+
+  const sz = 6 + (1 - en.depth) * 6; // Bigger as closer to rim
+
+  if (en.type === 'flipper') {
+    ctx.strokeStyle = '#f00';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    // Diamond shape
+    ctx.moveTo(mx, my - sz);
+    ctx.lineTo(mx + sz, my);
+    ctx.lineTo(mx, my + sz);
+    ctx.lineTo(mx - sz, my);
+    ctx.closePath();
+    ctx.stroke();
+  } else if (en.type === 'tanker') {
+    ctx.strokeStyle = '#f0f';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    // Box shape
+    ctx.moveTo(mx - sz, my - sz);
+    ctx.lineTo(mx + sz, my - sz);
+    ctx.lineTo(mx + sz, my + sz);
+    ctx.lineTo(mx - sz, my + sz);
+    ctx.closePath();
+    ctx.stroke();
+    // Inner cross
+    ctx.beginPath();
+    ctx.moveTo(mx - sz * 0.5, my);
+    ctx.lineTo(mx + sz * 0.5, my);
+    ctx.moveTo(mx, my - sz * 0.5);
+    ctx.lineTo(mx, my + sz * 0.5);
+    ctx.stroke();
+  } else if (en.type === 'spiker') {
+    ctx.strokeStyle = '#0f0';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    // Triangle pointing toward rim
+    const dx = CX - mx, dy = CY - my;
+    const d = Math.hypot(dx, dy) || 1;
+    const ux = dx / d, uy = dy / d;
+    const px = -uy, py = ux;
+    ctx.moveTo(mx - ux * sz, my - uy * sz);
+    ctx.lineTo(mx + px * sz * 0.7, my + py * sz * 0.7);
+    ctx.lineTo(mx - px * sz * 0.7, my - py * sz * 0.7);
+    ctx.closePath();
+    ctx.stroke();
+  }
+}
+
+function drawBullet(b) {
+  const [x1, y1] = lanePoint(b.lane, b.depth);
+  const [x2, y2] = lanePoint((b.lane + 1) % numLanes, b.depth);
+  const mx = (x1 + x2) / 2;
+  const my = (y1 + y2) / 2;
+
+  ctx.fillStyle = '#ff0';
+  ctx.strokeStyle = '#ff0';
+  ctx.lineWidth = 2;
+
+  // Line from rim toward center
+  const [rx1, ry1] = lanePoint(b.lane, Math.max(0, b.depth - 0.03));
+  const [rx2, ry2] = lanePoint((b.lane + 1) % numLanes, Math.max(0, b.depth - 0.03));
+  const rmx = (rx1 + rx2) / 2;
+  const rmy = (ry1 + ry2) / 2;
+
+  ctx.beginPath();
+  ctx.moveTo(rmx, rmy);
+  ctx.lineTo(mx, my);
+  ctx.stroke();
+}
+
+function drawSpike(s) {
+  const [x1, y1] = lanePoint(s.lane, 0);
+  const [x2, y2] = lanePoint((s.lane + 1) % numLanes, 0);
+  const rmx = (x1 + x2) / 2;
+  const rmy = (y1 + y2) / 2;
+
+  const [sx1, sy1] = lanePoint(s.lane, s.depth);
+  const [sx2, sy2] = lanePoint((s.lane + 1) % numLanes, s.depth);
+  const smx = (sx1 + sx2) / 2;
+  const smy = (sy1 + sy2) / 2;
+
+  ctx.strokeStyle = '#0f0';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([3, 3]);
+  ctx.beginPath();
+  ctx.moveTo(rmx, rmy);
+  ctx.lineTo(smx, smy);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function draw() {
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, H);
+
+  const laneColor = getLaneColor(level);
+
+  if (state === 'descend') {
+    // Descent animation: zoom into tube
+    const scale = 1 + descendProgress * 4;
+    ctx.save();
+    ctx.translate(CX, CY);
+    ctx.scale(scale, scale);
+    ctx.translate(-CX, -CY);
+
+    // Draw tube
+    for (let i = 0; i < numLanes; i++) {
+      const isPlayerLane = i === descendLane;
+      const hasSpikeInLane = spikes.some(s => s.lane === i);
+      drawLane(i, hasSpikeInLane ? '#f00' : (isPlayerLane ? '#fff' : laneColor), isPlayerLane ? 2 : 1);
+    }
+
+    // Draw spikes
+    for (const s of spikes) drawSpike(s);
+
+    // Draw player descending
+    const depthPos = descendProgress * 0.8;
+    const [px1, py1] = lanePoint(descendLane, depthPos);
+    const [px2, py2] = lanePoint((descendLane + 1) % numLanes, depthPos);
+    const pmx = (px1 + px2) / 2;
+    const pmy = (py1 + py2) / 2;
+    ctx.strokeStyle = '#ff0';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    const psz = 8 * (1 - depthPos);
+    ctx.moveTo(pmx - psz, pmy - psz);
+    ctx.lineTo(pmx + psz, pmy - psz);
+    ctx.lineTo(pmx + psz, pmy + psz);
+    ctx.lineTo(pmx - psz, pmy + psz);
+    ctx.closePath();
+    ctx.stroke();
+
+    // Check spike collision during descent
+    const hitSpike = spikes.some(s => s.lane === descendLane && depthPos >= s.depth);
+    if (hitSpike && descendProgress > 0.1) {
+      // Flash warning
+      ctx.strokeStyle = '#f00';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(pmx - 15, pmy - 15);
+      ctx.lineTo(pmx + 15, pmy + 15);
+      ctx.moveTo(pmx + 15, pmy - 15);
+      ctx.lineTo(pmx - 15, pmy + 15);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+
+    // HUD during descent
+    hudText('DESCENDING...', W / 2, 20, '#0ff', 18, 'center');
+    hudText('LEVEL ' + (level + 1), W / 2, 45, laneColor, 14, 'center');
+    hudText('SCORE: ' + score, 10, 10, '#fff', 14);
+    hudText('LIVES: ' + lives, 10, 30, '#ff0', 14);
+    return;
+  }
+
+  // Draw tube
+  for (let i = 0; i < numLanes; i++) {
+    const isPlayerLane = i === playerLane;
+    drawLane(i, isPlayerLane ? '#fff' : laneColor, isPlayerLane ? 2 : 1);
+  }
+
+  // Draw spikes
+  for (const s of spikes) drawSpike(s);
+
+  // Draw bullets
+  for (const b of bullets) drawBullet(b);
+
+  // Draw enemies
+  for (const en of enemies) drawEnemy(en);
+
+  // Draw player
+  if (state === 'dying') {
+    if (Math.floor(flashTimer / 4) % 2 === 0) {
+      // Explosion effect
+      const [x1, y1] = rimPts[playerLane];
+      const [x2, y2] = rimPts[(playerLane + 1) % numLanes];
+      const mx = (x1 + x2) / 2;
+      const my = (y1 + y2) / 2;
+      ctx.strokeStyle = '#f80';
+      ctx.lineWidth = 2;
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2 + flashTimer * 0.1;
+        const r = (60 - flashTimer) * 0.5;
+        ctx.beginPath();
+        ctx.moveTo(mx, my);
+        ctx.lineTo(mx + Math.cos(a) * r, my + Math.sin(a) * r);
+        ctx.stroke();
+      }
+    }
+  } else if (state === 'play') {
+    drawPlayer(playerLane);
+  }
+
+  // HUD
+  const shapeName = SHAPES[level % SHAPES.length].name.toUpperCase();
+  hudText('LEVEL ' + (level + 1) + ' — ' + shapeName, W / 2, 10, laneColor, 16, 'center');
+  hudText('SCORE: ' + score, 10, 10, '#fff', 14);
+  hudText('LIVES: ' + lives, 10, 30, '#ff0', 14);
+
+  if (enemiesLeft > 0 || enemies.length > 0) {
+    hudText('ENEMIES: ' + (enemiesLeft + enemies.length), W - 10, 10, '#f88', 12, 'right');
+  }
+
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(0, 0, W, H);
+    hudText('GAME OVER', W / 2, H / 2 - 30, '#f00', 36, 'center');
+    hudText('Score: ' + score + '  Level: ' + (level + 1), W / 2, H / 2 + 20, '#fff', 18, 'center');
+    hudText('Press R to restart', W / 2, H / 2 + 55, '#888', 14, 'center');
+  }
+
+  // Controls hint at start
+  if (level === 0 && score === 0 && state === 'play' && enemies.length === 0 && enemiesLeft === totalEnemies) {
+    hudText('← → or A/D: Move   Space/Z: Shoot   ?: Info', W / 2, H - 30, '#555', 12, 'center');
+  }
+}
+
+// --- GAME LOOP ---
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: dpad2+fire ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("dpad2+fire");
+</script>
+</body>
+</html>

@@ -1,0 +1,819 @@
+<!--
+PROTOTYPE: shufflepuck
+SERIES: def
+NUMBER: 003
+DATE: 2026-03-22
+MECHANIC: air hockey with perspective view and distinct opponent personalities
+ANCESTRY: Shufflepuck Cafe (1989, Broderbund), Air Hockey (1972, Brunswick Billiards)
+CONTROLS: Mouse — move paddle | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — personality-driven AI opponents)
+AI-INSIGHT: Shufflepuck Cafe gave each opponent a distinct behavioral personality — varying reaction speed, aggressiveness, and strategy. This was an early form of AI personality modeling, where the same basic algorithm is parameterized differently to create perceivably different characters.
+NOTES: Perspective air hockey. Mouse controls player paddle at bottom.
+       Multiple opponents with different difficulty and behavior patterns.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DEF-003 · AIR PUCK</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: none; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>DEF-003 · AIR PUCK</h1>
+    <p><span class="tag series">DEF — Deflection</span> <span class="tag">Prototype #003</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Slide your paddle to deflect the puck past your opponent. First to 15 points wins. Beat all four opponents to clear the cafe.</p>
+    <ul>
+      <li><kbd>Mouse</kbd> — Move paddle horizontally along bottom edge</li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Angle your shots:</strong> Hit the puck off-center to angle it toward the corners.</li>
+      <li><strong>Watch the opponent:</strong> Each opponent has a different style. Learn their weaknesses.</li>
+      <li><strong>Use the walls:</strong> Bank shots off the side walls can catch opponents off-guard.</li>
+      <li><strong>Speed builds:</strong> The puck speeds up with each volley, so end rallies quickly.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Air Hockey (1972, Brunswick Billiards) &rarr; Shufflepuck Cafe (1989, Broderbund) &rarr; Windjammers (1994, Data East)</p>
+    <p>Shufflepuck Cafe (1989) was a Macintosh classic that reimagined air hockey with personality. Set in a seedy intergalactic bar, each opponent had a distinct behavioral profile &mdash; from the bumbling Skip to the robotic Lexan. The game proved that parameterizing a single AI algorithm could create perceivably different characters.</p>
+    <p>The perspective view &mdash; a trapezoid table receding into the screen &mdash; was unusual for the era and gave the game a distinctive visual identity that set it apart from top-down air hockey games.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 3 &mdash; Knowledge Explosion (1980&ndash;1993)</p>
+    <p><strong>Contemporary AI:</strong> Expert systems peak. Early neural network revival with backpropagation (1986). Game AI remains rule-based but increasingly parameterized.</p>
+    <p><strong>Hidden Intelligence:</strong> Shufflepuck Cafe pioneered personality-driven AI. Each opponent uses the same basic tracking algorithm but with different parameters: reaction delay, movement speed, prediction accuracy, and aggression. Skip barely tracks the puck. Lexan predicts intercept points perfectly. This is an early form of agent personality modeling &mdash; the same architecture producing different behaviors through parameterization.</p>
+    <p><strong>The Convergence:</strong> Modern game AI uses exactly this approach. Behavior trees and utility systems parameterize a shared decision framework to create distinct NPC personalities. Shufflepuck Cafe did it in 1989 with a few floats.</p>
+    <p><strong>If AI Had Designed This:</strong> Adaptive difficulty through real-time parameter tuning &mdash; the opponent would adjust reaction speed and accuracy based on the player's skill level, maintaining optimal challenge (flow state calibration).</p>
+
+    <h2>Classification</h2>
+    <h3>Series: DEF &mdash; Deflection</h3>
+    <p>Shufflepuck belongs to the deflection lineage: the player redirects a projectile rather than creating one. Air hockey, Pong, and Breakout are siblings.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Perspective air hockey with personality-driven opponents.</strong> Mouse-controlled paddle. Puck physics with wall bounces. Four distinct AI personalities. First to 15 wins.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Perspective rendering &mdash; does the trapezoid table feel like depth?</li>
+      <li>Opponent personality &mdash; do different opponents feel genuinely different?</li>
+      <li>Puck physics &mdash; does the deflection angle feel responsive and fair?</li>
+      <li>Difficulty curve &mdash; does the four-opponent sequence feel like progression?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Perspective table with four AI opponents of increasing difficulty. Mouse-only controls for paddle movement. Puck speeds up per volley to force quick rallies.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+  canvas.style.cursor = infoOpen ? 'default' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+const keys = {};
+window.addEventListener('keydown', e => { if (!infoOpen) keys[e.code] = true; });
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+// Mouse tracking (in canvas coordinates)
+let mouseX = W / 2;
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  mouseX = (e.clientX - rect.left) / rect.width * W;
+});
+
+// --- TABLE GEOMETRY (perspective trapezoid) ---
+// Table coordinates: wider at bottom (player), narrower at top (opponent)
+const TABLE_TOP = 60;
+const TABLE_BOT = 550;
+const TABLE_H = TABLE_BOT - TABLE_TOP;
+const TOP_LEFT = 250, TOP_RIGHT = 550;   // narrow end (opponent)
+const BOT_LEFT = 80, BOT_RIGHT = 720;    // wide end (player)
+const TOP_W = TOP_RIGHT - TOP_LEFT;
+const BOT_W = BOT_RIGHT - BOT_LEFT;
+const GOAL_DEPTH = 24;
+
+// Convert table-space (0-1 for x, 0-1 for y where 0=top,1=bot) to screen
+function tableToScreen(tx, ty) {
+  const left = TOP_LEFT + (BOT_LEFT - TOP_LEFT) * ty;
+  const right = TOP_RIGHT + (BOT_RIGHT - TOP_RIGHT) * ty;
+  return { x: left + tx * (right - left), y: TABLE_TOP + ty * TABLE_H };
+}
+
+// Convert screen X at a given ty to table tx
+function screenToTableX(sx, ty) {
+  const left = TOP_LEFT + (BOT_LEFT - TOP_LEFT) * ty;
+  const right = TOP_RIGHT + (BOT_RIGHT - TOP_RIGHT) * ty;
+  const w = right - left;
+  return Math.max(0, Math.min(1, (sx - left) / w));
+}
+
+// Table width at a given ty
+function tableWidthAt(ty) {
+  const left = TOP_LEFT + (BOT_LEFT - TOP_LEFT) * ty;
+  const right = TOP_RIGHT + (BOT_RIGHT - TOP_RIGHT) * ty;
+  return right - left;
+}
+
+// --- OPPONENTS ---
+const opponents = [
+  { name: 'SKIP', desc: 'The Rookie', color: '#5a5', paddleColor: '#4a4',
+    reaction: 0.015, speed: 0.012, predict: 0.1, aggression: 0.3, jitter: 0.04 },
+  { name: 'VINNIE', desc: 'The Brawler', color: '#a55', paddleColor: '#c44',
+    reaction: 0.035, speed: 0.02, predict: 0.4, aggression: 0.8, jitter: 0.02 },
+  { name: 'LEXAN', desc: 'The Machine', color: '#55a', paddleColor: '#44c',
+    reaction: 0.06, speed: 0.03, predict: 0.85, aggression: 0.5, jitter: 0.005 },
+  { name: 'BIFF', desc: 'The Champion', color: '#a5a', paddleColor: '#c4c',
+    reaction: 0.08, speed: 0.04, predict: 0.95, aggression: 0.9, jitter: 0.003 }
+];
+
+// --- GAME STATE ---
+let playerTX, playerPaddleW;
+let opponentTX, opponentIdx;
+let puck, puckTrail;
+let playerScore, opponentScore;
+let gameState; // 'select', 'serve', 'play', 'goal', 'win', 'lose', 'gameover'
+let stateTimer, volley, frame;
+let serveBy; // 'player' or 'opponent'
+let matchMessage;
+
+function initGame() {
+  opponentIdx = 0;
+  gameState = 'select';
+  stateTimer = 0;
+  frame = 0;
+  matchMessage = '';
+  startMatch();
+}
+
+function startMatch() {
+  playerScore = 0;
+  opponentScore = 0;
+  playerTX = 0.5;
+  playerPaddleW = 0.15;
+  opponentTX = 0.5;
+  volley = 0;
+  serveBy = 'player';
+  resetPuck();
+  gameState = 'serve';
+  stateTimer = 60;
+}
+
+function resetPuck() {
+  puckTrail = [];
+  if (serveBy === 'player') {
+    puck = { tx: 0.5, ty: 0.85, vx: 0, vy: 0, r: 0.025, active: false };
+  } else {
+    puck = { tx: 0.5, ty: 0.15, vx: 0, vy: 0, r: 0.025, active: false };
+  }
+  volley = 0;
+}
+
+function servePuck() {
+  puck.active = true;
+  if (serveBy === 'player') {
+    puck.vx = (Math.random() - 0.5) * 0.006;
+    puck.vy = -0.008;
+  } else {
+    const opp = opponents[opponentIdx];
+    puck.vx = (Math.random() - 0.5) * 0.004 * (1 + opp.aggression);
+    puck.vy = 0.007 + opp.aggression * 0.003;
+  }
+}
+
+initGame();
+
+// --- UPDATE ---
+function update() {
+  if (infoOpen) return;
+  frame++;
+
+  if (keys['KeyR']) { initGame(); return; }
+
+  if (gameState === 'select') {
+    stateTimer++;
+    if (stateTimer > 90) {
+      startMatch();
+    }
+    return;
+  }
+
+  if (gameState === 'win') {
+    stateTimer--;
+    if (stateTimer <= 0) {
+      opponentIdx++;
+      if (opponentIdx >= opponents.length) {
+        gameState = 'gameover';
+        matchMessage = 'YOU CLEARED THE CAFE!';
+        stateTimer = 999;
+      } else {
+        gameState = 'select';
+        stateTimer = 0;
+      }
+    }
+    return;
+  }
+
+  if (gameState === 'lose') {
+    stateTimer--;
+    if (stateTimer <= 0) {
+      gameState = 'select';
+      stateTimer = 0;
+    }
+    return;
+  }
+
+  if (gameState === 'gameover') {
+    return;
+  }
+
+  if (gameState === 'goal') {
+    stateTimer--;
+    if (stateTimer <= 0) {
+      if (playerScore >= 15) {
+        gameState = 'win';
+        matchMessage = 'YOU WIN!';
+        stateTimer = 120;
+      } else if (opponentScore >= 15) {
+        gameState = 'lose';
+        matchMessage = opponents[opponentIdx].name + ' WINS!';
+        stateTimer = 120;
+      } else {
+        resetPuck();
+        gameState = 'serve';
+        stateTimer = 45;
+      }
+    }
+    return;
+  }
+
+  if (gameState === 'serve') {
+    stateTimer--;
+    // Position puck near server
+    if (serveBy === 'player') {
+      puck.tx = playerTX;
+      puck.ty = 0.85;
+    } else {
+      puck.tx = opponentTX;
+      puck.ty = 0.15;
+    }
+    if (stateTimer <= 0) {
+      servePuck();
+      gameState = 'play';
+    }
+  }
+
+  // Player paddle follows mouse
+  const targetTX = screenToTableX(mouseX, 0.9);
+  const halfW = playerPaddleW / 2;
+  playerTX += (Math.max(halfW, Math.min(1 - halfW, targetTX)) - playerTX) * 0.35;
+
+  // Opponent AI
+  updateOpponentAI();
+
+  if (gameState !== 'play') return;
+
+  // Puck physics
+  updatePuck();
+}
+
+function updateOpponentAI() {
+  const opp = opponents[opponentIdx];
+  let targetX = 0.5;
+
+  if (puck.active && puck.vy < 0) {
+    // Puck coming toward opponent
+    if (Math.random() < opp.predict) {
+      // Predict intercept point
+      const timeToReach = (0.08 - puck.ty) / puck.vy;
+      let predictedX = puck.tx + puck.vx * timeToReach;
+      // Simple wall bounce prediction
+      while (predictedX < 0 || predictedX > 1) {
+        if (predictedX < 0) predictedX = -predictedX;
+        if (predictedX > 1) predictedX = 2 - predictedX;
+      }
+      targetX = predictedX;
+    } else {
+      targetX = puck.tx;
+    }
+  } else if (puck.active) {
+    // Puck going away, drift toward center with some tracking
+    targetX = 0.5 + (puck.tx - 0.5) * 0.3;
+  }
+
+  // Add jitter (personality quirk)
+  targetX += (Math.random() - 0.5) * opp.jitter;
+
+  // Move toward target with reaction speed
+  const oppHalfW = 0.12;
+  const clampedTarget = Math.max(oppHalfW, Math.min(1 - oppHalfW, targetX));
+  const diff = clampedTarget - opponentTX;
+
+  if (Math.abs(diff) > 0.005) {
+    opponentTX += diff * opp.reaction;
+    // Clamp speed
+    const maxMove = opp.speed;
+    if (Math.abs(diff * opp.reaction) > maxMove) {
+      opponentTX = opponentTX - diff * opp.reaction + Math.sign(diff) * maxMove;
+    }
+  }
+
+  opponentTX = Math.max(oppHalfW, Math.min(1 - oppHalfW, opponentTX));
+}
+
+function updatePuck() {
+  if (!puck.active) return;
+
+  // Store trail
+  puckTrail.push({ tx: puck.tx, ty: puck.ty });
+  if (puckTrail.length > 8) puckTrail.shift();
+
+  // Speed increases with volley
+  const speedMult = 1 + volley * 0.08;
+
+  puck.tx += puck.vx * speedMult;
+  puck.ty += puck.vy * speedMult;
+
+  // Wall bounces (left/right) -- perspective-aware
+  // At the puck's current ty, compute the effective boundaries
+  if (puck.tx - puck.r < 0) {
+    puck.tx = puck.r;
+    puck.vx = Math.abs(puck.vx);
+  }
+  if (puck.tx + puck.r > 1) {
+    puck.tx = 1 - puck.r;
+    puck.vx = -Math.abs(puck.vx);
+  }
+
+  // Player paddle collision (at ty ~ 0.9)
+  const playerPaddleY = 0.9;
+  const ppHalfW = playerPaddleW / 2;
+  if (puck.vy > 0 && puck.ty + puck.r >= playerPaddleY && puck.ty - puck.r < playerPaddleY + 0.03) {
+    if (puck.tx > playerTX - ppHalfW - puck.r && puck.tx < playerTX + ppHalfW + puck.r) {
+      // Hit! Compute angle based on hit position
+      const hitPos = (puck.tx - playerTX) / ppHalfW; // -1 to 1
+      puck.vy = -Math.abs(puck.vy) * 1.02;
+      puck.vx += hitPos * 0.005;
+      // Add some paddle velocity influence
+      const paddleVel = (playerTX - (puckTrail.length > 2 ? puckTrail[puckTrail.length - 2].tx : playerTX));
+      puck.vx += paddleVel * 0.3;
+      puck.ty = playerPaddleY - puck.r;
+      volley++;
+      // Clamp vx
+      puck.vx = Math.max(-0.015, Math.min(0.015, puck.vx));
+    }
+  }
+
+  // Opponent paddle collision (at ty ~ 0.08)
+  const oppPaddleY = 0.08;
+  const oppHalfW = 0.12;
+  if (puck.vy < 0 && puck.ty - puck.r <= oppPaddleY && puck.ty + puck.r > oppPaddleY - 0.03) {
+    if (puck.tx > opponentTX - oppHalfW - puck.r && puck.tx < opponentTX + oppHalfW + puck.r) {
+      const opp = opponents[opponentIdx];
+      const hitPos = (puck.tx - opponentTX) / oppHalfW;
+      puck.vy = Math.abs(puck.vy) * 1.02;
+      // Opponent adds angle based on personality
+      puck.vx += hitPos * 0.004 * (1 + opp.aggression);
+      // Aggressive opponents hit harder
+      if (opp.aggression > 0.6 && Math.random() < opp.aggression * 0.4) {
+        puck.vy *= 1.15;
+      }
+      puck.ty = oppPaddleY + puck.r;
+      volley++;
+      puck.vx = Math.max(-0.015, Math.min(0.015, puck.vx));
+    }
+  }
+
+  // Goal detection
+  if (puck.ty < -0.02) {
+    // Player scores
+    playerScore++;
+    serveBy = 'opponent';
+    gameState = 'goal';
+    stateTimer = 60;
+    matchMessage = 'PLAYER SCORES!';
+  } else if (puck.ty > 1.02) {
+    // Opponent scores
+    opponentScore++;
+    serveBy = 'player';
+    gameState = 'goal';
+    stateTimer = 60;
+    matchMessage = opponents[opponentIdx].name + ' SCORES!';
+  }
+}
+
+// --- DRAW ---
+function draw() {
+  ctx.fillStyle = '#0a0a12'; ctx.fillRect(0, 0, W, H);
+
+  if (gameState === 'gameover') {
+    drawGameOver();
+    drawTitleBadge();
+    return;
+  }
+
+  drawTable();
+  drawPuck();
+  drawPaddles();
+  drawHUD();
+
+  if (gameState === 'select') drawSelectScreen();
+  if (gameState === 'goal' || gameState === 'win' || gameState === 'lose') drawMessage();
+
+  drawTitleBadge();
+}
+
+function drawTable() {
+  // Table surface
+  ctx.fillStyle = '#1a3a1a';
+  ctx.beginPath();
+  ctx.moveTo(TOP_LEFT, TABLE_TOP);
+  ctx.lineTo(TOP_RIGHT, TABLE_TOP);
+  ctx.lineTo(BOT_RIGHT, TABLE_BOT);
+  ctx.lineTo(BOT_LEFT, TABLE_BOT);
+  ctx.closePath();
+  ctx.fill();
+
+  // Center line
+  const cl = tableToScreen(0, 0.5);
+  const clL = tableToScreen(0, 0.5);
+  const clR = tableToScreen(1, 0.5);
+  ctx.strokeStyle = '#2a5a2a'; ctx.lineWidth = 2;
+  ctx.setLineDash([8, 8]);
+  ctx.beginPath(); ctx.moveTo(clL.x, clL.y); ctx.lineTo(clR.x, clR.y); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Center circle
+  const cc = tableToScreen(0.5, 0.5);
+  const ccR = tableToScreen(0.6, 0.5);
+  ctx.strokeStyle = '#2a5a2a'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.ellipse(cc.x, cc.y, ccR.x - cc.x, (ccR.x - cc.x) * 0.6, 0, 0, Math.PI * 2); ctx.stroke();
+
+  // Goal zones
+  // Top goal (opponent)
+  const tgL = tableToScreen(0.3, 0);
+  const tgR = tableToScreen(0.7, 0);
+  ctx.fillStyle = '#0a1a0a';
+  ctx.fillRect(tgL.x, tgL.y - GOAL_DEPTH, tgR.x - tgL.x, GOAL_DEPTH);
+  ctx.strokeStyle = '#4a8a4a'; ctx.lineWidth = 2;
+  ctx.strokeRect(tgL.x, tgL.y - GOAL_DEPTH, tgR.x - tgL.x, GOAL_DEPTH);
+
+  // Bottom goal (player)
+  const bgL = tableToScreen(0.3, 1);
+  const bgR = tableToScreen(0.7, 1);
+  ctx.fillStyle = '#0a1a0a';
+  ctx.fillRect(bgL.x, bgR.y, bgR.x - bgL.x, GOAL_DEPTH);
+  ctx.strokeStyle = '#4a8a4a'; ctx.lineWidth = 2;
+  ctx.strokeRect(bgL.x, bgR.y, bgR.x - bgL.x, GOAL_DEPTH);
+
+  // Table border
+  ctx.strokeStyle = '#5a9a5a'; ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(TOP_LEFT, TABLE_TOP);
+  ctx.lineTo(TOP_RIGHT, TABLE_TOP);
+  ctx.lineTo(BOT_RIGHT, TABLE_BOT);
+  ctx.lineTo(BOT_LEFT, TABLE_BOT);
+  ctx.closePath();
+  ctx.stroke();
+
+  // Perspective depth lines on sides (3D effect)
+  ctx.strokeStyle = '#3a6a3a'; ctx.lineWidth = 1;
+  // Left side rail
+  ctx.beginPath(); ctx.moveTo(TOP_LEFT - 8, TABLE_TOP - 4); ctx.lineTo(BOT_LEFT - 12, TABLE_BOT + 6); ctx.stroke();
+  // Right side rail
+  ctx.beginPath(); ctx.moveTo(TOP_RIGHT + 8, TABLE_TOP - 4); ctx.lineTo(BOT_RIGHT + 12, TABLE_BOT + 6); ctx.stroke();
+
+  // Rail thickness (3D side panels)
+  ctx.fillStyle = '#2a5a2a';
+  // Left rail
+  ctx.beginPath();
+  ctx.moveTo(TOP_LEFT, TABLE_TOP); ctx.lineTo(TOP_LEFT - 8, TABLE_TOP - 4);
+  ctx.lineTo(BOT_LEFT - 12, TABLE_BOT + 6); ctx.lineTo(BOT_LEFT, TABLE_BOT);
+  ctx.closePath(); ctx.fill();
+  // Right rail
+  ctx.beginPath();
+  ctx.moveTo(TOP_RIGHT, TABLE_TOP); ctx.lineTo(TOP_RIGHT + 8, TABLE_TOP - 4);
+  ctx.lineTo(BOT_RIGHT + 12, TABLE_BOT + 6); ctx.lineTo(BOT_RIGHT, TABLE_BOT);
+  ctx.closePath(); ctx.fill();
+  // Top rail
+  ctx.fillStyle = '#3a7a3a';
+  ctx.beginPath();
+  ctx.moveTo(TOP_LEFT, TABLE_TOP); ctx.lineTo(TOP_LEFT - 8, TABLE_TOP - 4);
+  ctx.lineTo(TOP_RIGHT + 8, TABLE_TOP - 4); ctx.lineTo(TOP_RIGHT, TABLE_TOP);
+  ctx.closePath(); ctx.fill();
+  // Bottom rail
+  ctx.fillStyle = '#1a4a1a';
+  ctx.beginPath();
+  ctx.moveTo(BOT_LEFT, TABLE_BOT); ctx.lineTo(BOT_LEFT - 12, TABLE_BOT + 6);
+  ctx.lineTo(BOT_RIGHT + 12, TABLE_BOT + 6); ctx.lineTo(BOT_RIGHT, TABLE_BOT);
+  ctx.closePath(); ctx.fill();
+}
+
+function drawPuck() {
+  if (!puck) return;
+
+  // Shadow first (offset for depth illusion)
+  const shadowOff = (1 - puck.ty) * 6 + 3;
+  const sp = tableToScreen(puck.tx, puck.ty);
+  const pScale = 0.5 + puck.ty * 0.5; // smaller near top
+  const puckScreenR = 10 * pScale;
+
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.beginPath();
+  ctx.ellipse(sp.x + shadowOff * 0.5, sp.y + shadowOff, puckScreenR * 1.1, puckScreenR * 0.6, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Trail
+  for (let i = 0; i < puckTrail.length; i++) {
+    const t = puckTrail[i];
+    const tp = tableToScreen(t.tx, t.ty);
+    const alpha = (i / puckTrail.length) * 0.3;
+    const ts = 0.5 + t.ty * 0.5;
+    ctx.fillStyle = `rgba(255,100,50,${alpha})`;
+    ctx.beginPath();
+    ctx.arc(tp.x, tp.y, 6 * ts, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Puck body
+  ctx.fillStyle = '#e44';
+  ctx.beginPath();
+  ctx.arc(sp.x, sp.y, puckScreenR, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Puck highlight
+  ctx.fillStyle = '#f88';
+  ctx.beginPath();
+  ctx.arc(sp.x - 2 * pScale, sp.y - 2 * pScale, puckScreenR * 0.4, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawPaddles() {
+  // Player paddle
+  const ppY = 0.9;
+  const ppHalfW = playerPaddleW / 2;
+  const ppL = tableToScreen(playerTX - ppHalfW, ppY);
+  const ppR = tableToScreen(playerTX + ppHalfW, ppY);
+  const ppW = ppR.x - ppL.x;
+  const ppH = 14;
+
+  // Paddle shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath();
+  ctx.ellipse((ppL.x + ppR.x) / 2, ppL.y + 8, ppW / 2 + 4, 8, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Paddle body
+  ctx.fillStyle = '#e80';
+  roundRect(ctx, ppL.x, ppL.y - ppH / 2, ppW, ppH, 5);
+  ctx.fill();
+  // Paddle highlight
+  ctx.fillStyle = '#fa4';
+  roundRect(ctx, ppL.x + 2, ppL.y - ppH / 2 + 2, ppW - 4, ppH / 2 - 2, 3);
+  ctx.fill();
+
+  // Opponent paddle
+  const opY = 0.08;
+  const opHalfW = 0.12;
+  const opL = tableToScreen(opponentTX - opHalfW, opY);
+  const opR = tableToScreen(opponentTX + opHalfW, opY);
+  const opW = opR.x - opL.x;
+  const opH = 10;
+  const opp = opponents[opponentIdx];
+
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.beginPath();
+  ctx.ellipse((opL.x + opR.x) / 2, opL.y + 5, opW / 2 + 2, 5, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = opp.paddleColor;
+  roundRect(ctx, opL.x, opL.y - opH / 2, opW, opH, 4);
+  ctx.fill();
+  // Highlight
+  ctx.fillStyle = lighten(opp.paddleColor);
+  roundRect(ctx, opL.x + 1, opL.y - opH / 2 + 1, opW - 2, opH / 2 - 1, 3);
+  ctx.fill();
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+function lighten(hex) {
+  const r = Math.min(255, parseInt(hex.slice(1, 2), 16) * 17 + 60);
+  const g = Math.min(255, parseInt(hex.slice(2, 3), 16) * 17 + 60);
+  const b = Math.min(255, parseInt(hex.slice(3, 4), 16) * 17 + 60);
+  return `rgb(${r},${g},${b})`;
+}
+
+function drawHUD() {
+  const opp = opponents[opponentIdx];
+
+  // Score area - top
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(0, 0, W, 46);
+
+  // Opponent info (left side)
+  ctx.fillStyle = opp.color; ctx.font = 'bold 18px monospace'; ctx.textAlign = 'left';
+  ctx.fillText(opp.name, 16, 22);
+  ctx.fillStyle = '#888'; ctx.font = '12px monospace';
+  ctx.fillText(opp.desc, 16, 38);
+
+  // Scores (center)
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#f88'; ctx.font = 'bold 22px monospace';
+  ctx.fillText(opponentScore, W / 2 - 30, 30);
+  ctx.fillStyle = '#666';
+  ctx.fillText('-', W / 2, 30);
+  ctx.fillStyle = '#8f8';
+  ctx.fillText(playerScore, W / 2 + 30, 30);
+
+  // Labels
+  ctx.font = '10px monospace'; ctx.fillStyle = '#666';
+  ctx.fillText(opp.name, W / 2 - 30, 42);
+  ctx.fillText('YOU', W / 2 + 30, 42);
+
+  // First to 15
+  ctx.textAlign = 'right'; ctx.fillStyle = '#555'; ctx.font = '12px monospace';
+  ctx.fillText('FIRST TO 15', W - 16, 22);
+
+  // Opponent progress
+  ctx.fillStyle = '#444'; ctx.font = '11px monospace';
+  const oppNum = opponentIdx + 1;
+  ctx.fillText('OPPONENT ' + oppNum + ' / ' + opponents.length, W - 16, 38);
+
+  // Volley counter
+  if (gameState === 'play' && volley > 0) {
+    ctx.textAlign = 'center'; ctx.fillStyle = '#554'; ctx.font = '11px monospace';
+    ctx.fillText('VOLLEY ' + volley, W / 2, H - 12);
+  }
+}
+
+function drawSelectScreen() {
+  ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, W, H);
+
+  const opp = opponents[opponentIdx];
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#888'; ctx.font = '14px monospace';
+  ctx.fillText('NEXT OPPONENT', W / 2, H / 2 - 80);
+
+  ctx.fillStyle = opp.color; ctx.font = 'bold 36px monospace';
+  ctx.fillText(opp.name, W / 2, H / 2 - 30);
+
+  ctx.fillStyle = '#aaa'; ctx.font = '18px monospace';
+  ctx.fillText('"' + opp.desc + '"', W / 2, H / 2 + 10);
+
+  // Draw personality bars
+  const barY = H / 2 + 40;
+  const barW = 200;
+  const barH = 10;
+  const barX = W / 2 - barW / 2;
+  const stats = [
+    { label: 'SPEED', val: opp.speed / 0.04 },
+    { label: 'REACTION', val: opp.reaction / 0.08 },
+    { label: 'PRECISION', val: opp.predict },
+    { label: 'AGGRESSION', val: opp.aggression }
+  ];
+  for (let i = 0; i < stats.length; i++) {
+    const sy = barY + i * 24;
+    ctx.fillStyle = '#666'; ctx.font = '11px monospace'; ctx.textAlign = 'right';
+    ctx.fillText(stats[i].label, barX - 8, sy + 8);
+    ctx.fillStyle = '#222';
+    ctx.fillRect(barX, sy, barW, barH);
+    ctx.fillStyle = opp.color;
+    ctx.fillRect(barX, sy, barW * stats[i].val, barH);
+  }
+
+  ctx.textAlign = 'center'; ctx.fillStyle = '#555'; ctx.font = '12px monospace';
+  const dots = '.'.repeat((Math.floor(frame / 20) % 3) + 1);
+  ctx.fillText('APPROACHING TABLE' + dots, W / 2, H / 2 + 160);
+}
+
+function drawMessage() {
+  ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0, 60, W, 80);
+  ctx.textAlign = 'center'; ctx.font = 'bold 32px monospace';
+
+  if (gameState === 'goal') {
+    ctx.fillStyle = matchMessage.includes('PLAYER') ? '#8f8' : '#f88';
+  } else if (gameState === 'win') {
+    ctx.fillStyle = '#ff0';
+  } else {
+    ctx.fillStyle = '#f44';
+  }
+  ctx.fillText(matchMessage, W / 2, 110);
+}
+
+function drawGameOver() {
+  ctx.fillStyle = '#0a0a12'; ctx.fillRect(0, 0, W, H);
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ff0'; ctx.font = 'bold 42px monospace';
+  ctx.fillText('SHUFFLEPUCK CAFE', W / 2, H / 2 - 60);
+
+  ctx.fillStyle = '#8f8'; ctx.font = 'bold 28px monospace';
+  ctx.fillText('ALL OPPONENTS DEFEATED!', W / 2, H / 2);
+
+  // Show all opponents
+  for (let i = 0; i < opponents.length; i++) {
+    const o = opponents[i];
+    ctx.fillStyle = o.color; ctx.font = '16px monospace';
+    ctx.fillText(o.name + ' - ' + o.desc, W / 2, H / 2 + 50 + i * 28);
+  }
+
+  ctx.fillStyle = '#666'; ctx.font = '14px monospace';
+  ctx.fillText('Press R to play again', W / 2, H / 2 + 180);
+}
+
+function drawTitleBadge() {
+  ctx.fillStyle = '#1a1a1a'; ctx.fillRect(8, 8, 290, 28);
+  ctx.fillStyle = '#555'; ctx.font = '13px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('DEF-003 \u00b7 SHUFFLEPUCK CAFE  [?]', 16, 26);
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+</body>
+</html>

@@ -1,0 +1,701 @@
+<!--
+PROTOTYPE: ring-shooter
+SERIES: puz
+NUMBER: 031
+DATE: 2026-03-24
+MECHANIC: chain shooting — shoot colored balls into a moving chain winding along a track; match 3+ to remove sections; prevent the chain from reaching the end
+ANCESTRY: Puzz Loop (1998, Mitchell Corporation, Japan), Zuma (2003, PopCap Games), Luxor (2005, MumboJumbo)
+CONTROLS: Mouse — aim launcher | Click — shoot ball | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 5 (Deep Learning Dawn — neural pattern recognition, learned heuristics)
+AI-INSIGHT: Puzz Loop pioneered the marble-chain mechanic that Zuma popularized. The AI challenge is path prediction — calculating where a shot ball will intersect a moving chain on a curved track, requiring real-time trajectory and collision math that early arcade hardware handled through clever approximation.
+NOTES: Chain-shooting puzzle distilled to insertion and color matching.
+       Curved track creates spatial complexity beyond simple grid puzzles.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PUZ-031 · RING SHOOTER</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: crosshair; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>PUZ-031 &middot; RING SHOOTER</h1>
+    <p><span class="tag series">PUZ &mdash; Puzzle</span> <span class="tag">Prototype #031</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Shoot colored balls into a moving chain that winds along a spiral track. Match 3 or more same-colored balls to remove them. Clear the entire chain to advance. Don't let the chain reach the skull!</p>
+    <ul>
+      <li><strong>Mouse</strong> &mdash; Aim the launcher</li>
+      <li><strong>Click</strong> &mdash; Shoot a ball</li>
+      <li><kbd>R</kbd> &mdash; Restart game</li>
+      <li><kbd>?</kbd> &mdash; Toggle this info panel</li>
+    </ul>
+    <h3>Scoring</h3>
+    <ul>
+      <li>3 balls matched: 100 points</li>
+      <li>Each additional ball: +50 bonus</li>
+      <li>Chain combos: 2x multiplier per combo</li>
+      <li>Level clear bonus: 500 &times; level</li>
+    </ul>
+
+    <h2>History</h2>
+    <p>Puzz Loop was created by Mitchell Corporation in 1998 as a Japanese arcade game. It introduced the marble-chain mechanic where players shoot colored balls into a moving chain on a track, matching colors to eliminate segments. The game was a moderate arcade hit in Japan.</p>
+    <p>PopCap Games later popularized the mechanic with Zuma (2003), which became one of the most successful casual games ever made. The core mechanic &mdash; inserting into a chain and matching &mdash; proved to be one of the most satisfying puzzle interactions ever designed.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>ERA 5 &mdash; Deep Learning Dawn.</strong> The chain-shooting mechanic creates an interesting AI problem: predicting where a projectile will intersect a moving chain on a curved path, then evaluating which insertion point creates the best match. Modern AI approaches this through trajectory simulation and lookahead search.</p>
+
+    <h2>Classification</h2>
+    <p><span class="tag">chain-shooter</span> <span class="tag">color-matching</span> <span class="tag">arcade-puzzle</span> <span class="tag">trajectory</span></p>
+
+    <h2>Prototype Notes</h2>
+    <p>This prototype recreates the core Puzz Loop experience: a spiral track with advancing colored balls, a central launcher, and satisfying chain-pop mechanics. The track is procedurally generated as a spiral. Sound uses Web Audio API for pop, insert, and rumble effects.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This is an educational reconstruction of classic game mechanics for study and preservation. Puzz Loop is a trademark of Mitchell Corporation. This prototype is not affiliated with or endorsed by Mitchell Corporation or any rights holders.</p>
+  </div>
+</div>
+
+<script>
+// === Info Panel ===
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// === Canvas Setup ===
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+
+function resize() {
+  const s = Math.min(innerWidth / W, innerHeight / H);
+  canvas.style.width = (W * s) + 'px';
+  canvas.style.height = (H * s) + 'px';
+}
+resize();
+window.addEventListener('resize', resize);
+
+// === Web Audio ===
+let audioCtx = null;
+function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+function playPop() {
+  initAudio(); if (!audioCtx) return;
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.connect(g); g.connect(audioCtx.destination);
+  o.frequency.setValueAtTime(600, audioCtx.currentTime);
+  o.frequency.exponentialRampToValueAtTime(200, audioCtx.currentTime + 0.15);
+  g.gain.setValueAtTime(0.3, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+  o.start(); o.stop(audioCtx.currentTime + 0.15);
+}
+function playInsert() {
+  initAudio(); if (!audioCtx) return;
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.connect(g); g.connect(audioCtx.destination);
+  o.type = 'square';
+  o.frequency.setValueAtTime(800, audioCtx.currentTime);
+  o.frequency.exponentialRampToValueAtTime(400, audioCtx.currentTime + 0.05);
+  g.gain.setValueAtTime(0.15, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
+  o.start(); o.stop(audioCtx.currentTime + 0.05);
+}
+function playRumble() {
+  initAudio(); if (!audioCtx) return;
+  const bufSize = audioCtx.sampleRate * 0.1;
+  const buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * 0.1;
+  const src = audioCtx.createBufferSource(), g = audioCtx.createGain();
+  src.buffer = buf; src.connect(g); g.connect(audioCtx.destination);
+  g.gain.setValueAtTime(0.15, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+  src.start(); src.stop(audioCtx.currentTime + 0.1);
+}
+
+// === HUD text helper ===
+function hudText(text, x, y, size, color, align) {
+  ctx.save();
+  ctx.font = size + 'px monospace';
+  ctx.fillStyle = color || '#fff';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+// === Track Generation (spiral path) ===
+const BALL_R = 12;
+const TRACK_POINTS = [];
+const CX = 400, CY = 300;
+
+function generateTrack() {
+  TRACK_POINTS.length = 0;
+  const totalPoints = 600;
+  const maxRadius = 260;
+  const minRadius = 40;
+  const turns = 3.2;
+  // Spiral from outside in
+  for (let i = 0; i <= totalPoints; i++) {
+    const t = i / totalPoints;
+    const angle = t * turns * Math.PI * 2 + Math.PI * 0.5;
+    const r = maxRadius - (maxRadius - minRadius) * t;
+    const x = CX + Math.cos(angle) * r;
+    const y = CY + Math.sin(angle) * r;
+    TRACK_POINTS.push({ x, y });
+  }
+}
+generateTrack();
+
+// Precompute cumulative distances along track
+const TRACK_DISTS = [0];
+for (let i = 1; i < TRACK_POINTS.length; i++) {
+  const dx = TRACK_POINTS[i].x - TRACK_POINTS[i-1].x;
+  const dy = TRACK_POINTS[i].y - TRACK_POINTS[i-1].y;
+  TRACK_DISTS.push(TRACK_DISTS[i-1] + Math.sqrt(dx*dx + dy*dy));
+}
+const TRACK_LENGTH = TRACK_DISTS[TRACK_DISTS.length - 1];
+
+// Get position on track by distance
+function trackPos(dist) {
+  if (dist <= 0) return { x: TRACK_POINTS[0].x, y: TRACK_POINTS[0].y };
+  if (dist >= TRACK_LENGTH) return { x: TRACK_POINTS[TRACK_POINTS.length-1].x, y: TRACK_POINTS[TRACK_POINTS.length-1].y };
+  // Binary search for segment
+  let lo = 0, hi = TRACK_DISTS.length - 1;
+  while (lo < hi - 1) {
+    const mid = (lo + hi) >> 1;
+    if (TRACK_DISTS[mid] <= dist) lo = mid; else hi = mid;
+  }
+  const segLen = TRACK_DISTS[hi] - TRACK_DISTS[lo];
+  const t = segLen > 0 ? (dist - TRACK_DISTS[lo]) / segLen : 0;
+  return {
+    x: TRACK_POINTS[lo].x + (TRACK_POINTS[hi].x - TRACK_POINTS[lo].x) * t,
+    y: TRACK_POINTS[lo].y + (TRACK_POINTS[hi].y - TRACK_POINTS[lo].y) * t
+  };
+}
+
+// === Colors ===
+const COLORS = ['#e44', '#4b4', '#44e', '#ee4', '#e4e'];
+const COLOR_NAMES = ['red', 'green', 'blue', 'yellow', 'purple'];
+const BALL_SPACING = BALL_R * 2.1;
+
+// === Game State ===
+let chain = [];
+let chainHead = 0; // distance of the first ball from track start
+let level = 1;
+let score = 0;
+let gameOver = false;
+let levelClear = false;
+let levelClearTimer = 0;
+let comboCount = 0;
+let baseSpeed = 0.3;
+let chainSpeed = 0.3;
+let shootBall = null;
+let nextColor = 0;
+let launcherAngle = 0;
+let mouseX = W/2, mouseY = 0;
+let popParticles = [];
+let shooting = false;
+let shootX, shootY, shootVX, shootVY, shootColor;
+let chainPaused = 0; // pause chain after match
+let initialBalls = 30;
+
+function randomColor() { return Math.floor(Math.random() * COLORS.length); }
+
+function initLevel() {
+  chain = [];
+  const numBalls = initialBalls + (level - 1) * 5;
+  for (let i = 0; i < numBalls; i++) {
+    chain.push({ color: randomColor() });
+  }
+  chainHead = 0;
+  chainSpeed = baseSpeed + (level - 1) * 0.05;
+  gameOver = false;
+  levelClear = false;
+  levelClearTimer = 0;
+  comboCount = 0;
+  shooting = false;
+  nextColor = randomColor();
+  popParticles = [];
+  chainPaused = 0;
+}
+
+function resetGame() {
+  level = 1;
+  score = 0;
+  baseSpeed = 0.3;
+  initialBalls = 30;
+  initLevel();
+}
+resetGame();
+
+// === Mouse / Input ===
+canvas.addEventListener('mousemove', function(e) {
+  const rect = canvas.getBoundingClientRect();
+  mouseX = (e.clientX - rect.left) * (W / rect.width);
+  mouseY = (e.clientY - rect.top) * (H / rect.height);
+});
+
+canvas.addEventListener('click', function(e) {
+  initAudio();
+  if (gameOver) { resetGame(); return; }
+  if (levelClear) return;
+  if (infoOpen) return;
+  if (shooting) return;
+  // Fire ball
+  const dx = mouseX - CX;
+  const dy = mouseY - CY;
+  const dist = Math.sqrt(dx*dx + dy*dy);
+  if (dist < 5) return;
+  shooting = true;
+  shootX = CX; shootY = CY;
+  const speed = 12;
+  shootVX = (dx / dist) * speed;
+  shootVY = (dy / dist) * speed;
+  shootColor = nextColor;
+  nextColor = randomColor();
+  playInsert();
+});
+
+window.addEventListener('keydown', function(e) {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'r' || e.key === 'R') { resetGame(); return; }
+});
+
+// === Get ball position on chain ===
+function getBallPos(index) {
+  const dist = chainHead + index * BALL_SPACING;
+  return trackPos(dist);
+}
+
+// === Find insertion point in chain ===
+function findInsertionIndex(bx, by) {
+  let bestIdx = 0;
+  let bestDist = Infinity;
+  for (let i = 0; i < chain.length; i++) {
+    const p = getBallPos(i);
+    const dx = p.x - bx, dy = p.y - by;
+    const d = dx*dx + dy*dy;
+    if (d < bestDist) { bestDist = d; bestIdx = i; }
+  }
+  // Determine if we insert before or after
+  if (bestIdx < chain.length - 1) {
+    const pCur = getBallPos(bestIdx);
+    const pNext = getBallPos(bestIdx + 1);
+    const dCur = Math.sqrt((pCur.x-bx)**2 + (pCur.y-by)**2);
+    const dNext = Math.sqrt((pNext.x-bx)**2 + (pNext.y-by)**2);
+    // Check which gap the ball is closer to
+    const midCurX = (pCur.x + (bestIdx > 0 ? getBallPos(bestIdx-1).x : pCur.x)) / 2;
+    const midNextX = (pCur.x + pNext.x) / 2;
+    // Insert after if ball is further along the track
+    const distAlongCur = chainHead + bestIdx * BALL_SPACING;
+    const distAlongNext = chainHead + (bestIdx+1) * BALL_SPACING;
+    const ballTrackDist = findClosestTrackDist(bx, by);
+    if (ballTrackDist > distAlongCur + BALL_SPACING * 0.5) {
+      return bestIdx + 1;
+    }
+  }
+  return bestIdx;
+}
+
+function findClosestTrackDist(px, py) {
+  let bestD = Infinity, bestDist = 0;
+  for (let i = 0; i < TRACK_POINTS.length; i++) {
+    const dx = TRACK_POINTS[i].x - px, dy = TRACK_POINTS[i].y - py;
+    const d = dx*dx + dy*dy;
+    if (d < bestD) { bestD = d; bestDist = TRACK_DISTS[i]; }
+  }
+  return bestDist;
+}
+
+// === Check and remove matches ===
+function checkMatches(insertIdx) {
+  if (chain.length === 0) return false;
+  const col = chain[insertIdx].color;
+  let start = insertIdx, end = insertIdx;
+  while (start > 0 && chain[start-1].color === col) start--;
+  while (end < chain.length - 1 && chain[end+1].color === col) end++;
+  const count = end - start + 1;
+  if (count >= 3) {
+    // Create pop particles
+    for (let i = start; i <= end; i++) {
+      const p = getBallPos(i);
+      for (let j = 0; j < 6; j++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 1 + Math.random() * 3;
+        popParticles.push({
+          x: p.x, y: p.y,
+          vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+          color: COLORS[col], life: 40
+        });
+      }
+    }
+    chain.splice(start, count);
+    comboCount++;
+    const pts = (100 + (count - 3) * 50) * comboCount;
+    score += pts;
+    playPop();
+    chainPaused = 30; // brief pause after match
+    // Check for chain combo at the splice point
+    if (start > 0 && start < chain.length) {
+      setTimeout(function() { checkMatches(start > 0 ? start - 1 : 0); }, 150);
+    }
+    return true;
+  }
+  comboCount = 0;
+  return false;
+}
+
+// === Update ===
+let lastTime = 0;
+function update(dt) {
+  if (infoOpen) return;
+  if (gameOver || levelClear) return;
+
+  // Update particles
+  for (let i = popParticles.length - 1; i >= 0; i--) {
+    const p = popParticles[i];
+    p.x += p.vx; p.y += p.vy;
+    p.vy += 0.05;
+    p.life--;
+    if (p.life <= 0) popParticles.splice(i, 1);
+  }
+
+  // Chain pause after match
+  if (chainPaused > 0) { chainPaused--; }
+
+  // Advance chain
+  if (chainPaused <= 0 && chain.length > 0) {
+    chainHead += chainSpeed;
+    // Check if last ball reached the end
+    const lastDist = chainHead + (chain.length - 1) * BALL_SPACING;
+    if (lastDist >= TRACK_LENGTH) {
+      gameOver = true;
+      playRumble();
+      return;
+    }
+  }
+
+  // Check level clear
+  if (chain.length === 0 && !shooting) {
+    levelClear = true;
+    levelClearTimer = 120;
+    score += 500 * level;
+    return;
+  }
+
+  // Update shot ball
+  if (shooting) {
+    shootX += shootVX;
+    shootY += shootVY;
+    // Out of bounds
+    if (shootX < -20 || shootX > W + 20 || shootY < -20 || shootY > H + 20) {
+      shooting = false;
+      return;
+    }
+    // Check collision with chain
+    for (let i = 0; i < chain.length; i++) {
+      const p = getBallPos(i);
+      const dx = p.x - shootX, dy = p.y - shootY;
+      if (dx*dx + dy*dy < (BALL_R * 2) * (BALL_R * 2)) {
+        // Insert ball
+        const idx = findInsertionIndex(shootX, shootY);
+        chain.splice(idx, 0, { color: shootColor });
+        shooting = false;
+        playInsert();
+        checkMatches(idx);
+        return;
+      }
+    }
+  }
+
+  // Speed up over time
+  if (chainPaused <= 0) {
+    chainSpeed = baseSpeed + (level - 1) * 0.05 + chainHead * 0.00002;
+  }
+}
+
+// === Draw ===
+function draw() {
+  ctx.fillStyle = '#0a0a1a';
+  ctx.fillRect(0, 0, W, H);
+
+  // Draw track
+  ctx.strokeStyle = '#1a1a3a';
+  ctx.lineWidth = BALL_R * 2.5;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(TRACK_POINTS[0].x, TRACK_POINTS[0].y);
+  for (let i = 1; i < TRACK_POINTS.length; i++) {
+    ctx.lineTo(TRACK_POINTS[i].x, TRACK_POINTS[i].y);
+  }
+  ctx.stroke();
+
+  // Draw track center line
+  ctx.strokeStyle = '#111130';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(TRACK_POINTS[0].x, TRACK_POINTS[0].y);
+  for (let i = 1; i < TRACK_POINTS.length; i++) {
+    ctx.lineTo(TRACK_POINTS[i].x, TRACK_POINTS[i].y);
+  }
+  ctx.stroke();
+
+  // Draw skull/hole at track end (center of spiral)
+  const endP = TRACK_POINTS[TRACK_POINTS.length - 1];
+  ctx.fillStyle = '#300';
+  ctx.beginPath();
+  ctx.arc(endP.x, endP.y, BALL_R * 1.8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#800';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  // Skull face
+  ctx.fillStyle = '#a00';
+  ctx.font = '18px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('\u2620', endP.x, endP.y);
+
+  // Draw chain balls
+  for (let i = 0; i < chain.length; i++) {
+    const p = getBallPos(i);
+    const col = COLORS[chain[i].color];
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath();
+    ctx.arc(p.x + 2, p.y + 2, BALL_R, 0, Math.PI * 2);
+    ctx.fill();
+    // Ball
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, BALL_R, 0, Math.PI * 2);
+    ctx.fill();
+    // Highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.beginPath();
+    ctx.arc(p.x - 3, p.y - 3, BALL_R * 0.4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Draw particles
+  for (const p of popParticles) {
+    ctx.globalAlpha = p.life / 40;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // Draw launcher
+  const aimDx = mouseX - CX, aimDy = mouseY - CY;
+  launcherAngle = Math.atan2(aimDy, aimDx);
+
+  // Launcher base
+  ctx.fillStyle = '#333';
+  ctx.beginPath();
+  ctx.arc(CX, CY, BALL_R * 1.8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#666';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Launcher barrel
+  ctx.strokeStyle = '#888';
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.moveTo(CX, CY);
+  ctx.lineTo(CX + Math.cos(launcherAngle) * 30, CY + Math.sin(launcherAngle) * 30);
+  ctx.stroke();
+
+  // Current ball in launcher
+  ctx.fillStyle = COLORS[nextColor];
+  ctx.beginPath();
+  ctx.arc(CX, CY, BALL_R * 0.8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.beginPath();
+  ctx.arc(CX - 2, CY - 2, BALL_R * 0.3, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Draw shot ball
+  if (shooting) {
+    ctx.fillStyle = COLORS[shootColor];
+    ctx.beginPath();
+    ctx.arc(shootX, shootY, BALL_R, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.beginPath();
+    ctx.arc(shootX - 3, shootY - 3, BALL_R * 0.4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Aiming line (subtle)
+  ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 8]);
+  ctx.beginPath();
+  ctx.moveTo(CX + Math.cos(launcherAngle) * 30, CY + Math.sin(launcherAngle) * 30);
+  ctx.lineTo(CX + Math.cos(launcherAngle) * 200, CY + Math.sin(launcherAngle) * 200);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // HUD
+  hudText('RING SHOOTER', 10, 8, 14, '#7bf', 'left');
+  hudText('Score: ' + score, 10, 28, 13, '#fff', 'left');
+  hudText('Level: ' + level, W - 10, 8, 13, '#ff0', 'right');
+  hudText('Balls: ' + chain.length, W - 10, 28, 13, '#aaa', 'right');
+  hudText('? = info', W/2, H - 16, 11, '#555', 'center');
+
+  // Game over overlay
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, 0, W, H);
+    hudText('GAME OVER', W/2, H/2 - 30, 32, '#f44', 'center');
+    hudText('Score: ' + score + '  Level: ' + level, W/2, H/2 + 10, 16, '#fff', 'center');
+    hudText('Click to restart', W/2, H/2 + 40, 14, '#888', 'center');
+  }
+
+  // Level clear overlay
+  if (levelClear) {
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(0, 0, W, H);
+    hudText('LEVEL ' + level + ' CLEAR!', W/2, H/2 - 20, 28, '#4f4', 'center');
+    hudText('+' + (500 * level) + ' bonus', W/2, H/2 + 15, 16, '#ff0', 'center');
+  }
+}
+
+// === Level Clear Logic ===
+function handleLevelClear() {
+  if (levelClear) {
+    levelClearTimer--;
+    if (levelClearTimer <= 0) {
+      level++;
+      initLevel();
+    }
+  }
+}
+
+// === Main Loop ===
+function gameLoop(time) {
+  const dt = Math.min((time - lastTime) / 16.667, 3);
+  lastTime = time;
+  update(dt);
+  handleLevelClear();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+requestAnimationFrame(gameLoop);
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

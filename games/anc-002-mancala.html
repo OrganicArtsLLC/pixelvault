@@ -1,0 +1,505 @@
+<!--
+PROTOTYPE: mancala
+SERIES: anc
+NUMBER: 002
+DATE: 2026-03-22
+MECHANIC: seed sowing — pick up seeds from a pit, distribute one-by-one around the circuit
+ANCESTRY: Mancala/Oware (~700 CE, Africa/Asia), Kalah (1940, William Champion)
+CONTROLS: Click or 1-6 — choose pit to sow | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 1 (Symbolic AI — tree search, graph algorithms)
+AI-INSIGHT: Mancala has a single verb (sow) with positional consequences that cascade. Despite simple rules, the game tree is enormous — a solved game only for small configurations. The sowing mechanic is a discrete dynamical system where each action redistributes state across the board. Multi-step sowing (ending in your store = extra turn) creates lookahead chains that reward computational planning.
+NOTES: Single verb (sow) with positional consequences — elegant depth from one action.
+       The extra-turn mechanic rewards planning chains of moves.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ANC-002 · MANCALA</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #1a0e08; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>ANC-002 · MANCALA</h1>
+    <p><span class="tag series">ANC — Ancient Games</span> <span class="tag">Prototype #002</span> <span class="tag">★★★★☆</span></p>
+
+    <h2>How to Play</h2>
+    <p>Pick up all seeds from one of your pits and sow them one-by-one counter-clockwise. Collect the most seeds in your store (the large pit on the right).</p>
+    <ul>
+      <li>Click a pit on your side (bottom row) or press <kbd>1</kbd>-<kbd>6</kbd></li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Rules</h3>
+    <ul>
+      <li><strong>Sowing:</strong> Pick up all seeds from a pit, drop one in each subsequent pit counter-clockwise.</li>
+      <li><strong>Extra turn:</strong> If your last seed lands in your store, you go again.</li>
+      <li><strong>Capture:</strong> If your last seed lands in an empty pit on your side, capture that seed and all seeds in the opposite pit.</li>
+      <li><strong>Skip opponent's store:</strong> Never drop seeds in the opponent's store.</li>
+      <li><strong>Game end:</strong> When one side is empty, the other player collects all remaining seeds.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Mancala/Oware (~700 CE) → Kalah (1940) → hundreds of regional variants</p>
+    <p>Mancala is a family of count-and-capture games played across Africa, Asia, and the Caribbean for over a millennium. The word comes from the Arabic "naqala" (to move). Over 800 variants exist worldwide.</p>
+    <p>The single verb — sow — creates emergent strategic depth. Pick up seeds, distribute. That's it. Yet from this one action come extra turns, captures, positioning, and multi-move planning chains. It is perhaps the purest demonstration that simple rules create infinite depth.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 1 — Symbolic AI (pre-1965)</p>
+    <p><strong>Contemporary AI:</strong> The sowing mechanic predates computing. But the game structure — deterministic, perfect information, finite — is exactly what minimax with alpha-beta pruning was designed to solve.</p>
+    <p><strong>Hidden Intelligence:</strong> Each sow is a discrete state transformation — pick up N seeds, redistribute across N positions. The resulting state depends on the current board configuration in non-trivial ways. Multi-step sowing chains (extra turns) create lookahead trees where planning 3-4 moves ahead is critical. This is a natural environment for tree search algorithms.</p>
+    <p><strong>The Convergence:</strong> Mancala variants have been solved by computer for small board sizes. The game's depth-to-rule-complexity ratio is extraordinary — it proves that the search space can be enormous even with a single action type.</p>
+    <p><strong>If AI Had Designed This:</strong> Optimized pit count and starting seeds to maximize the ratio of strategic depth to rule complexity — the result might be surprisingly close to Kalah(6,4).</p>
+
+    <h2>Classification</h2>
+    <h3>Series: ANC — Ancient Games</h3>
+    <p>Games that survived 1000+ years. Mancala's global distribution proves its design is culturally universal.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Seed sowing around pit circuit.</strong> Single verb (sow). Extra turns on store landing. Capture on empty pit landing. No randomness — pure strategy.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Sowing feel — does distributing seeds feel satisfying?</li>
+      <li>Extra turn chains — does planning multi-turn sequences feel rewarding?</li>
+      <li>Capture mechanic — does the opposite-pit capture create tension?</li>
+      <li>Endgame — does the collection phase resolve cleanly?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Kalah variant: 6 pits per side, 4 seeds each. Player vs AI (minimax with depth 6).</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+const justPressed = {};
+const keys = {};
+window.addEventListener('keydown', e => {
+  if (infoOpen) return;
+  if (!keys[e.code]) justPressed[e.code] = true;
+  keys[e.code] = true;
+  e.preventDefault();
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+function pop(code) { if (justPressed[code]) { justPressed[code] = false; return true; } return false; }
+
+// --- GAME LOGIC ---
+// Board: indices 0-5 = P1 pits (bottom, left to right), 6 = P1 store,
+//        7-12 = P2 pits (top, right to left), 13 = P2 store
+const PITS = 6;
+const INIT_SEEDS = 4;
+const P1_STORE = 6;
+const P2_STORE = 13;
+
+let board, turn, gameOver, winner, message, messageTimer, aiThinking, sowAnim;
+
+function initGame() {
+  board = new Array(14).fill(INIT_SEEDS);
+  board[P1_STORE] = 0;
+  board[P2_STORE] = 0;
+  turn = 1;
+  gameOver = false; winner = 0;
+  message = ''; messageTimer = 0;
+  aiThinking = 0;
+  sowAnim = null;
+}
+initGame();
+
+function cloneBoard(b) { return [...b]; }
+
+function sow(b, pit, player) {
+  let seeds = b[pit];
+  if (seeds === 0) return { board: b, extraTurn: false, valid: false };
+  b = cloneBoard(b);
+  b[pit] = 0;
+  let idx = pit;
+  const skipStore = player === 1 ? P2_STORE : P1_STORE;
+
+  while (seeds > 0) {
+    idx = (idx + 1) % 14;
+    if (idx === skipStore) continue;
+    b[idx]++;
+    seeds--;
+  }
+
+  // Extra turn: last seed in own store
+  const myStore = player === 1 ? P1_STORE : P2_STORE;
+  const extraTurn = idx === myStore;
+
+  // Capture: last seed in empty own pit
+  if (!extraTurn) {
+    const myRange = player === 1 ? [0, 5] : [7, 12];
+    if (idx >= myRange[0] && idx <= myRange[1] && b[idx] === 1) {
+      const opposite = 12 - idx;
+      if (b[opposite] > 0) {
+        b[myStore] += b[opposite] + 1;
+        b[opposite] = 0;
+        b[idx] = 0;
+      }
+    }
+  }
+
+  return { board: b, extraTurn, valid: true };
+}
+
+function checkGameEnd(b) {
+  const p1Empty = b.slice(0, 6).every(s => s === 0);
+  const p2Empty = b.slice(7, 13).every(s => s === 0);
+
+  if (p1Empty || p2Empty) {
+    // Collect remaining seeds
+    for (let i = 0; i < 6; i++) { b[P1_STORE] += b[i]; b[i] = 0; }
+    for (let i = 7; i < 13; i++) { b[P2_STORE] += b[i]; b[i] = 0; }
+    return true;
+  }
+  return false;
+}
+
+// AI: minimax with alpha-beta
+function evaluate(b) {
+  return b[P2_STORE] - b[P1_STORE];
+}
+
+function minimax(b, depth, alpha, beta, isMax) {
+  if (depth === 0 || checkGameEnd(cloneBoard(b))) return evaluate(b);
+
+  const player = isMax ? 2 : 1;
+  const start = player === 1 ? 0 : 7;
+
+  if (isMax) {
+    let best = -Infinity;
+    for (let i = start; i < start + 6; i++) {
+      if (b[i] === 0) continue;
+      const result = sow(cloneBoard(b), i, player);
+      if (!result.valid) continue;
+      const val = result.extraTurn
+        ? minimax(result.board, depth - 1, alpha, beta, true)
+        : minimax(result.board, depth - 1, alpha, beta, false);
+      best = Math.max(best, val);
+      alpha = Math.max(alpha, val);
+      if (beta <= alpha) break;
+    }
+    return best === -Infinity ? evaluate(b) : best;
+  } else {
+    let best = Infinity;
+    for (let i = start; i < start + 6; i++) {
+      if (b[i] === 0) continue;
+      const result = sow(cloneBoard(b), i, player);
+      if (!result.valid) continue;
+      const val = result.extraTurn
+        ? minimax(result.board, depth - 1, alpha, beta, false)
+        : minimax(result.board, depth - 1, alpha, beta, true);
+      best = Math.min(best, val);
+      beta = Math.min(beta, val);
+      if (beta <= alpha) break;
+    }
+    return best === Infinity ? evaluate(b) : best;
+  }
+}
+
+function aiPickMove() {
+  let bestPit = -1, bestScore = -Infinity;
+  for (let i = 7; i < 13; i++) {
+    if (board[i] === 0) continue;
+    const result = sow(cloneBoard(board), i, 2);
+    if (!result.valid) continue;
+    const score = minimax(result.board, 5, -Infinity, Infinity, !result.extraTurn);
+    if (score > bestScore) { bestScore = score; bestPit = i; }
+  }
+  return bestPit;
+}
+
+function makeMove(pit) {
+  const player = turn;
+  const result = sow(board, pit, player);
+  if (!result.valid) return;
+  board = result.board;
+
+  if (checkGameEnd(board)) {
+    gameOver = true;
+    winner = board[P1_STORE] > board[P2_STORE] ? 1 : board[P2_STORE] > board[P1_STORE] ? 2 : 0;
+    return;
+  }
+
+  if (result.extraTurn) {
+    message = (player === 1 ? 'Extra turn!' : 'AI gets extra turn');
+    messageTimer = 50;
+  } else {
+    turn = turn === 1 ? 2 : 1;
+  }
+}
+
+// Click handling
+canvas.addEventListener('click', e => {
+  if (infoOpen || gameOver || turn !== 1) return;
+  const rect = canvas.getBoundingClientRect();
+  const mx = (e.clientX - rect.left) * (W / rect.width);
+  const my = (e.clientY - rect.top) * (H / rect.height);
+
+  // Check bottom pits (P1)
+  for (let i = 0; i < 6; i++) {
+    const pos = pitPos(i);
+    const dx = mx - pos.x, dy = my - pos.y;
+    if (dx * dx + dy * dy < 40 * 40 && board[i] > 0) {
+      makeMove(i);
+      return;
+    }
+  }
+});
+
+function pitPos(idx) {
+  const PIT_R = 38;
+  const STORE_W = 70, STORE_H = 160;
+  const boardW = 6 * (PIT_R * 2 + 10) + 2 * STORE_W + 40;
+  const bx = (W - boardW) / 2;
+  const by = H / 2;
+
+  if (idx === P1_STORE) return { x: bx + boardW - STORE_W / 2, y: by, isStore: true };
+  if (idx === P2_STORE) return { x: bx + STORE_W / 2, y: by, isStore: true };
+
+  if (idx < 6) {
+    // Bottom row (P1): left to right
+    return { x: bx + STORE_W + 20 + idx * (PIT_R * 2 + 10) + PIT_R, y: by + 70 };
+  } else {
+    // Top row (P2): right to left
+    const col = 12 - idx;
+    return { x: bx + STORE_W + 20 + col * (PIT_R * 2 + 10) + PIT_R, y: by - 70 };
+  }
+}
+
+function update() {
+  if (infoOpen) return;
+  if (gameOver) { if (pop('KeyR')) initGame(); return; }
+  if (messageTimer > 0) messageTimer--;
+
+  // P1 keyboard input
+  if (turn === 1) {
+    for (let i = 1; i <= 6; i++) {
+      if (pop('Digit' + i) && board[i - 1] > 0) {
+        makeMove(i - 1);
+      }
+    }
+  }
+
+  // AI turn
+  if (turn === 2 && !gameOver) {
+    aiThinking++;
+    if (aiThinking > 25) {
+      const pit = aiPickMove();
+      if (pit >= 0) makeMove(pit);
+      aiThinking = 0;
+    }
+  }
+}
+
+function drawSeeds(x, y, count, radius) {
+  if (count === 0) return;
+  const maxR = radius - 8;
+
+  if (count <= 6) {
+    const angleStep = (Math.PI * 2) / Math.max(count, 1);
+    const r = count === 1 ? 0 : maxR * 0.5;
+    for (let i = 0; i < count; i++) {
+      const a = angleStep * i - Math.PI / 2;
+      const sx = x + Math.cos(a) * r;
+      const sy = y + Math.sin(a) * r;
+      ctx.fillStyle = '#d4a54a';
+      ctx.beginPath();
+      ctx.arc(sx, sy, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#8a6a2a'; ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+  } else {
+    // Many seeds — show as pile with count
+    for (let i = 0; i < Math.min(count, 12); i++) {
+      const a = (i / Math.min(count, 12)) * Math.PI * 2;
+      const r = maxR * 0.4 + (i % 3) * 5;
+      ctx.fillStyle = '#d4a54a';
+      ctx.beginPath();
+      ctx.arc(x + Math.cos(a) * r, y + Math.sin(a) * r, 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 16px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(count, x, y + 5);
+  }
+}
+
+function draw() {
+  ctx.fillStyle = '#1a0e08'; ctx.fillRect(0, 0, W, H);
+
+  // Board background
+  const PIT_R = 38;
+  const STORE_W = 70, STORE_H = 160;
+  const boardW = 6 * (PIT_R * 2 + 10) + 2 * STORE_W + 40;
+  const bx = (W - boardW) / 2;
+  const by = H / 2;
+
+  ctx.fillStyle = '#3a2210';
+  const boardPadding = 20;
+  ctx.beginPath();
+  ctx.roundRect(bx - boardPadding, by - STORE_H / 2 - boardPadding,
+    boardW + boardPadding * 2, STORE_H + boardPadding * 2, 20);
+  ctx.fill();
+  ctx.strokeStyle = '#6a4a20'; ctx.lineWidth = 3;
+  ctx.stroke();
+
+  // Stores
+  for (const storeIdx of [P1_STORE, P2_STORE]) {
+    const pos = pitPos(storeIdx);
+    ctx.fillStyle = '#2a1608';
+    ctx.beginPath();
+    ctx.roundRect(pos.x - STORE_W / 2 + 5, pos.y - STORE_H / 2 + 5, STORE_W - 10, STORE_H - 10, 15);
+    ctx.fill();
+    ctx.strokeStyle = '#5a3a18'; ctx.lineWidth = 2; ctx.stroke();
+
+    // Seeds in store
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 24px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(board[storeIdx], pos.x, pos.y + 8);
+  }
+
+  // Labels
+  ctx.fillStyle = '#c89030'; ctx.font = '12px monospace'; ctx.textAlign = 'center';
+  const p1Store = pitPos(P1_STORE);
+  const p2Store = pitPos(P2_STORE);
+  ctx.fillText('YOU', p1Store.x, p1Store.y + STORE_H / 2 + 16);
+  ctx.fillText('AI', p2Store.x, p2Store.y - STORE_H / 2 - 8);
+
+  // Pits
+  for (let i = 0; i < 14; i++) {
+    if (i === P1_STORE || i === P2_STORE) continue;
+    const pos = pitPos(i);
+
+    // Highlight valid moves
+    const isValid = turn === 1 && i < 6 && board[i] > 0;
+    ctx.fillStyle = isValid ? '#3a2a14' : '#2a1608';
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, PIT_R, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = isValid ? '#aa8040' : '#5a3a18';
+    ctx.lineWidth = isValid ? 3 : 2;
+    ctx.stroke();
+
+    // Draw seeds
+    drawSeeds(pos.x, pos.y, board[i], PIT_R);
+
+    // Pit number (for keyboard)
+    if (i < 6) {
+      ctx.fillStyle = '#666'; ctx.font = '11px monospace'; ctx.textAlign = 'center';
+      ctx.fillText(i + 1, pos.x, pos.y + PIT_R + 16);
+    }
+  }
+
+  // Turn indicator
+  ctx.fillStyle = turn === 1 ? '#4488ff' : '#ff4444';
+  ctx.font = '18px monospace'; ctx.textAlign = 'center';
+  ctx.fillText(turn === 1 ? 'YOUR TURN — choose a pit' : 'AI thinking...', W / 2, by + STORE_H / 2 + 50);
+
+  // Message
+  if (messageTimer > 0) {
+    ctx.fillStyle = '#ff0'; ctx.font = '16px monospace';
+    ctx.fillText(message, W / 2, by + STORE_H / 2 + 75);
+  }
+
+  // Row labels
+  ctx.fillStyle = '#666'; ctx.font = '12px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('← AI side (top)', bx + STORE_W + 10, by - 110);
+  ctx.fillText('← Your side (bottom)', bx + STORE_W + 10, by + 120);
+
+  // Game over
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, W, H);
+    ctx.font = 'bold 48px monospace'; ctx.textAlign = 'center';
+    if (winner === 0) {
+      ctx.fillStyle = '#ff0'; ctx.fillText("IT'S A TIE!", W / 2, H / 2 - 20);
+    } else {
+      ctx.fillStyle = winner === 1 ? '#4488ff' : '#ff4444';
+      ctx.fillText(winner === 1 ? 'YOU WIN!' : 'AI WINS', W / 2, H / 2 - 20);
+    }
+    ctx.fillStyle = '#fff'; ctx.font = '20px monospace';
+    ctx.fillText(board[P1_STORE] + ' - ' + board[P2_STORE], W / 2, H / 2 + 15);
+    ctx.fillStyle = '#aaa'; ctx.font = '16px monospace';
+    ctx.fillText('R to restart', W / 2, H / 2 + 45);
+  }
+
+  // Title badge
+  ctx.fillStyle = '#1a1a1a'; ctx.fillRect(8, 8, 230, 28);
+  ctx.fillStyle = '#555'; ctx.font = '13px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('ANC-002 · MANCALA  [?]', 16, 26);
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+</body>
+</html>

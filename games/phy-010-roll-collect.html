@@ -1,0 +1,653 @@
+<!--
+PROTOTYPE: roll-collect
+SERIES: phy
+NUMBER: 010
+DATE: 2026-03-24
+MECHANIC: sticky ball rolling — roll a ball that picks up objects; everything you collect makes the ball bigger, letting you collect bigger things; exponential growth from thumbtacks to houses
+ANCESTRY: Katamari Damacy (2004, Keita Takahashi / Namco, PS2), Marble Madness (1984, Mark Cerny / Atari), Pac-Man (1980, Namco — collect-everything archetype)
+CONTROLS: Arrow keys — roll katamari | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 6 (Deep Learning — spatial reasoning for pickup eligibility, growth modeling, emergent physics from simple sticky-contact rule)
+AI-INSIGHT: Katamari's genius is a single recursive rule — absorb anything smaller, grow, repeat. This mirrors how neural networks learn hierarchical features: simple local patterns compose into increasingly complex structures. The exponential growth curve parallels how representational capacity scales with depth.
+NOTES: Top-down katamari rolling. Objects scattered across a large scrolling world.
+       Arrow keys to move. Pick up objects smaller than the ball on contact.
+       Ball grows with each pickup. 3-minute timer, score = final diameter.
+       Creator Keita Takahashi (Namco, 2004 PS2).
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PHY-010 · ROLL COLLECT</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>PHY-010 &middot; STICKY ROLLER</h1>
+    <p><span class="tag series">PHY &mdash; Physics</span> <span class="tag">Prototype #010</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Roll your katamari (sticky ball) around the world and pick up objects smaller than yourself. As you grow, bigger objects become collectible. Get as large as possible in 3 minutes!</p>
+    <ul>
+      <li><kbd>&uarr;</kbd> / <kbd>&darr;</kbd> / <kbd>&larr;</kbd> / <kbd>&rarr;</kbd> &mdash; Roll the katamari</li>
+      <li><kbd>R</kbd> &mdash; Restart game</li>
+      <li><kbd>?</kbd> &mdash; Toggle this info panel</li>
+    </ul>
+    <p>Objects glow green when they are small enough to pick up. Red-outlined objects are still too large. Grow your ball to unlock bigger pickups!</p>
+
+    <h2>History</h2>
+    <p><strong>Katamari Damacy</strong> (2004) was created by <strong>Keita Takahashi</strong> at Namco for the PlayStation 2. Born from Takahashi&rsquo;s art school background, the game rejected the violence and complexity dominating the industry. Instead, it offered a single, joyful mechanic: roll a sticky ball that picks up everything it touches.</p>
+    <p>The game&rsquo;s brilliance lies in its exponential growth curve. Starting with thumbtacks and dice, players eventually roll up people, buildings, and entire islands. The scale shift creates a unique sense of power progression that feels earned through accumulation rather than combat.</p>
+    <p>Originally a student project pitched at a Namco internal game jam, it was nearly cancelled multiple times due to its unconventional design. It became a cult classic and spawned numerous sequels. The soundtrack, mixing jazz, bossa nova, and J-pop, became iconic in its own right.</p>
+
+    <h2>AI Archaeology</h2>
+    <h3>Spatial Reasoning &amp; Growth Modeling</h3>
+    <p>Katamari&rsquo;s core loop is a continuous size-comparison problem. An AI agent must maintain a spatial model of every object&rsquo;s size relative to the katamari&rsquo;s current radius. This mirrors how computer vision systems learn hierarchical feature extraction &mdash; small features compose into larger structures.</p>
+    <h3>Emergent Complexity from Simple Rules</h3>
+    <p>The single rule &ldquo;absorb anything smaller&rdquo; creates emergent gameplay that parallels cellular automata and swarm intelligence. Simple local interactions produce complex global behavior &mdash; a principle fundamental to both game design and artificial life research.</p>
+
+    <h2>Classification</h2>
+    <p><strong>Series:</strong> PHY (Physics) &mdash; growth and collision physics drive the core mechanic</p>
+    <p><strong>Era:</strong> 6 (Deep Learning) &mdash; spatial reasoning, size hierarchy, emergent complexity</p>
+
+    <h2>Prototype Notes</h2>
+    <p>Top-down scrolling world with objects at multiple size tiers. The katamari&rsquo;s visual radius grows with each pickup. Objects visibly &ldquo;stick&rdquo; to the ball surface by orbiting it. Green glow indicates collectible objects; red outlines show objects that are still too large. Web Audio provides pickup pops that pitch-shift as the ball grows.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction for study and commentary. Katamari Damacy&trade; is a trademark of Bandai Namco Entertainment. This project is not affiliated with or endorsed by Bandai Namco. No original assets are used.</p>
+  </div>
+</div>
+
+<script>
+// === Info Panel ===
+let infoOpen = false;
+const infoPanel = document.getElementById('info-panel');
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  infoPanel.style.display = infoOpen ? 'block' : 'none';
+}
+
+// === Canvas Setup ===
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+
+function resize() {
+  const s = Math.min(innerWidth / W, innerHeight / H);
+  canvas.style.width = (W * s) + 'px';
+  canvas.style.height = (H * s) + 'px';
+}
+resize();
+window.addEventListener('resize', resize);
+
+// === HUD Text Helper ===
+function hudText(text, x, y, size, color, align) {
+  ctx.save();
+  ctx.font = size + 'px monospace';
+  ctx.fillStyle = color || '#fff';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+// === Web Audio ===
+let audioCtx = null;
+function initAudio() {
+  if (!audioCtx) { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {} }
+}
+function playPickup(ballRadius) {
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  const baseFreq = 800 - Math.min(ballRadius * 4, 600);
+  osc.frequency.setValueAtTime(Math.max(baseFreq, 150), audioCtx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(Math.max(baseFreq * 0.5, 80), audioCtx.currentTime + 0.15);
+  osc.type = 'sine';
+  gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+  osc.start(audioCtx.currentTime);
+  osc.stop(audioCtx.currentTime + 0.2);
+}
+function playRollHum(ballRadius) {
+  if (!audioCtx || rollOsc) return;
+  rollOsc = audioCtx.createOscillator();
+  rollGain = audioCtx.createGain();
+  rollOsc.connect(rollGain);
+  rollGain.connect(audioCtx.destination);
+  rollOsc.type = 'triangle';
+  rollOsc.frequency.value = 40;
+  rollGain.gain.value = 0;
+  rollOsc.start();
+}
+let rollOsc = null, rollGain = null;
+function updateRollSound(speed, radius) {
+  if (!rollOsc || !rollGain) return;
+  const vol = Math.min(speed * 0.03, 0.06);
+  rollGain.gain.value = vol;
+  rollOsc.frequency.value = 30 + Math.min(radius * 0.3, 50);
+}
+
+// === Input ===
+const keys = {};
+document.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'r' || e.key === 'R') { initGame(); return; }
+  keys[e.key] = true;
+  initAudio();
+  if (!rollOsc) playRollHum();
+  e.preventDefault();
+});
+document.addEventListener('keyup', e => { keys[e.key] = false; });
+
+// === Object Definitions ===
+// Each tier: { name, emoji, minSize, maxSize, color, count }
+const TIERS = [
+  { name: 'pin',       w: 4,  h: 4,  color: '#ccc',    count: 80, sizeVal: 2,  emoji: '\u25CF' },
+  { name: 'die',       w: 6,  h: 6,  color: '#f5f5dc',  count: 50, sizeVal: 4,  emoji: '\u25A0' },
+  { name: 'eraser',    w: 10, h: 5,  color: '#f6a',    count: 40, sizeVal: 6,  emoji: '\u25AC' },
+  { name: 'pencil',    w: 14, h: 4,  color: '#fd0',    count: 35, sizeVal: 8,  emoji: '\u2758' },
+  { name: 'cup',       w: 10, h: 12, color: '#8cf',    count: 30, sizeVal: 12, emoji: '\u2615' },
+  { name: 'apple',     w: 10, h: 10, color: '#e33',    count: 30, sizeVal: 10, emoji: '\u25CF' },
+  { name: 'shoe',      w: 16, h: 10, color: '#964',    count: 25, sizeVal: 16, emoji: '\u25B6' },
+  { name: 'plate',     w: 18, h: 18, color: '#eee',    count: 20, sizeVal: 18, emoji: '\u25CB' },
+  { name: 'cat',       w: 16, h: 14, color: '#fa6',    count: 18, sizeVal: 20, emoji: '\u25B2' },
+  { name: 'box',       w: 24, h: 20, color: '#a86',    count: 15, sizeVal: 26, emoji: '\u25A1' },
+  { name: 'chair',     w: 22, h: 28, color: '#865',    count: 12, sizeVal: 32, emoji: '\u2302' },
+  { name: 'person',    w: 14, h: 30, color: '#f9c',    count: 12, sizeVal: 36, emoji: '\u2660' },
+  { name: 'table',     w: 36, h: 20, color: '#a75',    count: 10, sizeVal: 40, emoji: '\u25AD' },
+  { name: 'couch',     w: 40, h: 22, color: '#66a',    count: 8,  sizeVal: 48, emoji: '\u25AC' },
+  { name: 'car',       w: 44, h: 22, color: '#c44',    count: 8,  sizeVal: 56, emoji: '\u25BA' },
+  { name: 'tree',      w: 30, h: 50, color: '#3a5',    count: 8,  sizeVal: 60, emoji: '\u25B2' },
+  { name: 'truck',     w: 56, h: 24, color: '#47a',    count: 5,  sizeVal: 72, emoji: '\u25BA' },
+  { name: 'house',     w: 60, h: 50, color: '#d85',    count: 4,  sizeVal: 90, emoji: '\u2302' },
+  { name: 'building',  w: 70, h: 80, color: '#888',    count: 3,  sizeVal: 110, emoji: '\u25A0' },
+];
+
+// === World ===
+const WORLD_W = 4000, WORLD_H = 4000;
+let objects = [];
+let ball = { x: 0, y: 0, radius: 10, vx: 0, vy: 0, angle: 0, collected: 0, stuck: [] };
+let timeLeft = 180; // 3 minutes
+let gameState = 'playing'; // playing, won
+let lastTime = 0;
+let camX = 0, camY = 0;
+
+// === Colors for floor tiles ===
+const FLOOR_COLORS = ['#2a2a3a', '#2e2e3e', '#262636', '#2c2c3c'];
+
+function initGame() {
+  objects = [];
+  ball = { x: WORLD_W / 2, y: WORLD_H / 2, radius: 10, vx: 0, vy: 0, angle: 0, collected: 0, stuck: [] };
+  timeLeft = 180;
+  gameState = 'playing';
+
+  // Scatter objects
+  for (const tier of TIERS) {
+    for (let i = 0; i < tier.count; i++) {
+      const margin = 100;
+      objects.push({
+        x: margin + Math.random() * (WORLD_W - margin * 2),
+        y: margin + Math.random() * (WORLD_H - margin * 2),
+        w: tier.w,
+        h: tier.h,
+        size: Math.max(tier.w, tier.h),
+        sizeVal: tier.sizeVal,
+        color: tier.color,
+        name: tier.name,
+        emoji: tier.emoji,
+        alive: true,
+        angle: Math.random() * Math.PI * 2
+      });
+    }
+  }
+}
+
+function canPickUp(obj) {
+  return obj.size < ball.radius * 1.8;
+}
+
+function distTo(obj) {
+  const dx = obj.x - ball.x;
+  const dy = obj.y - ball.y;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+function update(dt) {
+  if (infoOpen) return;
+  if (gameState !== 'playing') return;
+
+  // Timer
+  timeLeft -= dt;
+  if (timeLeft <= 0) {
+    timeLeft = 0;
+    gameState = 'won';
+    return;
+  }
+
+  // Movement
+  const accel = 300;
+  const friction = 0.92;
+  if (keys['ArrowUp'] || keys['w'])    ball.vy -= accel * dt;
+  if (keys['ArrowDown'] || keys['s'])   ball.vy += accel * dt;
+  if (keys['ArrowLeft'] || keys['a'])   ball.vx -= accel * dt;
+  if (keys['ArrowRight'] || keys['d']) ball.vx += accel * dt;
+
+  ball.vx *= friction;
+  ball.vy *= friction;
+
+  // Speed scales inversely with size (bigger = slower)
+  const speedMult = Math.max(0.25, 1.0 - (ball.radius - 10) / 300);
+  ball.x += ball.vx * dt * speedMult;
+  ball.y += ball.vy * dt * speedMult;
+
+  // Clamp to world
+  ball.x = Math.max(ball.radius, Math.min(WORLD_W - ball.radius, ball.x));
+  ball.y = Math.max(ball.radius, Math.min(WORLD_H - ball.radius, ball.y));
+
+  // Roll angle
+  const speed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
+  ball.angle += speed * dt * 0.02;
+  updateRollSound(speed, ball.radius);
+
+  // Pickup collisions
+  for (const obj of objects) {
+    if (!obj.alive) continue;
+    const d = distTo(obj);
+    const pickupDist = ball.radius + obj.size * 0.4;
+    if (d < pickupDist && canPickUp(obj)) {
+      obj.alive = false;
+      // Grow ball — diminishing returns to keep things balanced
+      const growth = obj.sizeVal * 0.12;
+      ball.radius += growth;
+      ball.collected++;
+      // Add to stuck objects (visual)
+      const angle = Math.atan2(obj.y - ball.y, obj.x - ball.x);
+      ball.stuck.push({
+        angle: angle,
+        dist: 0.7 + Math.random() * 0.3,
+        color: obj.color,
+        size: Math.min(obj.size, ball.radius * 0.4),
+        emoji: obj.emoji,
+        rotOff: Math.random() * Math.PI * 2
+      });
+      playPickup(ball.radius);
+    }
+  }
+
+  // Camera follows ball
+  camX = ball.x - W / 2;
+  camY = ball.y - H / 2;
+  camX = Math.max(0, Math.min(WORLD_W - W, camX));
+  camY = Math.max(0, Math.min(WORLD_H - H, camY));
+}
+
+function drawFloor() {
+  const tileSize = 80;
+  const startX = Math.floor(camX / tileSize) * tileSize;
+  const startY = Math.floor(camY / tileSize) * tileSize;
+  for (let x = startX; x < camX + W + tileSize; x += tileSize) {
+    for (let y = startY; y < camY + H + tileSize; y += tileSize) {
+      const tx = Math.floor(x / tileSize);
+      const ty = Math.floor(y / tileSize);
+      ctx.fillStyle = FLOOR_COLORS[(tx + ty) % FLOOR_COLORS.length];
+      ctx.fillRect(x - camX, y - camY, tileSize, tileSize);
+    }
+  }
+  // Grid lines
+  ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+  ctx.lineWidth = 1;
+  for (let x = startX; x < camX + W + tileSize; x += tileSize) {
+    ctx.beginPath();
+    ctx.moveTo(x - camX, 0);
+    ctx.lineTo(x - camX, H);
+    ctx.stroke();
+  }
+  for (let y = startY; y < camY + H + tileSize; y += tileSize) {
+    ctx.beginPath();
+    ctx.moveTo(0, y - camY);
+    ctx.lineTo(W, y - camY);
+    ctx.stroke();
+  }
+}
+
+function drawObject(obj) {
+  const sx = obj.x - camX;
+  const sy = obj.y - camY;
+  // Skip if off screen
+  if (sx < -60 || sx > W + 60 || sy < -60 || sy > H + 60) return;
+
+  const canPick = canPickUp(obj);
+
+  // Glow for pickable objects
+  if (canPick) {
+    ctx.save();
+    ctx.shadowColor = '#0f0';
+    ctx.shadowBlur = 6;
+    ctx.globalAlpha = 0.6 + Math.sin(Date.now() * 0.005) * 0.2;
+  }
+
+  // Draw object body
+  ctx.save();
+  ctx.translate(sx, sy);
+  ctx.rotate(obj.angle);
+  ctx.fillStyle = obj.color;
+  ctx.fillRect(-obj.w / 2, -obj.h / 2, obj.w, obj.h);
+
+  // Label for larger objects
+  if (obj.size > 15) {
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.font = Math.min(obj.size * 0.4, 10) + 'px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(obj.name, 0, 0);
+  }
+  ctx.restore();
+
+  if (canPick) {
+    ctx.restore();
+  } else {
+    // Red outline for too-big objects
+    ctx.strokeStyle = 'rgba(255,60,60,0.3)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(sx - obj.w / 2 - 2, sy - obj.h / 2 - 2, obj.w + 4, obj.h + 4);
+  }
+}
+
+function drawBall() {
+  const sx = ball.x - camX;
+  const sy = ball.y - camY;
+  const r = ball.radius;
+
+  // Shadow
+  ctx.beginPath();
+  ctx.ellipse(sx + 3, sy + 5, r * 0.9, r * 0.5, 0, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.fill();
+
+  // Main ball gradient
+  const grad = ctx.createRadialGradient(sx - r * 0.3, sy - r * 0.3, r * 0.1, sx, sy, r);
+  grad.addColorStop(0, '#8ef');
+  grad.addColorStop(0.5, '#4ac');
+  grad.addColorStop(1, '#267');
+  ctx.beginPath();
+  ctx.arc(sx, sy, r, 0, Math.PI * 2);
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Stuck objects on the surface
+  ctx.save();
+  ctx.translate(sx, sy);
+  for (const s of ball.stuck) {
+    const a = s.angle + ball.angle * 0.3 + s.rotOff;
+    const d = r * s.dist;
+    const ox = Math.cos(a) * d;
+    const oy = Math.sin(a) * d;
+    ctx.fillStyle = s.color;
+    const sz = Math.max(2, s.size * 0.6);
+    ctx.fillRect(ox - sz / 2, oy - sz / 2, sz, sz);
+  }
+  ctx.restore();
+
+  // Specular highlight
+  ctx.beginPath();
+  ctx.arc(sx - r * 0.25, sy - r * 0.25, r * 0.2, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.fill();
+
+  // Ball outline
+  ctx.beginPath();
+  ctx.arc(sx, sy, r, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+}
+
+function drawHUD() {
+  // Timer
+  const mins = Math.floor(timeLeft / 60);
+  const secs = Math.floor(timeLeft % 60);
+  const timeStr = mins + ':' + (secs < 10 ? '0' : '') + secs;
+  const urgent = timeLeft < 30;
+
+  hudText('TIME', 20, 12, 12, '#888');
+  hudText(timeStr, 20, 28, 24, urgent ? '#f44' : '#fff');
+
+  // Size / diameter
+  const diameter = (ball.radius * 2 / 10).toFixed(1);
+  hudText('SIZE', W - 120, 12, 12, '#888');
+  hudText(diameter + ' cm', W - 120, 28, 20, '#4f4');
+
+  // Items collected
+  hudText('ITEMS', W / 2 - 40, 12, 12, '#888');
+  hudText(ball.collected + '', W / 2 - 40, 28, 20, '#fd0');
+
+  // Size bar
+  const maxR = 120;
+  const barW = 200;
+  const barH = 8;
+  const barX = W / 2 - barW / 2;
+  const barY = H - 30;
+  const fill = Math.min(ball.radius / maxR, 1);
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.fillRect(barX - 2, barY - 2, barW + 4, barH + 4);
+  const barGrad = ctx.createLinearGradient(barX, 0, barX + barW, 0);
+  barGrad.addColorStop(0, '#4a4');
+  barGrad.addColorStop(0.5, '#fd0');
+  barGrad.addColorStop(1, '#f44');
+  ctx.fillStyle = barGrad;
+  ctx.fillRect(barX, barY, barW * fill, barH);
+  ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(barX, barY, barW, barH);
+  hudText('GROWTH', barX, barY - 14, 10, '#888');
+
+  // Info hint
+  hudText('? for info', W - 100, H - 20, 11, '#555');
+
+  // Minimap
+  const mmW = 100, mmH = 100;
+  const mmX = W - mmW - 10, mmY = H - mmH - 40;
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(mmX, mmY, mmW, mmH);
+  ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+  ctx.strokeRect(mmX, mmY, mmW, mmH);
+
+  // Objects on minimap
+  for (const obj of objects) {
+    if (!obj.alive) continue;
+    const mx = mmX + (obj.x / WORLD_W) * mmW;
+    const my = mmY + (obj.y / WORLD_H) * mmH;
+    ctx.fillStyle = canPickUp(obj) ? 'rgba(0,255,0,0.5)' : 'rgba(255,100,100,0.3)';
+    ctx.fillRect(mx, my, 1.5, 1.5);
+  }
+
+  // Ball on minimap
+  const bmx = mmX + (ball.x / WORLD_W) * mmW;
+  const bmy = mmY + (ball.y / WORLD_H) * mmH;
+  ctx.beginPath();
+  ctx.arc(bmx, bmy, Math.max(2, ball.radius / WORLD_W * mmW * 3), 0, Math.PI * 2);
+  ctx.fillStyle = '#4ef';
+  ctx.fill();
+
+  // Viewport rect on minimap
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(
+    mmX + (camX / WORLD_W) * mmW,
+    mmY + (camY / WORLD_H) * mmH,
+    (W / WORLD_W) * mmW,
+    (H / WORLD_H) * mmH
+  );
+}
+
+function drawGameOver() {
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(0, 0, W, H);
+
+  const diameter = (ball.radius * 2 / 10).toFixed(1);
+
+  hudText('TIME UP!', W / 2, H / 2 - 80, 36, '#fd0', 'center');
+  hudText('Final Size: ' + diameter + ' cm', W / 2, H / 2 - 30, 22, '#4f4', 'center');
+  hudText('Objects Collected: ' + ball.collected, W / 2, H / 2 + 10, 18, '#8cf', 'center');
+
+  // Rating based on size
+  let rating = '';
+  if (ball.radius >= 100) rating = 'COSMIC BALL! ★★★★★';
+  else if (ball.radius >= 70) rating = 'MAGNIFICENT! ★★★★';
+  else if (ball.radius >= 45) rating = 'PRETTY GOOD ★★★';
+  else if (ball.radius >= 25) rating = 'NEEDS WORK ★★';
+  else rating = 'TINY... ★';
+
+  hudText(rating, W / 2, H / 2 + 50, 16, '#fa6', 'center');
+  hudText('Press R to roll again', W / 2, H / 2 + 100, 14, '#888', 'center');
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+
+  drawFloor();
+
+  // Draw objects (back to front roughly by y)
+  const visible = objects.filter(o => o.alive);
+  visible.sort((a, b) => a.y - b.y);
+  for (const obj of visible) {
+    drawObject(obj);
+  }
+
+  drawBall();
+  drawHUD();
+
+  if (gameState === 'won') {
+    drawGameOver();
+  }
+
+  // Start hint
+  if (gameState === 'playing' && timeLeft > 178 && ball.collected === 0) {
+    ctx.globalAlpha = 0.6 + Math.sin(Date.now() * 0.003) * 0.3;
+    hudText('Use arrow keys to roll!', W / 2, H / 2 + ball.radius + 30, 14, '#8cf', 'center');
+    ctx.globalAlpha = 1;
+  }
+}
+
+// === Game Loop ===
+function loop(ts) {
+  const dt = Math.min((ts - lastTime) / 1000, 0.05);
+  lastTime = ts;
+  update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+initGame();
+requestAnimationFrame(ts => { lastTime = ts; loop(ts); });
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

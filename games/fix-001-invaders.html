@@ -1,0 +1,687 @@
+<!--
+PROTOTYPE: invaders
+SERIES: fix
+NUMBER: 001
+DATE: 2026-03-22
+MECHANIC: fix + suppress — hold a fixed position, eliminate descending formation before it reaches you
+ANCESTRY: Taito Space Invaders (1978), Galaxian (1979), Galaga (1981)
+CONTROLS: Left/Right arrows or A/D — move | Space — shoot | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — rule-based, pre-backpropagation)
+AI-INSIGHT: Speedup-as-aliens-die is emergent curriculum learning — automatic difficulty escalation as the player succeeds. AI researchers wouldn't formalize curriculum learning until ~2015. Taito's accidental bug was 37 years ahead of the field.
+NOTES: The descending formation that speeds up as it shrinks — that escalating tempo is the actual design genius.
+       Every bullet-hell and tower defense owes this debt.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FIX-001 · INVADERS</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>FIX-001 · INVADERS</h1>
+    <p><span class="tag series">FIX — Fixed Position</span> <span class="tag">Prototype #001</span> <span class="tag">★★★★☆</span></p>
+
+    <h2>How to Play</h2>
+    <p>Destroy all 55 aliens before they reach the ground. Take cover behind destructible shelters. Watch for the UFO bonus.</p>
+    <ul>
+      <li><kbd>←</kbd> <kbd>→</kbd> or <kbd>A</kbd> <kbd>D</kbd> — Move ship</li>
+      <li><kbd>Space</kbd> — Shoot (one bullet at a time, classic-style)</li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Acceleration:</strong> Aliens speed up as you kill them. The last few move very fast.</li>
+      <li><strong>Top rows score more:</strong> Squids (top) = 30pts, Crabs = 20pts, Octopi (bottom) = 10pts</li>
+      <li><strong>Shelters:</strong> Both your bullets and alien bullets destroy shelter pixels. Use them wisely.</li>
+      <li><strong>UFO:</strong> Random bonus ship at the top. Worth 50-300pts.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Taito Space Invaders (1978) → Galaxian (1979) → Galaga (1981)</p>
+    <p>Space Invaders (1978) caused a coin shortage in Japan. It invented the concept of a formation that <em>speeds up as it shrinks</em> — natural difficulty scaling through emergent tempo. As you kill invaders, the remaining ones march faster. The last alien is terrifyingly quick.</p>
+    <p>This escalating tempo is the actual design genius. It created tension through game mechanics, not scripted difficulty. Every tower defense, bullet hell, and wave-based game inherits this insight.</p>
+    <p>The destructible shelters add tactical depth: they protect you now but degrade over time, creating a slowly worsening defense.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 3 — Knowledge Explosion (1978–1983)</p>
+    <p><strong>Contemporary AI:</strong> Expert systems commercializing. Hopfield networks emerging. Backpropagation being rediscovered. AI could search and classify but not learn in real-time.</p>
+    <p><strong>Hidden Intelligence:</strong> The speedup-as-aliens-die mechanic is <em>emergent curriculum learning</em> — the game automatically escalates difficulty as the player succeeds. AI researchers wouldn't formalize curriculum learning until ~2015. Taito's accidental performance bug was 37 years ahead of the field.</p>
+    <p><strong>The Convergence:</strong> Space Invaders was one of the original DQN benchmarks (DeepMind, 2013). AI learned to play this exact game from raw pixels, discovering optimal strategies through the same process Taito used accidentally: trial, error, and selection pressure.</p>
+    <p><strong>If AI Had Designed This:</strong> Intentional difficulty curves instead of accidental ones — finding the speedup parameter through simulation rather than discovering it was a bug too late to fix.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: FIX — Fixed Position</h3>
+    <p>Games where the player holds a position (usually at the bottom) and must suppress approaching threats. The player's movement is constrained (horizontal only). The tension is temporal: <em>can I eliminate them before they reach me?</em></p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Formation suppression with escalating tempo.</strong> 5×11 grid of aliens marches left-right-down. One player bullet allowed on screen at a time (classic constraint). Speed inversely proportional to surviving aliens.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Tempo escalation (does the speedup feel fair or cheap?)</li>
+      <li>One-bullet constraint (creates aim pressure — each shot matters)</li>
+      <li>Pixel-based shelter destruction (satisfying degradation?)</li>
+      <li>Formation personality (3 alien types with distinct pixel sprites)</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong>. The three alien types use hand-drawn 8×6 pixel sprites with 2-frame animation, mimicking the original's distinctive marching look.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+
+function resize() {
+  const scale = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width  = (W * scale) + 'px';
+  canvas.style.height = (H * scale) + 'px';
+}
+resize();
+window.addEventListener('resize', resize);
+
+// --- INPUT ---
+const keys = {};
+let shootPressed = false;
+window.addEventListener('keydown', e => {
+  if (infoOpen) return;
+  if (!keys[e.code] && e.code === 'Space') shootPressed = true;
+  keys[e.code] = true;
+  e.preventDefault();
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+// --- CONFIG ---
+const ROWS = 5, COLS = 11;
+const INV_W = 32, INV_H = 24, INV_GAP_X = 16, INV_GAP_Y = 16;
+const GRID_OFFSET_X = (W - (COLS * (INV_W + INV_GAP_X) - INV_GAP_X)) / 2;
+const GRID_OFFSET_Y = 80;
+
+const PLAYER_W = 40, PLAYER_H = 18, PLAYER_Y = H - 60, PLAYER_SPD = 6;
+const BULLET_W = 3, BULLET_H = 14, BULLET_SPD = 12;
+const ENEMY_BULLET_W = 3, ENEMY_BULLET_H = 14, ENEMY_BULLET_SPD = 6;
+const SHOOT_COOLDOWN = 18; // frames between player shots
+
+// Shelters
+const SHELTER_COUNT = 4;
+const SHELTER_W = 52, SHELTER_H = 36;
+
+// Invader types by row (0=top)
+const INV_TYPES = [0, 0, 1, 1, 2]; // 0=squid 1=crab 2=octopus
+
+// Row score values
+const INV_SCORES = [30, 30, 20, 20, 10];
+
+// Colors by type
+const INV_COLORS = ['#00ffcc', '#55aaff', '#ff6655'];
+
+// --- STATE ---
+let player, invaders, bullets, enemyBullets, shelters;
+let score, lives, gameOver, won, wave;
+let invDir, invDropFlag, invMoveTimer, invMoveInterval, invFrame;
+let invDropY;
+let shootTimer;
+let ufoActive, ufo;
+
+function makeShelters() {
+  const arr = [];
+  const spacing = W / (SHELTER_COUNT + 1);
+  for (let i = 0; i < SHELTER_COUNT; i++) {
+    const sx = spacing * (i + 1) - SHELTER_W / 2;
+    const sy = H - 130;
+    // Pixel grid for destruction
+    const pixels = [];
+    for (let py = 0; py < SHELTER_H; py++) {
+      pixels[py] = [];
+      for (let px = 0; px < SHELTER_W; px++) {
+        // Cut arch from bottom center
+        const cx = SHELTER_W / 2, cw = SHELTER_W * 0.35;
+        const archTop = SHELTER_H * 0.55;
+        const inArch = py >= archTop && Math.abs(px - cx) < cw / 2;
+        pixels[py][px] = !inArch ? 1 : 0;
+      }
+    }
+    arr.push({ x: sx, y: sy, pixels });
+  }
+  return arr;
+}
+
+function initGame() {
+  wave  = 1;
+  score = 0;
+  lives = 3;
+  spawnWave();
+  shelters    = makeShelters();
+  player      = { x: W/2 - PLAYER_W/2, y: PLAYER_Y };
+  bullets     = [];
+  enemyBullets = [];
+  gameOver    = false;
+  won         = false;
+  shootTimer  = 0;
+  ufoActive   = false;
+  ufo         = null;
+}
+
+function spawnWave() {
+  invaders = [];
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      invaders.push({
+        row: r, col: c,
+        type: INV_TYPES[r],
+        alive: true,
+        x: GRID_OFFSET_X + c * (INV_W + INV_GAP_X),
+        y: GRID_OFFSET_Y + r * (INV_H + INV_GAP_Y)
+      });
+    }
+  }
+  invDir          = 1;
+  invDropFlag     = false;
+  invMoveTimer    = 0;
+  invMoveInterval = 26; // frames between grid steps — shrinks as invaders die
+  invFrame        = 0;
+  invDropY        = 12;
+  bullets         = [];
+  enemyBullets    = [];
+}
+
+initGame();
+
+// Helpers
+function aliveInvaders() { return invaders.filter(i => i.alive); }
+
+function invaderBounds() {
+  const alive = aliveInvaders();
+  if (!alive.length) return null;
+  let minX = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const iv of alive) {
+    if (iv.x < minX) minX = iv.x;
+    if (iv.x + INV_W > maxX) maxX = iv.x + INV_W;
+    if (iv.y + INV_H > maxY) maxY = iv.y + INV_H;
+  }
+  return { minX, maxX, maxY };
+}
+
+// Bottom-most invader in each column (for enemy shooting)
+function frontLine() {
+  const map = {};
+  for (const iv of invaders) {
+    if (!iv.alive) continue;
+    if (!map[iv.col] || iv.row > map[iv.col].row) map[iv.col] = iv;
+  }
+  return Object.values(map);
+}
+
+// Shelter pixel collision
+function hitShelter(bx, by, bw, bh) {
+  for (const s of shelters) {
+    if (bx + bw < s.x || bx > s.x + SHELTER_W) continue;
+    if (by + bh < s.y || by > s.y + SHELTER_H) continue;
+    // Check pixel grid
+    const px0 = Math.floor(bx - s.x), py0 = Math.floor(by - s.y);
+    const px1 = Math.ceil(bx + bw - s.x), py1 = Math.ceil(by + bh - s.y);
+    for (let py = Math.max(0, py0); py < Math.min(SHELTER_H, py1); py++) {
+      for (let px = Math.max(0, px0); px < Math.min(SHELTER_W, px1); px++) {
+        if (s.pixels[py][px]) {
+          // Destroy a small cluster
+          for (let dy = -2; dy <= 2; dy++)
+            for (let dx = -2; dx <= 2; dx++) {
+              const ny = py+dy, nx = px+dx;
+              if (ny >= 0 && ny < SHELTER_H && nx >= 0 && nx < SHELTER_W)
+                s.pixels[ny][nx] = 0;
+            }
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
+let enemyShootTimer = 0;
+const ENEMY_SHOOT_INTERVAL = 55;
+
+// --- UPDATE ---
+function update() {
+  if (infoOpen) return;
+  if (gameOver || won) {
+    if (keys['KeyR']) initGame();
+    return;
+  }
+
+  shootTimer--;
+
+  // Player movement
+  if (keys['ArrowLeft'] || keys['KeyA']) player.x -= PLAYER_SPD;
+  if (keys['ArrowRight'] || keys['KeyD']) player.x += PLAYER_SPD;
+  player.x = Math.max(0, Math.min(W - PLAYER_W, player.x));
+
+  // Player shoot
+  if (shootPressed && shootTimer <= 0) {
+    const alreadyFired = bullets.find(b => b.fromPlayer);
+    // Classic Invaders: only one player bullet on screen at a time
+    if (!alreadyFired) {
+      bullets.push({
+        x: player.x + PLAYER_W/2 - BULLET_W/2,
+        y: player.y - BULLET_H,
+        fromPlayer: true
+      });
+      shootTimer = SHOOT_COOLDOWN;
+    }
+  }
+  shootPressed = false;
+
+  // Move player bullets
+  bullets = bullets.filter(b => {
+    b.y -= BULLET_SPD;
+    if (b.y + BULLET_H < 0) return false; // out of top
+
+    // Hit invader?
+    for (const iv of invaders) {
+      if (!iv.alive) continue;
+      if (b.x + BULLET_W > iv.x && b.x < iv.x + INV_W &&
+          b.y + BULLET_H > iv.y && b.y < iv.y + INV_H) {
+        iv.alive = false;
+        score += INV_SCORES[iv.row];
+        // Speed up with each kill
+        invMoveInterval = Math.max(4, 26 - (ROWS * COLS - aliveInvaders().length) * 0.65);
+        return false;
+      }
+    }
+
+    // Hit shelter?
+    if (hitShelter(b.x, b.y, BULLET_W, BULLET_H)) return false;
+
+    return true;
+  });
+
+  // Move enemy bullets
+  enemyBullets = enemyBullets.filter(b => {
+    b.y += ENEMY_BULLET_SPD;
+    if (b.y > H) return false;
+
+    // Hit shelter?
+    if (hitShelter(b.x, b.y, ENEMY_BULLET_W, ENEMY_BULLET_H)) return false;
+
+    // Hit player?
+    if (b.x + ENEMY_BULLET_W > player.x &&
+        b.x < player.x + PLAYER_W &&
+        b.y + ENEMY_BULLET_H > player.y &&
+        b.y < player.y + PLAYER_H) {
+      lives--;
+      if (lives <= 0) { gameOver = true; return false; }
+      // Flash / respawn player at center (simplified)
+      player.x = W/2 - PLAYER_W/2;
+      return false;
+    }
+    return true;
+  });
+
+  // Enemy shooting
+  enemyShootTimer--;
+  if (enemyShootTimer <= 0) {
+    const front = frontLine();
+    if (front.length) {
+      const shooter = front[Math.floor(Math.random() * front.length)];
+      enemyBullets.push({
+        x: shooter.x + INV_W/2 - ENEMY_BULLET_W/2,
+        y: shooter.y + INV_H
+      });
+    }
+    enemyShootTimer = ENEMY_SHOOT_INTERVAL - wave * 3;
+    if (enemyShootTimer < 15) enemyShootTimer = 15;
+  }
+
+  // Move invader grid
+  invMoveTimer++;
+  if (invMoveTimer >= invMoveInterval) {
+    invMoveTimer = 0;
+    invFrame = (invFrame + 1) % 2;
+
+    if (invDropFlag) {
+      for (const iv of invaders) iv.y += invDropY;
+      invDir   *= -1;
+      invDropFlag = false;
+    } else {
+      const step = 16 * invDir;
+      for (const iv of invaders) iv.x += step;
+
+      const bounds = invaderBounds();
+      if (bounds) {
+        if (bounds.maxX >= W - 10 || bounds.minX <= 10) invDropFlag = true;
+        // Invaders reach player line → game over
+        if (bounds.maxY >= player.y - 10) { gameOver = true; return; }
+      }
+    }
+  }
+
+  // Win check
+  if (aliveInvaders().length === 0) {
+    wave++;
+    invMoveInterval = Math.max(4, 24 - wave * 4);
+    spawnWave();
+  }
+
+  // UFO (mystery ship) — spawns periodically
+  if (!ufoActive && Math.random() < 0.0008) {
+    ufoActive = true;
+    ufo = { x: -60, y: 30, spd: 2.5 };
+  }
+  if (ufoActive) {
+    ufo.x += ufo.spd;
+    if (ufo.x > W + 60) ufoActive = false;
+    // Bullet hits UFO
+    for (const b of bullets) {
+      if (b.x + BULLET_W > ufo.x && b.x < ufo.x + 52 &&
+          b.y + BULLET_H > ufo.y && b.y < ufo.y + 24) {
+        const bonus = [50, 100, 150, 250, 300][Math.floor(Math.random()*5)];
+        score += bonus;
+        ufoActive = false;
+        bullets.splice(bullets.indexOf(b), 1);
+        break;
+      }
+    }
+  }
+}
+
+// --- DRAW ---
+// Simple pixel-art invader shapes (frames A and B)
+function drawInvader(iv, frame) {
+  const px = 2; // pixel size
+  ctx.fillStyle = INV_COLORS[iv.type];
+
+  // Three simple sprite grids per type
+  const sprites = [
+    // Squid (type 0) — 8×6 grid
+    [
+      [0,0,1,1,1,1,0,0],
+      [0,1,1,1,1,1,1,0],
+      [1,1,0,1,1,0,1,1],
+      [1,1,1,1,1,1,1,1],
+      [0,1,0,1,1,0,1,0],
+      frame===0?[1,0,1,0,0,1,0,1]:[0,1,0,1,1,0,1,0],
+    ],
+    // Crab (type 1) — 8×6
+    [
+      [0,1,0,1,1,0,1,0],
+      [1,0,1,1,1,1,0,1],
+      [1,1,1,1,1,1,1,1],
+      [0,1,0,1,1,0,1,0],
+      [1,0,0,1,1,0,0,1],
+      frame===0?[0,1,1,0,0,1,1,0]:[1,0,0,1,1,0,0,1],
+    ],
+    // Octopus (type 2) — 8×6
+    [
+      [0,0,1,1,1,1,0,0],
+      [0,1,1,1,1,1,1,0],
+      [1,1,1,0,0,1,1,1],
+      [0,1,0,1,1,0,1,0],
+      [0,0,1,0,0,1,0,0],
+      frame===0?[0,1,0,1,1,0,1,0]:[1,0,1,0,0,1,0,1],
+    ],
+  ];
+
+  const sprite = sprites[iv.type];
+  const offX = Math.round((INV_W - 8*px) / 2);
+  const offY = Math.round((INV_H - 6*px) / 2);
+
+  for (let row = 0; row < sprite.length; row++) {
+    for (let col = 0; col < sprite[row].length; col++) {
+      if (sprite[row][col]) {
+        ctx.fillRect(iv.x + offX + col*px, iv.y + offY + row*px, px, px);
+      }
+    }
+  }
+}
+
+function drawPlayer() {
+  // Simple spaceship silhouette
+  ctx.fillStyle = '#7fff7f';
+  ctx.fillRect(player.x + 16, player.y, 8, 4);          // top nub
+  ctx.fillRect(player.x + 8, player.y + 4, 24, 6);      // upper body
+  ctx.fillRect(player.x,     player.y + 10, PLAYER_W, 8); // hull
+}
+
+function draw() {
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, H);
+
+  // Ground line
+  ctx.fillStyle = '#2a2a2a';
+  ctx.fillRect(0, H - 40, W, 2);
+
+  // Shelters
+  for (const s of shelters) {
+    for (let py = 0; py < SHELTER_H; py++) {
+      for (let px = 0; px < SHELTER_W; px++) {
+        if (s.pixels[py][px]) {
+          ctx.fillStyle = '#3a7a3a';
+          ctx.fillRect(s.x + px, s.y + py, 1, 1);
+        }
+      }
+    }
+  }
+
+  // Invaders
+  for (const iv of invaders) {
+    if (iv.alive) drawInvader(iv, invFrame);
+  }
+
+  // Player
+  drawPlayer();
+
+  // Bullets
+  ctx.fillStyle = '#fff';
+  for (const b of bullets) ctx.fillRect(b.x, b.y, BULLET_W, BULLET_H);
+
+  // Enemy bullets — zigzag shape
+  for (const b of enemyBullets) {
+    ctx.fillStyle = '#ff5555';
+    for (let i = 0; i < ENEMY_BULLET_H; i += 4) {
+      const zx = (Math.floor(i/2) % 2 === 0) ? 1 : -1;
+      ctx.fillRect(b.x + zx, b.y + i, ENEMY_BULLET_W, 3);
+    }
+  }
+
+  // UFO
+  if (ufoActive) {
+    ctx.fillStyle = '#ff44cc';
+    ctx.fillRect(ufo.x + 10, ufo.y,     32, 8);
+    ctx.fillRect(ufo.x + 4,  ufo.y + 8, 44, 10);
+    ctx.fillRect(ufo.x,      ufo.y + 14, 52, 8);
+    ctx.fillRect(ufo.x + 14, ufo.y - 6, 24, 8);
+  }
+
+  // HUD
+  ctx.fillStyle = '#7fff7f';
+  ctx.font = '16px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('SCORE: ' + score, 10, 26);
+
+  // Lives icons
+  ctx.textAlign = 'right';
+  ctx.fillText('LIVES:', W - 10 - lives * 24, 26);
+  for (let i = 0; i < lives; i++) {
+    ctx.fillStyle = '#7fff7f';
+    ctx.fillRect(W - 10 - i * 24, 14, 18, 10);
+  }
+
+  ctx.fillStyle = '#555';
+  ctx.font = '12px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('WAVE ' + wave, W/2, 26);
+
+  // Overlays
+  if (gameOver || won) {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.font = 'bold 52px monospace';
+    ctx.fillStyle = gameOver ? '#ff5555' : '#7fff7f';
+    ctx.textAlign = 'center';
+    ctx.fillText(gameOver ? 'GAME OVER' : 'EARTH SAVED', W/2, H/2 - 20);
+    ctx.fillStyle = '#aaa';
+    ctx.font = '20px monospace';
+    ctx.fillText('R to restart   SCORE: ' + score, W/2, H/2 + 28);
+  }
+
+  // Title badge
+  ctx.fillStyle = '#0e0e0e';
+  ctx.fillRect(8, 8, 210, 28);
+  ctx.fillStyle = '#444';
+  ctx.font = '13px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('FIX-001 · INVADERS  [?]', 16, 26);
+}
+
+// --- GAME LOOP ---
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: dpad2+fire ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("dpad2+fire");
+</script>
+</body>
+</html>

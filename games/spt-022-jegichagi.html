@@ -1,0 +1,742 @@
+<!--
+PROTOTYPE: jegichagi
+SERIES: spt
+NUMBER: 022
+DATE: 2026-03-24
+MECHANIC: keepie uppie — kick a jegi (weighted shuttlecock) to keep it in the air using only your foot; time kicks to maintain height; consecutive kicks build combo score
+ANCESTRY: Jegichagi (traditional Korean, centuries old), Hacky Sack / Footbag (1972, John Stalberger), Keepy Uppy / Kickups (universal folk game)
+CONTROLS: Left/Right — move foot | Space/Click — kick | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 2 (traditional Korean foot game, 제기차기, played during Lunar New Year)
+AI-INSIGHT: Jegichagi is a timing-purity game — the entire challenge reduces to a single well-timed input repeated with increasing precision. The rhythm of kick-wait-kick creates a meditative flow state similar to juggling or yo-yo play, where the player internalizes gravity as muscle memory.
+NOTES: Korean traditional game played especially during Seollal (Lunar New Year).
+       The jegi is made from a coin wrapped in hanji paper with tassels.
+       Consecutive kicks without dropping build combo multiplier.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPT-022 · JEGICHAGI</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SPT-022 · JEGICHAGI (제기차기)</h1>
+    <p><span class="tag series">SPT — Sports</span> <span class="tag">Prototype #022</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Keep the jegi (제기) in the air by kicking it at the right moment! The jegi is a traditional Korean shuttlecock made from a coin wrapped in paper with colorful tassels.</p>
+    <ul>
+      <li><kbd>&#8592;</kbd> <kbd>&#8594;</kbd> — Move your foot left / right</li>
+      <li><kbd>Space</kbd> or <kbd>Click</kbd> — Kick the jegi</li>
+      <li><kbd>R</kbd> — Restart game</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <p>Time your kick when the jegi is near your foot. Good timing sends it high; bad timing gives a weak kick. Miss entirely and the jegi hits the ground — game over! Build consecutive kicks for combo multipliers and watch the jegi trail grow more colorful.</p>
+
+    <h2>History</h2>
+    <p><em>Jegichagi</em> (제기차기) is a traditional Korean game with roots stretching back centuries, particularly associated with <em>Seollal</em> (설날, Lunar New Year) celebrations. Players kick a <em>jegi</em> — a small shuttlecock made by wrapping a coin (traditionally a brass <em>yeop-jeon</em>) in mulberry paper (<em>hanji</em>) and cutting the paper into tassels.</p>
+    <p>The game has several traditional variants: <em>ttanggangi</em> (땅강이, kicking once then catching), <em>heollaengi</em> (헐랭이, continuous keepie-uppie), and competitive forms where players count consecutive kicks. Similar games exist worldwide — <em>shuttlecock kicking</em> (<em>jianzi</em>, 毽子) in China, <em>sepak raga</em> in Southeast Asia, and <em>footbag/hacky sack</em> in the West.</p>
+    <p>In Korea, jegichagi was traditionally a boys' winter pastime, played in courtyards and alleys. The game experienced a revival in the 1980s-90s as part of cultural heritage preservation efforts, and remains a beloved folk game taught in Korean schools.</p>
+
+    <h2>AI Archaeology</h2>
+    <h3>Era 2 — Early Game AI</h3>
+    <p>Jegichagi as a game design problem is deceptively simple: gravity, timing, and positioning. But the emergent depth comes from the physics — the jegi's slight lateral drift means the player must constantly reposition, creating a feedback loop between spatial awareness and rhythmic timing. The meditative quality of sustained play mirrors flow states studied in cognitive science.</p>
+    <p>From an AI perspective, this is a continuous control problem reducible to a 1D timing task with drift compensation. A simple PD controller could play perfectly, but the human challenge lies in the imprecision of motor control under time pressure — the same reason juggling is hard despite being mathematically trivial.</p>
+
+    <h3>Classification</h3>
+    <p><span class="tag">keepie uppie</span> <span class="tag">timing</span> <span class="tag">traditional Korean</span> <span class="tag">folk game</span> <span class="tag">rhythm</span> <span class="tag">flow state</span></p>
+
+    <h2>Prototype Notes</h2>
+    <ul>
+      <li>Jegi physics: gravity + slight random lateral drift after each kick</li>
+      <li>Kick timing window: closer to foot = stronger upward force</li>
+      <li>Combo multiplier increases score exponentially for sustained play</li>
+      <li>Particle trails grow more colorful at higher combos</li>
+      <li>Web Audio: kick thwack with rising pitch per combo, ground thud on miss</li>
+    </ul>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a traditional Korean game mechanic, created for research and historical study as part of the Pixel Vault project. Jegichagi (제기차기) is a centuries-old folk game belonging to Korean cultural heritage. This digital interpretation aims to honor and share awareness of this tradition.</p>
+
+  </div>
+</div>
+
+<script>
+var canvas = document.getElementById('c');
+var ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+canvas.width = 800;
+canvas.height = 600;
+
+// ── Audio ──
+var audioCtx = null;
+function initAudio() {
+  if (!audioCtx) {
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+  }
+}
+
+function playKick(combo) {
+  if (!audioCtx) return;
+  var t = audioCtx.currentTime;
+  var osc = audioCtx.createOscillator();
+  var gain = audioCtx.createGain();
+  var noise = audioCtx.createOscillator();
+  var noiseGain = audioCtx.createGain();
+
+  // Thwack: short noise burst + pitched tone
+  var basePitch = 200 + Math.min(combo, 30) * 15;
+  osc.type = 'square';
+  osc.frequency.setValueAtTime(basePitch, t);
+  osc.frequency.exponentialRampToValueAtTime(basePitch * 0.5, t + 0.08);
+  gain.gain.setValueAtTime(0.15, t);
+  gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start(t);
+  osc.stop(t + 0.1);
+
+  // Click component
+  noise.type = 'sawtooth';
+  noise.frequency.setValueAtTime(800 + combo * 20, t);
+  noise.frequency.exponentialRampToValueAtTime(100, t + 0.04);
+  noiseGain.gain.setValueAtTime(0.12, t);
+  noiseGain.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+  noise.connect(noiseGain);
+  noiseGain.connect(audioCtx.destination);
+  noise.start(t);
+  noise.stop(t + 0.05);
+}
+
+function playThud() {
+  if (!audioCtx) return;
+  var t = audioCtx.currentTime;
+  var osc = audioCtx.createOscillator();
+  var gain = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(80, t);
+  osc.frequency.exponentialRampToValueAtTime(30, t + 0.2);
+  gain.gain.setValueAtTime(0.2, t);
+  gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start(t);
+  osc.stop(t + 0.25);
+}
+
+// ── Info Panel ──
+var infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// ── State ──
+var keys = {};
+var gameState = 'title'; // title, playing, gameover
+var score = 0;
+var highScore = 0;
+var combo = 0;
+var bestCombo = 0;
+var kickTimer = 0; // animation timer for foot
+
+// Jegi (shuttlecock)
+var jegi = { x: 400, y: 200, vx: 0, vy: 0, angle: 0, va: 0 };
+var GRAVITY = 0.18;
+var GROUND_Y = 530;
+
+// Foot
+var foot = { x: 400, targetX: 400 };
+var FOOT_Y = 510;
+var FOOT_SPEED = 6;
+var FOOT_W = 50;
+var FOOT_H = 16;
+
+// Particles
+var particles = [];
+var MAX_PARTICLES = 120;
+
+// Kick zone
+var KICK_ZONE_PERFECT = 30;  // distance for perfect kick
+var KICK_ZONE_GOOD = 55;     // distance for good kick
+var KICK_ZONE_OK = 80;       // distance for weak kick
+
+// Tassel colors
+var TASSEL_COLORS = ['#ff4444', '#ff8844', '#ffcc44', '#44ff88', '#44aaff', '#aa44ff', '#ff44aa'];
+
+function resetJegi() {
+  jegi.x = 400;
+  jegi.y = 200;
+  jegi.vx = 0;
+  jegi.vy = 0;
+  jegi.angle = 0;
+  jegi.va = 0.02;
+}
+
+function resetGame() {
+  score = 0;
+  combo = 0;
+  bestCombo = 0;
+  kickTimer = 0;
+  particles = [];
+  foot.x = 400;
+  foot.targetX = 400;
+  resetJegi();
+  gameState = 'playing';
+}
+
+function spawnParticles(x, y, count, comboLevel) {
+  for (var i = 0; i < count; i++) {
+    var angle = Math.random() * Math.PI * 2;
+    var speed = 1 + Math.random() * 3;
+    var colorIdx = Math.floor(Math.random() * TASSEL_COLORS.length);
+    var color = comboLevel > 5 ? TASSEL_COLORS[colorIdx] : (comboLevel > 2 ? '#ffcc44' : '#ff8844');
+    particles.push({
+      x: x, y: y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed - 2,
+      life: 30 + Math.random() * 30,
+      maxLife: 60,
+      size: 2 + Math.random() * 3,
+      color: color
+    });
+    if (particles.length > MAX_PARTICLES) particles.shift();
+  }
+}
+
+function spawnTrail(x, y, comboLevel) {
+  if (comboLevel < 3) return;
+  var count = Math.min(comboLevel - 2, 5);
+  for (var i = 0; i < count; i++) {
+    var colorIdx = Math.floor(Math.random() * TASSEL_COLORS.length);
+    particles.push({
+      x: x + (Math.random() - 0.5) * 8,
+      y: y + (Math.random() - 0.5) * 8,
+      vx: (Math.random() - 0.5) * 0.5,
+      vy: (Math.random() - 0.5) * 0.5,
+      life: 15 + Math.random() * 15,
+      maxLife: 30,
+      size: 1.5 + Math.random() * 2,
+      color: TASSEL_COLORS[colorIdx]
+    });
+    if (particles.length > MAX_PARTICLES) particles.shift();
+  }
+}
+
+function doKick() {
+  initAudio();
+  if (gameState !== 'playing') return;
+
+  // Calculate distance from jegi to foot
+  var dx = jegi.x - foot.x;
+  var dy = jegi.y - FOOT_Y;
+  var dist = Math.sqrt(dx * dx + dy * dy);
+
+  kickTimer = 10;
+
+  if (dist < KICK_ZONE_PERFECT) {
+    // Perfect kick
+    jegi.vy = -8 - Math.min(combo * 0.15, 3);
+    jegi.vx = (Math.random() - 0.5) * 2.5;
+    jegi.va = (Math.random() - 0.5) * 0.15;
+    combo++;
+    var mult = 1 + Math.floor(combo / 5);
+    score += 10 * mult;
+    playKick(combo);
+    spawnParticles(jegi.x, jegi.y, 8 + combo, combo);
+  } else if (dist < KICK_ZONE_GOOD) {
+    // Good kick
+    jegi.vy = -6 - Math.min(combo * 0.1, 2);
+    jegi.vx = (Math.random() - 0.5) * 3;
+    jegi.va = (Math.random() - 0.5) * 0.12;
+    combo++;
+    var mult2 = 1 + Math.floor(combo / 5);
+    score += 5 * mult2;
+    playKick(combo);
+    spawnParticles(jegi.x, jegi.y, 5 + combo, combo);
+  } else if (dist < KICK_ZONE_OK) {
+    // Weak kick
+    jegi.vy = -3.5;
+    jegi.vx = (Math.random() - 0.5) * 3.5;
+    jegi.va = (Math.random() - 0.5) * 0.1;
+    combo++;
+    score += 2;
+    playKick(combo);
+    spawnParticles(jegi.x, jegi.y, 3, combo);
+  }
+  // else: miss, no kick happens
+}
+
+// ── Update ──
+function update() {
+  if (infoOpen) return;
+
+  if (gameState === 'title') return;
+  if (gameState === 'gameover') return;
+
+  // Move foot
+  if (keys['ArrowLeft'] || keys['a']) foot.targetX -= FOOT_SPEED;
+  if (keys['ArrowRight'] || keys['d']) foot.targetX += FOOT_SPEED;
+  foot.targetX = Math.max(40, Math.min(760, foot.targetX));
+  foot.x += (foot.targetX - foot.x) * 0.3;
+
+  // Jegi physics
+  jegi.vy += GRAVITY;
+  jegi.x += jegi.vx;
+  jegi.y += jegi.vy;
+  jegi.angle += jegi.va;
+
+  // Air friction
+  jegi.vx *= 0.998;
+
+  // Bounce off walls
+  if (jegi.x < 20) { jegi.x = 20; jegi.vx = Math.abs(jegi.vx) * 0.7; }
+  if (jegi.x > 780) { jegi.x = 780; jegi.vx = -Math.abs(jegi.vx) * 0.7; }
+
+  // Trail particles at high combo
+  spawnTrail(jegi.x, jegi.y, combo);
+
+  // Hit ground
+  if (jegi.y >= GROUND_Y) {
+    jegi.y = GROUND_Y;
+    jegi.vy = 0;
+    jegi.vx = 0;
+    if (combo > bestCombo) bestCombo = combo;
+    if (score > highScore) highScore = score;
+    gameState = 'gameover';
+    playThud();
+    spawnParticles(jegi.x, GROUND_Y, 12, 0);
+  }
+
+  // Kick animation timer
+  if (kickTimer > 0) kickTimer--;
+
+  // Update particles
+  for (var i = particles.length - 1; i >= 0; i--) {
+    var p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.05;
+    p.life--;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+}
+
+// ── Draw ──
+function drawJegi(x, y, angle, size) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+
+  // Coin (center weight)
+  var coinR = size * 0.35;
+  ctx.beginPath();
+  ctx.arc(0, 0, coinR, 0, Math.PI * 2);
+  ctx.fillStyle = '#d4a843';
+  ctx.fill();
+  ctx.strokeStyle = '#a07830';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Square hole in coin
+  var holeS = coinR * 0.35;
+  ctx.fillStyle = '#8a6020';
+  ctx.fillRect(-holeS, -holeS, holeS * 2, holeS * 2);
+
+  // Paper/tassels
+  var numTassels = 6;
+  var tasselLen = size * 0.7;
+  for (var i = 0; i < numTassels; i++) {
+    var a = (i / numTassels) * Math.PI * 2 - Math.PI / 2;
+    var tx = Math.cos(a) * coinR;
+    var ty = Math.sin(a) * coinR;
+    var wave = Math.sin(jegi.angle * 3 + i) * 3;
+
+    ctx.beginPath();
+    ctx.moveTo(tx, ty);
+    var ex = tx + Math.cos(a) * tasselLen;
+    var ey = ty + Math.sin(a) * tasselLen;
+    var cx1 = tx + Math.cos(a) * tasselLen * 0.5 + wave;
+    var cy1 = ty + Math.sin(a) * tasselLen * 0.5 + wave;
+    ctx.quadraticCurveTo(cx1, cy1, ex, ey);
+
+    var colorIdx = combo > 10 ? (i % TASSEL_COLORS.length) : (i % 3 === 0 ? 0 : (i % 3 === 1 ? 3 : 4));
+    ctx.strokeStyle = TASSEL_COLORS[colorIdx];
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+function drawFoot(x, y, kicking) {
+  ctx.save();
+  ctx.translate(x, y);
+
+  // Leg
+  ctx.fillStyle = '#deb887';
+  ctx.fillRect(-4, -40, 8, 40);
+
+  // Shoe
+  var kickOffset = kicking ? -8 : 0;
+  ctx.fillStyle = '#f0f0f0';
+  // Shoe body
+  ctx.beginPath();
+  ctx.moveTo(-FOOT_W / 2, kickOffset);
+  ctx.lineTo(FOOT_W / 2, kickOffset);
+  ctx.lineTo(FOOT_W / 2, kickOffset + FOOT_H);
+  ctx.lineTo(-FOOT_W / 2, kickOffset + FOOT_H);
+  ctx.closePath();
+  ctx.fill();
+  // Shoe sole
+  ctx.fillStyle = '#333';
+  ctx.fillRect(-FOOT_W / 2, kickOffset + FOOT_H - 3, FOOT_W, 3);
+  // Shoe top detail
+  ctx.fillStyle = '#ccc';
+  ctx.fillRect(-FOOT_W / 2 + 3, kickOffset + 2, FOOT_W - 6, 4);
+
+  ctx.restore();
+}
+
+function drawBackground() {
+  // Sky gradient
+  var grad = ctx.createLinearGradient(0, 0, 0, 600);
+  grad.addColorStop(0, '#1a1a3e');
+  grad.addColorStop(0.6, '#2d2d5e');
+  grad.addColorStop(1, '#3d3d4e');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 800, 600);
+
+  // Ground
+  ctx.fillStyle = '#4a4a3a';
+  ctx.fillRect(0, GROUND_Y + 15, 800, 600 - GROUND_Y - 15);
+
+  // Ground line
+  ctx.strokeStyle = '#666';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, GROUND_Y + 15);
+  ctx.lineTo(800, GROUND_Y + 15);
+  ctx.stroke();
+
+  // Korean courtyard floor tiles (subtle)
+  ctx.strokeStyle = 'rgba(100,100,80,0.2)';
+  ctx.lineWidth = 1;
+  for (var tx = 0; tx < 800; tx += 60) {
+    ctx.beginPath();
+    ctx.moveTo(tx, GROUND_Y + 15);
+    ctx.lineTo(tx, 600);
+    ctx.stroke();
+  }
+  for (var ty = GROUND_Y + 15; ty < 600; ty += 40) {
+    ctx.beginPath();
+    ctx.moveTo(0, ty);
+    ctx.lineTo(800, ty);
+    ctx.stroke();
+  }
+
+  // Stars
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  for (var si = 0; si < 30; si++) {
+    var sx = (si * 127 + 50) % 800;
+    var sy = (si * 83 + 20) % 250;
+    ctx.fillRect(sx, sy, 1.5, 1.5);
+  }
+}
+
+function drawParticles() {
+  for (var i = 0; i < particles.length; i++) {
+    var p = particles[i];
+    var alpha = p.life / p.maxLife;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawKickZone() {
+  if (gameState !== 'playing') return;
+  // Show kick zone indicator (subtle)
+  var alpha = 0.08 + Math.sin(Date.now() * 0.003) * 0.03;
+  ctx.strokeStyle = 'rgba(255,255,100,' + alpha + ')';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.arc(foot.x, FOOT_Y, KICK_ZONE_OK, -Math.PI, 0);
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(100,255,100,' + alpha * 1.5 + ')';
+  ctx.beginPath();
+  ctx.arc(foot.x, FOOT_Y, KICK_ZONE_GOOD, -Math.PI, 0);
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(100,255,255,' + alpha * 2 + ')';
+  ctx.beginPath();
+  ctx.arc(foot.x, FOOT_Y, KICK_ZONE_PERFECT, -Math.PI, 0);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function drawComboText() {
+  if (combo > 0 && gameState === 'playing') {
+    var mult = 1 + Math.floor(combo / 5);
+    var comboColor = combo >= 20 ? '#ff44ff' : (combo >= 10 ? '#44ffff' : (combo >= 5 ? '#ffcc44' : '#88ff88'));
+    var size = Math.min(20 + combo * 0.5, 36);
+    hudText(combo + ' KICKS', 400, 30, comboColor, size, 'center');
+    if (mult > 1) {
+      hudText('x' + mult + ' MULTIPLIER', 400, 30 + size + 4, '#ff8844', 14, 'center');
+    }
+  }
+}
+
+function draw() {
+  drawBackground();
+  drawKickZone();
+  drawParticles();
+
+  // Draw jegi
+  var jegiSize = 18;
+  drawJegi(jegi.x, jegi.y, jegi.angle, jegiSize);
+
+  // Shadow on ground
+  if (gameState === 'playing') {
+    var shadowScale = Math.max(0.2, 1 - (GROUND_Y - jegi.y) / 400);
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.beginPath();
+    ctx.ellipse(jegi.x, GROUND_Y + 15, 12 * shadowScale, 3 * shadowScale, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Draw foot
+  drawFoot(foot.x, FOOT_Y, kickTimer > 5);
+
+  // HUD
+  hudText('SCORE: ' + score, 15, 10, '#fff', 16);
+  hudText('HIGH: ' + highScore, 15, 30, '#888', 12);
+  hudText('BEST COMBO: ' + bestCombo, 680, 10, '#888', 12, 'right');
+
+  drawComboText();
+
+  // Title screen
+  if (gameState === 'title') {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(0, 0, 800, 600);
+
+    hudText('JEGICHAGI', 400, 180, '#ffcc44', 42, 'center');
+    hudText('제기차기', 400, 230, '#ff8844', 28, 'center');
+    hudText('Korean Hacky Sack', 400, 270, '#aaa', 16, 'center');
+
+    hudText('Keep the jegi in the air!', 400, 330, '#ddd', 16, 'center');
+    hudText('LEFT/RIGHT to move foot', 400, 360, '#999', 14, 'center');
+    hudText('SPACE or CLICK to kick', 400, 380, '#999', 14, 'center');
+    hudText('Time your kick when the jegi is close!', 400, 410, '#999', 14, 'center');
+
+    var blink = Math.sin(Date.now() * 0.004) > 0;
+    if (blink) hudText('PRESS SPACE TO START', 400, 470, '#ffcc44', 18, 'center');
+
+    hudText('? for info', 400, 560, '#555', 12, 'center');
+  }
+
+  // Game over screen
+  if (gameState === 'gameover') {
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(0, 0, 800, 600);
+
+    hudText('GAME OVER', 400, 200, '#ff4444', 36, 'center');
+    hudText('SCORE: ' + score, 400, 260, '#fff', 22, 'center');
+    hudText('COMBO: ' + bestCombo + ' kicks', 400, 290, '#ffcc44', 16, 'center');
+
+    if (score >= highScore && score > 0) {
+      hudText('NEW HIGH SCORE!', 400, 330, '#44ff88', 18, 'center');
+    }
+
+    var blink2 = Math.sin(Date.now() * 0.004) > 0;
+    if (blink2) hudText('PRESS SPACE TO PLAY AGAIN', 400, 400, '#ffcc44', 16, 'center');
+  }
+}
+
+// ── Input ──
+document.addEventListener('keydown', function(e) {
+  keys[e.key] = true;
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) {
+    e.preventDefault();
+    toggleInfo();
+    return;
+  }
+  if (e.key === 'Escape' && infoOpen) {
+    toggleInfo();
+    return;
+  }
+  if (e.key === ' ' || e.key === 'Space') {
+    e.preventDefault();
+    initAudio();
+    if (gameState === 'title') {
+      resetGame();
+    } else if (gameState === 'gameover') {
+      resetGame();
+    } else if (gameState === 'playing') {
+      doKick();
+    }
+  }
+  if ((e.key === 'r' || e.key === 'R') && !infoOpen) {
+    if (gameState === 'playing' || gameState === 'gameover') {
+      resetGame();
+    }
+  }
+});
+
+document.addEventListener('keyup', function(e) {
+  keys[e.key] = false;
+});
+
+canvas.addEventListener('click', function(e) {
+  initAudio();
+  if (gameState === 'title') {
+    resetGame();
+  } else if (gameState === 'gameover') {
+    resetGame();
+  } else if (gameState === 'playing') {
+    doKick();
+  }
+});
+
+// ── Resize ──
+function resize() {
+  var scale = Math.min(window.innerWidth / 800, window.innerHeight / 600);
+  canvas.style.width = (800 * scale) + 'px';
+  canvas.style.height = (600 * scale) + 'px';
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ── Main Loop ──
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: dpad2+fire ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("dpad2+fire");
+</script>
+</body>
+</html>

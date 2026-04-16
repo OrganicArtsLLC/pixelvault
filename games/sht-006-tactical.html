@@ -1,0 +1,877 @@
+<!--
+PROTOTYPE: tactical
+SERIES: sht
+NUMBER: 006
+DATE: 2026-03-23
+MECHANIC: top-down tactical shooter with cover, weapon switching, and room clearing
+ANCESTRY: Call of Duty (2003, Infinity Ward), Medal of Honor (1999, DreamWorks), Counter-Strike (2000, Valve)
+CONTROLS: WASD — move | Mouse — aim/shoot | 1/2/3 — weapons | R — reload | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 5 (Deep Learning — enemy AI uses cover-seeking, flanking, suppression behaviors)
+AI-INSIGHT: Modern military shooters elevated enemy AI from simple patrol-and-chase to tactical behavior — seeking cover, flanking, coordinating attacks. This mirrors the shift from reactive to planning-based AI, where agents reason about spatial relationships and opponent state.
+NOTES: Tactical shooter stripped to essential loop: advance, engage, clear.
+       Cover and weapon choice create moment-to-moment decisions.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SHT-006 · TACTICAL</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;font-family:monospace;cursor:crosshair}
+canvas{image-rendering:pixelated}
+#info-panel{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);z-index:100;color:#ddd;overflow-y:auto}
+#info-panel .inner{max-width:700px;margin:30px auto;padding:20px;line-height:1.6}
+#info-panel h1{color:#7bf;font-size:22px;margin-bottom:4px}
+#info-panel h2{color:#f80;font-size:16px;margin:18px 0 6px;border-bottom:1px solid #333;padding-bottom:4px}
+#info-panel h3{color:#4f4;font-size:14px;margin:12px 0 4px}
+#info-panel p,#info-panel li{font-size:13px}
+#info-panel ul{padding-left:18px}
+#info-panel .tag{display:inline-block;background:#333;color:#aaa;padding:2px 8px;border-radius:3px;font-size:11px;margin:2px}
+#info-panel .tag.series{background:#234;color:#7bf}
+#info-panel .close-btn{position:fixed;top:12px;right:20px;color:#888;font-size:28px;cursor:pointer;z-index:101}
+#info-panel .close-btn:hover{color:#fff}
+#info-panel kbd{background:#333;border:1px solid #555;border-radius:3px;padding:1px 6px;font-size:12px;color:#ff0}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SHT-006 · TACTICAL</h1>
+    <p><span class="tag series">SHT — Shooter</span> <span class="tag">Prototype #006</span> <span class="tag">★★★★☆</span></p>
+    <h2>How to Play</h2>
+    <p>Top-down tactical shooter. Clear rooms of enemies to advance through missions. Use cover and choose the right weapon for each engagement.</p>
+    <ul>
+      <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> — Move</li>
+      <li><kbd>Mouse</kbd> — Aim</li>
+      <li><kbd>Click</kbd> — Shoot</li>
+      <li><kbd>1</kbd> — Assault Rifle (balanced)</li>
+      <li><kbd>2</kbd> — Shotgun (close range, spread)</li>
+      <li><kbd>3</kbd> — Sniper Rifle (long range, high damage)</li>
+      <li><kbd>R</kbd> — Reload</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Cover:</strong> Walls block bullets — use them to break line of sight.</li>
+      <li><strong>Health regen:</strong> Stay out of fire for a few seconds to regenerate health.</li>
+      <li><strong>Weapon choice:</strong> Shotgun devastates at close range. Sniper picks off distant targets. Rifle is versatile.</li>
+      <li><strong>Flanking:</strong> Enemies will try to flank you — watch your sides.</li>
+      <li><strong>Minimap:</strong> Top-left shows the layout and enemy positions in explored areas.</li>
+    </ul>
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Medal of Honor (1999) → Counter-Strike (2000) → Call of Duty (2003)</p>
+    <p>Call of Duty (2003) transformed the FPS genre by emphasizing scripted cinematic moments, squad-based combat, and regenerating health. The series became the defining military shooter franchise, with its multiplayer component shaping online gaming culture.</p>
+    <p>The tactical shooter sub-genre evolved from pure twitch reflexes toward positional play — cover usage, weapon selection, and coordinated movement became as important as aim.</p>
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 5 — Deep Learning</p>
+    <p>Enemy AI in modern tactical shooters represents a significant leap: soldiers seek cover when suppressed, attempt flanking maneuvers, throw grenades to flush players out, and coordinate movements. This behavior mirrors planning-based AI systems that reason about spatial relationships, opponent state, and team coordination.</p>
+    <p>The shift from "patrol → detect → chase" to "assess → position → engage" mirrors the broader AI evolution from reactive agents to deliberative ones.</p>
+    <h2>Classification</h2>
+    <p><span class="tag">top-down</span> <span class="tag">tactical</span> <span class="tag">shooter</span> <span class="tag">cover-system</span> <span class="tag">weapon-switching</span> <span class="tag">room-clearing</span> <span class="tag">military</span></p>
+    <h2>Prototype Notes</h2>
+    <p>Distills the tactical shooter to its core loop: advance into a room, identify threats, use cover and weapon selection to clear, then move on. Enemies use cover-seeking and flanking to create emergent tactical situations. Three weapon types create distinct engagement ranges and risk/reward tradeoffs.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+<script>
+var C=document.getElementById('c'),X=C.getContext('2d');
+C.width=800;C.height=600;
+function resize(){var s=Math.min(window.innerWidth/800,window.innerHeight/600)*0.95;C.style.width=800*s+'px';C.style.height=600*s+'px'}
+resize();window.addEventListener('resize',resize);
+var infoOpen=false;
+function toggleInfo(){infoOpen=!infoOpen;document.getElementById('info-panel').style.display=infoOpen?'block':'none'}
+
+// --- Constants ---
+var TW=32, // tile width
+    SPD=2.5, PR=12, // player speed, player radius
+    REGEN_DELAY=3000, REGEN_RATE=0.5;
+
+// --- Weapons ---
+var WEAPONS=[
+  {name:'RIFLE',dmg:15,spread:0.04,rate:120,magSize:30,reloadTime:2000,range:400,bullets:1,speed:12,color:'#ff0'},
+  {name:'SHOTGUN',dmg:10,spread:0.18,rate:600,magSize:8,reloadTime:2500,range:200,bullets:5,speed:10,color:'#fa0'},
+  {name:'SNIPER',dmg:80,spread:0.005,rate:1200,magSize:5,reloadTime:3000,range:600,bullets:1,speed:18,color:'#0ff'}
+];
+
+// --- Input ---
+var keys={},mouseX=400,mouseY=300,mouseDown=false;
+document.addEventListener('keydown',function(e){
+  if(e.key==='?'||e.key==='/'){toggleInfo();e.preventDefault();return}
+  if(e.key==='Escape'&&infoOpen){toggleInfo();return}
+  keys[e.key.toLowerCase()]=true;
+  if(e.key==='1')switchWeapon(0);
+  if(e.key==='2')switchWeapon(1);
+  if(e.key==='3')switchWeapon(2);
+  if(e.key.toLowerCase()==='r')startReload();
+});
+document.addEventListener('keyup',function(e){keys[e.key.toLowerCase()]=false});
+C.addEventListener('mousemove',function(e){var r=C.getBoundingClientRect();mouseX=(e.clientX-r.left)*(800/r.width);mouseY=(e.clientY-r.top)*(600/r.height)});
+C.addEventListener('mousedown',function(e){if(e.button===0)mouseDown=true});
+C.addEventListener('mouseup',function(e){if(e.button===0)mouseDown=false});
+C.addEventListener('contextmenu',function(e){e.preventDefault()});
+
+// --- Game State ---
+var player,bullets,enemies,particles,map,mapW,mapH,camX,camY;
+var kills=0,totalKills=0,mission=0,missionState='play',missionTimer=0;
+var wpnIdx=0,ammo,reloading=false,reloadStart=0,lastFire=0;
+var lastDmgTime=0,explored;
+var grenades=[];
+
+var MISSIONS=[
+  {name:'COMPOUND ALPHA',desc:'Clear the forward outpost',grid:[
+    'WWWWWWWWWWWWWWWWWWWWWWWWW',
+    'W.......W.......W......W',
+    'W.......W.......W......W',
+    'W.......D.......D......W',
+    'W.......W.......W......W',
+    'WWWDWWWWW..WWW..WWWWWWWW',
+    'W.......W..W.W.........W',
+    'W.......W..W.W.........W',
+    'W.......D..D.D.........W',
+    'W.......W..W.WWWWDWWWWWW',
+    'WWWWWWWWW..W.W........WW',
+    'W..........W.W........WW',
+    'W..........W.D........WW',
+    'W..........W.W........WW',
+    'WWWWWWWWWWWWWWWWWWWWWWWWW'
+  ],spawn:[2,2],foes:[
+    {x:10,y:2,type:'soldier'},{x:10,y:4,type:'soldier'},
+    {x:18,y:2,type:'sniper'},{x:20,y:3,type:'soldier'},
+    {x:5,y:7,type:'soldier'},{x:5,y:9,type:'grenadier'},
+    {x:14,y:7,type:'soldier'},{x:18,y:7,type:'soldier'},
+    {x:20,y:11,type:'sniper'},{x:18,y:13,type:'soldier'},{x:20,y:13,type:'grenadier'}
+  ]},
+  {name:'BUILDING BRAVO',desc:'Secure the multi-room complex',grid:[
+    'WWWWWWWWWWWWWWWWWWWWWWWWW',
+    'W.....WW......WW......WW',
+    'W.....WW......WW......WW',
+    'W.....DD......DD......WW',
+    'W.....WW......WW......WW',
+    'W.....WWWWWWWWWWWWDWWWWW',
+    'WWDWWWW...........W...WW',
+    'W.......D.........D...WW',
+    'W.......W.........W...WW',
+    'W.......W...WWW...WWWWWW',
+    'WWWWWWWWW...W.W........W',
+    'W...........D.D........W',
+    'W...........W.W........W',
+    'W...........W.W........W',
+    'WWWWWWWWWWWWWWWWWWWWWWWWW'
+  ],spawn:[2,2],foes:[
+    {x:9,y:2,type:'soldier'},{x:9,y:4,type:'soldier'},{x:11,y:3,type:'grenadier'},
+    {x:18,y:2,type:'sniper'},{x:20,y:3,type:'soldier'},
+    {x:3,y:7,type:'soldier'},{x:3,y:9,type:'soldier'},
+    {x:12,y:7,type:'soldier'},{x:16,y:7,type:'soldier'},{x:21,y:7,type:'grenadier'},
+    {x:5,y:11,type:'soldier'},{x:5,y:13,type:'sniper'},
+    {x:18,y:11,type:'soldier'},{x:20,y:12,type:'soldier'},{x:19,y:13,type:'grenadier'}
+  ]},
+  {name:'VILLAGE CHARLIE',desc:'Sweep through the village',grid:[
+    'WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW',
+    'W.........W.....W.............W',
+    'W.........W.....W.............W',
+    'W.........D.....D.............W',
+    'W.........W.....WWWWWWWWDWWWWWW',
+    'WWWWDWWWWWW.....W.............W',
+    'W.........W.....D.............W',
+    'W.........W.....W.............W',
+    'W.........WWDWWWWWWWWWWWWWWWWWW',
+    'W.........W...........W......WW',
+    'WWWWDWWWWWW...........D......WW',
+    'W.........D...........W......WW',
+    'W.........W...........WWWDWWWWW',
+    'W.........W...........W......WW',
+    'W.........WWWWWWDWWWWWW......WW',
+    'W.................D...D......WW',
+    'W.................W...WWWWWWWWW',
+    'WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW'
+  ],spawn:[2,2],foes:[
+    {x:5,y:2,type:'soldier'},{x:7,y:3,type:'soldier'},
+    {x:14,y:2,type:'sniper'},{x:20,y:2,type:'soldier'},{x:25,y:2,type:'soldier'},
+    {x:3,y:7,type:'grenadier'},{x:7,y:7,type:'soldier'},
+    {x:20,y:6,type:'soldier'},{x:25,y:6,type:'sniper'},
+    {x:3,y:12,type:'soldier'},{x:5,y:13,type:'soldier'},
+    {x:16,y:10,type:'soldier'},{x:18,y:10,type:'grenadier'},
+    {x:26,y:10,type:'soldier'},{x:27,y:11,type:'sniper'},
+    {x:10,y:15,type:'soldier'},{x:14,y:16,type:'soldier'},
+    {x:22,y:14,type:'soldier'},{x:26,y:15,type:'grenadier'},{x:27,y:16,type:'sniper'}
+  ]},
+  {name:'FORTRESS DELTA',desc:'Assault the enemy stronghold',grid:[
+    'WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW',
+    'W.............W...............W',
+    'W.............W...............W',
+    'W.............D...............W',
+    'W.............W........WWW...W',
+    'WWWWWDWWWWWWWWW........W.W...W',
+    'W.......W.....W........D.D...W',
+    'W.......D.....D........W.WWWWW',
+    'W.......W.....W..............W',
+    'WWWWWWWWWWWDWWWWWWWWWWWWDWWWWW',
+    'W...........W.........W.....WW',
+    'W...........W.........D.....WW',
+    'W...........D.........W.....WW',
+    'W...........W.........WWWDWWWW',
+    'W...........WWWWWWWWWWW.....WW',
+    'W.......................D....WW',
+    'W.......................W....WW',
+    'WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW'
+  ],spawn:[2,2],foes:[
+    {x:5,y:2,type:'soldier'},{x:8,y:2,type:'soldier'},{x:10,y:3,type:'grenadier'},
+    {x:20,y:2,type:'soldier'},{x:25,y:2,type:'sniper'},
+    {x:3,y:7,type:'soldier'},{x:10,y:7,type:'soldier'},
+    {x:24,y:5,type:'sniper'},{x:22,y:7,type:'soldier'},
+    {x:20,y:8,type:'grenadier'},{x:27,y:8,type:'soldier'},
+    {x:5,y:11,type:'soldier'},{x:8,y:12,type:'grenadier'},
+    {x:18,y:11,type:'soldier'},{x:24,y:11,type:'sniper'},
+    {x:5,y:15,type:'soldier'},{x:10,y:16,type:'soldier'},
+    {x:15,y:15,type:'soldier'},{x:18,y:16,type:'grenadier'},
+    {x:25,y:15,type:'soldier'},{x:26,y:16,type:'sniper'},
+    {x:20,y:14,type:'soldier'},{x:12,y:14,type:'soldier'}
+  ]}
+];
+
+function loadMission(idx){
+  var m=MISSIONS[idx];
+  var rows=m.grid;
+  mapH=rows.length;mapW=rows[0].length;
+  map=[];
+  for(var r=0;r<mapH;r++){map[r]=[];for(var c=0;c<mapW;c++){
+    var ch=rows[r][c];
+    map[r][c]=ch==='W'?1:ch==='D'?2:0;
+  }}
+  player={x:(m.spawn[0]+0.5)*TW,y:(m.spawn[1]+0.5)*TW,hp:100,maxHp:100,angle:0};
+  bullets=[];enemies=[];particles=[];grenades=[];
+  wpnIdx=0;ammo=[30,8,5];reloading=false;lastFire=0;lastDmgTime=0;
+  explored=[];
+  for(var r=0;r<mapH;r++){explored[r]=[];for(var c=0;c<mapW;c++)explored[r][c]=false}
+  for(var i=0;i<m.foes.length;i++){
+    var f=m.foes[i];
+    enemies.push(makeEnemy(f.x,f.y,f.type));
+  }
+  missionState='play';missionTimer=0;
+}
+
+function makeEnemy(gx,gy,type){
+  var hp=type==='sniper'?40:type==='grenadier'?60:50;
+  var spd=type==='sniper'?0:type==='grenadier'?1.2:1.5;
+  var dmg=type==='sniper'?30:type==='grenadier'?20:12;
+  var rate=type==='sniper'?2000:type==='grenadier'?2500:800;
+  var range=type==='sniper'?450:type==='grenadier'?300:250;
+  var color=type==='sniper'?'#f44':type==='grenadier'?'#fa0':'#e55';
+  return{x:(gx+0.5)*TW,y:(gy+0.5)*TW,hp:hp,maxHp:hp,type:type,spd:spd,dmg:dmg,
+    rate:rate,range:range,color:color,angle:0,lastFire:0,state:'idle',
+    stateTimer:0,alertDist:200,coverTarget:null,seesPlayer:false,
+    patrolOx:(gx+0.5)*TW,patrolOy:(gy+0.5)*TW,patrolAngle:Math.random()*Math.PI*2,
+    flankDir:Math.random()>0.5?1:-1,grenadeCD:0};
+}
+
+// --- Collision ---
+function solid(gx,gy){if(gx<0||gy<0||gx>=mapW||gy>=mapH)return true;return map[gy][gx]===1}
+function blocked(gx,gy){if(gx<0||gy<0||gx>=mapW||gy>=mapH)return true;return map[gy][gx]!==0}
+
+function lineOfSight(x1,y1,x2,y2){
+  var dx=x2-x1,dy=y2-y1,dist=Math.sqrt(dx*dx+dy*dy);
+  var steps=Math.ceil(dist/8);
+  for(var i=1;i<steps;i++){
+    var t=i/steps;
+    var cx=x1+dx*t,cy=y1+dy*t;
+    var gx=Math.floor(cx/TW),gy=Math.floor(cy/TW);
+    if(solid(gx,gy))return false;
+  }
+  return true;
+}
+
+function circleWall(x,y,r){
+  var pts=[[x-r,y-r],[x+r,y-r],[x-r,y+r],[x+r,y+r],[x,y-r],[x,y+r],[x-r,y],[x+r,y]];
+  for(var i=0;i<pts.length;i++){
+    var gx=Math.floor(pts[i][0]/TW),gy=Math.floor(pts[i][1]/TW);
+    if(solid(gx,gy))return true;
+  }
+  return false;
+}
+
+function moveEntity(ent,dx,dy,r){
+  if(!circleWall(ent.x+dx,ent.y,r))ent.x+=dx;
+  if(!circleWall(ent.x,ent.y+dy,r))ent.y+=dy;
+}
+
+// --- Weapon ---
+function switchWeapon(idx){if(idx!==wpnIdx){wpnIdx=idx;reloading=false}}
+function startReload(){
+  if(reloading)return;
+  var w=WEAPONS[wpnIdx];
+  if(ammo[wpnIdx]>=w.magSize)return;
+  reloading=true;reloadStart=Date.now();
+}
+function shoot(){
+  var now=Date.now(),w=WEAPONS[wpnIdx];
+  if(reloading)return;
+  if(now-lastFire<w.rate)return;
+  if(ammo[wpnIdx]<=0){startReload();return}
+  lastFire=now;ammo[wpnIdx]--;
+  var angle=player.angle;
+  for(var i=0;i<w.bullets;i++){
+    var a=angle+(Math.random()-0.5)*w.spread*2;
+    bullets.push({x:player.x+Math.cos(angle)*PR,y:player.y+Math.sin(angle)*PR,
+      vx:Math.cos(a)*w.speed,vy:Math.sin(a)*w.speed,dmg:w.dmg,range:w.range,
+      dist:0,friendly:true,color:w.color});
+  }
+  // muzzle flash
+  for(var i=0;i<3;i++){
+    var a2=angle+(Math.random()-0.5)*0.5;
+    particles.push({x:player.x+Math.cos(angle)*PR,y:player.y+Math.sin(angle)*PR,
+      vx:Math.cos(a2)*3,vy:Math.sin(a2)*3,life:8,color:'#ff0',r:3});
+  }
+}
+
+function enemyShoot(e){
+  var now=Date.now();
+  if(now-e.lastFire<e.rate)return;
+  e.lastFire=now;
+  var a=e.angle+(Math.random()-0.5)*0.1;
+  bullets.push({x:e.x+Math.cos(a)*10,y:e.y+Math.sin(a)*10,
+    vx:Math.cos(a)*7,vy:Math.sin(a)*7,dmg:e.dmg,range:e.range,dist:0,friendly:false,color:'#f84'});
+}
+
+function throwGrenade(e){
+  var dx=player.x-e.x,dy=player.y-e.y,a=Math.atan2(dy,dx);
+  var dist=Math.sqrt(dx*dx+dy*dy);
+  var t=Math.min(dist,250);
+  grenades.push({x:e.x,y:e.y,tx:e.x+Math.cos(a)*t,ty:e.y+Math.sin(a)*t,
+    timer:60,r:4});
+  e.grenadeCD=300;
+}
+
+// --- Find Cover ---
+function findCover(e){
+  var best=null,bestScore=-999;
+  var px=player.x,py=player.y;
+  // check nearby wall-adjacent tiles
+  var egx=Math.floor(e.x/TW),egy=Math.floor(e.y/TW);
+  for(var dy=-5;dy<=5;dy++)for(var dx=-5;dx<=5;dx++){
+    var gx=egx+dx,gy=egy+dy;
+    if(gx<0||gy<0||gx>=mapW||gy>=mapH)continue;
+    if(map[gy][gx]!==0)continue;
+    var cx=(gx+0.5)*TW,cy=(gy+0.5)*TW;
+    // must be adjacent to wall
+    var adj=false;
+    if(solid(gx-1,gy)||solid(gx+1,gy)||solid(gx,gy-1)||solid(gx,gy+1))adj=true;
+    if(!adj)continue;
+    // wall should be between cover and player
+    var coversPlayer=!lineOfSight(cx,cy,px,py);
+    var distToEnemy=Math.sqrt((cx-e.x)*(cx-e.x)+(cy-e.y)*(cy-e.y));
+    var distToPlayer=Math.sqrt((cx-px)*(cx-px)+(cy-py)*(cy-py));
+    var score=0;
+    if(coversPlayer)score+=50;
+    score-=distToEnemy*0.3; // prefer closer cover
+    if(distToPlayer>80)score+=20; // not too close to player
+    if(distToPlayer<300)score+=10; // but within firing range
+    if(score>bestScore){bestScore=score;best={x:cx,y:cy}}
+  }
+  return best;
+}
+
+// --- Enemy AI ---
+function updateEnemy(e,dt){
+  var dx=player.x-e.x,dy=player.y-e.y;
+  var dist=Math.sqrt(dx*dx+dy*dy);
+  e.angle=Math.atan2(dy,dx);
+  e.seesPlayer=dist<e.alertDist+200&&lineOfSight(e.x,e.y,player.x,player.y);
+  if(e.grenadeCD>0)e.grenadeCD--;
+  e.stateTimer--;
+
+  switch(e.state){
+    case 'idle':
+      // patrol
+      if(e.type!=='sniper'){
+        e.patrolAngle+=0.02*(Math.random()>0.5?1:-1);
+        var mx=Math.cos(e.patrolAngle)*e.spd*0.4;
+        var my=Math.sin(e.patrolAngle)*e.spd*0.4;
+        moveEntity(e,mx,my,8);
+        // stay near origin
+        var odx=e.patrolOx-e.x,ody=e.patrolOy-e.y;
+        if(odx*odx+ody*ody>80*80)e.patrolAngle=Math.atan2(ody,odx);
+      }
+      if(e.seesPlayer||dist<e.alertDist){
+        e.state='engage';e.stateTimer=60+Math.floor(Math.random()*60);
+      }
+      break;
+    case 'engage':
+      if(!e.seesPlayer&&e.stateTimer<=0){
+        // lost sight, seek cover or advance
+        e.state='advance';e.stateTimer=90;break;
+      }
+      if(e.seesPlayer){
+        enemyShoot(e);
+        // grenadiers throw grenades
+        if(e.type==='grenadier'&&e.grenadeCD<=0&&dist<280&&dist>60){
+          throwGrenade(e);
+        }
+        // take cover after shooting for a bit
+        if(e.stateTimer<=0){
+          e.state='seekCover';e.stateTimer=120;
+          e.coverTarget=findCover(e);
+        }
+      }
+      // strafe while engaging (non-snipers)
+      if(e.type!=='sniper'&&e.seesPlayer){
+        var sa=e.angle+Math.PI/2*e.flankDir;
+        var smx=Math.cos(sa)*e.spd*0.6;
+        var smy=Math.sin(sa)*e.spd*0.6;
+        moveEntity(e,smx,smy,8);
+      }
+      break;
+    case 'seekCover':
+      if(e.coverTarget){
+        var cdx=e.coverTarget.x-e.x,cdy=e.coverTarget.y-e.y;
+        var cd=Math.sqrt(cdx*cdx+cdy*cdy);
+        if(cd>4){
+          moveEntity(e,cdx/cd*e.spd*1.2,cdy/cd*e.spd*1.2,8);
+        } else {
+          e.state='peekShoot';e.stateTimer=40+Math.floor(Math.random()*40);
+        }
+      } else {
+        e.state='engage';e.stateTimer=60;
+      }
+      if(e.stateTimer<=0){e.state='engage';e.stateTimer=60}
+      break;
+    case 'peekShoot':
+      // peek from cover, shoot, then hide again
+      if(e.seesPlayer)enemyShoot(e);
+      if(e.stateTimer<=0){
+        // decide: re-cover, flank, or rush
+        var r=Math.random();
+        if(r<0.3){e.state='flank';e.stateTimer=100}
+        else if(r<0.6){e.state='seekCover';e.stateTimer=120;e.coverTarget=findCover(e)}
+        else{e.state='engage';e.stateTimer=80}
+      }
+      break;
+    case 'flank':
+      // move perpendicular to player
+      var fa=e.angle+Math.PI/2*e.flankDir;
+      moveEntity(e,Math.cos(fa)*e.spd,Math.sin(fa)*e.spd,8);
+      if(e.seesPlayer&&e.stateTimer%20===0)enemyShoot(e);
+      if(e.stateTimer<=0){e.state='engage';e.stateTimer=60;e.flankDir*=-1}
+      break;
+    case 'advance':
+      // advance toward player's last known position
+      if(dist>40){
+        moveEntity(e,dx/dist*e.spd,dy/dist*e.spd,8);
+      }
+      if(e.seesPlayer){e.state='engage';e.stateTimer=60}
+      if(e.stateTimer<=0){e.state='idle';e.stateTimer=120}
+      break;
+  }
+}
+
+// --- Update ---
+var lastTime=0;
+function update(ts){
+  requestAnimationFrame(update);
+  if(infoOpen)return;
+  var dt=Math.min(ts-lastTime,50);lastTime=ts;
+
+  if(missionState==='complete'){
+    missionTimer++;
+    if(missionTimer>180){
+      mission++;
+      if(mission>=MISSIONS.length){missionState='victory'}
+      else{loadMission(mission)}
+    }
+    draw();return;
+  }
+  if(missionState==='dead'){
+    missionTimer++;
+    if(missionTimer>120&&(keys[' ']||keys['r']||mouseDown)){loadMission(mission)}
+    draw();return;
+  }
+  if(missionState==='victory'){draw();return}
+
+  // --- Player movement ---
+  var mx=0,my=0;
+  if(keys['w']||keys['arrowup'])my=-1;
+  if(keys['s']||keys['arrowdown'])my=1;
+  if(keys['a']||keys['arrowleft'])mx=-1;
+  if(keys['d']||keys['arrowright'])mx=1;
+  if(mx||my){var m=Math.sqrt(mx*mx+my*my);mx/=m;my/=m;moveEntity(player,mx*SPD,my*SPD,PR)}
+
+  // aim
+  var wx=mouseX+camX,wy=mouseY+camY;
+  player.angle=Math.atan2(wy-player.y,wx-player.x);
+
+  // shoot
+  if(mouseDown)shoot();
+
+  // reload
+  if(reloading){
+    if(Date.now()-reloadStart>=WEAPONS[wpnIdx].reloadTime){
+      ammo[wpnIdx]=WEAPONS[wpnIdx].magSize;reloading=false;
+    }
+  }
+
+  // health regen
+  if(Date.now()-lastDmgTime>REGEN_DELAY&&player.hp<player.maxHp){
+    player.hp=Math.min(player.maxHp,player.hp+REGEN_RATE);
+  }
+
+  // explore
+  var pgx=Math.floor(player.x/TW),pgy=Math.floor(player.y/TW);
+  for(var dy=-4;dy<=4;dy++)for(var dx=-4;dx<=4;dx++){
+    var gx=pgx+dx,gy=pgy+dy;
+    if(gx>=0&&gy>=0&&gx<mapW&&gy<mapH)explored[gy][gx]=true;
+  }
+
+  // bullets
+  for(var i=bullets.length-1;i>=0;i--){
+    var b=bullets[i];
+    b.x+=b.vx;b.y+=b.vy;b.dist+=Math.sqrt(b.vx*b.vx+b.vy*b.vy);
+    var gx=Math.floor(b.x/TW),gy=Math.floor(b.y/TW);
+    var hit=false;
+    if(solid(gx,gy)){hit=true}
+    if(b.dist>b.range){hit=true}
+    if(b.friendly){
+      for(var j=enemies.length-1;j>=0;j--){
+        var e=enemies[j];
+        var edx=b.x-e.x,edy=b.y-e.y;
+        if(edx*edx+edy*edy<144){
+          e.hp-=b.dmg;hit=true;
+          // alert nearby enemies
+          for(var k=0;k<enemies.length;k++){
+            var ek=enemies[k];
+            var ad=Math.sqrt((ek.x-e.x)*(ek.x-e.x)+(ek.y-e.y)*(ek.y-e.y));
+            if(ad<200&&ek.state==='idle'){ek.state='advance';ek.stateTimer=90}
+          }
+          // blood particles
+          for(var p=0;p<3;p++){
+            particles.push({x:b.x,y:b.y,vx:(Math.random()-0.5)*3,vy:(Math.random()-0.5)*3,
+              life:15+Math.random()*10,color:'#f00',r:2});
+          }
+          if(e.hp<=0){
+            kills++;totalKills++;
+            for(var p=0;p<6;p++){
+              particles.push({x:e.x,y:e.y,vx:(Math.random()-0.5)*4,vy:(Math.random()-0.5)*4,
+                life:25+Math.random()*15,color:e.color,r:3});
+            }
+            enemies.splice(j,1);
+          }
+          break;
+        }
+      }
+    } else {
+      var pdx=b.x-player.x,pdy=b.y-player.y;
+      if(pdx*pdx+pdy*pdy<PR*PR){
+        player.hp-=b.dmg;lastDmgTime=Date.now();hit=true;
+        if(player.hp<=0){missionState='dead';missionTimer=0}
+      }
+    }
+    if(hit){
+      particles.push({x:b.x,y:b.y,vx:0,vy:0,life:6,color:'#fff',r:2});
+      bullets.splice(i,1);
+    }
+  }
+
+  // grenades
+  for(var i=grenades.length-1;i>=0;i--){
+    var g=grenades[i];
+    var gdx=g.tx-g.x,gdy=g.ty-g.y;
+    var gd=Math.sqrt(gdx*gdx+gdy*gdy);
+    if(gd>4){g.x+=gdx/gd*4;g.y+=gdy/gd*4}
+    g.timer--;
+    if(g.timer<=0){
+      // explode
+      for(var p=0;p<12;p++){
+        var a=Math.random()*Math.PI*2;
+        particles.push({x:g.x,y:g.y,vx:Math.cos(a)*4,vy:Math.sin(a)*4,
+          life:20+Math.random()*10,color:p%2?'#fa0':'#f44',r:4});
+      }
+      // damage player
+      var pdx=g.x-player.x,pdy=g.y-player.y;
+      var pd=Math.sqrt(pdx*pdx+pdy*pdy);
+      if(pd<80){
+        var dmg=Math.floor(40*(1-pd/80));
+        player.hp-=dmg;lastDmgTime=Date.now();
+        if(player.hp<=0){missionState='dead';missionTimer=0}
+      }
+      grenades.splice(i,1);
+    }
+  }
+
+  // enemies
+  for(var i=0;i<enemies.length;i++)updateEnemy(enemies[i],dt);
+
+  // particles
+  for(var i=particles.length-1;i>=0;i--){
+    var p=particles[i];
+    p.x+=p.vx;p.y+=p.vy;p.vx*=0.92;p.vy*=0.92;p.life--;
+    if(p.life<=0)particles.splice(i,1);
+  }
+
+  // mission complete?
+  if(enemies.length===0&&missionState==='play'){missionState='complete';missionTimer=0}
+
+  draw();
+}
+
+// --- Draw ---
+function draw(){
+  // camera
+  camX=player.x-400;camY=player.y-300;
+  X.fillStyle='#111';X.fillRect(0,0,800,600);
+  X.save();X.translate(-camX,-camY);
+
+  // tiles
+  var sx=Math.max(0,Math.floor(camX/TW)),sy=Math.max(0,Math.floor(camY/TW));
+  var ex=Math.min(mapW-1,Math.floor((camX+800)/TW)),ey=Math.min(mapH-1,Math.floor((camY+600)/TW));
+  for(var r=sy;r<=ey;r++)for(var c=sx;c<=ex;c++){
+    var t=map[r][c];
+    if(t===1){X.fillStyle='#444';X.fillRect(c*TW,r*TW,TW,TW);
+      X.fillStyle='#555';X.fillRect(c*TW+2,r*TW+2,TW-4,TW-4)}
+    else if(t===2){X.fillStyle='#654';X.fillRect(c*TW,r*TW,TW,TW);
+      X.fillStyle='#876';X.fillRect(c*TW+4,r*TW+2,TW-8,TW-4)}
+    else{X.fillStyle='#1a1a1a';X.fillRect(c*TW,r*TW,TW,TW)}
+  }
+
+  // grenades
+  for(var i=0;i<grenades.length;i++){
+    var g=grenades[i];
+    X.fillStyle=g.timer%6<3?'#f00':'#fa0';
+    X.beginPath();X.arc(g.x,g.y,g.r,0,Math.PI*2);X.fill();
+  }
+
+  // bullets
+  for(var i=0;i<bullets.length;i++){
+    var b=bullets[i];
+    X.fillStyle=b.color;
+    X.fillRect(b.x-2,b.y-2,4,4);
+  }
+
+  // particles
+  for(var i=0;i<particles.length;i++){
+    var p=particles[i];
+    X.globalAlpha=p.life/30;
+    X.fillStyle=p.color;
+    X.beginPath();X.arc(p.x,p.y,p.r,0,Math.PI*2);X.fill();
+  }
+  X.globalAlpha=1;
+
+  // enemies
+  for(var i=0;i<enemies.length;i++){
+    var e=enemies[i];
+    X.fillStyle=e.color;
+    X.beginPath();X.arc(e.x,e.y,10,0,Math.PI*2);X.fill();
+    // direction indicator
+    X.strokeStyle='#fff';X.lineWidth=2;
+    X.beginPath();X.moveTo(e.x,e.y);
+    X.lineTo(e.x+Math.cos(e.angle)*14,e.y+Math.sin(e.angle)*14);X.stroke();
+    // health bar
+    if(e.hp<e.maxHp){
+      X.fillStyle='#300';X.fillRect(e.x-10,e.y-16,20,3);
+      X.fillStyle='#f00';X.fillRect(e.x-10,e.y-16,20*(e.hp/e.maxHp),3);
+    }
+    // type indicator
+    if(e.type==='sniper'){X.fillStyle='#ff0';X.fillRect(e.x-2,e.y-2,4,4)}
+    if(e.type==='grenadier'){X.strokeStyle='#fa0';X.lineWidth=1;X.strokeRect(e.x-5,e.y-5,10,10)}
+  }
+
+  // player
+  X.fillStyle='#4a4';
+  X.beginPath();X.arc(player.x,player.y,PR,0,Math.PI*2);X.fill();
+  X.strokeStyle='#8f8';X.lineWidth=2;
+  X.beginPath();X.moveTo(player.x,player.y);
+  X.lineTo(player.x+Math.cos(player.angle)*20,player.y+Math.sin(player.angle)*20);X.stroke();
+  // player aiming line
+  X.strokeStyle='rgba(0,255,0,0.15)';X.lineWidth=1;
+  X.beginPath();X.moveTo(player.x,player.y);
+  X.lineTo(player.x+Math.cos(player.angle)*300,player.y+Math.sin(player.angle)*300);X.stroke();
+
+  X.restore();
+
+  // --- HUD ---
+  // health bar
+  X.fillStyle='rgba(0,0,0,0.6)';X.fillRect(10,560,200,30);
+  X.fillStyle='#400';X.fillRect(12,562,196,26);
+  var hpPct=Math.max(0,player.hp/player.maxHp);
+  X.fillStyle=hpPct>0.5?'#4a4':hpPct>0.25?'#aa4':'#a44';
+  X.fillRect(12,562,196*hpPct,26);
+  X.fillStyle='#fff';X.font='12px monospace';X.textAlign='left';
+  X.fillText('HP: '+Math.ceil(player.hp)+'/'+player.maxHp,18,580);
+
+  // weapon info
+  X.fillStyle='rgba(0,0,0,0.6)';X.fillRect(220,560,250,30);
+  var w=WEAPONS[wpnIdx];
+  X.fillStyle='#fff';X.font='12px monospace';
+  var reloadTxt=reloading?'[RELOADING]':'';
+  X.fillText(w.name+' | '+ammo[wpnIdx]+'/'+w.magSize+' '+reloadTxt,228,580);
+  // weapon slots
+  for(var i=0;i<3;i++){
+    X.fillStyle=i===wpnIdx?'rgba(0,255,0,0.3)':'rgba(0,0,0,0.4)';
+    X.fillRect(480+i*40,560,35,30);
+    X.fillStyle=i===wpnIdx?'#0f0':'#888';X.font='11px monospace';
+    X.fillText((i+1)+'',492+i*40,580);
+  }
+
+  // kills
+  X.fillStyle='rgba(0,0,0,0.6)';X.fillRect(620,560,80,30);
+  X.fillStyle='#f44';X.font='12px monospace';
+  X.fillText('KILLS:'+kills,628,580);
+
+  // mission info
+  X.fillStyle='rgba(0,0,0,0.7)';X.fillRect(10,10,300,40);
+  X.fillStyle='#7bf';X.font='14px monospace';X.textAlign='left';
+  var m=MISSIONS[mission];
+  X.fillText('MISSION '+(mission+1)+': '+m.name,18,28);
+  X.fillStyle='#aaa';X.font='11px monospace';
+  X.fillText(m.desc+' — '+enemies.length+' hostiles remain',18,44);
+
+  // minimap
+  var mmx=640,mmy=10,mms=3;
+  X.fillStyle='rgba(0,0,0,0.7)';
+  X.fillRect(mmx-2,mmy-2,mapW*mms+4,mapH*mms+4);
+  for(var r=0;r<mapH;r++)for(var c=0;c<mapW;c++){
+    if(!explored[r][c]){X.fillStyle='#111'}
+    else if(map[r][c]===1){X.fillStyle='#555'}
+    else if(map[r][c]===2){X.fillStyle='#654'}
+    else{X.fillStyle='#222'}
+    X.fillRect(mmx+c*mms,mmy+r*mms,mms,mms);
+  }
+  // enemies on minimap (only explored)
+  for(var i=0;i<enemies.length;i++){
+    var e=enemies[i];
+    var egx=Math.floor(e.x/TW),egy=Math.floor(e.y/TW);
+    if(egy>=0&&egy<mapH&&egx>=0&&egx<mapW&&explored[egy][egx]){
+      X.fillStyle='#f00';
+      X.fillRect(mmx+egx*mms,mmy+egy*mms,mms,mms);
+    }
+  }
+  // player on minimap
+  var ppx=Math.floor(player.x/TW),ppy=Math.floor(player.y/TW);
+  X.fillStyle='#0f0';
+  X.fillRect(mmx+ppx*mms,mmy+ppy*mms,mms,mms);
+
+  // damage flash
+  if(Date.now()-lastDmgTime<200){
+    X.fillStyle='rgba(255,0,0,0.2)';X.fillRect(0,0,800,600);
+  }
+
+  // mission complete overlay
+  if(missionState==='complete'){
+    X.fillStyle='rgba(0,0,0,0.6)';X.fillRect(0,0,800,600);
+    X.fillStyle='#0f0';X.font='28px monospace';X.textAlign='center';
+    X.fillText('AREA SECURED',400,280);
+    X.fillStyle='#aaa';X.font='14px monospace';
+    if(mission<MISSIONS.length-1)X.fillText('Advancing to next area...',400,320);
+    else X.fillText('All missions complete!',400,320);
+  }
+  if(missionState==='dead'){
+    X.fillStyle='rgba(0,0,0,0.7)';X.fillRect(0,0,800,600);
+    X.fillStyle='#f44';X.font='28px monospace';X.textAlign='center';
+    X.fillText('KIA',400,280);
+    X.fillStyle='#aaa';X.font='14px monospace';
+    X.fillText('Click or press R to retry',400,320);
+  }
+  if(missionState==='victory'){
+    X.fillStyle='rgba(0,0,0,0.8)';X.fillRect(0,0,800,600);
+    X.fillStyle='#ff0';X.font='28px monospace';X.textAlign='center';
+    X.fillText('MISSION ACCOMPLISHED',400,260);
+    X.fillStyle='#fff';X.font='16px monospace';
+    X.fillText('Total Kills: '+totalKills,400,300);
+    X.fillStyle='#aaa';X.font='13px monospace';
+    X.fillText('All areas secured. Outstanding work, soldier.',400,340);
+  }
+
+  // controls hint
+  X.fillStyle='#555';X.font='10px monospace';X.textAlign='right';
+  X.fillText('? — info',790,590);
+  X.textAlign='left';
+}
+
+// --- Init ---
+loadMission(0);
+requestAnimationFrame(update);
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

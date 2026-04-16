@@ -1,0 +1,979 @@
+<!--
+PROTOTYPE: windrunner
+SERIES: sim
+NUMBER: 021
+DATE: 2026-03-24
+MECHANIC: wind-powered endless runner — run and jump on the ground, then wind gusts lift you into gliding sky sections; transition between ground running and sky gliding is the signature feel
+ANCESTRY: Wind Runner (2013, Actoz Soft / Korea), Temple Run (2011, Imangi), Jetpack Joyride (2011, Halfbrick), Canabalt (2009, Semi Secret)
+CONTROLS: Space — jump (ground) / flap (sky) | Up/Down — glide up/down (sky) | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 6 (Foundation Models — procedural generation of dual-mode terrain with smooth transitions between running and flying states)
+AI-INSIGHT: Wind Runner's dual-mode design creates a fascinating state-space bifurcation — the same player input maps to fundamentally different physics depending on ground vs sky mode. This mirrors how foundation models learn context-dependent representations where identical tokens carry different meaning based on surrounding context.
+NOTES: Korean endless runner with signature wind-lift mechanic.
+       Ground running + sky gliding create two games in one.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SIM-021 · WIND RUNNER</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: default; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SIM-021 · WIND RUNNER</h1>
+    <p><span class="tag series">SIM — Simulation</span> <span class="tag">Prototype #021</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Run endlessly through a world of ground obstacles and sky gliding. Wind gusts lift you into the sky for soaring sections.</p>
+    <ul>
+      <li><kbd>Space</kbd> Jump over obstacles (ground mode)</li>
+      <li><kbd>Up</kbd> / <kbd>Down</kbd> Navigate vertically (sky mode)</li>
+      <li>Collect coins in both modes for bonus points</li>
+      <li>Your animal companion provides one free hit (shield)</li>
+      <li>You have 3 HP — avoid rocks, gaps, clouds, and birds</li>
+      <li>Speed increases over time — how far can you run?</li>
+    </ul>
+
+    <h2>History</h2>
+    <h3>Wind Runner (윈드러너, 2013)</h3>
+    <p>Developed by Actoz Soft in South Korea, Wind Runner became one of the most popular mobile endless runners in Asia. Its signature mechanic — transitioning between ground running and sky gliding via wind gusts — set it apart from the wave of Temple Run clones. The dual-mode design created a rhythm of tension (ground obstacles) and release (soaring through clouds) that proved deeply satisfying.</p>
+    <p>The game featured animal companions, a coin economy, and increasingly challenging terrain. It spawned sequels (Wind Runner Adventure, Wind Runner: Re) and established Actoz Soft as a major Korean mobile developer alongside Kakao Games and Netmarble.</p>
+
+    <h2>AI Archaeology</h2>
+    <h3>Classification</h3>
+    <p><strong>Primary:</strong> Endless Runner / Side-Scroller<br>
+    <strong>Secondary:</strong> Mode-switching, obstacle avoidance, score attack<br>
+    <strong>AI Era:</strong> 6 — Foundation Models</p>
+    <h3>AI Insight</h3>
+    <p>The dual-mode mechanic creates a state-space bifurcation where identical inputs map to different physics depending on ground vs sky context. This mirrors how transformer models learn context-dependent representations — the same token carries different meaning based on surrounding context. The wind-lift transition is a phase change in the game's dynamical system.</p>
+
+    <h2>Prototype Notes</h2>
+    <p>This prototype captures the core ground/sky duality. Ground mode features auto-running with jump timing. Sky mode features free vertical movement through floating obstacles. The wind gust transition — the signature moment of leaving the ground and soaring — is the emotional heart of the design. Animal companion provides a shield mechanic for forgiveness.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This is an educational prototype created for the study of game design patterns and history. It is not affiliated with or endorsed by Actoz Soft or any rights holders. No original assets are used. This prototype exists solely for research, criticism, and commentary purposes under fair use principles.</p>
+  </div>
+</div>
+
+<script>
+// --- Info Panel ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// --- Canvas Setup ---
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+
+function resize() {
+  const s = Math.min(innerWidth / W, innerHeight / H);
+  canvas.style.width = (W * s) + 'px';
+  canvas.style.height = (H * s) + 'px';
+}
+resize();
+addEventListener('resize', resize);
+
+// --- HUD Text Helper ---
+function hudText(text, x, y, size, color, align) {
+  ctx.save();
+  ctx.font = size + 'px monospace';
+  ctx.fillStyle = color || '#fff';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+// --- Input ---
+const keys = {};
+addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+  keys[e.code] = true;
+  if (['Space','ArrowUp','ArrowDown'].includes(e.code)) e.preventDefault();
+});
+addEventListener('keyup', e => { keys[e.code] = false; });
+
+// --- Constants ---
+const GROUND_Y = 460;
+const GRAVITY = 0.6;
+const JUMP_FORCE = -13;
+const SKY_CEILING = 40;
+const SKY_FLOOR = 340;
+const RUNNER_X = 120;
+const COIN_SIZE = 14;
+
+// --- Game State ---
+let state, score, hp, coins, speed, distance;
+let runnerY, runnerVY, runnerFrame, runnerLeg;
+let mode; // 'ground' or 'sky'
+let obstacles, coinList, particles, windGusts;
+let companionShield, companionX, companionY;
+let skyTransition, skyTransitionTimer;
+let groundTimer, skyTimer;
+let flashTimer, invincible;
+let bgOffset, cloudOffset;
+let bestScore;
+
+function init() {
+  state = 'title';
+  bestScore = 0;
+}
+
+function startGame() {
+  state = 'play';
+  score = 0; hp = 3; coins = 0;
+  speed = 4; distance = 0;
+  runnerY = GROUND_Y; runnerVY = 0;
+  runnerFrame = 0; runnerLeg = 0;
+  mode = 'ground';
+  obstacles = []; coinList = []; particles = []; windGusts = [];
+  companionShield = true; companionX = RUNNER_X - 40; companionY = GROUND_Y;
+  skyTransition = 0; skyTransitionTimer = 0;
+  groundTimer = 0; skyTimer = 0;
+  flashTimer = 0; invincible = 0;
+  bgOffset = 0; cloudOffset = 0;
+  spawnGroundSection();
+}
+
+// --- Spawning ---
+function spawnGroundSection() {
+  groundTimer = 0;
+}
+
+function spawnObstacle() {
+  const types = ['rock', 'rock', 'gap', 'rock_tall'];
+  const t = types[Math.random() * types.length | 0];
+  let ob = { x: W + 20, type: t, hit: false };
+  if (t === 'rock') { ob.y = GROUND_Y - 10; ob.w = 30; ob.h = 30; }
+  else if (t === 'rock_tall') { ob.y = GROUND_Y - 30; ob.w = 25; ob.h = 50; }
+  else if (t === 'gap') { ob.y = GROUND_Y + 20; ob.w = 60; ob.h = 40; }
+  obstacles.push(ob);
+}
+
+function spawnSkyObstacle() {
+  const types = ['cloud', 'bird'];
+  const t = types[Math.random() * types.length | 0];
+  let ob = { x: W + 20, type: t, hit: false };
+  const yMin = SKY_CEILING + 20;
+  const yMax = SKY_FLOOR - 40;
+  ob.y = yMin + Math.random() * (yMax - yMin);
+  if (t === 'cloud') { ob.w = 70; ob.h = 35; }
+  else { ob.w = 30; ob.h = 20; ob.wingT = 0; }
+  obstacles.push(ob);
+}
+
+function spawnCoin(yMin, yMax) {
+  coinList.push({
+    x: W + 10 + Math.random() * 60,
+    y: yMin + Math.random() * (yMax - yMin),
+    collected: false,
+    t: 0
+  });
+}
+
+function spawnWindGust() {
+  windGusts.push({
+    x: W + 20,
+    y: GROUND_Y - 80,
+    w: 60, h: 100,
+    particles: []
+  });
+}
+
+function spawnParticle(x, y, color) {
+  particles.push({ x, y, vx: (Math.random()-0.5)*3, vy: -Math.random()*4-1, life: 30, color });
+}
+
+// --- Update ---
+function update(dt) {
+  if (infoOpen) return;
+
+  if (state === 'title') {
+    if (keys.Space) { keys.Space = false; startGame(); }
+    return;
+  }
+  if (state === 'dead') {
+    if (keys.Space) { keys.Space = false; startGame(); }
+    return;
+  }
+
+  distance += speed * 0.1;
+  score = Math.floor(distance) + coins * 10;
+  speed = 4 + distance * 0.003;
+  if (speed > 12) speed = 12;
+
+  bgOffset = (bgOffset + speed * 0.3) % W;
+  cloudOffset = (cloudOffset + speed * 0.5) % W;
+
+  runnerFrame += 0.15;
+  if (invincible > 0) invincible--;
+
+  // Mode-specific update
+  if (mode === 'ground') {
+    updateGround(dt);
+  } else if (mode === 'sky') {
+    updateSky(dt);
+  } else if (mode === 'lifting') {
+    updateLift(dt);
+  } else if (mode === 'descending') {
+    updateDescend(dt);
+  }
+
+  // Update obstacles
+  for (let i = obstacles.length - 1; i >= 0; i--) {
+    obstacles[i].x -= speed;
+    if (obstacles[i].type === 'bird') obstacles[i].wingT = (obstacles[i].wingT || 0) + 0.1;
+    if (obstacles[i].x < -100) obstacles.splice(i, 1);
+  }
+
+  // Update coins
+  for (let i = coinList.length - 1; i >= 0; i--) {
+    coinList[i].x -= speed;
+    coinList[i].t += 0.08;
+    if (coinList[i].x < -20) { coinList.splice(i, 1); continue; }
+    if (!coinList[i].collected) {
+      const dx = coinList[i].x - RUNNER_X;
+      const dy = coinList[i].y - runnerY;
+      if (Math.abs(dx) < 22 && Math.abs(dy) < 22) {
+        coinList[i].collected = true;
+        coins++;
+        for (let j = 0; j < 5; j++) spawnParticle(coinList[i].x, coinList[i].y, '#ff0');
+        coinList.splice(i, 1);
+      }
+    }
+  }
+
+  // Update wind gusts
+  for (let i = windGusts.length - 1; i >= 0; i--) {
+    windGusts[i].x -= speed;
+    if (windGusts[i].x < -100) { windGusts.splice(i, 1); continue; }
+    // Check if runner enters wind gust
+    if (mode === 'ground' && !skyTransition) {
+      const g = windGusts[i];
+      if (RUNNER_X > g.x && RUNNER_X < g.x + g.w && runnerY > g.y && runnerY < g.y + g.h + 40) {
+        mode = 'lifting';
+        skyTransitionTimer = 0;
+        runnerVY = -3;
+        for (let j = 0; j < 15; j++) spawnParticle(RUNNER_X, runnerY, '#8cf');
+        windGusts.splice(i, 1);
+      }
+    }
+  }
+
+  // Collision check
+  if (invincible <= 0) {
+    for (let ob of obstacles) {
+      if (ob.hit) continue;
+      let rx = RUNNER_X, ry = runnerY, rw = 20, rh = 30;
+      if (ob.type === 'gap') {
+        if (rx + rw > ob.x && rx < ob.x + ob.w && ry + rh >= ob.y) {
+          takeDamage(ob); break;
+        }
+      } else {
+        if (rx + rw > ob.x && rx < ob.x + ob.w && ry + rh > ob.y && ry < ob.y + ob.h) {
+          takeDamage(ob); break;
+        }
+      }
+    }
+  }
+
+  // Update particles
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx; p.y += p.vy; p.life--;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+
+  // Companion follows
+  const targetCX = mode === 'ground' ? RUNNER_X - 40 : RUNNER_X - 35;
+  const targetCY = runnerY - 10;
+  companionX += (targetCX - companionX) * 0.08;
+  companionY += (targetCY - companionY) * 0.08;
+
+  if (flashTimer > 0) flashTimer--;
+}
+
+function updateGround(dt) {
+  // Gravity
+  runnerVY += GRAVITY;
+  runnerY += runnerVY;
+  if (runnerY >= GROUND_Y) {
+    runnerY = GROUND_Y;
+    runnerVY = 0;
+  }
+
+  // Jump
+  if (keys.Space && runnerY >= GROUND_Y) {
+    runnerVY = JUMP_FORCE;
+    keys.Space = false;
+  }
+
+  // Spawn ground obstacles
+  groundTimer += speed;
+  if (groundTimer > 120 + Math.random() * 80) {
+    groundTimer = 0;
+    if (Math.random() < 0.7) spawnObstacle();
+    if (Math.random() < 0.3) spawnCoin(GROUND_Y - 80, GROUND_Y - 20);
+  }
+
+  // Spawn wind gust periodically
+  skyTimer += speed * 0.01;
+  if (skyTimer > 8 + Math.random() * 5) {
+    skyTimer = 0;
+    spawnWindGust();
+  }
+}
+
+function updateSky(dt) {
+  // Vertical movement
+  if (keys.ArrowUp) runnerY -= 3.5;
+  if (keys.ArrowDown) runnerY += 3.5;
+  if (runnerY < SKY_CEILING) runnerY = SKY_CEILING;
+  if (runnerY > SKY_FLOOR) runnerY = SKY_FLOOR;
+
+  // Gentle float
+  runnerY += Math.sin(runnerFrame * 0.5) * 0.3;
+
+  // Spawn sky obstacles
+  groundTimer += speed;
+  if (groundTimer > 80 + Math.random() * 60) {
+    groundTimer = 0;
+    spawnSkyObstacle();
+    if (Math.random() < 0.4) spawnCoin(SKY_CEILING + 20, SKY_FLOOR - 20);
+  }
+
+  // Timer to descend
+  skyTimer += speed * 0.01;
+  if (skyTimer > 10 + Math.random() * 4) {
+    mode = 'descending';
+    skyTransitionTimer = 0;
+    runnerVY = 1;
+  }
+}
+
+function updateLift(dt) {
+  skyTransitionTimer++;
+  runnerY += runnerVY;
+  runnerVY -= 0.08;
+
+  // Wind particles during lift
+  if (skyTransitionTimer % 3 === 0) {
+    spawnParticle(RUNNER_X + Math.random()*20-10, runnerY + 20, '#adf');
+  }
+
+  if (runnerY <= SKY_FLOOR - 40) {
+    mode = 'sky';
+    runnerVY = 0;
+    groundTimer = 0;
+    skyTimer = 0;
+    // Clear ground obstacles
+    obstacles = obstacles.filter(o => o.type === 'cloud' || o.type === 'bird');
+  }
+}
+
+function updateDescend(dt) {
+  skyTransitionTimer++;
+  runnerY += runnerVY;
+  runnerVY += 0.05;
+
+  if (runnerY >= GROUND_Y) {
+    runnerY = GROUND_Y;
+    runnerVY = 0;
+    mode = 'ground';
+    groundTimer = 0;
+    skyTimer = 0;
+    // Clear sky obstacles
+    obstacles = obstacles.filter(o => o.type !== 'cloud' && o.type !== 'bird');
+    for (let j = 0; j < 8; j++) spawnParticle(RUNNER_X, GROUND_Y, '#a86');
+  }
+}
+
+function takeDamage(ob) {
+  ob.hit = true;
+  if (companionShield) {
+    companionShield = false;
+    invincible = 60;
+    flashTimer = 30;
+    for (let j = 0; j < 10; j++) spawnParticle(companionX, companionY, '#f84');
+    return;
+  }
+  hp--;
+  invincible = 90;
+  flashTimer = 20;
+  for (let j = 0; j < 10; j++) spawnParticle(RUNNER_X, runnerY, '#f44');
+  if (hp <= 0) {
+    state = 'dead';
+    if (score > bestScore) bestScore = score;
+  }
+}
+
+// --- Drawing ---
+function draw() {
+  // Sky gradient
+  const isSky = mode === 'sky' || mode === 'lifting';
+  const skyTop = isSky ? '#1a3a6a' : '#2a4a7a';
+  const skyBot = isSky ? '#4a8acc' : '#88bbdd';
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, skyTop);
+  grad.addColorStop(1, skyBot);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Background clouds
+  drawBgClouds();
+
+  if (state === 'title') {
+    drawTitle();
+    return;
+  }
+
+  // Ground (only in ground/descend mode or partially in lifting)
+  if (mode === 'ground' || mode === 'descending' || mode === 'lifting') {
+    drawGround();
+  }
+
+  // Wind gusts
+  for (const g of windGusts) {
+    drawWindGust(g);
+  }
+
+  // Obstacles
+  for (const ob of obstacles) {
+    drawObstacle(ob);
+  }
+
+  // Coins
+  for (const c of coinList) {
+    if (!c.collected) drawCoin(c);
+  }
+
+  // Companion
+  drawCompanion();
+
+  // Runner
+  if (invincible <= 0 || Math.floor(invincible / 4) % 2 === 0) {
+    drawRunner();
+  }
+
+  // Particles
+  for (const p of particles) {
+    ctx.globalAlpha = p.life / 30;
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+  }
+  ctx.globalAlpha = 1;
+
+  // HUD
+  drawHUD();
+
+  if (state === 'dead') drawDead();
+}
+
+function drawBgClouds() {
+  ctx.fillStyle = 'rgba(255,255,255,0.15)';
+  for (let i = 0; i < 5; i++) {
+    const cx = ((i * 190 + 50 - cloudOffset * 0.3) % (W + 100)) - 50;
+    const cy = 60 + i * 35;
+    drawCloudShape(cx, cy, 40 + i * 5, 18);
+  }
+}
+
+function drawCloudShape(x, y, w, h) {
+  ctx.beginPath();
+  ctx.moveTo(x, y + h);
+  ctx.bezierCurveTo(x, y, x + w * 0.3, y - h * 0.5, x + w * 0.5, y);
+  ctx.bezierCurveTo(x + w * 0.7, y - h * 0.5, x + w, y, x + w, y + h);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawGround() {
+  // Hills
+  ctx.fillStyle = '#3a7a3a';
+  ctx.beginPath();
+  ctx.moveTo(0, GROUND_Y + 20);
+  for (let x = 0; x <= W; x += 40) {
+    const hillY = GROUND_Y + 20 + Math.sin((x + bgOffset) * 0.02) * 8;
+    ctx.lineTo(x, hillY);
+  }
+  ctx.lineTo(W, H); ctx.lineTo(0, H);
+  ctx.closePath(); ctx.fill();
+
+  // Ground surface
+  ctx.fillStyle = '#5a9a4a';
+  ctx.fillRect(0, GROUND_Y + 18, W, 4);
+
+  // Grass tufts
+  ctx.fillStyle = '#6ab85a';
+  for (let i = 0; i < 20; i++) {
+    const gx = ((i * 43 - bgOffset) % W + W) % W;
+    ctx.fillRect(gx, GROUND_Y + 14, 2, 6);
+    ctx.fillRect(gx + 4, GROUND_Y + 16, 2, 4);
+  }
+}
+
+function drawWindGust(g) {
+  ctx.save();
+  ctx.globalAlpha = 0.4;
+  ctx.strokeStyle = '#8cf';
+  ctx.lineWidth = 2;
+  // Swirling wind lines
+  for (let i = 0; i < 5; i++) {
+    const yy = g.y + i * (g.h / 5);
+    const wave = Math.sin(runnerFrame * 0.3 + i) * 8;
+    ctx.beginPath();
+    ctx.moveTo(g.x + wave, yy);
+    ctx.quadraticCurveTo(g.x + g.w / 2 + wave, yy - 15, g.x + g.w + wave, yy);
+    ctx.stroke();
+  }
+  // Upward arrow indicators
+  ctx.fillStyle = '#adf';
+  for (let i = 0; i < 3; i++) {
+    const ax = g.x + 10 + i * 20;
+    const ay = g.y + 20 + Math.sin(runnerFrame * 0.4 + i * 2) * 15;
+    ctx.beginPath();
+    ctx.moveTo(ax, ay); ctx.lineTo(ax - 5, ay + 8); ctx.lineTo(ax + 5, ay + 8);
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawObstacle(ob) {
+  if (ob.type === 'rock') {
+    ctx.fillStyle = '#666';
+    ctx.beginPath();
+    ctx.moveTo(ob.x, ob.y + ob.h);
+    ctx.lineTo(ob.x + 5, ob.y + 5);
+    ctx.lineTo(ob.x + ob.w * 0.4, ob.y);
+    ctx.lineTo(ob.x + ob.w * 0.7, ob.y + 3);
+    ctx.lineTo(ob.x + ob.w, ob.y + ob.h);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#555';
+    ctx.beginPath();
+    ctx.moveTo(ob.x + ob.w * 0.4, ob.y);
+    ctx.lineTo(ob.x + ob.w * 0.5, ob.y + ob.h * 0.6);
+    ctx.lineTo(ob.x + ob.w, ob.y + ob.h);
+    ctx.lineTo(ob.x + ob.w * 0.7, ob.y + 3);
+    ctx.closePath(); ctx.fill();
+  } else if (ob.type === 'rock_tall') {
+    ctx.fillStyle = '#5a5a5a';
+    ctx.beginPath();
+    ctx.moveTo(ob.x, ob.y + ob.h);
+    ctx.lineTo(ob.x + 3, ob.y + 8);
+    ctx.lineTo(ob.x + ob.w * 0.5, ob.y);
+    ctx.lineTo(ob.x + ob.w - 2, ob.y + 10);
+    ctx.lineTo(ob.x + ob.w, ob.y + ob.h);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#4a4a4a';
+    ctx.fillRect(ob.x + 8, ob.y + 15, 3, 10);
+  } else if (ob.type === 'gap') {
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(ob.x, ob.y, ob.w, ob.h);
+    // Gap edges
+    ctx.fillStyle = '#5a9a4a';
+    ctx.fillRect(ob.x - 2, ob.y - 2, 4, ob.h + 4);
+    ctx.fillRect(ob.x + ob.w - 2, ob.y - 2, 4, ob.h + 4);
+  } else if (ob.type === 'cloud') {
+    ctx.fillStyle = 'rgba(200,220,240,0.8)';
+    drawCloudShape(ob.x, ob.y, ob.w, ob.h);
+    ctx.fillStyle = 'rgba(180,200,220,0.5)';
+    drawCloudShape(ob.x + 10, ob.y + 5, ob.w - 20, ob.h - 10);
+  } else if (ob.type === 'bird') {
+    const wingY = Math.sin(ob.wingT || 0) * 8;
+    ctx.fillStyle = '#333';
+    ctx.beginPath();
+    // Body
+    ctx.moveTo(ob.x, ob.y + 10);
+    ctx.lineTo(ob.x + ob.w, ob.y + 10);
+    ctx.lineTo(ob.x + ob.w + 5, ob.y + 8);
+    ctx.lineTo(ob.x + ob.w, ob.y + 12);
+    ctx.lineTo(ob.x, ob.y + 12);
+    ctx.closePath(); ctx.fill();
+    // Wings
+    ctx.beginPath();
+    ctx.moveTo(ob.x + 5, ob.y + 10);
+    ctx.lineTo(ob.x + 15, ob.y + wingY);
+    ctx.lineTo(ob.x + 25, ob.y + 10);
+    ctx.closePath(); ctx.fill();
+  }
+}
+
+function drawCoin(c) {
+  const bob = Math.sin(c.t) * 3;
+  ctx.fillStyle = '#fc0';
+  ctx.beginPath();
+  ctx.arc(c.x, c.y + bob, COIN_SIZE / 2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#da0';
+  ctx.beginPath();
+  ctx.arc(c.x, c.y + bob, COIN_SIZE / 2 - 3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#fc0';
+  hudText('$', c.x - 3, c.y + bob - 5, 9, '#fff', 'left');
+}
+
+function drawCompanion() {
+  // Small fox companion
+  const cx = companionX, cy = companionY;
+  // Body
+  ctx.fillStyle = companionShield ? '#f84' : '#a64';
+  ctx.fillRect(cx - 8, cy - 5, 16, 10);
+  // Head
+  ctx.fillRect(cx + 5, cy - 10, 10, 10);
+  // Ears
+  ctx.fillStyle = companionShield ? '#fa6' : '#b86';
+  ctx.beginPath();
+  ctx.moveTo(cx + 7, cy - 10); ctx.lineTo(cx + 9, cy - 16); ctx.lineTo(cx + 12, cy - 10);
+  ctx.closePath(); ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(cx + 11, cy - 10); ctx.lineTo(cx + 13, cy - 15); ctx.lineTo(cx + 15, cy - 10);
+  ctx.closePath(); ctx.fill();
+  // Eye
+  ctx.fillStyle = '#000';
+  ctx.fillRect(cx + 12, cy - 7, 2, 2);
+  // Tail
+  ctx.fillStyle = companionShield ? '#fa6' : '#b86';
+  ctx.beginPath();
+  ctx.moveTo(cx - 8, cy - 3);
+  ctx.quadraticCurveTo(cx - 18, cy - 15, cx - 12, cy - 18 + Math.sin(runnerFrame * 0.3) * 4);
+  ctx.lineTo(cx - 8, cy);
+  ctx.closePath(); ctx.fill();
+  // Shield indicator
+  if (companionShield) {
+    ctx.strokeStyle = '#4ff';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(cx + 4, cy - 2, 18, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+}
+
+function drawRunner() {
+  const rx = RUNNER_X, ry = runnerY;
+  const isGrounded = ry >= GROUND_Y;
+  const isGliding = mode === 'sky' || mode === 'lifting';
+
+  // Body
+  ctx.fillStyle = '#4af';
+  ctx.fillRect(rx - 6, ry - 24, 12, 16);
+
+  // Head
+  ctx.fillStyle = '#fdb';
+  ctx.fillRect(rx - 5, ry - 32, 10, 10);
+
+  // Hair / cap
+  ctx.fillStyle = '#38f';
+  ctx.fillRect(rx - 6, ry - 34, 12, 5);
+  ctx.fillRect(rx + 3, ry - 33, 6, 3);
+
+  // Eyes
+  ctx.fillStyle = '#000';
+  ctx.fillRect(rx + 1, ry - 28, 2, 2);
+
+  // Scarf (wind trailing)
+  ctx.fillStyle = '#f44';
+  ctx.beginPath();
+  ctx.moveTo(rx - 4, ry - 22);
+  const scarfWave = Math.sin(runnerFrame * 0.5) * 5;
+  ctx.quadraticCurveTo(rx - 20, ry - 22 + scarfWave, rx - 28, ry - 18 + scarfWave);
+  ctx.lineTo(rx - 26, ry - 15 + scarfWave);
+  ctx.quadraticCurveTo(rx - 18, ry - 19 + scarfWave, rx - 4, ry - 19);
+  ctx.closePath(); ctx.fill();
+
+  if (isGliding) {
+    // Arms spread for gliding
+    ctx.fillStyle = '#4af';
+    ctx.save();
+    ctx.translate(rx, ry - 18);
+    ctx.rotate(-0.3 + Math.sin(runnerFrame * 0.2) * 0.1);
+    ctx.fillRect(0, 0, 22, 4);
+    ctx.restore();
+    ctx.save();
+    ctx.translate(rx, ry - 18);
+    ctx.rotate(Math.PI + 0.3 - Math.sin(runnerFrame * 0.2) * 0.1);
+    ctx.fillRect(0, 0, 22, 4);
+    ctx.restore();
+
+    // Legs trailing
+    ctx.fillStyle = '#36a';
+    ctx.fillRect(rx - 4, ry - 8, 4, 12);
+    ctx.fillRect(rx + 1, ry - 8, 4, 14);
+  } else {
+    // Arms
+    ctx.fillStyle = '#4af';
+    const armSwing = Math.sin(runnerFrame * (isGrounded ? 1 : 0.3)) * 0.4;
+    ctx.save();
+    ctx.translate(rx + 4, ry - 20);
+    ctx.rotate(armSwing + 0.3);
+    ctx.fillRect(0, 0, 4, 12);
+    ctx.restore();
+
+    // Legs (running animation)
+    ctx.fillStyle = '#36a';
+    if (isGrounded) {
+      const legAng = Math.sin(runnerFrame) * 0.6;
+      ctx.save();
+      ctx.translate(rx - 3, ry - 8);
+      ctx.rotate(legAng);
+      ctx.fillRect(-2, 0, 4, 14);
+      ctx.restore();
+      ctx.save();
+      ctx.translate(rx + 3, ry - 8);
+      ctx.rotate(-legAng);
+      ctx.fillRect(-2, 0, 4, 14);
+      ctx.restore();
+    } else {
+      // Tucked legs for jump
+      ctx.fillRect(rx - 5, ry - 8, 4, 10);
+      ctx.fillRect(rx + 1, ry - 8, 4, 10);
+    }
+  }
+
+  // Shoes
+  ctx.fillStyle = '#d33';
+  if (!isGliding) {
+    ctx.fillRect(rx - 6, ry + 4, 6, 3);
+    ctx.fillRect(rx + 1, ry + 4, 6, 3);
+  }
+}
+
+function drawHUD() {
+  // Score
+  hudText('DISTANCE: ' + Math.floor(distance) + 'm', 10, 10, 14, '#fff');
+  hudText('SCORE: ' + score, 10, 30, 12, '#ccc');
+  hudText('COINS: ' + coins, 10, 48, 12, '#fc0');
+
+  // HP hearts
+  for (let i = 0; i < 3; i++) {
+    ctx.fillStyle = i < hp ? '#f44' : '#444';
+    drawHeart(W - 80 + i * 25, 18, 8);
+  }
+
+  // Mode indicator
+  const modeLabel = mode === 'sky' ? 'SKY' : mode === 'lifting' ? 'LIFTING!' : mode === 'descending' ? 'DESCENDING' : 'GROUND';
+  const modeColor = mode === 'sky' ? '#8cf' : mode === 'lifting' ? '#ff8' : mode === 'descending' ? '#fa8' : '#8f8';
+  hudText(modeLabel, W - 90, 44, 11, modeColor, 'right');
+
+  // Shield indicator
+  if (companionShield) {
+    hudText('SHIELD', W - 90, 60, 10, '#4ff', 'right');
+  }
+
+  // Best score
+  if (bestScore > 0) {
+    hudText('BEST: ' + bestScore, W / 2, 10, 11, '#888', 'center');
+  }
+
+  // Help hint
+  hudText('[?] Info', W - 10, H - 18, 10, '#556', 'right');
+}
+
+function drawHeart(x, y, s) {
+  ctx.beginPath();
+  ctx.moveTo(x, y + s * 0.3);
+  ctx.bezierCurveTo(x, y, x - s, y, x - s, y + s * 0.3);
+  ctx.bezierCurveTo(x - s, y + s * 0.7, x, y + s, x, y + s * 1.2);
+  ctx.bezierCurveTo(x, y + s, x + s, y + s * 0.7, x + s, y + s * 0.3);
+  ctx.bezierCurveTo(x + s, y, x, y, x, y + s * 0.3);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawTitle() {
+  // Title text
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 42px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('WIND RUNNER', W / 2, 200);
+
+  ctx.font = '16px monospace';
+  ctx.fillStyle = '#8cf';
+  ctx.fillText('\uC708\uB4DC\uB7EC\uB108', W / 2, 235);
+
+  ctx.font = '14px monospace';
+  ctx.fillStyle = '#aaa';
+  ctx.fillText('Run on the ground. Soar through the sky.', W / 2, 280);
+
+  // Animated runner preview
+  const previewY = 360;
+  ctx.fillStyle = '#4af';
+  ctx.fillRect(W / 2 - 6, previewY - 24, 12, 16);
+  ctx.fillStyle = '#fdb';
+  ctx.fillRect(W / 2 - 5, previewY - 32, 10, 10);
+  ctx.fillStyle = '#38f';
+  ctx.fillRect(W / 2 - 6, previewY - 34, 12, 5);
+
+  // Wind swirls around preview
+  ctx.strokeStyle = '#8cf';
+  ctx.lineWidth = 1.5;
+  ctx.globalAlpha = 0.4 + Math.sin(Date.now() * 0.003) * 0.3;
+  for (let i = 0; i < 3; i++) {
+    const wx = W / 2 + 20 + i * 15;
+    const wy = previewY - 15 + Math.sin(Date.now() * 0.004 + i) * 10;
+    ctx.beginPath();
+    ctx.moveTo(wx, wy);
+    ctx.quadraticCurveTo(wx + 15, wy - 8, wx + 30, wy);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  // Controls
+  ctx.font = '13px monospace';
+  ctx.fillStyle = '#888';
+  ctx.fillText('SPACE \u2014 Jump (Ground) / Start', W / 2, 430);
+  ctx.fillText('UP/DOWN \u2014 Navigate (Sky)', W / 2, 452);
+  ctx.fillText('? \u2014 Info Panel', W / 2, 474);
+
+  // Blink
+  ctx.fillStyle = (Date.now() % 1200 < 800) ? '#ff8' : '#000';
+  ctx.font = '16px monospace';
+  ctx.fillText('PRESS SPACE TO START', W / 2, 530);
+  ctx.textAlign = 'left';
+}
+
+function drawDead() {
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 36px monospace';
+  ctx.fillStyle = '#f44';
+  ctx.fillText('GAME OVER', W / 2, 240);
+  ctx.font = '18px monospace';
+  ctx.fillStyle = '#fff';
+  ctx.fillText('Distance: ' + Math.floor(distance) + 'm', W / 2, 290);
+  ctx.fillText('Score: ' + score, W / 2, 320);
+  ctx.fillText('Coins: ' + coins, W / 2, 350);
+  if (score >= bestScore && bestScore > 0) {
+    ctx.fillStyle = '#ff0';
+    ctx.fillText('NEW BEST!', W / 2, 385);
+  }
+  ctx.fillStyle = (Date.now() % 1200 < 800) ? '#8cf' : '#000';
+  ctx.font = '14px monospace';
+  ctx.fillText('PRESS SPACE TO RESTART', W / 2, 430);
+  ctx.textAlign = 'left';
+}
+
+// --- Game Loop ---
+let lastTime = 0;
+function loop(t) {
+  const dt = Math.min((t - lastTime) / 16.67, 3);
+  lastTime = t;
+  update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+init();
+requestAnimationFrame(loop);
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: joust ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("joust");
+</script>
+</body>
+</html>

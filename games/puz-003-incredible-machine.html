@@ -1,0 +1,1239 @@
+<!--
+PROTOTYPE: incredible-machine
+SERIES: puz
+NUMBER: 003
+DATE: 2026-03-22
+MECHANIC: place machine parts to create chain-reaction physics solutions
+ANCESTRY: The Incredible Machine (1993, Sierra/Jeff Tunnell), Rube Goldberg machines
+CONTROLS: Click — select/place parts | Arrow keys — rotate | Space — run/stop | R — reset | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 4 (Statistical Learning — physics simulation, constraint solving)
+AI-INSIGHT: The Incredible Machine is a constraint satisfaction problem in continuous physics space — the player must reason about how objects will interact under gravity and collision, placing components to create a valid chain from start to goal. This is planning in a physics simulator, a challenge that modern AI still struggles with.
+NOTES: The player IS the compiler — translating intent into physical chain reactions.
+       Each level is a constraint satisfaction puzzle with physics as the solver.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PUZ-003 · INCREDIBLE MACHINE</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #e8e4dc; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: default; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>PUZ-003 · INCREDIBLE MACHINE</h1>
+    <p><span class="tag series">PUZ — Puzzle</span> <span class="tag">Prototype #003</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Place machine parts from the toolbox to guide a ball from start to goal. Each level provides a limited set of parts. Think about physics — gravity, bouncing, and momentum.</p>
+    <ul>
+      <li><kbd>Click</kbd> a part in the toolbox to select it</li>
+      <li><kbd>Click</kbd> on the playfield to place the selected part</li>
+      <li><kbd>&larr;</kbd> <kbd>&rarr;</kbd> — Rotate selected part before placing</li>
+      <li><kbd>Click</kbd> a placed part to pick it back up</li>
+      <li><kbd>Space</kbd> — Run / stop the simulation</li>
+      <li><kbd>R</kbd> — Reset current level (removes placed parts, stops simulation)</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Ramps</strong> redirect the ball along their slope. Rotate to change direction.</li>
+      <li><strong>Springs</strong> bounce the ball upward with force.</li>
+      <li><strong>Fans</strong> push the ball horizontally in the direction they face.</li>
+      <li><strong>Platforms</strong> are flat surfaces that stop the ball.</li>
+      <li><strong>Think before running:</strong> Plan your chain reaction, then press Space.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> The Incredible Machine (1993, Sierra/Jeff Tunnell) &rarr; Contraption Maker (2014) &rarr; Rube Goldberg apps</p>
+    <p>The Incredible Machine was designed by Jeff Tunnell at Dynamix/Sierra. It translated the whimsy of Rube Goldberg cartoons into interactive puzzles — chain-reaction contraptions where every part matters. The game proved that physics simulation could be the puzzle mechanic itself, not just a backdrop.</p>
+    <p>TIM spawned sequels through the late 90s and influenced the entire physics-puzzle genre, from World of Goo to Angry Birds to Besiege. The core loop — place, test, observe, adjust — is the scientific method gamified.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 4 — Statistical Learning (1990–1997)</p>
+    <p><strong>Contemporary AI:</strong> Physics engines were emerging in simulation software. Neural networks existed but couldn't handle continuous physical reasoning. Planning in physics space remained (and remains) hard for AI.</p>
+    <p><strong>Hidden Intelligence:</strong> The Incredible Machine is a constraint satisfaction problem in continuous physics space. The player must predict how objects interact under gravity, collision, and momentum — then place components to create a valid chain from start to goal. This is forward simulation planning, which requires mental physics modeling. Modern AI still struggles with this: even large language models fail at intuitive physics puzzles that children solve easily.</p>
+    <p><strong>The Convergence:</strong> Physics-based reasoning is one of the last frontiers of AI. DeepMind's PHYRE benchmark (2019) tests exactly this capability — and results show machines are far from human-level physical intuition. The Incredible Machine was testing humans on a problem AI still can't solve well.</p>
+    <p><strong>If AI Had Designed This:</strong> Procedurally generated levels with guaranteed solvability, verified by running the physics simulation backward from goal to start. Adaptive difficulty based on player solution elegance (fewer parts = harder next level).</p>
+
+    <h2>Classification</h2>
+    <h3>Series: PUZ — Puzzle</h3>
+    <p>The Incredible Machine makes physics itself the puzzle. Unlike spatial puzzles (Tetris) or pattern puzzles (Columns), the challenge is causal reasoning through physical systems.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Place-and-simulate physics contraption.</strong> Limited parts. Gravity-driven chain reactions. Ramps, springs, fans. Build phase then run phase. Trial and error with physical intuition.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Build-then-run loop — does the two-phase design feel satisfying?</li>
+      <li>Physics readability — can players predict what will happen?</li>
+      <li>Part variety — do the 4 part types create enough combinatorial space?</li>
+      <li>Level progression — does difficulty ramp appropriately?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Simplified 2D physics with 4 placeable part types across 5 levels. Blueprint visual style. The core build-test-iterate loop is the heart of the experience.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+// --- INPUT ---
+const keys = {};
+const justPressed = {};
+window.addEventListener('keydown', e => {
+  if (infoOpen) return;
+  if (!keys[e.code]) justPressed[e.code] = true;
+  keys[e.code] = true;
+  e.preventDefault();
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+function pop(code) { if (justPressed[code]) { justPressed[code] = false; return true; } return false; }
+
+let mouseX = 0, mouseY = 0, mouseClicked = false, mouseDown = false;
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  mouseX = (e.clientX - rect.left) * (W / rect.width);
+  mouseY = (e.clientY - rect.top) * (H / rect.height);
+});
+canvas.addEventListener('mousedown', e => {
+  if (infoOpen) return;
+  e.preventDefault();
+  mouseClicked = true;
+  mouseDown = true;
+});
+canvas.addEventListener('mouseup', e => { mouseDown = false; });
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+// --- CONSTANTS ---
+const PLAY_X = 0, PLAY_Y = 40, PLAY_W = 800, PLAY_H = 480;
+const TOOL_Y = 524, TOOL_H = 72;
+const GRAVITY = 0.35;
+const BALL_R = 8;
+const GRID = 40;
+
+// Part types
+const PART_RAMP = 'ramp';
+const PART_SPRING = 'spring';
+const PART_FAN = 'fan';
+const PART_PLATFORM = 'platform';
+
+// Rotation: 0=right-down, 1=left-down, 2=left-up, 3=right-up (for ramps)
+// For fans: 0=push right, 1=push left
+
+// --- LEVELS ---
+const levels = [
+  { // Level 1: Simple drop — one ramp redirect
+    name: 'THE BASICS',
+    hint: 'Place a ramp to redirect the ball to the goal.',
+    ball: { x: 200, y: 80 },
+    goal: { x: 500, y: 440, w: 60, h: 40 },
+    fixed: [
+      { type: PART_PLATFORM, x: 160, y: 200, rot: 0 }
+    ],
+    toolbox: [
+      { type: PART_RAMP, count: 1 }
+    ]
+  },
+  { // Level 2: Two ramps
+    name: 'DOUBLE REDIRECT',
+    hint: 'Chain two ramps to guide the ball around the wall.',
+    ball: { x: 120, y: 60 },
+    goal: { x: 620, y: 440, w: 60, h: 40 },
+    fixed: [
+      { type: PART_PLATFORM, x: 360, y: 100, rot: 0 },
+      { type: PART_PLATFORM, x: 400, y: 100, rot: 0 },
+      { type: PART_PLATFORM, x: 360, y: 140, rot: 0 },
+      { type: PART_PLATFORM, x: 400, y: 140, rot: 0 },
+      { type: PART_PLATFORM, x: 360, y: 180, rot: 0 },
+      { type: PART_PLATFORM, x: 400, y: 180, rot: 0 },
+      { type: PART_PLATFORM, x: 360, y: 220, rot: 0 },
+      { type: PART_PLATFORM, x: 400, y: 220, rot: 0 },
+      { type: PART_PLATFORM, x: 360, y: 260, rot: 0 },
+      { type: PART_PLATFORM, x: 400, y: 260, rot: 0 }
+    ],
+    toolbox: [
+      { type: PART_RAMP, count: 2 }
+    ]
+  },
+  { // Level 3: Spring launch
+    name: 'SPRING LAUNCH',
+    hint: 'Use a spring to bounce the ball over the wall.',
+    ball: { x: 150, y: 60 },
+    goal: { x: 600, y: 440, w: 60, h: 40 },
+    fixed: [
+      { type: PART_RAMP, x: 120, y: 200, rot: 0 },
+      // Wall
+      { type: PART_PLATFORM, x: 400, y: 200, rot: 0 },
+      { type: PART_PLATFORM, x: 400, y: 240, rot: 0 },
+      { type: PART_PLATFORM, x: 400, y: 280, rot: 0 },
+      { type: PART_PLATFORM, x: 400, y: 320, rot: 0 },
+      { type: PART_PLATFORM, x: 400, y: 360, rot: 0 },
+      { type: PART_PLATFORM, x: 400, y: 400, rot: 0 },
+      { type: PART_PLATFORM, x: 400, y: 440, rot: 0 }
+    ],
+    toolbox: [
+      { type: PART_SPRING, count: 1 },
+      { type: PART_RAMP, count: 1 }
+    ]
+  },
+  { // Level 4: Fan push
+    name: 'WIND TUNNEL',
+    hint: 'Use a fan to push the ball across the gap.',
+    ball: { x: 100, y: 60 },
+    goal: { x: 660, y: 440, w: 60, h: 40 },
+    fixed: [
+      { type: PART_RAMP, x: 80, y: 200, rot: 0 },
+      { type: PART_PLATFORM, x: 200, y: 320, rot: 0 },
+      { type: PART_PLATFORM, x: 240, y: 320, rot: 0 },
+      { type: PART_PLATFORM, x: 280, y: 320, rot: 0 }
+    ],
+    toolbox: [
+      { type: PART_FAN, count: 1 },
+      { type: PART_RAMP, count: 1 }
+    ]
+  },
+  { // Level 5: Complex — combine everything
+    name: 'RUBE GOLDBERG',
+    hint: 'Combine ramps, springs, and fans to navigate the obstacle course.',
+    ball: { x: 80, y: 60 },
+    goal: { x: 680, y: 440, w: 60, h: 40 },
+    fixed: [
+      // Shelf under ball
+      { type: PART_PLATFORM, x: 40, y: 180, rot: 0 },
+      { type: PART_PLATFORM, x: 80, y: 180, rot: 0 },
+      // Wall 1
+      { type: PART_PLATFORM, x: 280, y: 200, rot: 0 },
+      { type: PART_PLATFORM, x: 280, y: 240, rot: 0 },
+      { type: PART_PLATFORM, x: 280, y: 280, rot: 0 },
+      // Mid shelf
+      { type: PART_PLATFORM, x: 440, y: 280, rot: 0 },
+      { type: PART_PLATFORM, x: 480, y: 280, rot: 0 },
+      // Wall 2
+      { type: PART_PLATFORM, x: 560, y: 280, rot: 0 },
+      { type: PART_PLATFORM, x: 560, y: 320, rot: 0 },
+      { type: PART_PLATFORM, x: 560, y: 360, rot: 0 },
+      { type: PART_PLATFORM, x: 560, y: 400, rot: 0 },
+      { type: PART_PLATFORM, x: 560, y: 440, rot: 0 }
+    ],
+    toolbox: [
+      { type: PART_RAMP, count: 2 },
+      { type: PART_SPRING, count: 1 },
+      { type: PART_FAN, count: 1 }
+    ]
+  }
+];
+
+// --- STATE ---
+let currentLevel = 0;
+let running = false;
+let won = false;
+let lost = false;
+let ball = null;
+let placedParts = [];
+let fixedParts = [];
+let toolbox = [];
+let selectedTool = null; // { type, rot }
+let selectedRot = 0;
+let hoverX = 0, hoverY = 0;
+let winTimer = 0;
+let lostTimer = 0;
+let frame = 0;
+
+function snapToGrid(v) { return Math.round(v / GRID) * GRID; }
+
+function loadLevel(idx) {
+  const lv = levels[idx];
+  running = false;
+  won = false;
+  lost = false;
+  winTimer = 0;
+  lostTimer = 0;
+  ball = null;
+  placedParts = [];
+  selectedTool = null;
+  selectedRot = 0;
+
+  fixedParts = lv.fixed.map(p => ({ type: p.type, x: p.x, y: p.y, rot: p.rot, fixed: true }));
+
+  toolbox = lv.toolbox.map(t => ({ type: t.type, count: t.count, maxCount: t.count }));
+}
+
+function startSim() {
+  const lv = levels[currentLevel];
+  ball = { x: lv.ball.x, y: lv.ball.y, vx: 0, vy: 0 };
+  running = true;
+  won = false;
+  lost = false;
+  winTimer = 0;
+  lostTimer = 0;
+}
+
+function stopSim() {
+  running = false;
+  ball = null;
+}
+
+function resetLevel() {
+  // Put placed parts back in toolbox
+  for (const p of placedParts) {
+    const tb = toolbox.find(t => t.type === p.type);
+    if (tb) tb.count++;
+  }
+  placedParts = [];
+  stopSim();
+  won = false;
+  lost = false;
+  winTimer = 0;
+  lostTimer = 0;
+  selectedTool = null;
+}
+
+loadLevel(0);
+
+// --- COLLISION / PHYSICS HELPERS ---
+function getAllParts() {
+  return [...fixedParts, ...placedParts];
+}
+
+function partRect(p) {
+  if (p.type === PART_PLATFORM) {
+    return { x: p.x, y: p.y, w: GRID, h: GRID };
+  }
+  if (p.type === PART_RAMP) {
+    return { x: p.x, y: p.y, w: GRID * 2, h: GRID };
+  }
+  if (p.type === PART_SPRING) {
+    return { x: p.x, y: p.y, w: GRID, h: GRID };
+  }
+  if (p.type === PART_FAN) {
+    return { x: p.x, y: p.y, w: GRID, h: GRID };
+  }
+  return { x: p.x, y: p.y, w: GRID, h: GRID };
+}
+
+function circleRectOverlap(cx, cy, r, rx, ry, rw, rh) {
+  const closestX = Math.max(rx, Math.min(cx, rx + rw));
+  const closestY = Math.max(ry, Math.min(cy, ry + rh));
+  const dx = cx - closestX, dy = cy - closestY;
+  return (dx * dx + dy * dy) < (r * r);
+}
+
+function updateBall() {
+  if (!ball) return;
+
+  // Gravity
+  ball.vy += GRAVITY;
+
+  // Damping
+  ball.vx *= 0.999;
+
+  // Fan forces (apply before position update)
+  const parts = getAllParts();
+  for (const p of parts) {
+    if (p.type === PART_FAN) {
+      // Fan has an area of effect in its push direction
+      const fanCX = p.x + GRID / 2;
+      const fanCY = p.y + GRID / 2;
+      const dir = (p.rot === 0 || p.rot === undefined) ? 1 : -1; // 0=right, 1=left
+      // Effect zone: extends 4 grid squares in the push direction, 1.5 grid squares tall
+      const zoneX = dir > 0 ? fanCX : fanCX - GRID * 4;
+      const zoneW = GRID * 4;
+      const zoneY = fanCY - GRID * 0.75;
+      const zoneH = GRID * 1.5;
+
+      if (ball.x > zoneX && ball.x < zoneX + zoneW &&
+          ball.y > zoneY && ball.y < zoneY + zoneH) {
+        ball.vx += dir * 0.3;
+        // slight upward push to counteract gravity while in fan zone
+        ball.vy -= 0.05;
+      }
+    }
+  }
+
+  // Move
+  ball.x += ball.vx;
+  ball.y += ball.vy;
+
+  // Collide with parts
+  for (const p of parts) {
+    if (p.type === PART_PLATFORM) {
+      const r = partRect(p);
+      if (circleRectOverlap(ball.x, ball.y, BALL_R, r.x, r.y, r.w, r.h)) {
+        resolvePlatformCollision(ball, r);
+      }
+    }
+    if (p.type === PART_RAMP) {
+      resolveRampCollision(ball, p);
+    }
+    if (p.type === PART_SPRING) {
+      const r = partRect(p);
+      if (circleRectOverlap(ball.x, ball.y, BALL_R, r.x, r.y, r.w, r.h)) {
+        // Bounce upward
+        if (ball.vy > 0 && ball.y < r.y + BALL_R + 4) {
+          ball.y = r.y - BALL_R;
+          ball.vy = -12;
+        } else {
+          resolvePlatformCollision(ball, r);
+        }
+      }
+    }
+  }
+
+  // Playfield boundaries (left/right walls)
+  if (ball.x - BALL_R < PLAY_X) { ball.x = PLAY_X + BALL_R; ball.vx = Math.abs(ball.vx) * 0.5; }
+  if (ball.x + BALL_R > PLAY_X + PLAY_W) { ball.x = PLAY_X + PLAY_W - BALL_R; ball.vx = -Math.abs(ball.vx) * 0.5; }
+
+  // Floor
+  if (ball.y + BALL_R > PLAY_Y + PLAY_H) {
+    ball.y = PLAY_Y + PLAY_H - BALL_R;
+    ball.vy = -Math.abs(ball.vy) * 0.3;
+    ball.vx *= 0.85;
+    if (Math.abs(ball.vy) < 1) ball.vy = 0;
+  }
+
+  // Check goal
+  const lv = levels[currentLevel];
+  const g = lv.goal;
+  if (ball.x > g.x && ball.x < g.x + g.w && ball.y > g.y && ball.y < g.y + g.h) {
+    won = true;
+    running = false;
+  }
+
+  // Check if ball is stuck (very low velocity for a long time on the floor)
+  if (Math.abs(ball.vx) < 0.1 && Math.abs(ball.vy) < 0.3 && ball.y + BALL_R >= PLAY_Y + PLAY_H - 2) {
+    lostTimer++;
+    if (lostTimer > 180) { // 3 seconds stuck
+      lost = true;
+      running = false;
+    }
+  } else {
+    lostTimer = 0;
+  }
+}
+
+function resolvePlatformCollision(b, r) {
+  // Find penetration from each side
+  const overlapLeft = (b.x + BALL_R) - r.x;
+  const overlapRight = (r.x + r.w) - (b.x - BALL_R);
+  const overlapTop = (b.y + BALL_R) - r.y;
+  const overlapBottom = (r.y + r.h) - (b.y - BALL_R);
+
+  const minOverlap = Math.min(overlapLeft, overlapRight, overlapTop, overlapBottom);
+
+  if (minOverlap === overlapTop && b.vy > 0) {
+    b.y = r.y - BALL_R;
+    b.vy = -b.vy * 0.3;
+    b.vx *= 0.92;
+    if (Math.abs(b.vy) < 1) b.vy = 0;
+  } else if (minOverlap === overlapBottom && b.vy < 0) {
+    b.y = r.y + r.h + BALL_R;
+    b.vy = -b.vy * 0.3;
+  } else if (minOverlap === overlapLeft && b.vx > 0) {
+    b.x = r.x - BALL_R;
+    b.vx = -b.vx * 0.5;
+  } else if (minOverlap === overlapRight && b.vx < 0) {
+    b.x = r.x + r.w + BALL_R;
+    b.vx = -b.vx * 0.5;
+  }
+}
+
+function resolveRampCollision(b, p) {
+  // Ramp is 2 grid units wide, 1 grid unit tall
+  // rot 0: slopes down-right (high-left to low-right): /
+  // rot 1: slopes down-left (high-right to low-left): \
+  // rot 2: slopes up-right (low-left to high-right): \ (inverted)
+  // rot 3: slopes up-left (low-right to high-left): / (inverted)
+
+  const rx = p.x, ry = p.y;
+  const rw = GRID * 2, rh = GRID;
+  const rot = p.rot || 0;
+
+  // Check if ball is in the bounding box first
+  if (b.x + BALL_R < rx || b.x - BALL_R > rx + rw ||
+      b.y + BALL_R < ry || b.y - BALL_R > ry + rh) return;
+
+  // Calculate the ramp surface line
+  let sx1, sy1, sx2, sy2;
+  if (rot === 0) {
+    // high-left to low-right: top-left to bottom-right
+    sx1 = rx; sy1 = ry;
+    sx2 = rx + rw; sy2 = ry + rh;
+  } else if (rot === 1) {
+    // high-right to low-left: top-right to bottom-left
+    sx1 = rx + rw; sy1 = ry;
+    sx2 = rx; sy2 = ry + rh;
+  } else if (rot === 2) {
+    // low-left to high-right: bottom-left to top-right
+    sx1 = rx; sy1 = ry + rh;
+    sx2 = rx + rw; sy2 = ry;
+  } else {
+    // low-right to high-left: bottom-right to top-left
+    sx1 = rx + rw; sy1 = ry + rh;
+    sx2 = rx; sy2 = ry;
+  }
+
+  // Point-to-line-segment distance
+  const ldx = sx2 - sx1, ldy = sy2 - sy1;
+  const len2 = ldx * ldx + ldy * ldy;
+  let t = ((b.x - sx1) * ldx + (b.y - sy1) * ldy) / len2;
+  t = Math.max(0, Math.min(1, t));
+
+  const closestX = sx1 + t * ldx;
+  const closestY = sy1 + t * ldy;
+  const dx = b.x - closestX;
+  const dy = b.y - closestY;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+
+  if (dist < BALL_R) {
+    // Normal vector pointing away from ramp surface (upward side)
+    let nx = -ldy, ny = ldx;
+    const nLen = Math.sqrt(nx * nx + ny * ny);
+    nx /= nLen; ny /= nLen;
+
+    // Make sure normal points toward the ball
+    if (nx * dx + ny * dy < 0) { nx = -nx; ny = -ny; }
+
+    // Push ball out
+    const overlap = BALL_R - dist;
+    b.x += nx * overlap;
+    b.y += ny * overlap;
+
+    // Reflect velocity with friction
+    const dot = b.vx * nx + b.vy * ny;
+    if (dot < 0) {
+      // Decompose velocity into normal and tangent components
+      const vnx = dot * nx, vny = dot * ny;
+      const vtx = b.vx - vnx, vty = b.vy - vny;
+
+      // Bounce (low restitution) + slide friction
+      b.vx = vtx * 0.92 - vnx * 0.2;
+      b.vy = vty * 0.92 - vny * 0.2;
+
+      // Add sliding along ramp surface
+      const tangentX = ldx / Math.sqrt(len2);
+      const tangentY = ldy / Math.sqrt(len2);
+      const gravSlide = GRAVITY * 0.6;
+      b.vx += tangentX * gravSlide;
+      b.vy += tangentY * gravSlide;
+    }
+  }
+}
+
+// --- DRAWING ---
+function drawGrid() {
+  ctx.strokeStyle = 'rgba(120,140,180,0.15)';
+  ctx.lineWidth = 1;
+  for (let x = PLAY_X; x <= PLAY_X + PLAY_W; x += GRID) {
+    ctx.beginPath(); ctx.moveTo(x, PLAY_Y); ctx.lineTo(x, PLAY_Y + PLAY_H); ctx.stroke();
+  }
+  for (let y = PLAY_Y; y <= PLAY_Y + PLAY_H; y += GRID) {
+    ctx.beginPath(); ctx.moveTo(PLAY_X, y); ctx.lineTo(PLAY_X + PLAY_W, y); ctx.stroke();
+  }
+}
+
+function drawPart(p, alpha) {
+  ctx.globalAlpha = alpha || 1;
+  const x = p.x, y = p.y;
+  const rot = p.rot || 0;
+
+  if (p.type === PART_PLATFORM) {
+    // Gray solid block
+    ctx.fillStyle = p.fixed ? '#778899' : '#8899aa';
+    ctx.fillRect(x + 1, y + 1, GRID - 2, GRID - 2);
+    ctx.strokeStyle = '#556677';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x + 1, y + 1, GRID - 2, GRID - 2);
+    // Cross-hatch for fixed
+    if (p.fixed) {
+      ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+      ctx.lineWidth = 1;
+      for (let i = 0; i < GRID; i += 8) {
+        ctx.beginPath(); ctx.moveTo(x + i, y); ctx.lineTo(x + i + GRID, y + GRID); ctx.stroke();
+      }
+    }
+  }
+
+  if (p.type === PART_RAMP) {
+    const rw = GRID * 2, rh = GRID;
+    let sx1, sy1, sx2, sy2;
+    if (rot === 0) { sx1 = x; sy1 = y; sx2 = x + rw; sy2 = y + rh; }
+    else if (rot === 1) { sx1 = x + rw; sy1 = y; sx2 = x; sy2 = y + rh; }
+    else if (rot === 2) { sx1 = x; sy1 = y + rh; sx2 = x + rw; sy2 = y; }
+    else { sx1 = x + rw; sy1 = y + rh; sx2 = x; sy2 = y; }
+
+    // Wooden plank
+    ctx.strokeStyle = p.fixed ? '#8B6914' : '#A0722A';
+    ctx.lineWidth = 6;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(sx1, sy1);
+    ctx.lineTo(sx2, sy2);
+    ctx.stroke();
+
+    // Wood grain lines
+    ctx.strokeStyle = 'rgba(60,30,0,0.3)';
+    ctx.lineWidth = 1;
+    const mx = (sx1 + sx2) / 2, my = (sy1 + sy2) / 2;
+    const nx = -(sy2 - sy1) * 0.03, ny = (sx2 - sx1) * 0.03;
+    ctx.beginPath();
+    ctx.moveTo(sx1 + nx, sy1 + ny);
+    ctx.lineTo(sx2 + nx, sy2 + ny);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(sx1 - nx, sy1 - ny);
+    ctx.lineTo(sx2 - nx, sy2 - ny);
+    ctx.stroke();
+
+    ctx.lineCap = 'butt';
+  }
+
+  if (p.type === PART_SPRING) {
+    const cx = x + GRID / 2;
+    // Base
+    ctx.fillStyle = '#555';
+    ctx.fillRect(x + 4, y + GRID - 8, GRID - 8, 8);
+    // Coils
+    ctx.strokeStyle = '#3cba54';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    const coils = 4;
+    for (let i = 0; i <= coils; i++) {
+      const cy = y + GRID - 8 - (i / coils) * (GRID - 12);
+      const offset = (i % 2 === 0) ? -8 : 8;
+      if (i === 0) ctx.moveTo(cx + offset, cy);
+      else ctx.lineTo(cx + offset, cy);
+    }
+    ctx.stroke();
+    // Top plate
+    ctx.fillStyle = '#3cba54';
+    ctx.fillRect(x + 4, y + 2, GRID - 8, 4);
+  }
+
+  if (p.type === PART_FAN) {
+    const cx = x + GRID / 2, cy = y + GRID / 2;
+    const dir = rot === 0 ? 1 : -1;
+
+    // Housing
+    ctx.fillStyle = '#4477cc';
+    ctx.beginPath();
+    ctx.arc(cx, cy, GRID / 2 - 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#335599';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Spinning blades (animated when running)
+    const bladeAngle = running ? (frame * 0.15) : 0;
+    ctx.fillStyle = '#aaccff';
+    for (let i = 0; i < 3; i++) {
+      const a = bladeAngle + (i * Math.PI * 2 / 3);
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + Math.cos(a) * 14, cy + Math.sin(a) * 14);
+      ctx.lineTo(cx + Math.cos(a + 0.5) * 10, cy + Math.sin(a + 0.5) * 10);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // Direction arrow
+    ctx.fillStyle = '#fff';
+    ctx.font = '16px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(dir > 0 ? '\u25B6' : '\u25C0', cx + dir * (GRID / 2 + 8), cy);
+
+    // Wind lines when running
+    if (running) {
+      ctx.strokeStyle = 'rgba(150,200,255,0.4)';
+      ctx.lineWidth = 1;
+      for (let i = 0; i < 3; i++) {
+        const wy = cy - 10 + i * 10;
+        const wStart = dir > 0 ? cx + GRID / 2 : cx - GRID / 2 - 30;
+        const offset = (frame * 3 + i * 17) % 40;
+        ctx.beginPath();
+        ctx.moveTo(wStart + offset * dir, wy);
+        ctx.lineTo(wStart + offset * dir + 15 * dir, wy);
+        ctx.stroke();
+      }
+    }
+  }
+
+  ctx.globalAlpha = 1;
+}
+
+function drawBall(bx, by) {
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.beginPath();
+  ctx.arc(bx + 2, by + 2, BALL_R, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Ball body
+  ctx.fillStyle = '#e04040';
+  ctx.beginPath();
+  ctx.arc(bx, by, BALL_R, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Highlight
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  ctx.beginPath();
+  ctx.arc(bx - 2, by - 3, BALL_R * 0.4, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Outline
+  ctx.strokeStyle = '#a02020';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(bx, by, BALL_R, 0, Math.PI * 2);
+  ctx.stroke();
+}
+
+function drawGoal(g) {
+  // Golden target area
+  const pulse = Math.sin(frame * 0.05) * 0.15 + 0.85;
+  ctx.fillStyle = `rgba(255,215,0,${0.15 * pulse})`;
+  ctx.fillRect(g.x, g.y, g.w, g.h);
+  ctx.strokeStyle = `rgba(255,215,0,${0.7 * pulse})`;
+  ctx.lineWidth = 2;
+  ctx.setLineDash([4, 4]);
+  ctx.strokeRect(g.x, g.y, g.w, g.h);
+  ctx.setLineDash([]);
+
+  // Star
+  const cx = g.x + g.w / 2, cy = g.y + g.h / 2;
+  ctx.fillStyle = `rgba(255,215,0,${0.8 * pulse})`;
+  drawStar(cx, cy, 10, 5);
+
+  // Label
+  ctx.fillStyle = '#daa520';
+  ctx.font = '10px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillText('GOAL', cx, g.y + g.h + 2);
+}
+
+function drawStar(cx, cy, r, points) {
+  ctx.beginPath();
+  for (let i = 0; i < points * 2; i++) {
+    const a = (i * Math.PI / points) - Math.PI / 2;
+    const radius = i % 2 === 0 ? r : r * 0.45;
+    const x = cx + Math.cos(a) * radius;
+    const y = cy + Math.sin(a) * radius;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawToolbox() {
+  // Background
+  ctx.fillStyle = '#2a2a3a';
+  ctx.fillRect(0, TOOL_Y - 4, W, TOOL_H + 8);
+  ctx.strokeStyle = '#444';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, TOOL_Y - 4);
+  ctx.lineTo(W, TOOL_Y - 4);
+  ctx.stroke();
+
+  // Label
+  ctx.fillStyle = '#888';
+  ctx.font = '11px monospace';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('TOOLBOX:', 10, TOOL_Y + TOOL_H / 2);
+
+  // Parts
+  let tx = 90;
+  for (let i = 0; i < toolbox.length; i++) {
+    const tb = toolbox[i];
+    const selected = selectedTool && selectedTool.type === tb.type;
+
+    // Slot background
+    ctx.fillStyle = selected ? 'rgba(100,150,255,0.3)' : 'rgba(50,50,70,0.5)';
+    ctx.fillRect(tx, TOOL_Y + 4, 80, TOOL_H - 8);
+    if (selected) {
+      ctx.strokeStyle = '#6af';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(tx, TOOL_Y + 4, 80, TOOL_H - 8);
+    }
+
+    // Draw part preview
+    const previewPart = { type: tb.type, x: tx + 10, y: TOOL_Y + 10, rot: selected ? selectedRot : 0 };
+    if (tb.type === PART_RAMP) previewPart.x = tx + 5;
+    drawPart(previewPart, tb.count > 0 ? 1 : 0.3);
+
+    // Count
+    ctx.fillStyle = tb.count > 0 ? '#fff' : '#666';
+    ctx.font = 'bold 14px monospace';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText('x' + tb.count, tx + 75, TOOL_Y + TOOL_H - 6);
+
+    // Label
+    ctx.fillStyle = '#999';
+    ctx.font = '9px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(tb.type.toUpperCase(), tx + 40, TOOL_Y + TOOL_H - 2);
+
+    tx += 90;
+  }
+
+  // Rotation hint
+  if (selectedTool) {
+    ctx.fillStyle = '#7af';
+    ctx.font = '11px monospace';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    const rotLabel = selectedTool.type === PART_FAN ? 'arrows: flip direction' : 'arrows: rotate';
+    ctx.fillText(rotLabel, W - 15, TOOL_Y + TOOL_H / 2);
+  }
+}
+
+function getToolboxSlotAt(mx, my) {
+  if (my < TOOL_Y + 4 || my > TOOL_Y + TOOL_H - 4) return -1;
+  let tx = 90;
+  for (let i = 0; i < toolbox.length; i++) {
+    if (mx >= tx && mx <= tx + 80) return i;
+    tx += 90;
+  }
+  return -1;
+}
+
+function getPlacedPartAt(mx, my) {
+  for (let i = placedParts.length - 1; i >= 0; i--) {
+    const r = partRect(placedParts[i]);
+    if (mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h) return i;
+  }
+  return -1;
+}
+
+function canPlaceAt(type, gx, gy, rot) {
+  // Must be within playfield
+  const pw = type === PART_RAMP ? GRID * 2 : GRID;
+  if (gx < PLAY_X || gx + pw > PLAY_X + PLAY_W || gy < PLAY_Y || gy + GRID > PLAY_Y + PLAY_H) return false;
+
+  // Check overlap with fixed parts
+  for (const p of fixedParts) {
+    const r = partRect(p);
+    if (gx < r.x + r.w && gx + pw > r.x && gy < r.y + r.h && gy + GRID > r.y) return false;
+  }
+
+  // Check overlap with other placed parts
+  for (const p of placedParts) {
+    const r = partRect(p);
+    if (gx < r.x + r.w && gx + pw > r.x && gy < r.y + r.h && gy + GRID > r.y) return false;
+  }
+
+  // Don't place on ball start or goal
+  const lv = levels[currentLevel];
+  if (Math.abs(gx + pw / 2 - lv.ball.x) < pw / 2 + BALL_R &&
+      Math.abs(gy + GRID / 2 - lv.ball.y) < GRID / 2 + BALL_R) return false;
+
+  return true;
+}
+
+// --- UPDATE ---
+function update() {
+  if (infoOpen) return;
+  frame++;
+
+  // Key: R to reset
+  if (pop('KeyR')) {
+    resetLevel();
+  }
+
+  // Key: Space to toggle run/stop
+  if (pop('Space')) {
+    if (won) {
+      // Advance to next level
+      if (currentLevel < levels.length - 1) {
+        currentLevel++;
+        loadLevel(currentLevel);
+      }
+    } else if (lost) {
+      resetLevel();
+    } else if (running) {
+      stopSim();
+    } else {
+      startSim();
+    }
+  }
+
+  // Arrow keys: rotate selected tool
+  if (selectedTool) {
+    if (selectedTool.type === PART_FAN) {
+      if (pop('ArrowLeft') || pop('ArrowRight')) {
+        selectedRot = selectedRot === 0 ? 1 : 0;
+      }
+    } else if (selectedTool.type === PART_RAMP) {
+      if (pop('ArrowRight') || pop('ArrowUp')) {
+        selectedRot = (selectedRot + 1) % 4;
+      }
+      if (pop('ArrowLeft') || pop('ArrowDown')) {
+        selectedRot = (selectedRot + 3) % 4;
+      }
+    }
+  }
+
+  // Mouse hover position snapped to grid
+  const pw = selectedTool && selectedTool.type === PART_RAMP ? GRID * 2 : GRID;
+  hoverX = snapToGrid(mouseX - pw / 2);
+  hoverY = snapToGrid(mouseY - GRID / 2);
+
+  // Mouse click handling
+  if (mouseClicked) {
+    mouseClicked = false;
+
+    if (!running && !won && !lost) {
+      // Check toolbox click
+      const tbIdx = getToolboxSlotAt(mouseX, mouseY);
+      if (tbIdx >= 0) {
+        const tb = toolbox[tbIdx];
+        if (tb.count > 0) {
+          if (selectedTool && selectedTool.type === tb.type) {
+            selectedTool = null; // Deselect
+          } else {
+            selectedTool = { type: tb.type };
+            if (tb.type !== PART_FAN && tb.type !== PART_RAMP) selectedRot = 0;
+          }
+        }
+      } else if (mouseY >= PLAY_Y && mouseY <= PLAY_Y + PLAY_H) {
+        // Check if clicking on a placed part (pick it up)
+        const pidx = getPlacedPartAt(mouseX, mouseY);
+        if (pidx >= 0) {
+          const removed = placedParts.splice(pidx, 1)[0];
+          const tb = toolbox.find(t => t.type === removed.type);
+          if (tb) tb.count++;
+        } else if (selectedTool) {
+          // Place selected part
+          const gx = hoverX, gy = hoverY;
+          if (canPlaceAt(selectedTool.type, gx, gy, selectedRot)) {
+            placedParts.push({ type: selectedTool.type, x: gx, y: gy, rot: selectedRot, fixed: false });
+            const tb = toolbox.find(t => t.type === selectedTool.type);
+            if (tb) {
+              tb.count--;
+              if (tb.count <= 0) selectedTool = null;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Physics
+  if (running) {
+    updateBall();
+  }
+
+  // Win timer
+  if (won) {
+    winTimer++;
+  }
+}
+
+// --- DRAW ---
+function draw() {
+  // Background — blueprint feel
+  ctx.fillStyle = '#eae6de';
+  ctx.fillRect(0, 0, W, H);
+
+  // Playfield background
+  ctx.fillStyle = '#f5f3ee';
+  ctx.fillRect(PLAY_X, PLAY_Y, PLAY_W, PLAY_H);
+
+  // Grid
+  drawGrid();
+
+  // Playfield border
+  ctx.strokeStyle = '#aab';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(PLAY_X, PLAY_Y, PLAY_W, PLAY_H);
+
+  // Goal
+  const lv = levels[currentLevel];
+  drawGoal(lv.goal);
+
+  // Ball start indicator (when not running)
+  if (!running && !won) {
+    ctx.strokeStyle = 'rgba(200,60,60,0.5)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.arc(lv.ball.x, lv.ball.y, BALL_R + 4, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = 'rgba(200,60,60,0.5)';
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText('START', lv.ball.x, lv.ball.y - BALL_R - 6);
+
+    // Draw static ball at start
+    drawBall(lv.ball.x, lv.ball.y);
+  }
+
+  // Fixed parts
+  for (const p of fixedParts) drawPart(p);
+
+  // Placed parts
+  for (const p of placedParts) drawPart(p);
+
+  // Ghost preview of selected part
+  if (selectedTool && !running && !won && !lost && mouseY >= PLAY_Y && mouseY <= PLAY_Y + PLAY_H) {
+    const gx = hoverX, gy = hoverY;
+    const canPlace = canPlaceAt(selectedTool.type, gx, gy, selectedRot);
+    const ghost = { type: selectedTool.type, x: gx, y: gy, rot: selectedRot };
+    drawPart(ghost, canPlace ? 0.4 : 0.15);
+    if (!canPlace) {
+      // Red X
+      ctx.strokeStyle = 'rgba(255,0,0,0.4)';
+      ctx.lineWidth = 3;
+      const cx = gx + (selectedTool.type === PART_RAMP ? GRID : GRID / 2);
+      const cy = gy + GRID / 2;
+      ctx.beginPath();
+      ctx.moveTo(cx - 8, cy - 8); ctx.lineTo(cx + 8, cy + 8);
+      ctx.moveTo(cx + 8, cy - 8); ctx.lineTo(cx - 8, cy + 8);
+      ctx.stroke();
+    }
+  }
+
+  // Ball (when running)
+  if (ball && running) {
+    drawBall(ball.x, ball.y);
+  }
+
+  // Toolbox
+  drawToolbox();
+
+  // Top bar
+  ctx.fillStyle = '#2a2a3a';
+  ctx.fillRect(0, 0, W, 38);
+
+  // Title badge
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(8, 6, 310, 26);
+  ctx.fillStyle = '#555';
+  ctx.font = '13px monospace';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('PUZ-003 \u00B7 INCREDIBLE MACHINE  [?]', 16, 20);
+
+  // Level name
+  ctx.fillStyle = '#ccc';
+  ctx.font = 'bold 14px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('LEVEL ' + (currentLevel + 1) + ': ' + lv.name, W / 2, 20);
+
+  // State indicator
+  const stateLabel = running ? 'RUNNING' : (won ? 'COMPLETE!' : (lost ? 'STUCK...' : 'BUILDING'));
+  const stateColor = running ? '#4c4' : (won ? '#fd4' : (lost ? '#f66' : '#6af'));
+  ctx.fillStyle = stateColor;
+  ctx.font = 'bold 13px monospace';
+  ctx.textAlign = 'right';
+  ctx.fillText(stateLabel, W - 15, 20);
+
+  // Hint bar (below playfield, above toolbox)
+  ctx.fillStyle = '#555';
+  ctx.font = '12px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  if (won) {
+    ctx.fillStyle = '#da0';
+    ctx.font = 'bold 12px monospace';
+    if (currentLevel < levels.length - 1) {
+      ctx.fillText('Level Complete! Press SPACE for next level', W / 2, PLAY_Y + PLAY_H + 16);
+    } else {
+      ctx.fillText('All levels complete! You are a Rube Goldberg master!', W / 2, PLAY_Y + PLAY_H + 16);
+    }
+  } else if (lost) {
+    ctx.fillStyle = '#c66';
+    ctx.fillText('Ball got stuck. Press R to reset or SPACE to retry.', W / 2, PLAY_Y + PLAY_H + 16);
+  } else if (running) {
+    ctx.fillText('Simulation running... Press SPACE to stop, R to reset', W / 2, PLAY_Y + PLAY_H + 16);
+  } else {
+    ctx.fillStyle = '#777';
+    ctx.fillText(lv.hint + '  |  SPACE to run  |  R to reset', W / 2, PLAY_Y + PLAY_H + 16);
+  }
+
+  // Win overlay
+  if (won) {
+    const alpha = Math.min(winTimer / 30, 0.6);
+    ctx.fillStyle = `rgba(255,215,0,${alpha * 0.15})`;
+    ctx.fillRect(PLAY_X, PLAY_Y, PLAY_W, PLAY_H);
+
+    if (winTimer > 15) {
+      ctx.fillStyle = '#da0';
+      ctx.font = 'bold 36px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('GOAL!', W / 2, PLAY_Y + PLAY_H / 2 - 10);
+
+      // Draw star burst
+      ctx.fillStyle = 'rgba(255,215,0,0.3)';
+      for (let i = 0; i < 8; i++) {
+        const a = (frame * 0.02) + (i * Math.PI / 4);
+        const r1 = 50 + Math.sin(frame * 0.1) * 10;
+        ctx.beginPath();
+        ctx.moveTo(W / 2, PLAY_Y + PLAY_H / 2 - 10);
+        ctx.lineTo(W / 2 + Math.cos(a) * r1, PLAY_Y + PLAY_H / 2 - 10 + Math.sin(a) * r1);
+        ctx.lineTo(W / 2 + Math.cos(a + 0.2) * r1 * 0.6, PLAY_Y + PLAY_H / 2 - 10 + Math.sin(a + 0.2) * r1 * 0.6);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+  }
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

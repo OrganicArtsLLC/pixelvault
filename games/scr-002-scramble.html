@@ -1,0 +1,599 @@
+<!--
+PROTOTYPE: scramble
+SERIES: scr
+NUMBER: 002
+DATE: 2026-03-22
+MECHANIC: forced-scroll shooter — dual weapons over terrain with fuel management
+ANCESTRY: Scramble (1981, Konami), Super Cobra (1981, Konami), Gradius (1985, Konami)
+CONTROLS: Arrow keys or WASD — move | Space — shoot | Z — bomb | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 3 (Knowledge Explosion — rule-based, pre-backpropagation)
+AI-INSIGHT: First forced-scrolling shooter — the environment moves regardless of player input. This makes the game a real-time planning problem where future state is partially observable through the scrolling horizon. The dual weapon system (forward laser + downward bomb) creates a simple action space with positional context-dependent utility.
+NOTES: Scramble was the first forced-scrolling shooter — the world moves whether you're ready or not.
+       Fuel management adds survival pressure beyond combat.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SCR-002 · CAVE SCROLL</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>SCR-002 · CAVE SCROLL</h1>
+    <p><span class="tag series">SCR — Scrolling Shooter</span> <span class="tag">Prototype #002</span> <span class="tag">★★★★☆</span></p>
+
+    <h2>How to Play</h2>
+    <p>Fly over hostile terrain, destroy ground targets and enemies. The world scrolls relentlessly. Bomb fuel depots to refuel.</p>
+    <ul>
+      <li><kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd> or <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> — Move ship</li>
+      <li><kbd>Space</kbd> — Fire forward laser</li>
+      <li><kbd>Z</kbd> — Drop bomb (affected by gravity)</li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Fuel:</strong> Depletes constantly. Bomb fuel depots (red tanks) to refuel.</li>
+      <li><strong>Bombs drop:</strong> Bombs arc downward with gravity — lead your targets.</li>
+      <li><strong>Terrain kills:</strong> Touching ground or ceiling is instant death.</li>
+      <li><strong>Rockets:</strong> Ground rockets launch upward when you're above them.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Scramble (1981, Konami) → Super Cobra (1981) → Gradius (1985)</p>
+    <p>Scramble (1981) by Konami was the first forced-scrolling horizontal shooter. Unlike Defender (where the player controls scroll direction), Scramble forces the environment to move — the game proceeds whether you're ready or not. This created an entirely new type of challenge: planning ahead through a scrolling viewport.</p>
+    <p>The dual weapon system (forward laser + downward bomb) was elegant in its simplicity: two actions, but their utility depends entirely on the spatial relationship between player and target.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 3 — Knowledge Explosion (1978–1983)</p>
+    <p><strong>Contemporary AI:</strong> Planning under uncertainty was a nascent field. Real-time systems were limited to reactive control.</p>
+    <p><strong>Hidden Intelligence:</strong> Forced scrolling creates a real-time planning problem with a partially observable future. The scrolling horizon reveals obstacles just in time — the player must plan trajectories through terrain gaps while managing fuel and threats. This is an online planning problem under resource constraints, a class of problem that modern MCTS and model-predictive control address.</p>
+    <p><strong>The Convergence:</strong> Modern autonomous vehicle navigation through constrained environments (narrow roads, tunnels) faces the same planning challenge: limited lookahead, obstacle avoidance, resource management, all in real-time.</p>
+    <p><strong>If AI Had Designed This:</strong> Procedurally generated terrain with difficulty curves tuned by simulation — ensuring each section is survivable but demands optimal trajectories.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: SCR — Scrolling Shooter</h3>
+    <p>Games where the environment moves continuously. Scramble adds terrain collision and fuel management to the scrolling formula.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Forced-scroll with dual weapons and fuel.</strong> Horizontal auto-scroll. Forward laser for air targets. Gravity bombs for ground targets. Fuel depletion as survival pressure.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Forced scroll pressure — does the constant movement create urgency?</li>
+      <li>Dual weapon utility — does the bomb arc feel learnable?</li>
+      <li>Fuel anxiety — does fuel pressure add meaningful decisions?</li>
+      <li>Terrain navigation — do gaps feel tight but fair?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Procedural terrain with caves, fuel depots, rockets, and enemy aircraft. 6 scrolling sections with increasing difficulty.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+const keys = {};
+let bombPressed = false, shootPressed = false;
+window.addEventListener('keydown', e => {
+  if (infoOpen) return;
+  if (!keys[e.code]) {
+    if (e.code === 'KeyZ') bombPressed = true;
+    if (e.code === 'Space') shootPressed = true;
+  }
+  keys[e.code] = true;
+  e.preventDefault();
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+// --- TERRAIN GENERATION ---
+const SCROLL_SPD = 2;
+const TERRAIN_SEG = 20; // pixels per segment
+const TOTAL_SEGS = 400; // total level length
+
+function genLevel() {
+  const ground = []; // heights from bottom
+  const ceiling = []; // heights from top
+  const objects = []; // fuel depots, rockets, etc.
+
+  for (let i = 0; i < TOTAL_SEGS; i++) {
+    const phase = i / TOTAL_SEGS;
+    // Ground: rises and falls
+    const gBase = 100 + Math.sin(i * 0.05) * 40 + Math.sin(i * 0.12) * 30;
+    const gVariance = phase > 0.6 ? 60 : 30; // caves get tighter
+    const gH = gBase + (Math.random() - 0.3) * gVariance;
+    ground.push(Math.max(40, Math.min(H * 0.6, gH)));
+
+    // Ceiling: gets lower in later sections
+    const cBase = phase > 0.5 ? 120 + Math.sin(i * 0.08) * 50 : 60 + Math.sin(i * 0.06) * 30;
+    ceiling.push(Math.max(30, cBase));
+
+    // Objects
+    if (i > 5 && i % 12 === 0 && Math.random() > 0.3) {
+      objects.push({ seg: i, type: 'fuel', alive: true });
+    }
+    if (i > 10 && i % 8 === 0 && Math.random() > 0.5) {
+      objects.push({ seg: i, type: 'rocket', alive: true, launched: false, ry: 0, rvy: 0 });
+    }
+  }
+  return { ground, ceiling, objects };
+}
+
+// --- STATE ---
+let ship, bullets, bombs, fuel, score, lives, gameOver, scrollX, level, frame, explosions;
+
+function initGame() {
+  level = genLevel();
+  ship = { x: 150, y: H / 2 };
+  bullets = [];
+  bombs = [];
+  explosions = [];
+  fuel = 100;
+  score = 0;
+  lives = 3;
+  gameOver = false;
+  scrollX = 0;
+  frame = 0;
+}
+initGame();
+
+function groundYat(worldX) {
+  const seg = Math.floor(worldX / TERRAIN_SEG);
+  if (seg < 0 || seg >= TOTAL_SEGS - 1) return H;
+  const t = (worldX - seg * TERRAIN_SEG) / TERRAIN_SEG;
+  return H - (level.ground[seg] + (level.ground[seg + 1] - level.ground[seg]) * t);
+}
+
+function ceilingYat(worldX) {
+  const seg = Math.floor(worldX / TERRAIN_SEG);
+  if (seg < 0 || seg >= TOTAL_SEGS - 1) return 0;
+  const t = (worldX - seg * TERRAIN_SEG) / TERRAIN_SEG;
+  return level.ceiling[seg] + (level.ceiling[seg + 1] - level.ceiling[seg]) * t;
+}
+
+function update() {
+  if (infoOpen) return;
+  if (gameOver) { if (keys['KeyR']) initGame(); return; }
+  frame++;
+
+  // Ship movement
+  const spd = 4;
+  if (keys['ArrowLeft'] || keys['KeyA']) ship.x -= spd;
+  if (keys['ArrowRight'] || keys['KeyD']) ship.x += spd;
+  if (keys['ArrowUp'] || keys['KeyW']) ship.y -= spd;
+  if (keys['ArrowDown'] || keys['KeyS']) ship.y += spd;
+  ship.x = Math.max(30, Math.min(W - 30, ship.x));
+  ship.y = Math.max(20, Math.min(H - 20, ship.y));
+
+  // Scroll
+  scrollX += SCROLL_SPD;
+
+  // Level complete check
+  if (scrollX > (TOTAL_SEGS - 20) * TERRAIN_SEG) {
+    // Victory — restart with higher score
+    score += 5000;
+    initGame();
+    return;
+  }
+
+  // Fuel depletion
+  fuel -= 0.08;
+  if (fuel <= 0) {
+    fuel = 0;
+    die(); return;
+  }
+
+  // Shoot
+  if (shootPressed && frame % 4 === 0) {
+    bullets.push({ x: ship.x + 20, y: ship.y, vx: 8 });
+  }
+  shootPressed = false;
+
+  // Bomb
+  if (bombPressed) {
+    bombs.push({ x: ship.x, y: ship.y + 10, vx: SCROLL_SPD, vy: 0 });
+    bombPressed = false;
+  }
+
+  // Move bullets
+  bullets = bullets.filter(b => {
+    b.x += b.vx;
+    const wx = b.x + scrollX - ship.x + 150; // approximate world x
+    if (b.x > W + 20) return false;
+    // Hit terrain
+    if (b.y > groundYat(scrollX + b.x) || b.y < ceilingYat(scrollX + b.x)) {
+      return false;
+    }
+    return true;
+  });
+
+  // Move bombs
+  bombs = bombs.filter(b => {
+    b.vy += 0.15; // gravity
+    b.x += b.vx - SCROLL_SPD * 0.3;
+    b.y += b.vy;
+    // Hit ground
+    const gy = groundYat(scrollX + b.x);
+    if (b.y >= gy) {
+      explosions.push({ x: b.x, y: gy, t: 0 });
+      // Check if hit any ground objects
+      checkBombHit(scrollX + b.x, gy);
+      return false;
+    }
+    if (b.y < 0 || b.x < -20 || b.x > W + 20) return false;
+    return true;
+  });
+
+  // Bullet hits on objects
+  for (const b of bullets) {
+    for (const obj of level.objects) {
+      if (!obj.alive) continue;
+      const objX = obj.seg * TERRAIN_SEG - scrollX;
+      const objY = groundYat(obj.seg * TERRAIN_SEG) - 15;
+      if (Math.abs(b.x - objX) < 15 && Math.abs(b.y - objY) < 15) {
+        hitObject(obj, objX, objY);
+        bullets.splice(bullets.indexOf(b), 1);
+        break;
+      }
+    }
+  }
+
+  // Update rockets
+  for (const obj of level.objects) {
+    if (!obj.alive || obj.type !== 'rocket') continue;
+    const objX = obj.seg * TERRAIN_SEG - scrollX;
+    if (objX > 0 && objX < W && !obj.launched && Math.abs(objX - ship.x) < 200) {
+      obj.launched = true;
+      obj.ry = groundYat(obj.seg * TERRAIN_SEG) - 10;
+      obj.rvy = -4;
+    }
+    if (obj.launched) {
+      obj.ry += obj.rvy;
+      // Rocket-ship collision
+      if (Math.abs(objX - ship.x) < 15 && Math.abs(obj.ry - ship.y) < 15) {
+        die(); return;
+      }
+      if (obj.ry < -20) obj.alive = false;
+    }
+  }
+
+  // Terrain collision
+  const shipWX = scrollX + ship.x;
+  if (ship.y + 10 > groundYat(shipWX) || ship.y - 10 < ceilingYat(shipWX)) {
+    die(); return;
+  }
+
+  // Explosions
+  explosions = explosions.filter(e => { e.t++; return e.t < 20; });
+}
+
+function die() {
+  lives--;
+  explosions.push({ x: ship.x, y: ship.y, t: 0 });
+  if (lives <= 0) { gameOver = true; return; }
+  ship.x = 150; ship.y = H / 2;
+  fuel = Math.min(100, fuel + 30);
+}
+
+function checkBombHit(worldX, worldY) {
+  for (const obj of level.objects) {
+    if (!obj.alive) continue;
+    const objWX = obj.seg * TERRAIN_SEG;
+    if (Math.abs(worldX - objWX) < 25) {
+      hitObject(obj, objWX - scrollX, worldY);
+    }
+  }
+}
+
+function hitObject(obj, screenX, screenY) {
+  obj.alive = false;
+  score += obj.type === 'fuel' ? 150 : 50;
+  explosions.push({ x: screenX, y: screenY, t: 0 });
+  if (obj.type === 'fuel') fuel = Math.min(100, fuel + 25);
+}
+
+function draw() {
+  ctx.fillStyle = '#06060e'; ctx.fillRect(0, 0, W, H);
+
+  // Stars
+  for (let i = 0; i < 40; i++) {
+    const sx = ((i * 137 + 50) % W + scrollX * 0.2) % W;
+    const sy = (i * 97 + 30) % (H * 0.4);
+    ctx.fillStyle = '#336';
+    ctx.fillRect(sx, sy, 1, 1);
+  }
+
+  // Terrain
+  ctx.fillStyle = '#1a3a1a';
+  // Ground
+  ctx.beginPath();
+  ctx.moveTo(0, H);
+  for (let x = 0; x <= W; x += 4) {
+    ctx.lineTo(x, groundYat(scrollX + x));
+  }
+  ctx.lineTo(W, H);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#3a6a3a'; ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let x = 0; x <= W; x += 4) {
+    if (x === 0) ctx.moveTo(x, groundYat(scrollX + x));
+    else ctx.lineTo(x, groundYat(scrollX + x));
+  }
+  ctx.stroke();
+
+  // Ceiling
+  ctx.fillStyle = '#2a1a1a';
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  for (let x = 0; x <= W; x += 4) {
+    ctx.lineTo(x, ceilingYat(scrollX + x));
+  }
+  ctx.lineTo(W, 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#6a3a3a'; ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let x = 0; x <= W; x += 4) {
+    if (x === 0) ctx.moveTo(x, ceilingYat(scrollX + x));
+    else ctx.lineTo(x, ceilingYat(scrollX + x));
+  }
+  ctx.stroke();
+
+  // Objects
+  for (const obj of level.objects) {
+    if (!obj.alive) continue;
+    const ox = obj.seg * TERRAIN_SEG - scrollX;
+    if (ox < -30 || ox > W + 30) continue;
+    const oy = groundYat(obj.seg * TERRAIN_SEG);
+
+    if (obj.type === 'fuel') {
+      // Fuel depot — red tank
+      ctx.fillStyle = '#c33';
+      ctx.fillRect(ox - 8, oy - 20, 16, 20);
+      ctx.fillStyle = '#f55';
+      ctx.fillRect(ox - 6, oy - 18, 12, 6);
+      ctx.fillStyle = '#ff0';
+      ctx.font = '8px monospace'; ctx.textAlign = 'center';
+      ctx.fillText('F', ox, oy - 8);
+    } else if (obj.type === 'rocket') {
+      // Rocket on ground
+      ctx.fillStyle = '#88f';
+      ctx.fillRect(ox - 3, oy - 18, 6, 18);
+      ctx.fillStyle = '#aaf';
+      ctx.beginPath();
+      ctx.moveTo(ox, oy - 22);
+      ctx.lineTo(ox - 4, oy - 14);
+      ctx.lineTo(ox + 4, oy - 14);
+      ctx.closePath();
+      ctx.fill();
+      // Launched rocket in flight
+      if (obj.launched) {
+        ctx.fillStyle = '#ff4';
+        ctx.fillRect(ox - 2, obj.ry - 6, 4, 12);
+        ctx.fillStyle = '#f80';
+        ctx.fillRect(ox - 3, obj.ry + 6, 6, 6);
+      }
+    }
+  }
+
+  // Ship
+  if (!gameOver) {
+    ctx.fillStyle = '#6cf';
+    ctx.beginPath();
+    ctx.moveTo(ship.x + 20, ship.y);
+    ctx.lineTo(ship.x - 12, ship.y - 10);
+    ctx.lineTo(ship.x - 12, ship.y + 10);
+    ctx.closePath();
+    ctx.fill();
+    // Engine glow
+    if (frame % 4 < 2) {
+      ctx.fillStyle = '#f80';
+      ctx.fillRect(ship.x - 16, ship.y - 3, 5, 6);
+    }
+  }
+
+  // Bullets
+  ctx.fillStyle = '#ff0';
+  for (const b of bullets) ctx.fillRect(b.x, b.y - 1, 8, 2);
+
+  // Bombs
+  ctx.fillStyle = '#f80';
+  for (const b of bombs) {
+    ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // Explosions
+  for (const e of explosions) {
+    const t = e.t / 20;
+    ctx.fillStyle = `rgba(255,${150 - t * 150},0,${1 - t})`;
+    ctx.beginPath();
+    ctx.arc(e.x, e.y, 5 + t * 25, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // HUD
+  ctx.fillStyle = '#6cf'; ctx.font = '16px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('SCORE: ' + score, 10, 26);
+  ctx.textAlign = 'right';
+  ctx.fillText('LIVES: ' + lives, W - 10, 26);
+
+  // Fuel bar
+  ctx.fillStyle = '#222'; ctx.fillRect(W / 2 - 75, 12, 150, 14);
+  ctx.fillStyle = fuel > 25 ? '#4a4' : '#f44';
+  ctx.fillRect(W / 2 - 75, 12, 150 * (fuel / 100), 14);
+  ctx.fillStyle = '#fff'; ctx.font = '11px monospace'; ctx.textAlign = 'center';
+  ctx.fillText('FUEL', W / 2, 24);
+
+  // Progress bar
+  const progress = scrollX / (TOTAL_SEGS * TERRAIN_SEG);
+  ctx.fillStyle = '#222'; ctx.fillRect(10, H - 14, W - 20, 6);
+  ctx.fillStyle = '#6cf';
+  ctx.fillRect(10, H - 14, (W - 20) * progress, 6);
+
+  // Game over
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, W, H);
+    ctx.font = 'bold 48px monospace'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#f55';
+    ctx.fillText('GAME OVER', W / 2, H / 2 - 20);
+    ctx.fillStyle = '#aaa'; ctx.font = '18px monospace';
+    ctx.fillText('R to restart   SCORE: ' + score, W / 2, H / 2 + 24);
+  }
+
+  // Title badge
+  ctx.fillStyle = '#1a1a1a'; ctx.fillRect(8, 8, 230, 28);
+  ctx.fillStyle = '#555'; ctx.font = '13px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('SCR-002 · CAVE SCROLL  [?]', 16, 26);
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: twin-stick ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("twin-stick");
+</script>
+</body>
+</html>

@@ -1,0 +1,1020 @@
+<!--
+PROTOTYPE: one-minute-quest
+SERIES: adv
+NUMBER: 012
+DATE: 2026-03-24
+MECHANIC: 60-second adventure — Zelda-like exploration where you die every 60 seconds; items and progress persist across lives; solve the world in 60-second chunks
+ANCESTRY: Minit (2018, Jan Willem Nijman / Kitty Calis / Jukio Kallio / Dominik Johann, Netherlands), The Legend of Zelda (1986, Nintendo)
+CONTROLS: Arrow keys — move | Space — sword / interact | R — restart (lose all progress) | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 7 (Democratization — indie constraint-as-mechanic design)
+AI-INSIGHT: Minit weaponizes the roguelike death loop as a puzzle mechanic. The 60-second timer transforms a Zelda-like world into a constraint satisfaction problem — each life is a hypothesis about which path to take, which item to grab, which shortcut to unlock. Persistent progress across deaths turns death from failure into iteration. The Dutch team (Nijman from Vlambeer) brought arcade intensity to contemplative exploration.
+NOTES: The 60-second life reframes adventure as time management.
+       Death is not failure — it is a reset button for experimentation.
+       Monochrome 1-bit aesthetic strips everything to essentials.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ADV-012 · ONE MINUTE QUEST  [?]</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;font-family:monospace}
+canvas{image-rendering:pixelated}
+#info-panel{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);z-index:100;color:#ddd;overflow-y:auto}
+#info-panel .inner{max-width:700px;margin:30px auto;padding:20px;line-height:1.6}
+#info-panel h1{color:#7bf;font-size:22px;margin-bottom:4px}
+#info-panel h2{color:#f80;font-size:16px;margin:18px 0 6px;border-bottom:1px solid #333;padding-bottom:4px}
+#info-panel h3{color:#4f4;font-size:14px;margin:12px 0 4px}
+#info-panel p,#info-panel li{font-size:13px}
+#info-panel ul{padding-left:18px}
+#info-panel .tag{display:inline-block;background:#333;color:#aaa;padding:2px 8px;border-radius:3px;font-size:11px;margin:2px}
+#info-panel .tag.series{background:#234;color:#7bf}
+#info-panel .close-btn{position:fixed;top:12px;right:20px;color:#888;font-size:28px;cursor:pointer;z-index:101}
+#info-panel .close-btn:hover{color:#fff}
+#info-panel kbd{background:#333;border:1px solid #555;border-radius:3px;padding:1px 6px;font-size:12px;color:#ff0}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>ADV-012 · ONE MINUTE QUEST</h1>
+    <p><span class="tag series">ADV — Adventure</span> <span class="tag">Prototype #012</span> <span class="tag">★★★★☆</span></p>
+
+    <h2>How to Play</h2>
+    <p>You have 60 seconds to live. Explore a top-down world, find items, solve puzzles, and defeat the boss — but every 60 seconds, you die and respawn at home. Items and progress persist across lives.</p>
+    <ul>
+      <li><kbd>Arrow keys</kbd> — Move</li>
+      <li><kbd>Space</kbd> — Swing sword / interact</li>
+      <li><kbd>R</kbd> — Full restart (lose all progress)</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <p>Plan each life carefully. Which direction will you go? What can you accomplish in 60 seconds? Unlocked doors and found items persist forever.</p>
+
+    <h2>History</h2>
+    <p>Minit (2018) was created by four Dutch/international indie developers: Jan Willem Nijman (of Vlambeer fame), Kitty Calis, Jukio Kallio, and Dominik Johann. The game distills the adventure genre to its absolute essence — a tiny monochrome world explored in 60-second bursts.</p>
+    <p>The constraint of a 60-second life cycle transforms traditional Zelda-like exploration into something closer to a puzzle game. Each death is not punishment but an opportunity to try a different route, reach a new area, or attempt a sequence faster. The game can be completed in under 10 minutes once you know what to do — but discovering what to do is the real game.</p>
+    <p>The 1-bit black-and-white aesthetic connects to the Dutch design tradition of clarity and minimalism, stripping away everything that doesn't serve the core loop.</p>
+
+    <h2>AI Archaeology</h2>
+    <h3>Constraint as Mechanic</h3>
+    <p>Minit's 60-second timer is a hard constraint that paradoxically creates freedom. By removing the anxiety of permanent death (you'll die anyway), it encourages bold experimentation. This mirrors simulated annealing in optimization — the forced "reset" prevents the player from getting stuck in local optima of cautious play.</p>
+    <h3>Persistent State Across Episodes</h3>
+    <p>The carry-over of items and world changes across lives is episodic learning with a persistent memory. Each 60-second life is an episode; the player's accumulated knowledge and the world's persistent state form the "weights" that improve with each iteration.</p>
+
+    <h2>Classification</h2>
+    <p><strong>Primary:</strong> Time-loop adventure — constrained exploration with persistent progression</p>
+    <p><strong>Lineage:</strong> Zelda top-down adventure + roguelike death loop + Groundhog Day time loop</p>
+    <p><strong>AI Era:</strong> 7 — Democratization (indie constraint-driven design, 2018)</p>
+
+    <h2>Prototype Notes</h2>
+    <p>This prototype captures the core 60-second loop with a 4×4 world grid. Five persistent items gate progression. The monochrome aesthetic uses only black and white, matching Minit's 1-bit visual style. The boss encounter requires the sword item found elsewhere in the world.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This is an educational prototype created for study and commentary on game design history. It is not affiliated with or endorsed by Jan Willem Nijman, Kitty Calis, Jukio Kallio, Dominik Johann, or Devolver Digital. Minit and all related trademarks belong to their respective owners.</p>
+  </div>
+</div>
+
+<script>
+// Info panel
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// Canvas setup
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+
+function resize() {
+  const s = Math.min(innerWidth / W, innerHeight / H);
+  canvas.style.width = (W * s) + 'px';
+  canvas.style.height = (H * s) + 'px';
+}
+resize();
+window.addEventListener('resize', resize);
+
+// HUD text helper
+function hudText(text, x, y, size, color, align) {
+  ctx.save();
+  ctx.font = size + 'px monospace';
+  ctx.fillStyle = color || '#fff';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+// Constants
+const TILE = 32;
+const COLS = 25, ROWS = 18; // 800/32, 576/32 (leave room for HUD at top)
+const HUD_H = 24;
+const LIFE_TIME = 60;
+const SPEED_NORMAL = 2.5;
+const SPEED_FAST = 4;
+const PLAYER_SIZE = 12;
+
+// World: 4x4 grid of screens
+// Each screen is COLS x ROWS tiles
+// 0=empty, 1=wall, 2=bush, 3=water, 4=door, 5=NPC, 6=enemy, 7=boss
+// Items: 'sword','key','boots','lantern','shield'
+
+const ITEM_NAMES = ['sword','key','boots','lantern','shield'];
+const ITEM_LABELS = {sword:'Sword',key:'Key',boots:'Boots',lantern:'Lantern',shield:'Shield'};
+
+// World screens (4x4 = 16 screens)
+// Each screen defined as array of objects/features + layout function
+function makeEmpty() {
+  const g = [];
+  for (let r = 0; r < ROWS; r++) { g[r] = []; for (let c = 0; c < COLS; c++) g[r][c] = 0; }
+  return g;
+}
+
+function addBorder(g, openings) {
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+    if (r === 0 || r === ROWS-1 || c === 0 || c === COLS-1) g[r][c] = 1;
+  }
+  // openings: {top,bottom,left,right} = true to open passage
+  const mx = Math.floor(COLS/2), my = Math.floor(ROWS/2);
+  if (openings.top) { g[0][mx-1]=0; g[0][mx]=0; g[0][mx+1]=0; }
+  if (openings.bottom) { g[ROWS-1][mx-1]=0; g[ROWS-1][mx]=0; g[ROWS-1][mx+1]=0; }
+  if (openings.left) { g[my-1][0]=0; g[my][0]=0; g[my+1][0]=0; }
+  if (openings.right) { g[my-1][COLS-1]=0; g[my][COLS-1]=0; g[my+1][COLS-1]=0; }
+  return g;
+}
+
+// Screen data
+const screens = [];
+for (let sy = 0; sy < 4; sy++) {
+  screens[sy] = [];
+  for (let sx = 0; sx < 4; sx++) {
+    const open = {
+      top: sy > 0,
+      bottom: sy < 3,
+      left: sx > 0,
+      right: sx < 3
+    };
+    screens[sy][sx] = { grid: addBorder(makeEmpty(), open), items: [], npcs: [], enemies: [], hasBoss: false, doorPos: null };
+  }
+}
+
+// Decorate screens with walls, bushes, features
+function addWalls(scr, walls) { for (const [r,c] of walls) if (r>=0&&r<ROWS&&c>=0&&c<COLS) scr.grid[r][c]=1; }
+function addBushes(scr, bushes) { for (const [r,c] of bushes) if (r>=0&&r<ROWS&&c>=0&&c<COLS) scr.grid[r][c]=2; }
+function addWater(scr, tiles) { for (const [r,c] of tiles) if (r>=0&&r<ROWS&&c>=0&&c<COLS) scr.grid[r][c]=3; }
+
+// HOME (1,1) - starting screen
+(function() {
+  const s = screens[1][1];
+  // Small house in center
+  for (let r=6;r<=10;r++) for (let c=10;c<=14;c++) { if(r===6||r===10||c===10||c===14) s.grid[r][c]=1; }
+  s.grid[10][12]=0; // door
+  // Some bushes
+  addBushes(s, [[3,3],[3,4],[4,3],[14,20],[14,21],[15,20]]);
+  s.npcs.push({x:6*TILE,y:13*TILE,msg:'Find the sword to cut bushes!',talked:false,id:'home_npc'});
+})();
+
+// SWORD screen (0,0) - top-left, sword behind bushes
+(function() {
+  const s = screens[0][0];
+  addBushes(s, [[4,4],[4,5],[4,6],[5,4],[5,6],[6,4],[6,5],[6,6]]);
+  addWalls(s, [[8,3],[8,4],[8,5],[8,6],[8,7],[10,15],[10,16],[11,15],[11,16]]);
+  s.items.push({x:5*TILE,y:5*TILE,type:'sword',id:'sword'});
+  s.npcs.push({x:15*TILE,y:5*TILE,msg:'The sword is hidden in the bushes to the west.',talked:false,id:'npc_00'});
+})();
+
+// KEY screen (0,2) - key guarded by enemies
+(function() {
+  const s = screens[0][2];
+  addWalls(s, [[3,8],[3,9],[3,10],[3,11],[3,16],[4,8],[4,16],[5,8],[5,16],[6,8],[6,9],[6,10],[6,11],[6,16]]);
+  s.items.push({x:12*TILE,y:4*TILE,type:'key',id:'key'});
+  s.enemies.push({x:10*TILE,y:8*TILE,dx:1,dy:0,id:'e_02_1'});
+  s.enemies.push({x:18*TILE,y:12*TILE,dx:0,dy:1,id:'e_02_2'});
+  s.enemies.push({x:6*TILE,y:14*TILE,dx:1,dy:0,id:'e_02_3'});
+})();
+
+// BOOTS screen (2,0) - boots across water puzzle
+(function() {
+  const s = screens[2][0];
+  addWater(s, [[5,3],[5,4],[5,5],[5,6],[5,7],[5,8],[5,9],[5,10],[5,11],[5,12],
+               [6,3],[6,12],[7,3],[7,12],[8,3],[8,4],[8,5],[8,6],[8,7],[8,8],[8,9],[8,10],[8,11],[8,12]]);
+  // Bridge pieces (narrow path)
+  s.grid[6][7]=0; s.grid[7][7]=0; s.grid[6][8]=0; s.grid[7][8]=0;
+  s.items.push({x:7*TILE,y:3*TILE,type:'boots',id:'boots'});
+  s.npcs.push({x:18*TILE,y:14*TILE,msg:'Cross the bridge to find the boots!',talked:false,id:'npc_20'});
+})();
+
+// LANTERN screen (3,1) - dark-themed, lantern item
+(function() {
+  const s = screens[3][1];
+  addWalls(s, [[2,2],[2,3],[2,4],[3,2],[3,4],[4,2],[4,3],[4,4],
+               [2,20],[2,21],[2,22],[3,20],[3,22],[4,20],[4,21],[4,22],
+               [12,8],[12,9],[12,10],[12,11],[12,12],[12,13],[12,14],[12,15],[12,16],
+               [13,8],[13,16],[14,8],[14,16],[15,8],[15,9],[15,10],[15,11],[15,12],[15,13],[15,14],[15,15],[15,16]]);
+  s.items.push({x:12*TILE,y:13*TILE,type:'lantern',id:'lantern'});
+  s.enemies.push({x:6*TILE,y:8*TILE,dx:1,dy:0,id:'e_31_1'});
+  s.enemies.push({x:20*TILE,y:6*TILE,dx:0,dy:1,id:'e_31_2'});
+})();
+
+// SHIELD screen (1,3) - shield behind locked door
+(function() {
+  const s = screens[1][3];
+  addWalls(s, [[4,10],[4,11],[4,12],[4,13],[4,14],
+               [5,10],[5,14],[6,10],[6,14],[7,10],[7,14],
+               [8,10],[8,11],[8,13],[8,14]]);
+  s.grid[8][12] = 4; // locked door
+  s.doorPos = {r:8,c:12};
+  s.items.push({x:12*TILE,y:6*TILE,type:'shield',id:'shield'});
+  s.npcs.push({x:5*TILE,y:12*TILE,msg:'A key unlocks the door to the north...',talked:false,id:'npc_13'});
+})();
+
+// BOSS screen (3,3) - bottom-right
+(function() {
+  const s = screens[3][3];
+  addWalls(s, [[2,4],[2,5],[2,6],[2,18],[2,19],[2,20],
+               [8,4],[8,5],[8,6],[8,18],[8,19],[8,20],
+               [14,4],[14,5],[14,6],[14,18],[14,19],[14,20]]);
+  s.hasBoss = true;
+  s.npcs.push({x:3*TILE,y:15*TILE,msg:'The factory boss awaits. You need a sword!',talked:false,id:'npc_33'});
+})();
+
+// Misc decoration for other screens
+(function() {
+  // (0,1) - passage screen with enemies
+  const s01 = screens[0][1];
+  addBushes(s01, [[3,5],[3,6],[4,5],[4,6],[3,18],[3,19],[4,18],[4,19]]);
+  addWalls(s01, [[8,10],[8,11],[8,12],[8,13],[8,14],[9,10],[9,14],[10,10],[10,11],[10,12],[10,13],[10,14]]);
+  s01.enemies.push({x:7*TILE,y:5*TILE,dx:1,dy:0,id:'e_01_1'});
+
+  // (0,3) - empty passage
+  const s03 = screens[0][3];
+  addWalls(s03, [[5,5],[5,6],[5,7],[6,5],[6,7],[7,5],[7,6],[7,7],
+                 [10,17],[10,18],[10,19],[11,17],[11,19],[12,17],[12,18],[12,19]]);
+
+  // (1,0) - has some bushes and walls
+  const s10 = screens[1][0];
+  addBushes(s10, [[5,15],[5,16],[5,17],[6,15],[6,16],[6,17],[7,15],[7,16],[7,17]]);
+  addWalls(s10, [[12,5],[12,6],[13,5],[13,6],[12,19],[12,20],[13,19],[13,20]]);
+  s10.npcs.push({x:20*TILE,y:3*TILE,msg:'Boots let you run faster!',talked:false,id:'npc_10'});
+
+  // (1,2) - passage
+  const s12 = screens[1][2];
+  addWalls(s12, [[4,4],[4,5],[5,4],[5,5],[4,19],[4,20],[5,19],[5,20],
+                 [12,10],[12,11],[12,12],[12,13],[12,14]]);
+  s12.enemies.push({x:12*TILE,y:8*TILE,dx:0,dy:1,id:'e_12_1'});
+
+  // (2,1) - near home
+  const s21 = screens[2][1];
+  addBushes(s21, [[3,3],[3,4],[4,3],[14,20],[14,21],[15,20],[15,21]]);
+  addWalls(s21, [[8,8],[8,9],[8,10],[8,14],[8,15],[8,16],[9,8],[9,16],[10,8],[10,9],[10,10],[10,14],[10,15],[10,16]]);
+  s21.npcs.push({x:12*TILE,y:9*TILE,msg:'The shield blocks enemy attacks.',talked:false,id:'npc_21'});
+
+  // (2,2)
+  const s22 = screens[2][2];
+  addWalls(s22, [[5,5],[5,6],[6,5],[6,6],[5,18],[5,19],[6,18],[6,19]]);
+  addBushes(s22, [[10,10],[10,11],[10,12],[10,13],[10,14],[11,10],[11,14],[12,10],[12,11],[12,12],[12,13],[12,14]]);
+  s22.enemies.push({x:8*TILE,y:12*TILE,dx:1,dy:0,id:'e_22_1'});
+  s22.enemies.push({x:18*TILE,y:4*TILE,dx:-1,dy:0,id:'e_22_2'});
+
+  // (2,3)
+  const s23 = screens[2][3];
+  addWalls(s23, [[3,3],[3,4],[3,5],[4,3],[4,5],[5,3],[5,4],[5,5],
+                 [12,18],[12,19],[12,20],[13,18],[13,20],[14,18],[14,19],[14,20]]);
+  s23.enemies.push({x:12*TILE,y:10*TILE,dx:1,dy:0,id:'e_23_1'});
+
+  // (3,0)
+  const s30 = screens[3][0];
+  addWater(s30, [[3,10],[3,11],[3,12],[3,13],[3,14],[4,10],[4,14],[5,10],[5,14],[6,10],[6,11],[6,12],[6,13],[6,14]]);
+  addWalls(s30, [[10,3],[10,4],[11,3],[11,4],[10,20],[10,21],[11,20],[11,21]]);
+
+  // (3,2)
+  const s32 = screens[3][2];
+  addWalls(s32, [[4,8],[4,9],[4,10],[4,14],[4,15],[4,16],
+                 [5,8],[5,16],[6,8],[6,16],[7,8],[7,9],[7,10],[7,14],[7,15],[7,16]]);
+  addBushes(s32, [[12,4],[12,5],[13,4],[13,5],[12,19],[12,20],[13,19],[13,20]]);
+  s32.enemies.push({x:12*TILE,y:5*TILE,dx:0,dy:1,id:'e_32_1'});
+  s32.enemies.push({x:4*TILE,y:10*TILE,dx:1,dy:0,id:'e_32_2'});
+})();
+
+// Persistent state (survives deaths)
+let persistent = {
+  items: {},        // id -> true
+  doors: {},        // "r,c,sy,sx" -> true
+  enemies: {},      // id -> true (killed)
+  bossDefeated: false,
+  deaths: 0,
+  talkedTo: {}      // npc id -> true
+};
+
+// Current-life state
+let px, py, screenX, screenY;
+let timer, hp, facing, attacking, attackTimer;
+let gameWon, gameState; // 'playing','dying','dead','won','title'
+let deathTimer, msgText, msgTimer;
+let bossHP, bossX, bossY, bossDX, bossAttackTimer;
+let flickerTimer;
+
+function resetLife() {
+  px = 12 * TILE; py = 12 * TILE;
+  screenX = 1; screenY = 1; // home screen
+  timer = LIFE_TIME;
+  hp = persistent.items['shield'] ? 3 : 2;
+  facing = 0; // 0=down,1=up,2=left,3=right
+  attacking = false;
+  attackTimer = 0;
+  gameState = 'playing';
+  deathTimer = 0;
+  msgText = ''; msgTimer = 0;
+  flickerTimer = 0;
+  // Reset boss if not defeated
+  if (!persistent.bossDefeated) {
+    bossHP = 5;
+    bossX = 12 * TILE; bossY = 5 * TILE;
+    bossDX = 1.5;
+    bossAttackTimer = 0;
+  }
+}
+
+function fullReset() {
+  persistent = { items:{}, doors:{}, enemies:{}, bossDefeated:false, deaths:0, talkedTo:{} };
+  gameState = 'title';
+}
+
+fullReset();
+
+// Input
+const keys = {};
+let spacePressed = false;
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'r' || e.key === 'R') { fullReset(); return; }
+  keys[e.key] = true;
+  if (e.key === ' ') { spacePressed = true; e.preventDefault(); }
+});
+window.addEventListener('keyup', e => { keys[e.key] = false; });
+
+// Collision
+function tileAt(scr, px, py) {
+  const c = Math.floor(px / TILE), r = Math.floor(py / TILE);
+  if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return 1;
+  return scr.grid[r][c];
+}
+
+function canWalk(scr, x, y) {
+  const s = PLAYER_SIZE - 2;
+  const t1 = tileAt(scr, x - s, y - s);
+  const t2 = tileAt(scr, x + s, y - s);
+  const t3 = tileAt(scr, x - s, y + s);
+  const t4 = tileAt(scr, x + s, y + s);
+  for (const t of [t1,t2,t3,t4]) {
+    if (t === 1 || t === 3) return false;
+    if (t === 4) {
+      // Check if door is unlocked
+      const scr2 = screens[screenY][screenX];
+      if (scr2.doorPos) {
+        const dk = scr2.doorPos.r+','+scr2.doorPos.c+','+screenY+','+screenX;
+        if (!persistent.doors[dk]) return false;
+      }
+    }
+    if (t === 2 && !persistent.items['sword']) return false;
+  }
+  return true;
+}
+
+// Attack sword
+function doAttack() {
+  if (!persistent.items['sword']) return;
+  attacking = true;
+  attackTimer = 12;
+  const scr = screens[screenY][screenX];
+  // Sword hitbox
+  let sx = px, sy2 = py;
+  const reach = 24;
+  if (facing===0) sy2+=reach;
+  else if(facing===1) sy2-=reach;
+  else if(facing===2) sx-=reach;
+  else sx+=reach;
+  // Cut bushes
+  const bc = Math.floor(sx/TILE), br = Math.floor(sy2/TILE);
+  if (br>=0&&br<ROWS&&bc>=0&&bc<COLS&&scr.grid[br][bc]===2) scr.grid[br][bc]=0;
+  // Hit enemies
+  for (const en of scr.enemies) {
+    if (persistent.enemies[en.id]) continue;
+    const dist = Math.hypot(en.x-sx, en.y-sy2);
+    if (dist < 24) { persistent.enemies[en.id] = true; }
+  }
+  // Hit boss
+  if (scr.hasBoss && !persistent.bossDefeated) {
+    const dist = Math.hypot(bossX-sx, bossY-sy2);
+    if (dist < 30) { bossHP--; if (bossHP<=0) persistent.bossDefeated=true; }
+  }
+}
+
+// Use key on door
+function tryUnlockDoor() {
+  if (!persistent.items['key']) return;
+  const scr = screens[screenY][screenX];
+  if (!scr.doorPos) return;
+  const dk = scr.doorPos.r+','+scr.doorPos.c+','+screenY+','+screenX;
+  if (persistent.doors[dk]) return;
+  const dr = scr.doorPos.r, dc = scr.doorPos.c;
+  const dist = Math.hypot(px - dc*TILE - TILE/2, py - dr*TILE - TILE/2);
+  if (dist < TILE * 2) {
+    persistent.doors[dk] = true;
+    scr.grid[dr][dc] = 0;
+    msgText = 'Door unlocked!'; msgTimer = 90;
+  }
+}
+
+// Update
+let lastTime = 0;
+let dtAcc = 0;
+
+function update(dt) {
+  if (infoOpen) return;
+
+  if (gameState === 'title') {
+    if (spacePressed || keys[' ']) { spacePressed = false; resetLife(); }
+    return;
+  }
+
+  if (gameState === 'won') {
+    if (spacePressed || keys[' ']) { spacePressed = false; fullReset(); }
+    return;
+  }
+
+  if (gameState === 'dying') {
+    deathTimer -= dt;
+    if (deathTimer <= 0) {
+      persistent.deaths++;
+      gameState = 'dead';
+      deathTimer = 2;
+    }
+    return;
+  }
+
+  if (gameState === 'dead') {
+    deathTimer -= dt;
+    if (deathTimer <= 0) { resetLife(); }
+    return;
+  }
+
+  // Timer
+  timer -= dt;
+  if (timer <= 0) { timer = 0; gameState = 'dying'; deathTimer = 1.5; flickerTimer = 0; return; }
+
+  // Check win
+  if (persistent.bossDefeated && !gameWon) { gameWon = true; gameState = 'won'; return; }
+
+  // Movement
+  const spd = persistent.items['boots'] ? SPEED_FAST : SPEED_NORMAL;
+  let nx = px, ny = py;
+  if (keys['ArrowUp']||keys['w']) { ny -= spd; facing = 1; }
+  if (keys['ArrowDown']||keys['s']) { ny += spd; facing = 0; }
+  if (keys['ArrowLeft']||keys['a']) { nx -= spd; facing = 2; }
+  if (keys['ArrowRight']||keys['d']) { nx += spd; facing = 3; }
+
+  const scr = screens[screenY][screenX];
+  if (canWalk(scr, nx, py)) px = nx;
+  if (canWalk(scr, px, ny)) py = ny;
+
+  // Screen transitions
+  const mx = Math.floor(COLS/2);
+  const my = Math.floor(ROWS/2);
+  if (px < 4 && screenX > 0) { screenX--; px = (COLS-2)*TILE; }
+  else if (px > (COLS-1)*TILE-4 && screenX < 3) { screenX++; px = 2*TILE; }
+  if (py < 4 && screenY > 0) { screenY--; py = (ROWS-2)*TILE; }
+  else if (py > (ROWS-1)*TILE-4 && screenY < 3) { screenY++; py = 2*TILE; }
+
+  // Attack
+  if (attackTimer > 0) attackTimer--;
+  else attacking = false;
+  if (spacePressed) { spacePressed = false; doAttack(); tryUnlockDoor(); }
+
+  // Pick up items
+  const scr2 = screens[screenY][screenX];
+  for (const item of scr2.items) {
+    if (persistent.items[item.id]) continue;
+    const dist = Math.hypot(px - item.x - TILE/2, py - item.y - TILE/2);
+    if (dist < 20) {
+      persistent.items[item.id] = true;
+      msgText = 'Found ' + ITEM_LABELS[item.type] + '!';
+      msgTimer = 120;
+    }
+  }
+
+  // NPC interaction (auto on proximity)
+  for (const npc of scr2.npcs) {
+    const dist = Math.hypot(px - npc.x - 8, py - npc.y - 8);
+    if (dist < 28 && !persistent.talkedTo[npc.id]) {
+      persistent.talkedTo[npc.id] = true;
+      msgText = npc.msg;
+      msgTimer = 180;
+    }
+  }
+
+  // Enemy AI
+  for (const en of scr2.enemies) {
+    if (persistent.enemies[en.id]) continue;
+    en.x += en.dx * 1.2;
+    en.y += en.dy * 1.2;
+    // Bounce off walls
+    const ec = Math.floor(en.x/TILE), er = Math.floor(en.y/TILE);
+    if (ec<=1||ec>=COLS-2) en.dx *= -1;
+    if (er<=1||er>=ROWS-2) en.dy *= -1;
+    // Hit player
+    const dist = Math.hypot(px - en.x, py - en.y);
+    if (dist < 18) {
+      if (persistent.items['shield']) {
+        hp--;
+        en.dx *= -1; en.dy *= -1;
+        en.x += en.dx * 30; en.y += en.dy * 30;
+        flickerTimer = 30;
+        if (hp <= 0) { gameState = 'dying'; deathTimer = 1.5; }
+      } else {
+        gameState = 'dying'; deathTimer = 1.5;
+      }
+    }
+  }
+
+  // Boss AI
+  if (scr2.hasBoss && !persistent.bossDefeated) {
+    bossX += bossDX * 1.5;
+    if (bossX < 4*TILE || bossX > 20*TILE) bossDX *= -1;
+    bossAttackTimer += dt;
+    if (bossAttackTimer > 2) {
+      bossAttackTimer = 0;
+      // Lunge toward player
+      const ang = Math.atan2(py - bossY, px - bossX);
+      bossX += Math.cos(ang) * 40;
+      bossY += Math.sin(ang) * 40;
+    }
+    // Boss hits player
+    const dist = Math.hypot(px - bossX, py - bossY);
+    if (dist < 24) {
+      hp--;
+      flickerTimer = 30;
+      if (hp <= 0) { gameState = 'dying'; deathTimer = 1.5; }
+      // Push player back
+      const ang = Math.atan2(py - bossY, px - bossX);
+      px += Math.cos(ang) * 30;
+      py += Math.sin(ang) * 30;
+    }
+  }
+
+  // Message timer
+  if (msgTimer > 0) msgTimer--;
+
+  // Flicker timer
+  if (flickerTimer > 0) flickerTimer--;
+
+  spacePressed = false;
+}
+
+// Draw
+function drawTile(x, y, type) {
+  const dx = x * TILE, dy = y * TILE + HUD_H;
+  switch(type) {
+    case 1: // wall
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(dx, dy, TILE, TILE);
+      // Brick pattern
+      ctx.fillStyle = '#000';
+      ctx.fillRect(dx+1, dy+1, TILE-2, 1);
+      ctx.fillRect(dx+1, dy+TILE/2, TILE-2, 1);
+      ctx.fillRect(dx+TILE/2, dy+1, 1, TILE/2-1);
+      ctx.fillRect(dx+TILE/4, dy+TILE/2+1, 1, TILE/2-2);
+      break;
+    case 2: // bush
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(dx+2, dy+2, TILE-4, TILE-4);
+      ctx.fillStyle = '#000';
+      ctx.fillRect(dx+6, dy+6, TILE-12, TILE-12);
+      // X pattern
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(dx+TILE/2-1, dy+4, 2, TILE-8);
+      ctx.fillRect(dx+4, dy+TILE/2-1, TILE-8, 2);
+      break;
+    case 3: // water
+      ctx.fillStyle = '#fff';
+      // Wavy lines
+      for (let i = 0; i < 3; i++) {
+        const wy = dy + 6 + i * 10;
+        ctx.fillRect(dx+4, wy, 6, 2);
+        ctx.fillRect(dx+14, wy+3, 6, 2);
+        ctx.fillRect(dx+24, wy, 4, 2);
+      }
+      break;
+    case 4: // door
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(dx+2, dy+2, TILE-4, TILE-4);
+      ctx.fillStyle = '#000';
+      ctx.fillRect(dx+6, dy+4, TILE-12, TILE-8);
+      // Keyhole
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(dx+TILE/2-2, dy+TILE/2-2, 4, 4);
+      ctx.fillRect(dx+TILE/2-1, dy+TILE/2+2, 2, 6);
+      break;
+  }
+}
+
+function drawPlayer(x, y) {
+  if (flickerTimer > 0 && Math.floor(flickerTimer/3) % 2 === 0) return;
+  const dx = x, dy = y + HUD_H;
+  ctx.fillStyle = '#fff';
+  // Body
+  ctx.fillRect(dx-8, dy-8, 16, 16);
+  // Eyes based on facing
+  ctx.fillStyle = '#000';
+  ctx.fillRect(dx-4, dy-4, 8, 8);
+  // Eye dot
+  ctx.fillStyle = '#fff';
+  const ex = facing===2?-3:facing===3?3:0;
+  const ey = facing===0?3:facing===1?-3:0;
+  ctx.fillRect(dx+ex-1, dy+ey-3, 3, 3);
+  // Sword
+  if (attacking && persistent.items['sword']) {
+    ctx.fillStyle = '#fff';
+    const sLen = 18;
+    if (facing===0) ctx.fillRect(dx-2, dy+8, 4, sLen);
+    else if(facing===1) ctx.fillRect(dx-2, dy-8-sLen, 4, sLen);
+    else if(facing===2) ctx.fillRect(dx-8-sLen, dy-2, sLen, 4);
+    else ctx.fillRect(dx+8, dy-2, sLen, 4);
+  }
+}
+
+function drawEnemy(en) {
+  if (persistent.enemies[en.id]) return;
+  const dx = en.x, dy = en.y + HUD_H;
+  ctx.fillStyle = '#fff';
+  // Spiky shape
+  ctx.fillRect(dx-6, dy-6, 12, 12);
+  ctx.fillRect(dx-8, dy-2, 16, 4);
+  ctx.fillRect(dx-2, dy-8, 4, 16);
+  // Eye
+  ctx.fillStyle = '#000';
+  ctx.fillRect(dx-3, dy-3, 6, 6);
+}
+
+function drawBoss(x, y) {
+  const dx = x, dy = y + HUD_H;
+  ctx.fillStyle = '#fff';
+  // Large body
+  ctx.fillRect(dx-16, dy-16, 32, 32);
+  ctx.fillRect(dx-20, dy-8, 40, 16);
+  // Horns
+  ctx.fillRect(dx-14, dy-24, 6, 10);
+  ctx.fillRect(dx+8, dy-24, 6, 10);
+  // Face
+  ctx.fillStyle = '#000';
+  ctx.fillRect(dx-10, dy-8, 20, 16);
+  // Eyes
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(dx-7, dy-6, 4, 4);
+  ctx.fillRect(dx+3, dy-6, 4, 4);
+  // HP bar
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(dx-20, dy-32, 40, 4);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(dx-19, dy-31, 38, 2);
+  ctx.fillStyle = '#fff';
+  const hw = Math.floor(38 * bossHP / 5);
+  ctx.fillRect(dx-19, dy-31, hw, 2);
+}
+
+function drawItem(item) {
+  if (persistent.items[item.id]) return;
+  const dx = item.x + TILE/2, dy = item.y + TILE/2 + HUD_H;
+  ctx.fillStyle = '#fff';
+  switch(item.type) {
+    case 'sword':
+      ctx.fillRect(dx-2, dy-10, 4, 20);
+      ctx.fillRect(dx-6, dy-2, 12, 4);
+      break;
+    case 'key':
+      ctx.fillRect(dx-4, dy-8, 8, 6);
+      ctx.fillStyle='#000'; ctx.fillRect(dx-2,dy-6,4,2); ctx.fillStyle='#fff';
+      ctx.fillRect(dx-1, dy-2, 2, 12);
+      ctx.fillRect(dx-4, dy+6, 6, 2);
+      ctx.fillRect(dx-4, dy+2, 6, 2);
+      break;
+    case 'boots':
+      ctx.fillRect(dx-6, dy-6, 5, 12);
+      ctx.fillRect(dx+1, dy-6, 5, 12);
+      ctx.fillRect(dx-8, dy+4, 7, 4);
+      ctx.fillRect(dx-1, dy+4, 7, 4);
+      break;
+    case 'lantern':
+      ctx.fillRect(dx-4, dy-8, 8, 4);
+      ctx.fillRect(dx-6, dy-4, 12, 10);
+      ctx.fillStyle='#000'; ctx.fillRect(dx-3,dy-2,6,6); ctx.fillStyle='#fff';
+      ctx.fillRect(dx-1, dy, 2, 2);
+      ctx.fillRect(dx-4, dy+6, 8, 3);
+      break;
+    case 'shield':
+      ctx.beginPath();
+      ctx.moveTo(dx, dy-10);
+      ctx.lineTo(dx+8, dy-4);
+      ctx.lineTo(dx+8, dy+4);
+      ctx.lineTo(dx, dy+10);
+      ctx.lineTo(dx-8, dy+4);
+      ctx.lineTo(dx-8, dy-4);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle='#000';
+      ctx.fillRect(dx-4, dy-6, 8, 12);
+      ctx.fillStyle='#fff';
+      ctx.fillRect(dx-2, dy-4, 4, 8);
+      break;
+  }
+  // Sparkle effect
+  const t = Date.now() / 200;
+  if (Math.sin(t) > 0.5) {
+    ctx.fillRect(dx+10, dy-10, 2, 2);
+    ctx.fillRect(dx-12, dy+8, 2, 2);
+  }
+}
+
+function drawNPC(npc) {
+  const dx = npc.x + 8, dy = npc.y + 8 + HUD_H;
+  ctx.fillStyle = '#fff';
+  // Body
+  ctx.fillRect(dx-6, dy-8, 12, 16);
+  // Hat
+  ctx.fillRect(dx-8, dy-10, 16, 4);
+  // Face
+  ctx.fillStyle = '#000';
+  ctx.fillRect(dx-3, dy-4, 6, 6);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(dx-2, dy-3, 2, 2);
+  ctx.fillRect(dx+1, dy-3, 2, 2);
+  // Exclamation if not talked to
+  if (!persistent.talkedTo[npc.id]) {
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(dx-1, dy-20, 3, 8);
+    ctx.fillRect(dx-1, dy-10, 3, 2);
+  }
+}
+
+function draw() {
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, H);
+
+  if (gameState === 'title') {
+    ctx.fillStyle = '#fff';
+    hudText('ONE MINUTE', W/2, 150, 48, '#fff', 'center');
+    hudText('60 seconds to live', W/2, 220, 18, '#fff', 'center');
+    hudText('Items persist across lives', W/2, 260, 14, '#fff', 'center');
+    hudText('Find 5 items. Defeat the boss.', W/2, 290, 14, '#fff', 'center');
+    hudText('Arrow keys to move, Space to attack', W/2, 340, 14, '#fff', 'center');
+    if (Math.floor(Date.now()/500) % 2 === 0) {
+      hudText('Press SPACE to start', W/2, 400, 16, '#fff', 'center');
+    }
+    hudText('Press ? for info', W/2, 550, 12, '#fff', 'center');
+    return;
+  }
+
+  if (gameState === 'won') {
+    ctx.fillStyle = '#fff';
+    hudText('FACTORY DESTROYED!', W/2, 150, 36, '#fff', 'center');
+    hudText('Lives used: ' + (persistent.deaths+1), W/2, 220, 18, '#fff', 'center');
+    hudText('Items found: ' + Object.keys(persistent.items).length + '/5', W/2, 260, 18, '#fff', 'center');
+    hudText('The curse is broken.', W/2, 320, 16, '#fff', 'center');
+    if (Math.floor(Date.now()/500) % 2 === 0) {
+      hudText('Press SPACE to play again', W/2, 400, 16, '#fff', 'center');
+    }
+    return;
+  }
+
+  // Draw current screen
+  const scr = screens[screenY][screenX];
+
+  // If no lantern and on dark screen (3,1), limit visibility
+  const isDark = screenY===3 && screenX===1 && !persistent.items['lantern'];
+
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+    if (isDark) {
+      const dist = Math.hypot(px - c*TILE - TILE/2, py - r*TILE - TILE/2);
+      if (dist > 80) continue;
+    }
+    if (scr.grid[r][c] !== 0) drawTile(c, r, scr.grid[r][c]);
+  }
+
+  // Items
+  for (const item of scr.items) {
+    if (isDark) {
+      const dist = Math.hypot(px - item.x, py - item.y);
+      if (dist > 80) continue;
+    }
+    drawItem(item);
+  }
+
+  // NPCs
+  for (const npc of scr.npcs) {
+    if (isDark) {
+      const dist = Math.hypot(px - npc.x, py - npc.y);
+      if (dist > 80) continue;
+    }
+    drawNPC(npc);
+  }
+
+  // Enemies
+  for (const en of scr.enemies) {
+    if (isDark) {
+      const dist = Math.hypot(px - en.x, py - en.y);
+      if (dist > 80) continue;
+    }
+    drawEnemy(en);
+  }
+
+  // Boss
+  if (scr.hasBoss && !persistent.bossDefeated) {
+    drawBoss(bossX, bossY);
+  }
+
+  // Player
+  if (gameState === 'dying') {
+    // Death animation - spinning shrink
+    const prog = 1 - deathTimer / 1.5;
+    ctx.save();
+    ctx.translate(px, py + HUD_H);
+    ctx.rotate(prog * Math.PI * 4);
+    ctx.scale(1 - prog, 1 - prog);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(-8, -8, 16, 16);
+    ctx.restore();
+  } else if (gameState === 'playing') {
+    drawPlayer(px, py);
+  }
+
+  // Dark overlay
+  if (isDark) {
+    // Draw darkness (leave circle around player)
+    ctx.fillStyle = '#000';
+    // Top
+    ctx.fillRect(0, HUD_H, W, Math.max(0, py + HUD_H - 80));
+    // Bottom
+    const botY = py + HUD_H + 80;
+    if (botY < H) ctx.fillRect(0, botY, W, H - botY);
+    // Left
+    ctx.fillRect(0, Math.max(HUD_H, py+HUD_H-80), Math.max(0, px-80), 160);
+    // Right
+    const rX = px + 80;
+    if (rX < W) ctx.fillRect(rX, Math.max(HUD_H, py+HUD_H-80), W-rX, 160);
+  }
+
+  // HUD
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, HUD_H);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, HUD_H - 1, W, 1);
+
+  // Timer (prominent)
+  const timerColor = timer <= 10 ? (Math.floor(Date.now()/250)%2===0 ? '#fff' : '#000') : '#fff';
+  hudText(Math.ceil(timer) + 's', 10, 4, 16, timerColor, 'left');
+
+  // HP
+  for (let i = 0; i < hp; i++) {
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(80 + i * 18, 5, 12, 12);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(82 + i * 18, 7, 8, 8);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(84 + i * 18, 9, 4, 4);
+  }
+
+  // Items collected
+  let ix = W - 10;
+  for (const name of ITEM_NAMES) {
+    if (persistent.items[name]) {
+      hudText(name[0].toUpperCase(), ix, 4, 14, '#fff', 'right');
+      ix -= 18;
+    }
+  }
+
+  // Screen position
+  hudText('(' + screenX + ',' + screenY + ')', W/2, 4, 12, '#fff', 'center');
+
+  // Deaths counter
+  hudText('Lives: ' + (persistent.deaths + 1), 160, 5, 12, '#fff', 'left');
+
+  // Message
+  if (msgTimer > 0) {
+    const mw = ctx.measureText(msgText).width || msgText.length * 8;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(W/2 - mw/2 - 12, H - 60, mw + 24, 30);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(W/2 - mw/2 - 12, H - 60, mw + 24, 1);
+    ctx.fillRect(W/2 - mw/2 - 12, H - 31, mw + 24, 1);
+    ctx.fillRect(W/2 - mw/2 - 12, H - 60, 1, 30);
+    ctx.fillRect(W/2 + mw/2 + 11, H - 60, 1, 30);
+    hudText(msgText, W/2, H - 55, 14, '#fff', 'center');
+  }
+
+  // Dead screen
+  if (gameState === 'dead') {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, 0, W, H);
+    hudText('YOU DIED', W/2, H/2 - 30, 32, '#fff', 'center');
+    hudText('Respawning...', W/2, H/2 + 20, 16, '#fff', 'center');
+  }
+}
+
+// Game loop
+function loop(ts) {
+  const dt = Math.min((ts - lastTime) / 1000, 0.05);
+  lastTime = ts;
+  update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(function(ts) { lastTime = ts; loop(ts); });
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

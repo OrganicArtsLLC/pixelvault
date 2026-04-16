@@ -1,0 +1,774 @@
+<!--
+PROTOTYPE: tontie
+SERIES: def
+NUMBER: 007
+DATE: 2026-03-24
+MECHANIC: numpad whacking — enemies appear on a 3×3 grid mapped to the numpad; press the corresponding key to hammer them; speed increases; miss = damage
+ANCESTRY: Tontie (2004, On Nakayama / Eyezmaze), Whac-A-Mole (1975, Aaron Fechter), Flash browser games (2000s Japan)
+CONTROLS: 1-9 (numpad or top row) — hammer that cell | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 4 (Statistical Learning — reaction mapping, spatial memory, pattern recognition under time pressure)
+AI-INSIGHT: Tontie maps a 3×3 spatial grid to the numpad, creating a learned motor mapping between visual space and finger positions. This is a form of stimulus-response compatibility — the numpad's physical layout mirrors the game grid, making the mapping intuitive once learned. The game becomes a test of how fast your brain can translate visual position to motor action.
+NOTES: On Nakayama (Eyezmaze) created Tontie as a Flash game in 2004, alongside the famous GROW series. The numpad control scheme was innovative — instead of clicking moles, you hammered enemies by feel. This made it a typing-game hybrid where spatial awareness mapped to muscle memory.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DEF-007 · TONTIE</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>DEF-007 · TONTIE</h1>
+    <p><span class="tag series">DEF — Deflection</span> <span class="tag">Prototype #007</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Enemies pop up on a 3&times;3 grid mapped to your numpad. Press the matching key (1&ndash;9) to hammer them before they escape.</p>
+    <ul>
+      <li><kbd>7</kbd><kbd>8</kbd><kbd>9</kbd> &mdash; Top row (left, center, right)</li>
+      <li><kbd>4</kbd><kbd>5</kbd><kbd>6</kbd> &mdash; Middle row</li>
+      <li><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> &mdash; Bottom row</li>
+      <li><kbd>R</kbd> &mdash; Restart</li>
+      <li><kbd>?</kbd> &mdash; Toggle this info panel</li>
+    </ul>
+    <h3>Enemy Types</h3>
+    <ul>
+      <li><strong>Green (normal):</strong> 1 hit to defeat. +100 points.</li>
+      <li><strong>Blue (armored):</strong> 2 hits to defeat. +250 points.</li>
+      <li><strong>Red (bomb):</strong> Do NOT hit! Hitting a bomb costs a life. Let it disappear.</li>
+      <li><strong>Gold (bonus):</strong> 1 hit, +500 points. Appears rarely and disappears fast.</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Build combos:</strong> Consecutive successful hits multiply your score. Missing or hitting a bomb resets the combo.</li>
+      <li><strong>Learn the numpad:</strong> Your fingers will develop spatial memory &mdash; trust the muscle memory.</li>
+      <li><strong>Watch for bombs:</strong> They look red and angry. Resist the urge to hit everything.</li>
+      <li><strong>Prioritize gold enemies:</strong> They vanish quickly but are worth 5&times; a normal hit.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Whac-A-Mole (1975, Aaron Fechter) &rarr; Tontie (2004, On Nakayama / Eyezmaze) &rarr; keyboard rhythm games</p>
+    <p>On Nakayama, the Japanese Flash game auteur behind the beloved GROW series, created Tontie in 2004. While most Flash games used mouse input, Tontie mapped its 3&times;3 grid to the numpad &mdash; a brilliant design choice that created a tactile, physical relationship between the player and the game. Your right hand became a hammer, each finger assigned to a position.</p>
+    <p>Eyezmaze (eye-maze) was one of the most distinctive Flash game sites of the 2000s, known for elegant puzzle games with hand-drawn art. Tontie stood out as an action game in a catalogue of cerebral puzzles, proving Nakayama's range as a designer.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 4 &mdash; Statistical Learning (1993&ndash;2006)</p>
+    <p><strong>Contemporary AI:</strong> SVMs, Random Forests, early deep learning experiments. Game AI increasingly uses learned models rather than hand-coded rules.</p>
+    <p><strong>Hidden Intelligence:</strong> Tontie is a stimulus-response compatibility experiment. The numpad's spatial layout (7-8-9 top, 1-2-3 bottom) mirrors the game grid, creating a natural mapping. As speed increases, the player must bypass conscious spatial reasoning and rely on learned motor patterns &mdash; the same automaticity that drives typing speed. The game trains a neural mapping from visual position to finger activation.</p>
+    <p><strong>The Convergence:</strong> Modern AI uses spatial attention mechanisms (transformers, 2017) that learn where to "look" in input space. Tontie trains the human equivalent: selective spatial attention mapped to motor output. The numpad becomes a 9-key attention selector.</p>
+    <p><strong>If AI Had Designed This:</strong> Adaptive spawn patterns based on the player's per-cell reaction times &mdash; spawning more enemies where the player is slowest, creating personalized training. This is essentially spaced repetition applied to motor learning.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: DEF &mdash; Deflection</h3>
+    <p>Tontie extends the Whac-A-Mole lineage from mouse-click targeting to keyboard-spatial targeting. The "deflection" is conceptual &mdash; you intercept enemies before they escape.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Numpad whacking on a 3&times;3 grid.</strong> Enemies appear, you press the matching key. Multiple enemy types add decision-making to the reaction task. Speed escalation creates progressive difficulty.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Numpad-to-grid spatial mapping &mdash; does it feel natural?</li>
+      <li>Enemy type differentiation &mdash; can you distinguish friend from foe at speed?</li>
+      <li>Combo system &mdash; does it reward skilled play without punishing learning?</li>
+      <li>Speed curve &mdash; does difficulty ramp feel fair?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Numpad-mapped 3&times;3 grid with four enemy types (normal, armored, bomb, gold). Combo multiplier. Lives system. Progressive speed increase. Web Audio sound effects for hammer, explosion, and miss.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to On Nakayama, Eyezmaze, or any original rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// -- Crisp HUD text helper --
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+// -- Canvas setup --
+const W = 800, H = 600;
+canvas.width = W;
+canvas.height = H;
+function resize() {
+  const s = Math.min(innerWidth / W, innerHeight / H);
+  canvas.style.width = (W * s) + 'px';
+  canvas.style.height = (H * s) + 'px';
+}
+resize();
+window.addEventListener('resize', resize);
+
+// -- Web Audio --
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let audioCtx;
+function ensureAudio() { if (!audioCtx) audioCtx = new AudioCtx(); }
+
+function playSound(type) {
+  ensureAudio();
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  const t = audioCtx.currentTime;
+  if (type === 'hit') {
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(200, t);
+    osc.frequency.exponentialRampToValueAtTime(80, t + 0.15);
+    gain.gain.setValueAtTime(0.3, t);
+    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
+    osc.start(t); osc.stop(t + 0.15);
+  } else if (type === 'bomb') {
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(150, t);
+    osc.frequency.exponentialRampToValueAtTime(30, t + 0.4);
+    gain.gain.setValueAtTime(0.4, t);
+    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.4);
+    osc.start(t); osc.stop(t + 0.4);
+  } else if (type === 'miss') {
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(100, t);
+    osc.frequency.exponentialRampToValueAtTime(60, t + 0.2);
+    gain.gain.setValueAtTime(0.15, t);
+    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
+    osc.start(t); osc.stop(t + 0.2);
+  } else if (type === 'gold') {
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(600, t);
+    osc.frequency.setValueAtTime(800, t + 0.08);
+    osc.frequency.setValueAtTime(1000, t + 0.16);
+    gain.gain.setValueAtTime(0.25, t);
+    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.25);
+    osc.start(t); osc.stop(t + 0.25);
+  } else if (type === 'armor') {
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(300, t);
+    osc.frequency.exponentialRampToValueAtTime(150, t + 0.1);
+    gain.gain.setValueAtTime(0.25, t);
+    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+    osc.start(t); osc.stop(t + 0.1);
+  }
+}
+
+// -- Game constants --
+const GRID_SIZE = 3;
+const CELL_W = 140, CELL_H = 120;
+const GRID_X = (W - GRID_SIZE * CELL_W) / 2;
+const GRID_Y = 130;
+const HOLE_RX = 50, HOLE_RY = 20;
+
+// Enemy types
+const ENEMY_NORMAL = 0;
+const ENEMY_ARMORED = 1;
+const ENEMY_BOMB = 2;
+const ENEMY_GOLD = 3;
+
+// Numpad mapping: key -> grid position {col, row}
+// 7=top-left, 8=top-center, 9=top-right
+// 4=mid-left, 5=mid-center, 6=mid-right
+// 1=bot-left, 2=bot-center, 3=bot-right
+const KEY_MAP = {
+  '7': {c:0, r:0}, '8': {c:1, r:0}, '9': {c:2, r:0},
+  '4': {c:0, r:1}, '5': {c:1, r:1}, '6': {c:2, r:1},
+  '1': {c:0, r:2}, '2': {c:1, r:2}, '3': {c:2, r:2}
+};
+
+// -- Game state --
+let state, score, lives, combo, maxCombo, level;
+let enemies, hammerAnims, floatTexts;
+let spawnTimer, spawnInterval, enemyDuration;
+let gameTime, lastTime;
+
+function initGame() {
+  state = 'title';
+  score = 0;
+  lives = 5;
+  combo = 0;
+  maxCombo = 0;
+  level = 1;
+  enemies = [];
+  hammerAnims = [];
+  floatTexts = [];
+  spawnTimer = 0;
+  spawnInterval = 1.4;
+  enemyDuration = 2.0;
+  gameTime = 0;
+  lastTime = 0;
+}
+initGame();
+
+function startGame() {
+  score = 0;
+  lives = 5;
+  combo = 0;
+  maxCombo = 0;
+  level = 1;
+  enemies = [];
+  hammerAnims = [];
+  floatTexts = [];
+  spawnTimer = 0;
+  spawnInterval = 1.4;
+  enemyDuration = 2.0;
+  gameTime = 0;
+  state = 'play';
+}
+
+function cellCenter(c, r) {
+  return {
+    x: GRID_X + c * CELL_W + CELL_W / 2,
+    y: GRID_Y + r * CELL_H + CELL_H / 2
+  };
+}
+
+function spawnEnemy() {
+  // Find open cells
+  const occupied = new Set(enemies.map(e => e.c + ',' + e.r));
+  const open = [];
+  for (let r = 0; r < 3; r++)
+    for (let c = 0; c < 3; c++)
+      if (!occupied.has(c + ',' + r)) open.push({c, r});
+  if (open.length === 0) return;
+
+  const pos = open[Math.floor(Math.random() * open.length)];
+  let type = ENEMY_NORMAL;
+  const roll = Math.random();
+  if (roll < 0.05 + level * 0.005) type = ENEMY_GOLD;
+  else if (roll < 0.18 + level * 0.01) type = ENEMY_BOMB;
+  else if (roll < 0.35 + level * 0.015) type = ENEMY_ARMORED;
+
+  enemies.push({
+    c: pos.c, r: pos.r, type: type,
+    hp: type === ENEMY_ARMORED ? 2 : 1,
+    timer: 0,
+    duration: type === ENEMY_GOLD ? enemyDuration * 0.5 : enemyDuration,
+    phase: 'rising', // rising, up, sinking
+    riseTime: 0.2
+  });
+}
+
+function addFloatText(x, y, text, color) {
+  floatTexts.push({x, y, text, color, timer: 0, duration: 1.0});
+}
+
+function addHammerAnim(c, r) {
+  const pos = cellCenter(c, r);
+  hammerAnims.push({x: pos.x, y: pos.y, timer: 0, duration: 0.2});
+}
+
+// -- Input --
+window.addEventListener('keydown', e => {
+  if (infoOpen) return;
+  if (e.key === 'r' || e.key === 'R') { initGame(); return; }
+
+  if (state === 'title') {
+    if (e.key >= '1' && e.key <= '9') { startGame(); ensureAudio(); return; }
+    return;
+  }
+  if (state === 'gameover') {
+    if (e.key >= '1' && e.key <= '9') { startGame(); ensureAudio(); return; }
+    return;
+  }
+  if (state !== 'play') return;
+
+  const mapped = KEY_MAP[e.key];
+  if (!mapped) return;
+  e.preventDefault();
+
+  const {c, r} = mapped;
+  addHammerAnim(c, r);
+
+  // Find enemy at this cell
+  const idx = enemies.findIndex(en => en.c === c && en.r === r && en.phase !== 'sinking');
+  if (idx === -1) {
+    // Missed - no enemy there
+    playSound('miss');
+    combo = 0;
+    return;
+  }
+
+  const enemy = enemies[idx];
+
+  if (enemy.type === ENEMY_BOMB) {
+    // Hit a bomb!
+    playSound('bomb');
+    lives--;
+    combo = 0;
+    const pos = cellCenter(c, r);
+    addFloatText(pos.x, pos.y, 'BOOM!', '#f44');
+    enemies.splice(idx, 1);
+    if (lives <= 0) { state = 'gameover'; }
+    return;
+  }
+
+  // Hit an enemy
+  enemy.hp--;
+  if (enemy.hp <= 0) {
+    // Defeated
+    combo++;
+    if (combo > maxCombo) maxCombo = combo;
+    const comboMult = Math.min(combo, 10);
+    let pts = 100;
+    if (enemy.type === ENEMY_ARMORED) pts = 250;
+    if (enemy.type === ENEMY_GOLD) pts = 500;
+    pts = Math.floor(pts * (1 + (comboMult - 1) * 0.2));
+    score += pts;
+
+    const pos = cellCenter(c, r);
+    const comboStr = combo > 1 ? ' x' + combo : '';
+    addFloatText(pos.x, pos.y - 15, '+' + pts + comboStr, enemy.type === ENEMY_GOLD ? '#fd0' : '#4f4');
+
+    if (enemy.type === ENEMY_GOLD) playSound('gold');
+    else playSound('hit');
+
+    enemy.phase = 'sinking';
+    enemy.timer = 0;
+  } else {
+    // Armored - still alive
+    playSound('armor');
+    const pos = cellCenter(c, r);
+    addFloatText(pos.x, pos.y, 'CLANK!', '#8cf');
+  }
+}
+);
+
+// -- Update --
+function update(dt) {
+  if (infoOpen) return;
+  if (state !== 'play') return;
+
+  gameTime += dt;
+
+  // Level up every 15 seconds
+  const newLevel = Math.floor(gameTime / 15) + 1;
+  if (newLevel > level) {
+    level = newLevel;
+    spawnInterval = Math.max(0.4, 1.4 - level * 0.08);
+    enemyDuration = Math.max(0.7, 2.0 - level * 0.1);
+  }
+
+  // Spawn enemies
+  spawnTimer += dt;
+  if (spawnTimer >= spawnInterval) {
+    spawnTimer -= spawnInterval;
+    spawnEnemy();
+    // At higher levels, sometimes spawn two
+    if (level >= 4 && Math.random() < 0.3) spawnEnemy();
+    if (level >= 8 && Math.random() < 0.3) spawnEnemy();
+  }
+
+  // Update enemies
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    const e = enemies[i];
+    e.timer += dt;
+
+    if (e.phase === 'rising') {
+      if (e.timer >= e.riseTime) { e.phase = 'up'; e.timer = 0; }
+    } else if (e.phase === 'up') {
+      if (e.timer >= e.duration) {
+        // Escaped! Normal enemies escaping = damage
+        if (e.type === ENEMY_NORMAL || e.type === ENEMY_ARMORED || e.type === ENEMY_GOLD) {
+          lives--;
+          combo = 0;
+          const pos = cellCenter(e.c, e.r);
+          addFloatText(pos.x, pos.y, 'ESCAPED!', '#f88');
+          if (lives <= 0) { state = 'gameover'; return; }
+        }
+        e.phase = 'sinking';
+        e.timer = 0;
+      }
+    } else if (e.phase === 'sinking') {
+      if (e.timer >= 0.2) { enemies.splice(i, 1); }
+    }
+  }
+
+  // Update float texts
+  for (let i = floatTexts.length - 1; i >= 0; i--) {
+    floatTexts[i].timer += dt;
+    if (floatTexts[i].timer >= floatTexts[i].duration) floatTexts.splice(i, 1);
+  }
+
+  // Update hammer anims
+  for (let i = hammerAnims.length - 1; i >= 0; i--) {
+    hammerAnims[i].timer += dt;
+    if (hammerAnims[i].timer >= hammerAnims[i].duration) hammerAnims.splice(i, 1);
+  }
+}
+
+// -- Draw --
+function drawHole(cx, cy) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.ellipse(cx, cy + 30, HOLE_RX, HOLE_RY, 0, 0, Math.PI * 2);
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fill();
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawEnemy(enemy) {
+  const pos = cellCenter(enemy.c, enemy.r);
+  let yOff = 0;
+  let scale = 1;
+
+  if (enemy.phase === 'rising') {
+    const t = enemy.timer / enemy.riseTime;
+    yOff = 40 * (1 - t);
+    scale = 0.5 + 0.5 * t;
+  } else if (enemy.phase === 'sinking') {
+    const t = enemy.timer / 0.2;
+    yOff = 40 * t;
+    scale = 1 - t * 0.5;
+  }
+
+  const x = pos.x;
+  const y = pos.y - 10 + yOff;
+  const sz = 32 * scale;
+
+  ctx.save();
+  ctx.translate(x, y);
+
+  // Body
+  if (enemy.type === ENEMY_NORMAL) {
+    ctx.fillStyle = '#4a4';
+    ctx.beginPath();
+    ctx.arc(0, -sz * 0.3, sz * 0.6, Math.PI, 0);
+    ctx.lineTo(sz * 0.6, sz * 0.3);
+    ctx.lineTo(-sz * 0.6, sz * 0.3);
+    ctx.closePath();
+    ctx.fill();
+    // Face
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(-sz * 0.3, -sz * 0.25, sz * 0.15, sz * 0.15);
+    ctx.fillRect(sz * 0.15, -sz * 0.25, sz * 0.15, sz * 0.15);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(-sz * 0.25, -sz * 0.2, sz * 0.08, sz * 0.08);
+    ctx.fillRect(sz * 0.18, -sz * 0.2, sz * 0.08, sz * 0.08);
+  } else if (enemy.type === ENEMY_ARMORED) {
+    ctx.fillStyle = '#48f';
+    ctx.beginPath();
+    ctx.arc(0, -sz * 0.3, sz * 0.65, Math.PI, 0);
+    ctx.lineTo(sz * 0.65, sz * 0.3);
+    ctx.lineTo(-sz * 0.65, sz * 0.3);
+    ctx.closePath();
+    ctx.fill();
+    // Helmet
+    ctx.fillStyle = '#36c';
+    ctx.beginPath();
+    ctx.arc(0, -sz * 0.4, sz * 0.5, Math.PI, 0);
+    ctx.closePath();
+    ctx.fill();
+    // Eyes
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(-sz * 0.25, -sz * 0.2, sz * 0.15, sz * 0.12);
+    ctx.fillRect(sz * 0.1, -sz * 0.2, sz * 0.15, sz * 0.12);
+    // HP indicator
+    if (enemy.hp === 2) {
+      ctx.fillStyle = '#8bf';
+      ctx.font = (sz * 0.4) + 'px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('2', 0, sz * 0.25);
+    }
+  } else if (enemy.type === ENEMY_BOMB) {
+    ctx.fillStyle = '#c22';
+    ctx.beginPath();
+    ctx.arc(0, -sz * 0.1, sz * 0.55, 0, Math.PI * 2);
+    ctx.fill();
+    // Fuse
+    ctx.strokeStyle = '#fa0';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, -sz * 0.65);
+    ctx.quadraticCurveTo(sz * 0.3, -sz * 0.8, sz * 0.15, -sz * 0.95);
+    ctx.stroke();
+    // Spark
+    const spark = Math.sin(Date.now() * 0.02) > 0;
+    if (spark) {
+      ctx.fillStyle = '#ff0';
+      ctx.beginPath();
+      ctx.arc(sz * 0.15, -sz * 0.95, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // Angry eyes
+    ctx.fillStyle = '#ff0';
+    ctx.fillRect(-sz * 0.25, -sz * 0.2, sz * 0.15, sz * 0.1);
+    ctx.fillRect(sz * 0.1, -sz * 0.2, sz * 0.15, sz * 0.1);
+    // X mouth
+    ctx.strokeStyle = '#ff0';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-sz * 0.15, sz * 0.1);
+    ctx.lineTo(sz * 0.15, sz * 0.25);
+    ctx.moveTo(sz * 0.15, sz * 0.1);
+    ctx.lineTo(-sz * 0.15, sz * 0.25);
+    ctx.stroke();
+  } else if (enemy.type === ENEMY_GOLD) {
+    const glow = 0.7 + 0.3 * Math.sin(Date.now() * 0.01);
+    ctx.fillStyle = `rgba(255,215,0,${glow})`;
+    ctx.beginPath();
+    ctx.arc(0, -sz * 0.2, sz * 0.55, Math.PI, 0);
+    ctx.lineTo(sz * 0.55, sz * 0.3);
+    ctx.lineTo(-sz * 0.55, sz * 0.3);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#fa0';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // Star eyes
+    ctx.fillStyle = '#fff';
+    ctx.font = (sz * 0.35) + 'px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('$', 0, sz * 0.1);
+  }
+
+  ctx.restore();
+}
+
+function drawHammer(anim) {
+  const t = anim.timer / anim.duration;
+  const angle = -0.5 + t * 0.5;
+  const sz = 30 + (1 - Math.abs(t - 0.5) * 2) * 10;
+
+  ctx.save();
+  ctx.translate(anim.x + 30, anim.y - 30);
+  ctx.rotate(angle);
+
+  // Handle
+  ctx.fillStyle = '#8b6914';
+  ctx.fillRect(-3, 0, 6, 35);
+
+  // Head
+  ctx.fillStyle = '#888';
+  ctx.fillRect(-12, -8, 24, 16);
+  ctx.fillStyle = '#aaa';
+  ctx.fillRect(-10, -6, 20, 12);
+
+  ctx.restore();
+}
+
+function drawGrid() {
+  for (let r = 0; r < 3; r++) {
+    for (let c = 0; c < 3; c++) {
+      const pos = cellCenter(c, r);
+
+      // Platform / hole
+      drawHole(pos.x, pos.y);
+
+      // Cell number label
+      const keyNum = [7,8,9,4,5,6,1,2,3][r * 3 + c];
+      ctx.save();
+      ctx.font = '16px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#555';
+      ctx.fillText(keyNum, pos.x, pos.y + 55);
+      ctx.restore();
+    }
+  }
+}
+
+function draw() {
+  ctx.fillStyle = '#0d0d1a';
+  ctx.fillRect(0, 0, W, H);
+
+  if (state === 'title') {
+    hudText('TONTIE', W / 2, 150, '#7bf', 48, 'center');
+    hudText('Numpad Whacking Game', W / 2, 210, '#888', 16, 'center');
+
+    // Draw grid preview
+    ctx.save();
+    ctx.globalAlpha = 0.5;
+    drawGrid();
+    ctx.restore();
+
+    hudText('Press 1-9 to Start', W / 2, 480, '#fd0', 20, 'center');
+    hudText('Keys map to numpad: 7-8-9 top, 1-2-3 bottom', W / 2, 510, '#666', 13, 'center');
+    hudText('Press ? for info', W / 2, 540, '#555', 12, 'center');
+    return;
+  }
+
+  if (state === 'gameover') {
+    drawGrid();
+    hudText('GAME OVER', W / 2, 160, '#f44', 40, 'center');
+    hudText('Score: ' + score, W / 2, 220, '#fff', 24, 'center');
+    hudText('Max Combo: ' + maxCombo + 'x', W / 2, 255, '#fd0', 18, 'center');
+    hudText('Level Reached: ' + level, W / 2, 285, '#8bf', 16, 'center');
+    hudText('Press 1-9 to Retry', W / 2, 340, '#4f4', 18, 'center');
+    return;
+  }
+
+  // Playing state
+  // HUD
+  hudText('SCORE: ' + score, 20, 15, '#fff', 18);
+  hudText('LEVEL: ' + level, W / 2, 15, '#8bf', 16, 'center');
+
+  // Lives as hearts
+  let livesStr = '';
+  for (let i = 0; i < lives; i++) livesStr += '\u2665 ';
+  hudText(livesStr, W - 20, 15, '#f44', 18, 'right');
+
+  // Combo
+  if (combo > 1) {
+    hudText('COMBO x' + combo, W / 2, 45, '#fd0', 14, 'center');
+  }
+
+  // Grid
+  drawGrid();
+
+  // Enemies
+  for (const e of enemies) drawEnemy(e);
+
+  // Hammer anims
+  for (const h of hammerAnims) drawHammer(h);
+
+  // Float texts
+  for (const ft of floatTexts) {
+    const t = ft.timer / ft.duration;
+    const alpha = 1 - t;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    hudText(ft.text, ft.x, ft.y - t * 40, ft.color, 16, 'center');
+    ctx.restore();
+  }
+
+  // Enemy type legend at bottom
+  hudText('GREEN=Hit  BLUE=2 Hits  RED=Avoid!  GOLD=Bonus', W / 2, H - 30, '#555', 11, 'center');
+}
+
+// -- Main loop --
+function loop(ts) {
+  const dt = lastTime ? Math.min((ts - lastTime) / 1000, 0.05) : 0.016;
+  lastTime = ts;
+  update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>

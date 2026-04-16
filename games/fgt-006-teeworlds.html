@@ -1,0 +1,900 @@
+<!--
+PROTOTYPE: teeworlds
+SERIES: fgt
+NUMBER: 006
+DATE: 2026-03-23
+MECHANIC: 2D platform combat with grappling hook physics and weapon pickups
+ANCESTRY: Teeworlds (2007, Magnus Auvinen), Soldat (2002, Michal Marcinkowski), Liero (1998, Joosa Riekkinen)
+CONTROLS: A/D — move | W — jump | Mouse — aim | Click — shoot | Right-click — grapple | 1/2/3 — weapons | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 5 (Deep Learning — physics-based movement mastery, momentum-aware AI)
+AI-INSIGHT: Teeworlds' grappling hook transformed 2D combat from platform-hopping to physics-based acrobatics. The hook creates a continuous action space for movement — exactly the kind of high-dimensional control problem that deep reinforcement learning excels at but rule-based AI struggles with.
+NOTES: Grapple-based movement is the core innovation. The skill ceiling comes from
+       chaining grapple swings into fluid aerial combat trajectories.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FGT-006 · TEEWORLDS</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; cursor: crosshair; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>FGT-006 · TEEWORLDS</h1>
+    <p><span class="tag series">FGT — Fighter</span> <span class="tag">Prototype #006</span> <span class="tag">★★★★☆</span></p>
+
+    <h2>How to Play</h2>
+    <p>Fast-paced 2D platform combat with grappling hook physics. Use the grapple to swing across the arena, build momentum, and outmaneuver your opponents. First to 10 kills wins the deathmatch!</p>
+    <ul>
+      <li><kbd>A</kbd> <kbd>D</kbd> — Move left / right</li>
+      <li><kbd>W</kbd> — Jump</li>
+      <li><kbd>Mouse</kbd> — Aim</li>
+      <li><kbd>Left Click</kbd> — Shoot</li>
+      <li><kbd>Right Click</kbd> or <kbd>E</kbd> — Fire / release grappling hook</li>
+      <li><kbd>1</kbd> — Pistol (unlimited ammo)</li>
+      <li><kbd>2</kbd> — Shotgun (spread, limited ammo)</li>
+      <li><kbd>3</kbd> — Grenade launcher (bouncing grenades, limited ammo)</li>
+      <li><kbd>R</kbd> — Restart match</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+
+    <h2>History</h2>
+    <p>Teeworlds (originally "Teewars") was created by Magnus Auvinen in 2007 as an open-source 2D multiplayer shooter. Its grappling hook mechanic, inherited from games like Liero and Soldat, became the defining feature — transforming simple platform movement into high-speed aerial acrobatics. The game built a dedicated competitive community around its physics-based skill ceiling.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>Era 5 — Deep Learning:</strong> The grappling hook creates a continuous action space that defies simple rule-based AI. Optimal hook usage requires predicting momentum arcs, timing releases for maximum velocity, and chaining swings into fluid trajectories. This is precisely the kind of physics-based control problem where deep reinforcement learning excels — learning policies that map continuous state (position, velocity, hook angle) to continuous actions.</p>
+
+    <h2>Classification</h2>
+    <ul>
+      <li><strong>Genre:</strong> 2D Platform Fighter / Arena Shooter</li>
+      <li><strong>Input:</strong> Keyboard + Mouse (aim + shoot + grapple)</li>
+      <li><strong>Core loop:</strong> Grapple → build momentum → aim → shoot → respawn</li>
+      <li><strong>Skill ceiling:</strong> Very high (grapple physics mastery)</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This prototype focuses on making the grapple feel satisfying — momentum transfer, pendulum swings, and slingshot launches. AI opponents use grapple for basic traversal and attempt aerial combat. The arena is designed with vertical space to encourage grapple-based movement over ground walking.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+const C = document.getElementById('c');
+const X = C.getContext('2d');
+C.width = 800; C.height = 600;
+
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// Constants
+const G = 0.4, FRICTION = 0.92, AIR_CTRL = 0.3, MAX_VX = 6, MAX_VY = 12;
+const HOOK_SPEED = 14, HOOK_LEN = 220, HOOK_PULL = 0.8;
+const TEE_R = 14, RESPAWN_T = 60, WIN_KILLS = 10;
+
+// Weapon defs: {name, color, dmg, rate, speed, spread, count, ammo, maxAmmo, life}
+const WEAPONS = [
+  {name:'Pistol', color:'#ff0', dmg:12, rate:12, speed:16, spread:0.03, count:1, ammo:Infinity, maxAmmo:Infinity, life:30, radius:3},
+  {name:'Shotgun', color:'#f80', dmg:6, rate:30, speed:14, spread:0.15, count:5, ammo:5, maxAmmo:5, life:15, radius:2},
+  {name:'Grenade', color:'#0f0', dmg:35, rate:25, speed:10, spread:0.05, count:1, ammo:5, maxAmmo:5, life:90, radius:5, bounce:true, explode:true, blastR:50}
+];
+
+// Colors for players
+const COLORS = ['#44aaff','#ff4444','#44ff44','#ffaa00'];
+const NAMES = ['You','Red','Green','Orange'];
+
+// Platforms
+const platforms = [
+  // Ground
+  {x:0, y:560, w:800, h:40},
+  // Lower platforms
+  {x:50, y:460, w:160, h:16},
+  {x:590, y:460, w:160, h:16},
+  {x:300, y:480, w:200, h:16},
+  // Mid platforms
+  {x:0, y:360, w:120, h:16},
+  {x:680, y:360, w:120, h:16},
+  {x:200, y:370, w:140, h:16},
+  {x:460, y:370, w:140, h:16},
+  {x:330, y:320, w:140, h:16},
+  // Upper platforms
+  {x:80, y:250, w:130, h:16},
+  {x:590, y:250, w:130, h:16},
+  {x:250, y:220, w:100, h:16},
+  {x:450, y:220, w:100, h:16},
+  // Top platforms
+  {x:320, y:140, w:160, h:16},
+  {x:100, y:140, w:80, h:16},
+  {x:620, y:140, w:80, h:16},
+  // Walls
+  {x:0, y:0, w:10, h:600},
+  {x:790, y:0, w:10, h:600},
+  // Ceiling
+  {x:0, y:0, w:800, h:10}
+];
+
+const spawnPts = [
+  {x:100,y:440},{x:700,y:440},{x:400,y:460},{x:60,y:340},{x:740,y:340},
+  {x:350,y:300},{x:150,y:230},{x:650,y:230},{x:400,y:120},{x:300,y:200},{x:500,y:200}
+];
+
+// Pickup locations
+const pickupSpots = [
+  {x:400,y:450,type:'health'},{x:130,y:440,type:'shotgun'},{x:670,y:440,type:'shotgun'},
+  {x:60,y:340,type:'health'},{x:740,y:340,type:'grenade'},{x:270,y:350,type:'shotgun'},
+  {x:530,y:350,type:'grenade'},{x:400,y:300,type:'health'},{x:140,y:230,type:'grenade'},
+  {x:655,y:230,type:'health'},{x:400,y:120,type:'shotgun'}
+];
+
+let pickups = [], pickupTimer = 0;
+function spawnPickups() {
+  pickups = [];
+  for (let s of pickupSpots) {
+    pickups.push({x:s.x, y:s.y-12, type:s.type, active:true, respawn:0});
+  }
+}
+
+// Projectiles, kill feed
+let projectiles = [], killFeed = [], particles = [];
+
+// Players
+let players = [];
+let mouseX = 400, mouseY = 300, mouseDown = false, rightDown = false;
+let keys = {};
+
+function createPlayer(i) {
+  let sp = spawnPts[Math.floor(Math.random()*spawnPts.length)];
+  return {
+    id: i, x: sp.x, y: sp.y, vx: 0, vy: 0, hp: 100, maxHp: 100,
+    weapon: 0, ammo: [Infinity, 0, 0], onGround: false,
+    hookX: 0, hookY: 0, hookVx: 0, hookVy: 0, hookActive: false, hookAttached: false,
+    hookAnchorX: 0, hookAnchorY: 0,
+    aimAngle: 0, fireCooldown: 0, kills: 0, deaths: 0,
+    dead: false, respawnTimer: 0, color: COLORS[i], name: NAMES[i],
+    // AI fields
+    aiTarget: null, aiMoveDir: 0, aiJump: false, aiShoot: false,
+    aiGrapple: false, aiGrappleAngle: 0, aiTimer: 0, aiGrappleTimer: 0
+  };
+}
+
+function init() {
+  players = [];
+  for (let i = 0; i < 4; i++) players.push(createPlayer(i));
+  projectiles = []; killFeed = []; particles = [];
+  spawnPickups();
+  pickupTimer = 0;
+}
+
+function respawn(p) {
+  let sp = spawnPts[Math.floor(Math.random()*spawnPts.length)];
+  p.x = sp.x; p.y = sp.y; p.vx = 0; p.vy = 0;
+  p.hp = 100; p.dead = false; p.hookActive = false; p.hookAttached = false;
+  p.weapon = 0; p.ammo = [Infinity, 0, 0]; p.fireCooldown = 0;
+}
+
+function rectCollide(ax, ay, aw, ah, bx, by, bw, bh) {
+  return ax < bx+bw && ax+aw > bx && ay < by+bh && ay+ah > by;
+}
+
+function lineHitPlatforms(x1, y1, x2, y2) {
+  let dx = x2-x1, dy = y2-y1;
+  let len = Math.sqrt(dx*dx+dy*dy);
+  if (len < 1) return null;
+  let steps = Math.ceil(len / 4);
+  for (let s = 1; s <= steps; s++) {
+    let t = s / steps;
+    let px = x1 + dx*t, py = y1 + dy*t;
+    for (let pl of platforms) {
+      if (px >= pl.x && px <= pl.x+pl.w && py >= pl.y && py <= pl.y+pl.h) {
+        return {x: px, y: py};
+      }
+    }
+  }
+  return null;
+}
+
+function addKillFeed(killer, victim) {
+  killFeed.unshift({killer: killer.name, kColor: killer.color, victim: victim.name, vColor: victim.color, t: 180});
+  if (killFeed.length > 5) killFeed.pop();
+}
+
+function spawnParticles(x, y, color, count) {
+  for (let i = 0; i < count; i++) {
+    let a = Math.random()*Math.PI*2, sp = 1+Math.random()*3;
+    particles.push({x, y, vx: Math.cos(a)*sp, vy: Math.sin(a)*sp - 1, life: 20+Math.random()*20, color});
+  }
+}
+
+function fireWeapon(p) {
+  if (p.fireCooldown > 0) return;
+  let w = WEAPONS[p.weapon];
+  if (p.ammo[p.weapon] <= 0) { p.weapon = 0; return; }
+  p.fireCooldown = w.rate;
+  if (p.ammo[p.weapon] !== Infinity) p.ammo[p.weapon]--;
+  for (let i = 0; i < w.count; i++) {
+    let angle = p.aimAngle + (Math.random()-0.5)*w.spread*2;
+    projectiles.push({
+      x: p.x, y: p.y, vx: Math.cos(angle)*w.speed, vy: Math.sin(angle)*w.speed,
+      owner: p.id, dmg: w.dmg, life: w.life, color: w.color, radius: w.radius,
+      bounce: w.bounce||false, explode: w.explode||false, blastR: w.blastR||0
+    });
+  }
+}
+
+function explode(proj) {
+  if (!proj.explode) return;
+  spawnParticles(proj.x, proj.y, '#ff0', 12);
+  spawnParticles(proj.x, proj.y, '#f80', 8);
+  for (let p of players) {
+    if (p.dead) continue;
+    let dx = p.x - proj.x, dy = p.y - proj.y;
+    let dist = Math.sqrt(dx*dx+dy*dy);
+    if (dist < proj.blastR) {
+      let factor = 1 - dist/proj.blastR;
+      let dmg = Math.floor(proj.dmg * factor);
+      p.hp -= dmg;
+      if (dist > 0) { p.vx += (dx/dist)*factor*8; p.vy += (dy/dist)*factor*8 - 2; }
+      if (p.hp <= 0 && !p.dead) {
+        p.dead = true; p.respawnTimer = RESPAWN_T;
+        let killer = players[proj.owner];
+        if (killer) { killer.kills++; addKillFeed(killer, p); }
+        spawnParticles(p.x, p.y, p.color, 15);
+        p.deaths++;
+      }
+    }
+  }
+}
+
+// AI logic
+function updateAI(p) {
+  if (p.dead) return;
+  p.aiTimer--;
+  if (p.aiTimer <= 0) {
+    p.aiTimer = 15 + Math.floor(Math.random()*20);
+    // Pick target
+    let best = null, bestDist = Infinity;
+    for (let o of players) {
+      if (o.id === p.id || o.dead) continue;
+      let d = Math.abs(o.x-p.x)+Math.abs(o.y-p.y);
+      if (d < bestDist) { bestDist = d; best = o; }
+    }
+    p.aiTarget = best;
+    // Decide movement
+    if (best) {
+      let dx = best.x - p.x;
+      p.aiMoveDir = dx > 30 ? 1 : dx < -30 ? -1 : (Math.random() > 0.5 ? 1 : -1);
+      p.aiJump = (best.y < p.y - 40) || (Math.random() < 0.25) || (!p.onGround && Math.random() < 0.1);
+      p.aiShoot = bestDist < 400;
+    } else {
+      p.aiMoveDir = Math.random() > 0.5 ? 1 : -1;
+      p.aiJump = Math.random() < 0.15;
+      p.aiShoot = false;
+    }
+  }
+
+  // Grapple AI
+  p.aiGrappleTimer--;
+  if (p.aiGrappleTimer <= 0 && !p.hookActive) {
+    p.aiGrappleTimer = 30 + Math.floor(Math.random()*60);
+    // Try to grapple toward a platform above or toward target
+    if (Math.random() < 0.5 && p.aiTarget) {
+      let tgt = p.aiTarget;
+      p.aiGrappleAngle = Math.atan2(tgt.y - 60 - p.y, tgt.x - p.x);
+      p.aiGrapple = true;
+    } else {
+      // Grapple upward to a random direction
+      p.aiGrappleAngle = -Math.PI/2 + (Math.random()-0.5)*1.2;
+      p.aiGrapple = true;
+    }
+  }
+  // Release grapple after a bit
+  if (p.hookAttached && p.aiGrappleTimer < -10) {
+    p.hookActive = false; p.hookAttached = false;
+    p.aiGrapple = false;
+  }
+
+  // Apply AI movement
+  let accel = p.onGround ? 0.8 : AIR_CTRL;
+  p.vx += p.aiMoveDir * accel;
+  if (p.aiJump && p.onGround) { p.vy = -9; p.onGround = false; }
+
+  // Aim at target
+  if (p.aiTarget && !p.aiTarget.dead) {
+    let t = p.aiTarget;
+    p.aimAngle = Math.atan2(t.y - p.y, t.x - p.x) + (Math.random()-0.5)*0.15;
+    if (p.aiShoot) fireWeapon(p);
+  }
+
+  // Fire grapple
+  if (p.aiGrapple && !p.hookActive) {
+    p.hookActive = true; p.hookAttached = false;
+    p.hookX = p.x; p.hookY = p.y;
+    p.hookVx = Math.cos(p.aiGrappleAngle)*HOOK_SPEED;
+    p.hookVy = Math.sin(p.aiGrappleAngle)*HOOK_SPEED;
+    p.aiGrapple = false;
+  }
+
+  // Weapon switching — pick up if have ammo
+  if (p.ammo[1] > 0 && Math.random() < 0.02) p.weapon = 1;
+  else if (p.ammo[2] > 0 && Math.random() < 0.02) p.weapon = 2;
+  else if (p.ammo[p.weapon] <= 0) p.weapon = 0;
+}
+
+function updatePlayer(p, isHuman) {
+  if (p.dead) {
+    p.respawnTimer--;
+    if (p.respawnTimer <= 0) respawn(p);
+    return;
+  }
+
+  if (p.fireCooldown > 0) p.fireCooldown--;
+
+  if (isHuman) {
+    let accel = p.onGround ? 0.8 : AIR_CTRL;
+    if (keys['a'] || keys['arrowleft']) p.vx -= accel;
+    if (keys['d'] || keys['arrowright']) p.vx += accel;
+    if ((keys['w'] || keys[' '] || keys['arrowup']) && p.onGround) { p.vy = -9; p.onGround = false; }
+    p.aimAngle = Math.atan2(mouseY - p.y, mouseX - p.x);
+    if (mouseDown) fireWeapon(p);
+  } else {
+    updateAI(p);
+  }
+
+  // Physics
+  p.vy += G;
+  p.vx *= FRICTION;
+  if (Math.abs(p.vx) > MAX_VX) p.vx = MAX_VX * Math.sign(p.vx);
+  if (p.vy > MAX_VY) p.vy = MAX_VY;
+
+  // Hook pull
+  if (p.hookAttached) {
+    let dx = p.hookAnchorX - p.x, dy = p.hookAnchorY - p.y;
+    let dist = Math.sqrt(dx*dx+dy*dy);
+    if (dist > 1) {
+      let nx = dx/dist, ny = dy/dist;
+      p.vx += nx * HOOK_PULL;
+      p.vy += ny * HOOK_PULL;
+      // If close enough, reduce pull
+      if (dist < 30) {
+        p.hookActive = false; p.hookAttached = false;
+      }
+    }
+  }
+
+  // Move X
+  p.x += p.vx;
+  p.onGround = false;
+  for (let pl of platforms) {
+    if (rectCollide(p.x-TEE_R, p.y-TEE_R, TEE_R*2, TEE_R*2, pl.x, pl.y, pl.w, pl.h)) {
+      if (p.vx > 0) p.x = pl.x - TEE_R;
+      else p.x = pl.x + pl.w + TEE_R;
+      p.vx = 0;
+    }
+  }
+
+  // Move Y
+  p.y += p.vy;
+  for (let pl of platforms) {
+    if (rectCollide(p.x-TEE_R, p.y-TEE_R, TEE_R*2, TEE_R*2, pl.x, pl.y, pl.w, pl.h)) {
+      if (p.vy > 0) {
+        p.y = pl.y - TEE_R;
+        p.onGround = true;
+        p.vy = 0;
+      } else {
+        p.y = pl.y + pl.h + TEE_R;
+        p.vy = 0;
+      }
+    }
+  }
+
+  // Update hook projectile
+  if (p.hookActive && !p.hookAttached) {
+    p.hookX += p.hookVx;
+    p.hookY += p.hookVy;
+    // Check if hook hit a platform
+    for (let pl of platforms) {
+      if (p.hookX >= pl.x && p.hookX <= pl.x+pl.w && p.hookY >= pl.y && p.hookY <= pl.y+pl.h) {
+        p.hookAttached = true;
+        p.hookAnchorX = p.hookX;
+        p.hookAnchorY = p.hookY;
+        break;
+      }
+    }
+    // Check range
+    let dx = p.hookX - p.x, dy = p.hookY - p.y;
+    if (dx*dx+dy*dy > HOOK_LEN*HOOK_LEN) {
+      p.hookActive = false;
+    }
+  }
+
+  // Pickups
+  for (let pk of pickups) {
+    if (!pk.active) continue;
+    let dx = p.x - pk.x, dy = p.y - pk.y;
+    if (dx*dx+dy*dy < 400) {
+      pk.active = false; pk.respawn = 300;
+      if (pk.type === 'health') { p.hp = Math.min(p.hp + 30, p.maxHp); spawnParticles(pk.x, pk.y, '#0f0', 6); }
+      else if (pk.type === 'shotgun') { p.ammo[1] = WEAPONS[1].maxAmmo; spawnParticles(pk.x, pk.y, '#f80', 6); }
+      else if (pk.type === 'grenade') { p.ammo[2] = WEAPONS[2].maxAmmo; spawnParticles(pk.x, pk.y, '#0f0', 6); }
+    }
+  }
+
+  // Clamp to bounds
+  if (p.x < 20) { p.x = 20; p.vx = 0; }
+  if (p.x > 780) { p.x = 780; p.vx = 0; }
+  if (p.y < 20) { p.y = 20; p.vy = 0; }
+}
+
+function updateProjectiles() {
+  for (let i = projectiles.length-1; i >= 0; i--) {
+    let pr = projectiles[i];
+    pr.x += pr.vx; pr.y += pr.vy;
+    if (pr.bounce) pr.vy += G * 0.5;
+    pr.life--;
+
+    // Hit platform
+    let hitPlat = false;
+    for (let pl of platforms) {
+      if (pr.x >= pl.x && pr.x <= pl.x+pl.w && pr.y >= pl.y && pr.y <= pl.y+pl.h) {
+        if (pr.bounce) {
+          // Bounce off
+          let fromTop = pr.y - pr.vy - pl.y;
+          let fromBot = pr.y - pr.vy - (pl.y+pl.h);
+          if (Math.abs(fromTop) < Math.abs(fromBot)) { pr.y = pl.y - 1; pr.vy = -Math.abs(pr.vy)*0.6; }
+          else { pr.y = pl.y+pl.h+1; pr.vy = Math.abs(pr.vy)*0.6; }
+          if (Math.abs(pr.vy) < 0.5) { hitPlat = true; }
+        } else {
+          hitPlat = true;
+        }
+        break;
+      }
+    }
+
+    if (hitPlat || pr.life <= 0) {
+      if (pr.explode) explode(pr);
+      projectiles.splice(i, 1);
+      continue;
+    }
+
+    // Hit players
+    for (let p of players) {
+      if (p.id === pr.owner || p.dead) continue;
+      let dx = p.x - pr.x, dy = p.y - pr.y;
+      if (dx*dx+dy*dy < (TEE_R+pr.radius)*(TEE_R+pr.radius)) {
+        if (pr.explode) { explode(pr); }
+        else {
+          p.hp -= pr.dmg;
+          p.vx += pr.vx * 0.15;
+          p.vy += pr.vy * 0.15 - 1;
+          spawnParticles(pr.x, pr.y, p.color, 3);
+        }
+        if (p.hp <= 0 && !p.dead) {
+          p.dead = true; p.respawnTimer = RESPAWN_T;
+          let killer = players[pr.owner];
+          if (killer) { killer.kills++; addKillFeed(killer, p); }
+          spawnParticles(p.x, p.y, p.color, 15);
+          p.deaths++;
+          p.hookActive = false; p.hookAttached = false;
+        }
+        projectiles.splice(i, 1);
+        break;
+      }
+    }
+  }
+}
+
+function update() {
+  if (infoOpen) return;
+
+  // Check win
+  let winner = null;
+  for (let p of players) { if (p.kills >= WIN_KILLS) { winner = p; break; } }
+  if (winner) return; // game frozen on win
+
+  for (let i = 0; i < players.length; i++) updatePlayer(players[i], i===0);
+  updateProjectiles();
+
+  // Update particles
+  for (let i = particles.length-1; i >= 0; i--) {
+    let p = particles[i];
+    p.x += p.vx; p.y += p.vy; p.vy += 0.1; p.life--;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+
+  // Update kill feed
+  for (let i = killFeed.length-1; i >= 0; i--) {
+    killFeed[i].t--;
+    if (killFeed[i].t <= 0) killFeed.splice(i, 1);
+  }
+
+  // Update pickups
+  for (let pk of pickups) {
+    if (!pk.active) {
+      pk.respawn--;
+      if (pk.respawn <= 0) pk.active = true;
+    }
+  }
+}
+
+function drawTee(p) {
+  if (p.dead) return;
+  let x = p.x, y = p.y;
+
+  // Hook line
+  if (p.hookActive) {
+    X.strokeStyle = '#888';
+    X.lineWidth = 2;
+    X.beginPath();
+    X.moveTo(x, y);
+    if (p.hookAttached) { X.lineTo(p.hookAnchorX, p.hookAnchorY); }
+    else { X.lineTo(p.hookX, p.hookY); }
+    X.stroke();
+    // Hook head
+    let hx = p.hookAttached ? p.hookAnchorX : p.hookX;
+    let hy = p.hookAttached ? p.hookAnchorY : p.hookY;
+    X.fillStyle = '#ccc';
+    X.fillRect(hx-3, hy-3, 6, 6);
+  }
+
+  // Body (circle)
+  X.fillStyle = p.color;
+  X.beginPath();
+  X.arc(x, y, TEE_R, 0, Math.PI*2);
+  X.fill();
+
+  // Eyes
+  let ex = Math.cos(p.aimAngle)*5, ey = Math.sin(p.aimAngle)*3;
+  X.fillStyle = '#fff';
+  X.beginPath();
+  X.arc(x+ex-2, y+ey-3, 4, 0, Math.PI*2);
+  X.arc(x+ex+4, y+ey-3, 4, 0, Math.PI*2);
+  X.fill();
+  X.fillStyle = '#000';
+  let px = Math.cos(p.aimAngle)*2, py = Math.sin(p.aimAngle)*1;
+  X.beginPath();
+  X.arc(x+ex-2+px, y+ey-3+py, 2, 0, Math.PI*2);
+  X.arc(x+ex+4+px, y+ey-3+py, 2, 0, Math.PI*2);
+  X.fill();
+
+  // Weapon indicator
+  let wx = x + Math.cos(p.aimAngle)*18, wy = y + Math.sin(p.aimAngle)*18;
+  X.strokeStyle = WEAPONS[p.weapon].color;
+  X.lineWidth = 2;
+  X.beginPath();
+  X.moveTo(x + Math.cos(p.aimAngle)*10, y + Math.sin(p.aimAngle)*10);
+  X.lineTo(wx, wy);
+  X.stroke();
+
+  // Health bar
+  let barW = 30, barH = 4;
+  X.fillStyle = '#300';
+  X.fillRect(x-barW/2, y-TEE_R-8, barW, barH);
+  X.fillStyle = p.hp > 60 ? '#0c0' : p.hp > 30 ? '#cc0' : '#c00';
+  X.fillRect(x-barW/2, y-TEE_R-8, barW*(p.hp/100), barH);
+
+  // Name
+  X.fillStyle = p.color;
+  X.font = '9px monospace';
+  X.textAlign = 'center';
+  X.fillText(p.name, x, y-TEE_R-12);
+}
+
+function draw() {
+  // Background
+  X.fillStyle = '#1a1a2e';
+  X.fillRect(0, 0, 800, 600);
+
+  // Background stars
+  X.fillStyle = '#334';
+  for (let i = 0; i < 30; i++) {
+    let sx = (i*127+43) % 800, sy = (i*83+17) % 560;
+    X.fillRect(sx, sy, 1, 1);
+  }
+
+  // Platforms
+  for (let pl of platforms) {
+    X.fillStyle = '#3a3a5c';
+    X.fillRect(pl.x, pl.y, pl.w, pl.h);
+    X.fillStyle = '#4a4a7c';
+    X.fillRect(pl.x, pl.y, pl.w, 3);
+  }
+
+  // Pickups
+  for (let pk of pickups) {
+    if (!pk.active) continue;
+    let t = Date.now()/500;
+    let bob = Math.sin(t + pk.x)*3;
+    if (pk.type === 'health') {
+      X.fillStyle = '#0f0';
+      X.fillRect(pk.x-5, pk.y+bob-2, 10, 4);
+      X.fillRect(pk.x-2, pk.y+bob-5, 4, 10);
+    } else if (pk.type === 'shotgun') {
+      X.fillStyle = '#f80';
+      X.fillRect(pk.x-7, pk.y+bob-2, 14, 4);
+      X.fillRect(pk.x-7, pk.y+bob-4, 4, 8);
+    } else {
+      X.fillStyle = '#0f0';
+      X.beginPath();
+      X.arc(pk.x, pk.y+bob, 5, 0, Math.PI*2);
+      X.fill();
+      X.fillStyle = '#080';
+      X.beginPath();
+      X.arc(pk.x, pk.y+bob, 3, 0, Math.PI*2);
+      X.fill();
+    }
+  }
+
+  // Particles
+  for (let p of particles) {
+    X.globalAlpha = p.life / 30;
+    X.fillStyle = p.color;
+    X.fillRect(p.x-1, p.y-1, 3, 3);
+  }
+  X.globalAlpha = 1;
+
+  // Projectiles
+  for (let pr of projectiles) {
+    X.fillStyle = pr.color;
+    X.beginPath();
+    X.arc(pr.x, pr.y, pr.radius, 0, Math.PI*2);
+    X.fill();
+  }
+
+  // Players
+  for (let p of players) drawTee(p);
+
+  // HUD - Scoreboard
+  X.font = '12px monospace';
+  X.textAlign = 'left';
+  for (let i = 0; i < players.length; i++) {
+    let p = players[i];
+    let yp = 18 + i*16;
+    X.fillStyle = p.color;
+    X.fillText(p.name, 14, yp);
+    X.fillStyle = '#fff';
+    X.fillText(p.kills + ' kills', 70, yp);
+  }
+
+  // Player weapon & ammo
+  let pl = players[0];
+  if (!pl.dead) {
+    X.fillStyle = '#fff';
+    X.font = '13px monospace';
+    X.textAlign = 'left';
+    let wname = WEAPONS[pl.weapon].name;
+    let ammoStr = pl.ammo[pl.weapon] === Infinity ? '∞' : pl.ammo[pl.weapon];
+    X.fillText(wname + ' [' + ammoStr + ']', 14, 590);
+    // Weapon slots
+    for (let w = 0; w < 3; w++) {
+      let sx = 250 + w*70;
+      X.fillStyle = w === pl.weapon ? '#fff' : '#555';
+      X.fillText((w+1)+':'+WEAPONS[w].name, sx, 590);
+    }
+    // HP
+    X.fillStyle = '#fff';
+    X.textAlign = 'right';
+    X.fillText('HP: '+pl.hp, 786, 590);
+  }
+
+  // Kill feed (top right)
+  X.textAlign = 'right';
+  X.font = '11px monospace';
+  for (let i = 0; i < killFeed.length; i++) {
+    let kf = killFeed[i];
+    let alpha = Math.min(1, kf.t / 30);
+    X.globalAlpha = alpha;
+    let yp = 18 + i*15;
+    X.fillStyle = kf.kColor;
+    X.fillText(kf.killer, 720, yp);
+    X.fillStyle = '#888';
+    X.fillText(' → ', 738, yp);
+    X.fillStyle = kf.vColor;
+    X.fillText(kf.victim, 786, yp);
+  }
+  X.globalAlpha = 1;
+
+  // Win screen
+  let winner = null;
+  for (let p of players) { if (p.kills >= WIN_KILLS) { winner = p; break; } }
+  if (winner) {
+    X.fillStyle = 'rgba(0,0,0,0.6)';
+    X.fillRect(0, 0, 800, 600);
+    X.fillStyle = winner.color;
+    X.font = 'bold 36px monospace';
+    X.textAlign = 'center';
+    X.fillText(winner.name + ' WINS!', 400, 270);
+    X.fillStyle = '#fff';
+    X.font = '16px monospace';
+    X.fillText(winner.kills + ' kills', 400, 310);
+    X.fillStyle = '#888';
+    X.font = '14px monospace';
+    X.fillText('Press R to restart', 400, 350);
+  }
+
+  // Respawn overlay for player
+  if (players[0].dead) {
+    X.fillStyle = 'rgba(255,0,0,0.15)';
+    X.fillRect(0, 0, 800, 600);
+    X.fillStyle = '#fff';
+    X.font = '20px monospace';
+    X.textAlign = 'center';
+    X.fillText('Respawning...', 400, 300);
+  }
+
+  // Controls hint
+  X.fillStyle = '#444';
+  X.font = '10px monospace';
+  X.textAlign = 'center';
+  X.fillText('WASD move/jump · Click shoot · Right-click grapple · 1/2/3 weapons · ? info', 400, 12);
+}
+
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+// Input
+document.addEventListener('keydown', (e) => {
+  let k = e.key.toLowerCase();
+  keys[k] = true;
+  if (k === '?') { e.preventDefault(); toggleInfo(); }
+  if (k === 'escape' && infoOpen) toggleInfo();
+  if (k === 'r') init();
+  if (k === '1') players[0].weapon = 0;
+  if (k === '2' && players[0].ammo[1] > 0) players[0].weapon = 1;
+  if (k === '3' && players[0].ammo[2] > 0) players[0].weapon = 2;
+  if (k === 'e' && !players[0].dead) {
+    let p = players[0];
+    if (p.hookActive) { p.hookActive = false; p.hookAttached = false; }
+    else {
+      p.hookActive = true; p.hookAttached = false;
+      p.hookX = p.x; p.hookY = p.y;
+      p.hookVx = Math.cos(p.aimAngle)*HOOK_SPEED;
+      p.hookVy = Math.sin(p.aimAngle)*HOOK_SPEED;
+    }
+  }
+});
+document.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
+
+C.addEventListener('mousemove', (e) => {
+  let r = C.getBoundingClientRect();
+  mouseX = (e.clientX - r.left) * (800/r.width);
+  mouseY = (e.clientY - r.top) * (600/r.height);
+});
+C.addEventListener('mousedown', (e) => {
+  e.preventDefault();
+  if (e.button === 0) mouseDown = true;
+  if (e.button === 2) {
+    let p = players[0];
+    if (p.dead) return;
+    if (p.hookActive) { p.hookActive = false; p.hookAttached = false; }
+    else {
+      p.hookActive = true; p.hookAttached = false;
+      p.hookX = p.x; p.hookY = p.y;
+      p.hookVx = Math.cos(p.aimAngle)*HOOK_SPEED;
+      p.hookVy = Math.sin(p.aimAngle)*HOOK_SPEED;
+    }
+  }
+});
+C.addEventListener('mouseup', (e) => {
+  if (e.button === 0) mouseDown = false;
+});
+C.addEventListener('contextmenu', (e) => e.preventDefault());
+
+init();
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: runner ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("runner");
+</script>
+</body>
+</html>

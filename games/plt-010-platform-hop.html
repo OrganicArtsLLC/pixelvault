@@ -1,0 +1,767 @@
+<!--
+PROTOTYPE: platform-hop
+SERIES: plt
+NUMBER: 010
+DATE: 2026-03-23
+MECHANIC: auto-jump vertical platformer with procedural platforms and enemies
+ANCESTRY: Doodle Jump (2009, Lima Sky), Ice Climber (1985, Nintendo), Icy Tower (2001, FreeLunchDesign)
+CONTROLS: Left/Right arrows — move | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 5 (Deep Learning — procedural generation mirrors generative models)
+AI-INSIGHT: Doodle Jump's infinite procedural generation solved the content problem by making each playthrough unique — a constraint-based generative approach that predated modern procedural generation research in deep learning.
+NOTES: Vertical endless platformer. Simple controls, infinite replayability.
+       Platform variety creates emergent difficulty curve.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PLT-010 · PLATFORM HOP</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>PLT-010 · PLATFORM HOP</h1>
+    <p><span class="tag series">PLT — Platformer</span> <span class="tag">Prototype #010</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Bounce endlessly upward on platforms. Your jumper auto-bounces when landing on a platform. Reach as high as you can without falling off the bottom of the screen.</p>
+    <ul>
+      <li><kbd>&#8592;</kbd> <kbd>&#8594;</kbd> &mdash; Move left/right</li>
+      <li><kbd>R</kbd> &mdash; Restart</li>
+      <li><kbd>?</kbd> &mdash; Toggle this info panel</li>
+    </ul>
+    <h3>Platform Types</h3>
+    <ul>
+      <li><strong style="color:#4d4">Green:</strong> Normal &mdash; always solid</li>
+      <li><strong style="color:#48f">Blue:</strong> Moving &mdash; slides left and right</li>
+      <li><strong style="color:#a64">Brown:</strong> Breakable &mdash; crumbles after one landing</li>
+      <li><strong style="color:#f44">Red:</strong> Spring &mdash; super bounce!</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Screen wraps:</strong> Walk off the left edge to appear on the right, and vice versa.</li>
+      <li><strong>Jump on enemies:</strong> Land on top of enemies to defeat them. Touching them from the side means death.</li>
+      <li><strong>Plan ahead:</strong> Look for the next platform above you and aim for it.</li>
+      <li><strong>Springs are gold:</strong> Red spring platforms launch you extra high &mdash; use them to skip difficult sections.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Doodle Jump (2009, Lima Sky) &larr; Icy Tower (2001, FreeLunchDesign) &larr; Ice Climber (1985, Nintendo)</p>
+    <p>Doodle Jump (2009) became one of the defining games of the early smartphone era. Created by Croatian-American brothers Igor and Marko Pusenjak at Lima Sky, its simple tilt-to-move mechanic and infinite vertical scrolling made it perfectly suited to mobile touchscreens.</p>
+    <p>The game distilled vertical platforming to its purest essence: auto-jumping, procedural platforms, and a single axis of player control. This simplicity made it endlessly accessible while the procedural generation ensured no two games were alike. It sold over 15 million copies and inspired countless imitators.</p>
+    <p>Its lineage traces through Icy Tower (2001), a Flash-era endless climber, back to Ice Climber (1985) on the NES, which first explored vertical platforming as a core mechanic. The genre evolved from designed levels to procedural infinity.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 5 &mdash; Deep Learning (2006&ndash;2020)</p>
+    <p><strong>Contemporary AI:</strong> Deep learning revolution, generative adversarial networks, procedural content generation research.</p>
+    <p><strong>Insight:</strong> Doodle Jump&rsquo;s infinite procedural generation solved the content problem by making each playthrough unique &mdash; a constraint-based generative approach that predated modern procedural generation research in deep learning. The game&rsquo;s difficulty curve emerges from platform distribution rules rather than hand-crafted levels, mirroring how generative models learn to produce varied outputs from learned distributions.</p>
+
+    <h2>Classification</h2>
+    <ul>
+      <li><strong>Primary:</strong> Platformer (endless vertical)</li>
+      <li><strong>Secondary:</strong> Procedural generation, skill-based</li>
+      <li><strong>Input:</strong> 2-axis horizontal movement</li>
+      <li><strong>Perspective:</strong> Side-on, vertical scroll</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This prototype implements the core vertical platformer loop with four platform types, procedural generation, screen wrapping, enemies, and score tracking. The difficulty gradually increases with altitude through platform spacing and enemy frequency.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+var W = 800, H = 600;
+var canvas = document.getElementById('c');
+var ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+canvas.width = W;
+canvas.height = H;
+
+var infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+
+// Game state
+var player, platforms, enemies, particles, camera, score, highScore, gameOver, gameStarted;
+var keys = {};
+
+highScore = 0;
+
+function init() {
+  player = {
+    x: W / 2 - 15,
+    y: H - 100,
+    w: 30,
+    h: 30,
+    vx: 0,
+    vy: 0,
+    jumping: false,
+    facing: 1,
+    maxHeight: H - 100
+  };
+  platforms = [];
+  enemies = [];
+  particles = [];
+  camera = 0;
+  score = 0;
+  gameOver = false;
+  gameStarted = false;
+
+  // Generate initial platforms
+  // Start platform directly under player
+  platforms.push({
+    x: W / 2 - 40,
+    y: H - 60,
+    w: 80,
+    h: 12,
+    type: 'normal',
+    broken: false,
+    moveDir: 0,
+    springBounce: 0
+  });
+
+  // Fill the screen with platforms
+  var lastY = H - 60;
+  for (var i = 0; i < 20; i++) {
+    lastY -= 40 + Math.random() * 50;
+    addPlatform(lastY);
+  }
+}
+
+function addPlatform(y) {
+  var altitude = -y + H;
+  var difficultyFactor = Math.min(altitude / 8000, 1);
+
+  var type = 'normal';
+  var r = Math.random();
+  if (r < 0.08 + difficultyFactor * 0.12) {
+    type = 'breakable';
+  } else if (r < 0.18 + difficultyFactor * 0.08) {
+    type = 'moving';
+  } else if (r < 0.23) {
+    type = 'spring';
+  }
+
+  var pw = type === 'spring' ? 70 : 65 + Math.random() * 25;
+  var p = {
+    x: Math.random() * (W - pw),
+    y: y,
+    w: pw,
+    h: 12,
+    type: type,
+    broken: false,
+    moveDir: type === 'moving' ? (Math.random() < 0.5 ? 1 : -1) : 0,
+    moveSpeed: 1 + Math.random() * 1.5,
+    springBounce: 0
+  };
+  platforms.push(p);
+
+  // Maybe spawn enemy at higher altitudes
+  if (altitude > 2000 && Math.random() < 0.04 + difficultyFactor * 0.06) {
+    enemies.push({
+      x: Math.random() * (W - 30),
+      y: y - 50 - Math.random() * 30,
+      w: 28,
+      h: 28,
+      vx: (Math.random() < 0.5 ? 1 : -1) * (1 + Math.random() * 1.5),
+      alive: true,
+      frame: 0
+    });
+  }
+}
+
+function spawnParticles(x, y, color, count) {
+  for (var i = 0; i < count; i++) {
+    particles.push({
+      x: x,
+      y: y,
+      vx: (Math.random() - 0.5) * 6,
+      vy: (Math.random() - 0.5) * 6 - 2,
+      life: 20 + Math.random() * 20,
+      maxLife: 40,
+      color: color,
+      size: 2 + Math.random() * 3
+    });
+  }
+}
+
+function update() {
+  if (infoOpen) return;
+  if (gameOver) return;
+
+  // Movement
+  var accel = 0.6;
+  var friction = 0.88;
+  if (keys['ArrowLeft'] || keys['KeyA']) {
+    player.vx -= accel;
+    player.facing = -1;
+  }
+  if (keys['ArrowRight'] || keys['KeyD']) {
+    player.vx += accel;
+    player.facing = 1;
+  }
+  player.vx *= friction;
+  player.x += player.vx;
+
+  // Screen wrap
+  if (player.x + player.w < 0) player.x = W;
+  if (player.x > W) player.x = -player.w;
+
+  // Gravity
+  player.vy += 0.45;
+  player.y += player.vy;
+
+  // Track max height
+  if (player.y < player.maxHeight) {
+    player.maxHeight = player.y;
+  }
+  score = Math.max(score, Math.floor((-player.maxHeight + H - 100) / 10));
+
+  // Camera follows player upward
+  var targetCamera = player.y - H * 0.4;
+  if (targetCamera < camera) {
+    camera = targetCamera;
+  }
+
+  // Update moving platforms
+  for (var i = 0; i < platforms.length; i++) {
+    var p = platforms[i];
+    if (p.type === 'moving' && !p.broken) {
+      p.x += p.moveDir * p.moveSpeed;
+      if (p.x <= 0 || p.x + p.w >= W) {
+        p.moveDir *= -1;
+      }
+    }
+    if (p.springBounce > 0) p.springBounce -= 0.15;
+  }
+
+  // Collision with platforms (only when falling)
+  if (player.vy > 0) {
+    for (var i = 0; i < platforms.length; i++) {
+      var p = platforms[i];
+      if (p.broken) continue;
+
+      var px = player.x + player.w / 2;
+      var py = player.y + player.h;
+      var prevPy = py - player.vy;
+
+      if (px > p.x && px < p.x + p.w &&
+          py >= p.y && prevPy <= p.y + 4 &&
+          py <= p.y + p.h + player.vy + 2) {
+
+        if (p.type === 'breakable') {
+          p.broken = true;
+          spawnParticles(p.x + p.w / 2, p.y, '#a86030', 8);
+          // Don't bounce on breakable
+          continue;
+        }
+
+        gameStarted = true;
+        player.y = p.y - player.h;
+
+        if (p.type === 'spring') {
+          player.vy = -18;
+          p.springBounce = 1;
+          spawnParticles(player.x + player.w / 2, player.y + player.h, '#ff4444', 6);
+        } else {
+          player.vy = -11;
+        }
+      }
+    }
+  }
+
+  // Update enemies
+  for (var i = 0; i < enemies.length; i++) {
+    var e = enemies[i];
+    if (!e.alive) continue;
+    e.x += e.vx;
+    if (e.x <= 0 || e.x + e.w >= W) e.vx *= -1;
+    e.frame += 0.05;
+
+    // Check collision with player
+    if (player.x + player.w > e.x + 4 && player.x < e.x + e.w - 4 &&
+        player.y + player.h > e.y + 4 && player.y < e.y + e.h - 4) {
+      // Landing on top?
+      if (player.vy > 0 && player.y + player.h < e.y + e.h / 2 + 6) {
+        e.alive = false;
+        player.vy = -11;
+        spawnParticles(e.x + e.w / 2, e.y + e.h / 2, '#f84', 12);
+        score += 50;
+      } else {
+        // Death
+        gameOver = true;
+        spawnParticles(player.x + player.w / 2, player.y + player.h / 2, '#f44', 20);
+        if (score > highScore) highScore = score;
+        return;
+      }
+    }
+  }
+
+  // Generate new platforms above
+  var topY = camera;
+  var highestPlatY = Infinity;
+  for (var i = 0; i < platforms.length; i++) {
+    if (!platforms[i].broken && platforms[i].y < highestPlatY) {
+      highestPlatY = platforms[i].y;
+    }
+  }
+
+  var altitude = -camera + H;
+  var maxGap = Math.min(55 + altitude / 200, 95);
+
+  while (highestPlatY > topY - 100) {
+    highestPlatY -= 35 + Math.random() * maxGap;
+    addPlatform(highestPlatY);
+  }
+
+  // Remove off-screen platforms and enemies
+  var bottomY = camera + H + 100;
+  platforms = platforms.filter(function(p) { return p.y < bottomY; });
+  enemies = enemies.filter(function(e) { return e.y < bottomY && e.y > camera - 100; });
+
+  // Update particles
+  for (var i = particles.length - 1; i >= 0; i--) {
+    var pt = particles[i];
+    pt.x += pt.vx;
+    pt.y += pt.vy;
+    pt.vy += 0.15;
+    pt.life--;
+    if (pt.life <= 0) particles.splice(i, 1);
+  }
+
+  // Game over: fell below screen
+  if (player.y > camera + H + 50) {
+    gameOver = true;
+    if (score > highScore) highScore = score;
+  }
+}
+
+function draw() {
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fillRect(0, 0, W, H);
+
+  // Background stars/dots
+  var starSeed = 12345;
+  function pseudoRand() {
+    starSeed = (starSeed * 16807 + 0) % 2147483647;
+    return (starSeed % 10000) / 10000;
+  }
+  starSeed = 12345;
+  ctx.fillStyle = 'rgba(255,255,255,0.15)';
+  for (var i = 0; i < 60; i++) {
+    var sx = pseudoRand() * W;
+    var sy = (pseudoRand() * 2000 + camera * 0.3) % H;
+    ctx.fillRect(sx, sy, 1, 1);
+  }
+
+  ctx.save();
+  ctx.translate(0, -camera);
+
+  // Draw platforms
+  for (var i = 0; i < platforms.length; i++) {
+    var p = platforms[i];
+    if (p.broken) continue;
+    if (p.y < camera - 20 || p.y > camera + H + 20) continue;
+
+    switch (p.type) {
+      case 'normal':
+        ctx.fillStyle = '#44dd44';
+        ctx.fillRect(p.x, p.y, p.w, p.h);
+        ctx.fillStyle = '#33bb33';
+        ctx.fillRect(p.x, p.y + p.h - 3, p.w, 3);
+        // Grass tufts
+        ctx.fillStyle = '#55ee55';
+        for (var g = 0; g < p.w; g += 8) {
+          ctx.fillRect(p.x + g, p.y - 2, 3, 3);
+        }
+        break;
+      case 'moving':
+        ctx.fillStyle = '#4488ff';
+        ctx.fillRect(p.x, p.y, p.w, p.h);
+        ctx.fillStyle = '#3366dd';
+        ctx.fillRect(p.x, p.y + p.h - 3, p.w, 3);
+        // Arrow indicators
+        ctx.fillStyle = '#66aaff';
+        ctx.fillRect(p.x + 4, p.y + 3, 6, 2);
+        ctx.fillRect(p.x + p.w - 10, p.y + 3, 6, 2);
+        break;
+      case 'breakable':
+        ctx.fillStyle = '#aa6630';
+        ctx.fillRect(p.x, p.y, p.w, p.h);
+        // Cracks
+        ctx.strokeStyle = '#885020';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(p.x + p.w * 0.3, p.y + 2);
+        ctx.lineTo(p.x + p.w * 0.5, p.y + p.h - 2);
+        ctx.moveTo(p.x + p.w * 0.7, p.y + 3);
+        ctx.lineTo(p.x + p.w * 0.6, p.y + p.h - 1);
+        ctx.stroke();
+        break;
+      case 'spring':
+        ctx.fillStyle = '#44dd44';
+        ctx.fillRect(p.x, p.y, p.w, p.h);
+        ctx.fillStyle = '#33bb33';
+        ctx.fillRect(p.x, p.y + p.h - 3, p.w, 3);
+        // Spring coil on top
+        var springH = 10 + p.springBounce * 8;
+        var springY = p.y - springH;
+        ctx.fillStyle = '#ff4444';
+        ctx.fillRect(p.x + p.w / 2 - 6, springY, 12, springH);
+        // Coil lines
+        ctx.strokeStyle = '#cc2222';
+        ctx.lineWidth = 2;
+        for (var s = 0; s < springH; s += 4) {
+          ctx.beginPath();
+          ctx.moveTo(p.x + p.w / 2 - 6, springY + s);
+          ctx.lineTo(p.x + p.w / 2 + 6, springY + s + 2);
+          ctx.stroke();
+        }
+        // Cap
+        ctx.fillStyle = '#ff6666';
+        ctx.fillRect(p.x + p.w / 2 - 8, springY - 4, 16, 5);
+        break;
+    }
+  }
+
+  // Draw enemies
+  for (var i = 0; i < enemies.length; i++) {
+    var e = enemies[i];
+    if (!e.alive) continue;
+    if (e.y < camera - 40 || e.y > camera + H + 40) continue;
+
+    // Enemy body (spiky blob)
+    ctx.fillStyle = '#ee5533';
+    ctx.beginPath();
+    ctx.arc(e.x + e.w / 2, e.y + e.h / 2, e.w / 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Spikes
+    ctx.fillStyle = '#cc3311';
+    var cx = e.x + e.w / 2;
+    var cy = e.y + e.h / 2;
+    for (var s = 0; s < 6; s++) {
+      var angle = s * Math.PI / 3 + e.frame;
+      var sx = cx + Math.cos(angle) * (e.w / 2 + 4);
+      var sy = cy + Math.sin(angle) * (e.h / 2 + 4);
+      ctx.beginPath();
+      ctx.arc(sx, sy, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Eyes
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(e.x + 7, e.y + 8, 5, 5);
+    ctx.fillRect(e.x + 16, e.y + 8, 5, 5);
+    ctx.fillStyle = '#111';
+    ctx.fillRect(e.x + 9, e.y + 10, 2, 2);
+    ctx.fillRect(e.x + 18, e.y + 10, 2, 2);
+  }
+
+  // Draw player
+  if (!gameOver) {
+    var px = player.x;
+    var py = player.y;
+
+    // Body
+    ctx.fillStyle = '#ffdd44';
+    ctx.fillRect(px + 4, py + 6, 22, 18);
+
+    // Head
+    ctx.fillStyle = '#ffdd44';
+    ctx.fillRect(px + 7, py, 16, 12);
+
+    // Eyes
+    var eyeX = player.facing > 0 ? 5 : 0;
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(px + 10 + eyeX, py + 3, 5, 5);
+    ctx.fillRect(px + 17 + eyeX, py + 3, 5, 5);
+    ctx.fillStyle = '#222';
+    ctx.fillRect(px + 12 + eyeX, py + 4, 2, 3);
+    ctx.fillRect(px + 19 + eyeX, py + 4, 2, 3);
+
+    // Mouth (happy when going up, worried when falling)
+    if (player.vy < 0) {
+      ctx.fillStyle = '#222';
+      ctx.fillRect(px + 12, py + 9, 6, 2);
+    } else {
+      ctx.fillStyle = '#222';
+      ctx.beginPath();
+      ctx.arc(px + 15, py + 10, 3, 0, Math.PI);
+      ctx.fill();
+    }
+
+    // Feet (animated based on velocity)
+    ctx.fillStyle = '#dd8800';
+    if (player.vy < -2) {
+      // Legs tucked up
+      ctx.fillRect(px + 6, py + 22, 8, 6);
+      ctx.fillRect(px + 16, py + 22, 8, 6);
+    } else {
+      // Legs extended down
+      ctx.fillRect(px + 6, py + 24, 8, 6);
+      ctx.fillRect(px + 16, py + 24, 8, 6);
+    }
+
+    // Nose/snout
+    var snoutX = player.facing > 0 ? px + 24 : px - 2;
+    ctx.fillStyle = '#eebb22';
+    ctx.fillRect(snoutX, py + 6, 8, 6);
+  }
+
+  // Draw particles
+  for (var i = 0; i < particles.length; i++) {
+    var pt = particles[i];
+    var alpha = pt.life / pt.maxLife;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = pt.color;
+    ctx.fillRect(pt.x - pt.size / 2, pt.y - pt.size / 2, pt.size, pt.size);
+  }
+  ctx.globalAlpha = 1;
+
+  ctx.restore();
+
+  // HUD
+  ctx.fillStyle = '#fff';
+  ctx.font = '16px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('SCORE: ' + score, 15, 25);
+  if (highScore > 0) {
+    ctx.fillStyle = '#888';
+    ctx.fillText('BEST: ' + highScore, 15, 45);
+  }
+
+  // Height indicator
+  ctx.fillStyle = '#555';
+  ctx.textAlign = 'right';
+  ctx.fillText(Math.floor(score / 10) + 'm', W - 15, 25);
+
+  // Hint
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#444';
+  ctx.font = '11px monospace';
+  ctx.fillText('[?] info', W - 10, H - 10);
+
+  // Title screen
+  if (!gameStarted && !gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#ffdd44';
+    ctx.font = 'bold 42px monospace';
+    ctx.fillText('TOWER HOP', W / 2, H / 3);
+
+    ctx.fillStyle = '#aaa';
+    ctx.font = '16px monospace';
+    ctx.fillText('Arrow keys to move', W / 2, H / 3 + 50);
+    ctx.fillText('Auto-bounce on platforms', W / 2, H / 3 + 75);
+
+    ctx.fillStyle = '#fff';
+    ctx.font = '14px monospace';
+    var blink = Math.sin(Date.now() / 400) > 0;
+    if (blink) ctx.fillText('Press LEFT or RIGHT to start', W / 2, H / 2 + 40);
+
+    // Platform legend
+    ctx.font = '13px monospace';
+    var ly = H / 2 + 90;
+    ctx.fillStyle = '#44dd44'; ctx.fillRect(W/2 - 100, ly - 4, 20, 8);
+    ctx.fillStyle = '#aaa'; ctx.textAlign = 'left'; ctx.fillText('Normal', W/2 - 72, ly + 3);
+
+    ctx.fillStyle = '#4488ff'; ctx.fillRect(W/2 + 20, ly - 4, 20, 8);
+    ctx.fillStyle = '#aaa'; ctx.fillText('Moving', W/2 + 48, ly + 3);
+
+    ly += 25;
+    ctx.fillStyle = '#aa6630'; ctx.fillRect(W/2 - 100, ly - 4, 20, 8);
+    ctx.fillStyle = '#aaa'; ctx.fillText('Breakable', W/2 - 72, ly + 3);
+
+    ctx.fillStyle = '#ff4444'; ctx.fillRect(W/2 + 20, ly - 4, 20, 8);
+    ctx.fillStyle = '#aaa'; ctx.fillText('Spring', W/2 + 48, ly + 3);
+    ctx.textAlign = 'left';
+  }
+
+  // Game over screen
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#ff4444';
+    ctx.font = 'bold 36px monospace';
+    ctx.fillText('GAME OVER', W / 2, H / 3);
+
+    ctx.fillStyle = '#fff';
+    ctx.font = '20px monospace';
+    ctx.fillText('Score: ' + score, W / 2, H / 3 + 45);
+
+    if (score >= highScore && highScore > 0) {
+      ctx.fillStyle = '#ffdd44';
+      ctx.font = '16px monospace';
+      ctx.fillText('NEW HIGH SCORE!', W / 2, H / 3 + 75);
+    }
+
+    ctx.fillStyle = '#aaa';
+    ctx.font = '14px monospace';
+    var blink = Math.sin(Date.now() / 400) > 0;
+    if (blink) ctx.fillText('Press R to restart', W / 2, H / 2 + 30);
+    ctx.textAlign = 'left';
+  }
+}
+
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+document.addEventListener('keydown', function(e) {
+  keys[e.code] = true;
+
+  if (e.code === 'Slash' && e.shiftKey) {
+    e.preventDefault();
+    toggleInfo();
+  }
+  if (e.code === 'Escape' && infoOpen) {
+    toggleInfo();
+  }
+  if (e.code === 'KeyR') {
+    init();
+  }
+});
+
+document.addEventListener('keyup', function(e) {
+  keys[e.code] = false;
+});
+
+init();
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: dpad4 ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("dpad4");
+</script>
+</body>
+</html>

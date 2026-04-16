@@ -1,0 +1,920 @@
+<!--
+PROTOTYPE: nightstalker
+SERIES: maz
+NUMBER: 006
+DATE: 2026-03-22
+MECHANIC: top-down maze shooter with limited ammo, stealth evasion, and escalating threats
+ANCESTRY: Night Stalker (1982, Mattel/Intellivision), Berzerk (1980, Stern Electronics)
+CONTROLS: Arrow keys — move | Space — shoot | R — restart | ? — info
+STATUS: sketch
+VISIBILITY: public
+RATING: 4
+AI-ERA: 2 (Expert Systems — state-machine enemy behavior)
+AI-INSIGHT: Night Stalker's enemies have distinct behavioral states (patrol, chase, retreat) creating emergent difficulty through interaction — an early example of multi-agent systems where simple individual rules produce complex collective behavior.
+NOTES: Top-down maze shooter. Limited ammo forces strategic play.
+       Gun spawns at center — must retrieve it to shoot. Enemies escalate in type and speed.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MAZ-006 · NIGHT PROWLER</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+
+body { background: #000; display: flex; justify-content: center; align-items: center;
+       height: 100vh; overflow: hidden; font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; }
+canvas { image-rendering: pixelated; }
+#info-panel {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.92); z-index: 100; color: #ddd; overflow-y: auto;
+}
+#info-panel .inner { max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; }
+#info-panel h1 { color: #7bf; font-size: 22px; margin-bottom: 4px; }
+#info-panel h2 { color: #f80; font-size: 16px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+#info-panel h3 { color: #4f4; font-size: 14px; margin: 12px 0 4px; }
+#info-panel p, #info-panel li { font-size: 13px; }
+#info-panel ul { padding-left: 18px; }
+#info-panel .tag { display: inline-block; background: #333; color: #aaa; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin: 2px; }
+#info-panel .tag.series { background: #234; color: #7bf; }
+#info-panel .close-btn { position: fixed; top: 12px; right: 20px; color: #888; font-size: 28px; cursor: pointer; z-index: 101; }
+#info-panel .close-btn:hover { color: #fff; }
+#info-panel kbd { background: #333; border: 1px solid #555; border-radius: 3px; padding: 1px 6px; font-size: 12px; color: #ff0; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="info-panel">
+  <span class="close-btn" onclick="toggleInfo()">&times;</span>
+  <div class="inner">
+    <h1>MAZ-006 · NIGHT PROWLER</h1>
+    <p><span class="tag series">MAZ — Maze</span> <span class="tag">Prototype #006</span> <span class="tag">&#9733;&#9733;&#9733;&#9733;&#9734;</span></p>
+
+    <h2>How to Play</h2>
+    <p>Navigate the dark maze, retrieve the gun from the center, and survive escalating waves of enemies. When you run out of ammo, return to the center for a new gun.</p>
+    <ul>
+      <li><kbd>&uarr;</kbd> <kbd>&darr;</kbd> <kbd>&larr;</kbd> <kbd>&rarr;</kbd> — Move</li>
+      <li><kbd>Space</kbd> — Shoot (in facing direction; requires gun)</li>
+      <li><kbd>R</kbd> — Restart</li>
+      <li><kbd>?</kbd> — Toggle this info panel</li>
+    </ul>
+    <h3>Tips</h3>
+    <ul>
+      <li><strong>Gun at center:</strong> The gun spawns at the maze center. Walk over it to pick it up. You get 6 shots.</li>
+      <li><strong>Ammo is scarce:</strong> When your 6 shots are spent, you are defenseless. Run back to center for a new gun.</li>
+      <li><strong>Spider webs:</strong> Spiders leave webs that slow you down. Avoid them when fleeing unarmed.</li>
+      <li><strong>Enemy escalation:</strong> Early waves are spiders. Then bats appear. Then robots that shoot back.</li>
+      <li><strong>Darkness:</strong> Your vision is limited. Enemies lurk beyond the light.</li>
+    </ul>
+
+    <h2>History &amp; Lineage</h2>
+    <p><strong>Ancestry:</strong> Night Stalker (1982, Mattel/Intellivision) &larr; Berzerk (1980, Stern)</p>
+    <p>Night Stalker (1982) was a top-down maze shooter for the Intellivision that introduced resource scarcity to the arena shooter formula. Unlike Berzerk's unlimited firepower, Night Stalker gave the player a gun with only 6 bullets. When empty, the player had to retrieve a new gun from the maze center — completely defenseless during the trip.</p>
+    <p>The game featured three distinct enemy types — spiders, bats, and robots — each with different behaviors. This multi-agent ecosystem created emergent difficulty: a spider might block your path to the gun while a robot closes in from behind. The interplay between enemy types was more sophisticated than any single enemy's behavior.</p>
+
+    <h2>AI Archaeology</h2>
+    <p><strong>AI Era:</strong> 2 — Expert Systems (state-machine enemy behavior)</p>
+    <p><strong>Contemporary AI:</strong> Rule-based expert systems. Finite state machines for character behavior were cutting-edge.</p>
+    <p><strong>Hidden Intelligence:</strong> Each enemy type in Night Stalker operates on a simple state machine — patrol, chase, retreat. But the collective behavior of multiple agents with different rules creates emergent complexity. A spider's random wandering can accidentally herd the player toward a robot. A bat's erratic flight can cut off escape routes. This is an early example of multi-agent systems where simple individual rules produce complex collective behavior — a concept that wouldn't be formally studied until the late 1980s.</p>
+    <p><strong>The Convergence:</strong> Night Stalker's resource scarcity (limited ammo, central gun spawn) anticipates modern game design patterns around resource management and risk/reward loops. The defenseless-to-armed-to-defenseless cycle creates a natural rhythm that modern designers call a "tension curve."</p>
+    <p><strong>If AI Had Designed This:</strong> Dynamic difficulty adjustment — calibrating enemy spawn rates and types to maintain optimal tension. Procedural maze generation that guarantees interesting escape routes while preventing trivial camping spots.</p>
+
+    <h2>Classification</h2>
+    <h3>Series: MAZ — Maze</h3>
+    <p>Night Stalker adds resource scarcity and multi-agent enemy ecosystems to the maze shooter formula. The gun-retrieval loop creates a rhythmic tension cycle unique in early gaming.</p>
+    <h3>Core Mechanic</h3>
+    <p><strong>Top-down maze shooter with limited ammo and escalating multi-agent threats.</strong> Gun spawns at center with 6 shots. When empty, player is defenseless. Three enemy types with distinct behaviors create emergent difficulty. Spider webs add terrain hazards.</p>
+    <h3>What This Prototype Tests</h3>
+    <ul>
+      <li>Resource scarcity — does the 6-shot limit create meaningful decisions?</li>
+      <li>Gun retrieval loop — does the armed/unarmed cycle create tension?</li>
+      <li>Multi-agent ecosystem — do different enemy types create emergent difficulty?</li>
+      <li>Dark atmosphere — does limited visibility enhance the stalker fantasy?</li>
+    </ul>
+
+    <h2>Prototype Notes</h2>
+    <p>This is a <strong>sketch</strong> rated 4/5. Fixed maze layout with dark atmosphere. Three enemy types escalate across waves. Gun pickup at center with 6-shot limit. Spider webs as terrain hazards. Vision-limited rendering for atmosphere.</p>
+
+    <h2>Educational Notice</h2>
+    <p>This prototype is an educational reconstruction of a classic game mechanic, created for research and historical study as part of the Pixel Vault project. It is not affiliated with, endorsed by, or connected to the original game's creators or rights holders. All original games referenced belong to their respective owners.</p>
+
+  </div>
+</div>
+
+<script>
+// --- INFO PANEL ---
+let infoOpen = false;
+function toggleInfo() {
+  infoOpen = !infoOpen;
+  document.getElementById('info-panel').style.display = infoOpen ? 'block' : 'none';
+}
+window.addEventListener('keydown', e => {
+  if (e.key === '?' || (e.key === '/' && e.shiftKey)) { toggleInfo(); e.preventDefault(); return; }
+  if (e.key === 'Escape' && infoOpen) { toggleInfo(); e.preventDefault(); return; }
+});
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ── Crisp HUD text helper ──
+function hudText(text, x, y, color, size, align) {
+  ctx.save();
+  ctx.font = (size || 14) + 'px monospace';
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'top';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 3;
+  ctx.shadowOffsetX = 1;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = color || '#fff';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H) * 0.95;
+  canvas.style.width = W * s + 'px'; canvas.style.height = H * s + 'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+const keys = {};
+window.addEventListener('keydown', e => { if (!infoOpen) keys[e.code] = true; e.preventDefault(); });
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+// --- MAZE DEFINITION ---
+// Fixed maze on a 25x19 grid. 1=wall, 0=path. Each cell is 32px.
+const COLS = 25, ROWS = 19, CELL = 32;
+const MX = (W - COLS * CELL) / 2;
+const MY = (H - ROWS * CELL) / 2;
+
+// Maze layout: 1=wall, 0=open
+const MAZE = [
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+  [1,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,1,0,1],
+  [1,0,1,0,1,0,1,1,1,0,1,0,1,1,1,0,1,0,1,1,1,0,1,0,1],
+  [1,0,1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,1],
+  [1,0,1,1,1,1,1,0,1,0,1,1,0,1,1,0,1,0,1,0,1,1,1,0,1],
+  [1,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,1,0,0,0,0,0,1,0,1],
+  [1,0,1,1,1,0,1,1,1,1,0,1,0,1,0,1,1,1,1,0,1,0,1,0,1],
+  [1,0,0,0,1,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,1,0,0,0,1],
+  [1,1,1,0,1,0,1,1,0,1,1,1,0,1,1,1,0,1,1,0,1,0,1,1,1],
+  [1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1],
+  [1,0,1,1,1,0,1,1,0,1,1,1,0,1,1,1,0,1,1,0,1,1,1,0,1],
+  [1,0,0,0,1,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,1,0,0,0,1],
+  [1,0,1,0,1,0,1,1,0,1,0,1,1,1,0,1,0,1,1,0,1,0,1,0,1],
+  [1,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1,0,1],
+  [1,0,1,1,1,0,1,0,1,1,1,0,1,0,1,1,1,0,1,0,1,1,1,0,1],
+  [1,0,0,0,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,1],
+  [1,0,1,1,1,0,1,0,1,0,1,1,1,1,1,0,1,0,1,0,1,1,1,0,1],
+  [1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+];
+
+// Center cell of maze (gun spawn location)
+const CEN_C = 12, CEN_R = 9;
+
+// Player spawn points (corners of open area)
+const SPAWN_POINTS = [
+  {c:1, r:1}, {c:23, r:1}, {c:1, r:17}, {c:23, r:17}
+];
+
+// Enemy spawn points (edges, away from player start)
+const ENEMY_SPAWNS = [
+  {c:1, r:9}, {c:23, r:9}, {c:12, r:1}, {c:12, r:17},
+  {c:5, r:5}, {c:19, r:5}, {c:5, r:13}, {c:19, r:13}
+];
+
+function isWall(c, r) {
+  if (c < 0 || c >= COLS || r < 0 || r >= ROWS) return true;
+  return MAZE[r][c] === 1;
+}
+
+function cellCenter(c, r) {
+  return { x: MX + c * CELL + CELL / 2, y: MY + r * CELL + CELL / 2 };
+}
+
+function posToCell(x, y) {
+  return { c: Math.floor((x - MX) / CELL), r: Math.floor((y - MY) / CELL) };
+}
+
+// Check if a pixel position collides with walls
+function hitsWall(x, y, pad) {
+  const p = pad || 0;
+  // Check four corners of bounding box
+  const corners = [
+    posToCell(x - p, y - p), posToCell(x + p, y - p),
+    posToCell(x - p, y + p), posToCell(x + p, y + p)
+  ];
+  for (const cr of corners) {
+    if (isWall(cr.c, cr.r)) return true;
+  }
+  return false;
+}
+
+// Simple pathfinding: get direction toward player through maze (BFS)
+function getDirToward(fromX, fromY, toX, toY) {
+  const fc = posToCell(fromX, fromY);
+  const tc = posToCell(toX, toY);
+  if (fc.c === tc.c && fc.r === tc.r) return {dx: 0, dy: 0};
+
+  // BFS from fc to tc
+  const visited = {};
+  const queue = [{c: fc.c, r: fc.r, firstC: -1, firstR: -1}];
+  visited[fc.c + ',' + fc.r] = true;
+  const dirs = [{dc:0,dr:-1},{dc:0,dr:1},{dc:-1,dr:0},{dc:1,dr:0}];
+
+  while (queue.length > 0) {
+    const cur = queue.shift();
+    for (const d of dirs) {
+      const nc = cur.c + d.dc, nr = cur.r + d.dr;
+      const key = nc + ',' + nr;
+      if (visited[key] || isWall(nc, nr)) continue;
+      visited[key] = true;
+      const fc2 = cur.firstC === -1 ? nc : cur.firstC;
+      const fr2 = cur.firstR === -1 ? nr : cur.firstR;
+      if (nc === tc.c && nr === tc.r) {
+        // Found path — return direction toward first step
+        const tgt = cellCenter(fc2, fr2);
+        const ddx = tgt.x - fromX, ddy = tgt.y - fromY;
+        const dist = Math.sqrt(ddx * ddx + ddy * ddy);
+        if (dist < 1) return {dx: 0, dy: 0};
+        return {dx: ddx / dist, dy: ddy / dist};
+      }
+      queue.push({c: nc, r: nr, firstC: fc2, firstR: fr2});
+    }
+  }
+  return {dx: 0, dy: 0};
+}
+
+// --- STATE ---
+let player, gun, bullets, enemyBullets, enemies, webs, score, lives, gameOver;
+let wave, waveTimer, enemiesKilled, frame, facing, flashMsg, flashTimer;
+
+function initGame() {
+  const sp = SPAWN_POINTS[0];
+  const pos = cellCenter(sp.c, sp.r);
+  player = { x: pos.x, y: pos.y, size: 10, armed: false, ammo: 0, webSlow: 0 };
+  facing = {dx: 0, dy: 1};
+  gun = { active: true, x: 0, y: 0, respawnTimer: 0 };
+  placeGun();
+  bullets = [];
+  enemyBullets = [];
+  enemies = [];
+  webs = [];
+  score = 0;
+  lives = 3;
+  gameOver = false;
+  wave = 1;
+  waveTimer = 0;
+  enemiesKilled = 0;
+  frame = 0;
+  flashMsg = 'GET THE GUN!';
+  flashTimer = 180;
+  spawnWave();
+}
+
+function placeGun() {
+  const pos = cellCenter(CEN_C, CEN_R);
+  gun.x = pos.x; gun.y = pos.y;
+  gun.active = true;
+}
+
+function spawnWave() {
+  // Escalation: wave 1-2 spiders only, 3-4 add bats, 5+ add robots
+  const types = [];
+  const count = Math.min(2 + wave, 8);
+  for (let i = 0; i < count; i++) {
+    if (wave <= 2) {
+      types.push('spider');
+    } else if (wave <= 4) {
+      types.push(i < Math.ceil(count / 2) ? 'spider' : 'bat');
+    } else {
+      if (i < 2) types.push('robot');
+      else if (i < Math.ceil(count / 2) + 1) types.push('bat');
+      else types.push('spider');
+    }
+  }
+
+  // Shuffle spawn points
+  const spawns = ENEMY_SPAWNS.slice();
+  for (let i = spawns.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [spawns[i], spawns[j]] = [spawns[j], spawns[i]];
+  }
+
+  for (let i = 0; i < types.length; i++) {
+    const sp = spawns[i % spawns.length];
+    const pos = cellCenter(sp.c, sp.r);
+    const baseSpd = 0.8 + wave * 0.1;
+    if (types[i] === 'spider') {
+      enemies.push({
+        type: 'spider', x: pos.x, y: pos.y, alive: true,
+        speed: baseSpd * 0.7, dir: {dx: 0, dy: 0},
+        dirTimer: 0, webTimer: 120 + Math.floor(Math.random() * 180),
+        state: 'wander', animFrame: 0
+      });
+    } else if (types[i] === 'bat') {
+      enemies.push({
+        type: 'bat', x: pos.x, y: pos.y, alive: true,
+        speed: baseSpd * 1.5, dir: {dx: 0, dy: 0},
+        dirTimer: 0, state: 'erratic', animFrame: 0
+      });
+    } else {
+      enemies.push({
+        type: 'robot', x: pos.x, y: pos.y, alive: true,
+        speed: baseSpd * 0.6, dir: {dx: 0, dy: 0},
+        dirTimer: 0, shootTimer: 120 + Math.floor(Math.random() * 120),
+        state: 'chase', animFrame: 0
+      });
+    }
+  }
+}
+
+initGame();
+
+function update() {
+  if (infoOpen) return;
+  if (gameOver) { if (keys['KeyR']) initGame(); return; }
+  frame++;
+
+  // --- Player movement ---
+  const baseSpd = 2.5;
+  const spd = player.webSlow > 0 ? baseSpd * 0.4 : baseSpd;
+  if (player.webSlow > 0) player.webSlow--;
+  let nx = player.x, ny = player.y;
+  let moved = false;
+  if (keys['ArrowUp']) { ny -= spd; facing = {dx:0,dy:-1}; moved = true; }
+  if (keys['ArrowDown']) { ny += spd; facing = {dx:0,dy:1}; moved = true; }
+  if (keys['ArrowLeft']) { nx -= spd; facing = {dx:-1,dy:0}; moved = true; }
+  if (keys['ArrowRight']) { nx += spd; facing = {dx:1,dy:0}; moved = true; }
+
+  // Diagonal normalization
+  if (keys['ArrowUp'] && keys['ArrowLeft']) facing = {dx:-0.7,dy:-0.7};
+  if (keys['ArrowUp'] && keys['ArrowRight']) facing = {dx:0.7,dy:-0.7};
+  if (keys['ArrowDown'] && keys['ArrowLeft']) facing = {dx:-0.7,dy:0.7};
+  if (keys['ArrowDown'] && keys['ArrowRight']) facing = {dx:0.7,dy:0.7};
+
+  if (!hitsWall(nx, ny, player.size)) {
+    player.x = nx; player.y = ny;
+  } else if (!hitsWall(nx, player.y, player.size)) {
+    player.x = nx;
+  } else if (!hitsWall(player.x, ny, player.size)) {
+    player.y = ny;
+  }
+
+  // --- Gun pickup ---
+  if (gun.active) {
+    const gdx = player.x - gun.x, gdy = player.y - gun.y;
+    if (gdx * gdx + gdy * gdy < 400) {
+      player.armed = true;
+      player.ammo = 6;
+      gun.active = false;
+      flashMsg = '6 SHOTS!';
+      flashTimer = 90;
+    }
+  }
+  // Gun respawn
+  if (!gun.active && !player.armed) {
+    gun.respawnTimer++;
+    if (gun.respawnTimer > 90) {
+      placeGun();
+      gun.respawnTimer = 0;
+    }
+  }
+
+  // --- Player shooting ---
+  if (keys['Space'] && player.armed && player.ammo > 0 && frame % 12 === 0) {
+    const fdx = facing.dx, fdy = facing.dy;
+    const len = Math.sqrt(fdx * fdx + fdy * fdy);
+    if (len > 0) {
+      bullets.push({ x: player.x + fdx / len * 14, y: player.y + fdy / len * 14,
+                      vx: fdx / len * 7, vy: fdy / len * 7 });
+      player.ammo--;
+      if (player.ammo <= 0) {
+        player.armed = false;
+        flashMsg = 'OUT OF AMMO!';
+        flashTimer = 120;
+        gun.respawnTimer = 0;
+      }
+    }
+  }
+
+  // --- Move player bullets ---
+  bullets = bullets.filter(b => {
+    b.x += b.vx; b.y += b.vy;
+    if (hitsWall(b.x, b.y, 1)) return false;
+    // Hit enemies
+    for (const e of enemies) {
+      if (!e.alive) continue;
+      const dx = b.x - e.x, dy = b.y - e.y;
+      const hitR = e.type === 'bat' ? 12 : 14;
+      if (dx * dx + dy * dy < hitR * hitR) {
+        e.alive = false;
+        score += e.type === 'spider' ? 100 : e.type === 'bat' ? 200 : 300;
+        enemiesKilled++;
+        return false;
+      }
+    }
+    return true;
+  });
+
+  // --- Move enemy bullets ---
+  enemyBullets = enemyBullets.filter(b => {
+    b.x += b.vx; b.y += b.vy;
+    if (hitsWall(b.x, b.y, 1)) return false;
+    const dx = b.x - player.x, dy = b.y - player.y;
+    if (dx * dx + dy * dy < player.size * player.size) { die(); return false; }
+    return true;
+  });
+
+  // --- Enemy AI ---
+  for (const e of enemies) {
+    if (!e.alive) continue;
+    e.animFrame++;
+
+    const pdx = player.x - e.x, pdy = player.y - e.y;
+    const pdist = Math.sqrt(pdx * pdx + pdy * pdy);
+
+    if (e.type === 'spider') {
+      // Wander randomly, occasionally move toward player
+      e.dirTimer--;
+      if (e.dirTimer <= 0) {
+        if (Math.random() < 0.3 && pdist < 250) {
+          // Move toward player
+          const d = getDirToward(e.x, e.y, player.x, player.y);
+          e.dir = d;
+        } else {
+          // Random direction
+          const dirs = [{dx:0,dy:-1},{dx:0,dy:1},{dx:-1,dy:0},{dc:1,dy:0}];
+          const pick = dirs[Math.floor(Math.random() * 4)];
+          e.dir = {dx: pick.dx || pick.dc || 0, dy: pick.dy || 0};
+        }
+        e.dirTimer = 30 + Math.floor(Math.random() * 60);
+      }
+      const enx = e.x + e.dir.dx * e.speed;
+      const eny = e.y + e.dir.dy * e.speed;
+      if (!hitsWall(enx, eny, 10)) {
+        e.x = enx; e.y = eny;
+      } else {
+        e.dirTimer = 0; // Pick new direction
+      }
+      // Leave webs
+      e.webTimer--;
+      if (e.webTimer <= 0) {
+        e.webTimer = 150 + Math.floor(Math.random() * 200);
+        const cell = posToCell(e.x, e.y);
+        // Don't place webs on walls or existing webs
+        if (!isWall(cell.c, cell.r) && !webs.some(w => w.c === cell.c && w.r === cell.r)) {
+          webs.push({ c: cell.c, r: cell.r, life: 600 + Math.floor(Math.random() * 300) });
+        }
+      }
+    } else if (e.type === 'bat') {
+      // Fast, erratic movement
+      e.dirTimer--;
+      if (e.dirTimer <= 0) {
+        if (Math.random() < 0.5 && pdist < 300) {
+          const d = getDirToward(e.x, e.y, player.x, player.y);
+          e.dir = d;
+        } else {
+          const a = Math.random() * Math.PI * 2;
+          e.dir = {dx: Math.cos(a), dy: Math.sin(a)};
+        }
+        e.dirTimer = 10 + Math.floor(Math.random() * 25);
+      }
+      const enx = e.x + e.dir.dx * e.speed;
+      const eny = e.y + e.dir.dy * e.speed;
+      if (!hitsWall(enx, eny, 8)) {
+        e.x = enx; e.y = eny;
+      } else {
+        e.dirTimer = 0;
+      }
+    } else if (e.type === 'robot') {
+      // Chase player through maze, shoot
+      e.dirTimer--;
+      if (e.dirTimer <= 0) {
+        e.dir = getDirToward(e.x, e.y, player.x, player.y);
+        e.dirTimer = 15;
+      }
+      const enx = e.x + e.dir.dx * e.speed;
+      const eny = e.y + e.dir.dy * e.speed;
+      if (!hitsWall(enx, eny, 10)) {
+        e.x = enx; e.y = eny;
+      } else {
+        e.dirTimer = 0;
+      }
+      // Robot shooting
+      e.shootTimer--;
+      if (e.shootTimer <= 0 && pdist < 300 && pdist > 30) {
+        e.shootTimer = 90 + Math.floor(Math.random() * 80);
+        // Shoot toward player
+        const d = getDirToward(e.x, e.y, player.x, player.y);
+        enemyBullets.push({ x: e.x, y: e.y, vx: d.dx * 4, vy: d.dy * 4 });
+      }
+    }
+
+    // Enemy-player collision
+    const colR = e.type === 'bat' ? 14 : 18;
+    if (pdist < colR) { die(); return; }
+  }
+
+  // --- Web effects ---
+  for (let i = webs.length - 1; i >= 0; i--) {
+    webs[i].life--;
+    if (webs[i].life <= 0) { webs.splice(i, 1); continue; }
+    // Check player in web
+    const pc = posToCell(player.x, player.y);
+    if (pc.c === webs[i].c && pc.r === webs[i].r) {
+      player.webSlow = 10;
+    }
+  }
+
+  // --- Wave check ---
+  const aliveCount = enemies.filter(e => e.alive).length;
+  if (aliveCount === 0) {
+    waveTimer++;
+    if (waveTimer > 90) {
+      wave++;
+      waveTimer = 0;
+      score += wave * 50; // Wave completion bonus
+      flashMsg = 'WAVE ' + wave;
+      flashTimer = 90;
+      spawnWave();
+    }
+  }
+
+  // Flash timer
+  if (flashTimer > 0) flashTimer--;
+}
+
+function die() {
+  lives--;
+  if (lives <= 0) { gameOver = true; return; }
+  // Respawn player
+  const sp = SPAWN_POINTS[Math.floor(Math.random() * SPAWN_POINTS.length)];
+  const pos = cellCenter(sp.c, sp.r);
+  player.x = pos.x; player.y = pos.y;
+  player.armed = false; player.ammo = 0; player.webSlow = 0;
+  bullets = [];
+  enemyBullets = [];
+  if (!gun.active) { placeGun(); gun.respawnTimer = 0; }
+  flashMsg = 'GET THE GUN!';
+  flashTimer = 120;
+}
+
+function draw() {
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+
+  // --- Dark atmosphere: draw maze dimly, light around player ---
+  // Draw walls
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const wx = MX + c * CELL, wy = MY + r * CELL;
+      if (MAZE[r][c] === 1) {
+        // Calculate distance to player for lighting
+        const cx2 = wx + CELL / 2, cy2 = wy + CELL / 2;
+        const dx = cx2 - player.x, dy = cy2 - player.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const light = Math.max(0.08, Math.min(1, 1 - dist / 320));
+        const br = Math.floor(30 + 50 * light);
+        const bg = Math.floor(15 + 30 * light);
+        const bb = Math.floor(50 + 80 * light);
+        ctx.fillStyle = 'rgb(' + br + ',' + bg + ',' + bb + ')';
+        ctx.fillRect(wx, wy, CELL, CELL);
+        // Wall edge highlights
+        ctx.strokeStyle = 'rgba(80,40,120,' + (light * 0.5) + ')';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(wx + 0.5, wy + 0.5, CELL - 1, CELL - 1);
+      } else {
+        // Floor
+        const cx2 = wx + CELL / 2, cy2 = wy + CELL / 2;
+        const dx = cx2 - player.x, dy = cy2 - player.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const light = Math.max(0.03, Math.min(1, 1 - dist / 320));
+        const fb = Math.floor(8 * light);
+        const fg = Math.floor(6 * light);
+        ctx.fillStyle = 'rgb(' + fb + ',' + fg + ',' + Math.floor(12 * light) + ')';
+        ctx.fillRect(wx, wy, CELL, CELL);
+      }
+    }
+  }
+
+  // --- Spider webs ---
+  for (const w of webs) {
+    const wx = MX + w.c * CELL, wy = MY + w.r * CELL;
+    const alpha = Math.min(0.5, w.life / 300);
+    ctx.strokeStyle = 'rgba(180,180,180,' + alpha + ')';
+    ctx.lineWidth = 1;
+    const cx2 = wx + CELL / 2, cy2 = wy + CELL / 2;
+    // Web pattern
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.moveTo(cx2, cy2);
+      ctx.lineTo(cx2 + Math.cos(a) * 14, cy2 + Math.sin(a) * 14);
+      ctx.stroke();
+    }
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+      ctx.beginPath();
+      ctx.moveTo(cx2, cy2);
+      ctx.lineTo(cx2 + Math.cos(a) * 10, cy2 + Math.sin(a) * 10);
+      ctx.stroke();
+    }
+    // Concentric rings
+    ctx.beginPath(); ctx.arc(cx2, cy2, 6, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx2, cy2, 12, 0, Math.PI * 2); ctx.stroke();
+  }
+
+  // --- Gun ---
+  if (gun.active) {
+    const gx = gun.x, gy = gun.y;
+    // Pulsing glow
+    const pulse = 0.5 + 0.5 * Math.sin(frame * 0.08);
+    ctx.fillStyle = 'rgba(255,255,100,' + (0.15 + 0.1 * pulse) + ')';
+    ctx.beginPath(); ctx.arc(gx, gy, 20 + 4 * pulse, 0, Math.PI * 2); ctx.fill();
+    // Gun shape
+    ctx.fillStyle = '#ff0';
+    ctx.fillRect(gx - 8, gy - 3, 16, 6);
+    ctx.fillRect(gx - 2, gy + 3, 4, 6);
+    ctx.fillStyle = '#fa0';
+    ctx.fillRect(gx + 4, gy - 5, 4, 4);
+  }
+
+  // --- Enemies ---
+  for (const e of enemies) {
+    if (!e.alive) continue;
+    // Visibility check
+    const edx = e.x - player.x, edy = e.y - player.y;
+    const edist = Math.sqrt(edx * edx + edy * edy);
+    const vis = Math.max(0.1, Math.min(1, 1 - edist / 350));
+    if (vis < 0.05) continue;
+
+    ctx.globalAlpha = vis;
+
+    if (e.type === 'spider') {
+      // Spider body
+      ctx.fillStyle = '#0a0';
+      ctx.beginPath(); ctx.arc(e.x, e.y, 8, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#0d0';
+      ctx.beginPath(); ctx.arc(e.x, e.y - 3, 5, 0, Math.PI * 2); ctx.fill();
+      // Legs
+      ctx.strokeStyle = '#0a0'; ctx.lineWidth = 1.5;
+      const legWiggle = Math.sin(e.animFrame * 0.15) * 3;
+      for (let s = -1; s <= 1; s += 2) {
+        for (let l = 0; l < 4; l++) {
+          const la = (l - 1.5) * 0.4 * s;
+          ctx.beginPath();
+          ctx.moveTo(e.x, e.y);
+          ctx.lineTo(e.x + s * (10 + legWiggle * (l % 2 ? 1 : -1)), e.y + (l - 1.5) * 5);
+          ctx.stroke();
+        }
+      }
+      // Eyes
+      ctx.fillStyle = '#f00';
+      ctx.fillRect(e.x - 3, e.y - 5, 2, 2);
+      ctx.fillRect(e.x + 1, e.y - 5, 2, 2);
+    } else if (e.type === 'bat') {
+      // Bat with flapping wings
+      const flap = Math.sin(e.animFrame * 0.3) * 8;
+      ctx.fillStyle = '#808';
+      // Body
+      ctx.beginPath(); ctx.ellipse(e.x, e.y, 5, 7, 0, 0, Math.PI * 2); ctx.fill();
+      // Wings
+      ctx.beginPath();
+      ctx.moveTo(e.x - 4, e.y);
+      ctx.lineTo(e.x - 16, e.y - 4 + flap);
+      ctx.lineTo(e.x - 10, e.y + 2);
+      ctx.closePath(); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(e.x + 4, e.y);
+      ctx.lineTo(e.x + 16, e.y - 4 - flap);
+      ctx.lineTo(e.x + 10, e.y + 2);
+      ctx.closePath(); ctx.fill();
+      // Eyes
+      ctx.fillStyle = '#f0f';
+      ctx.fillRect(e.x - 3, e.y - 3, 2, 2);
+      ctx.fillRect(e.x + 1, e.y - 3, 2, 2);
+    } else if (e.type === 'robot') {
+      // Robot body
+      ctx.fillStyle = '#c00';
+      ctx.fillRect(e.x - 8, e.y - 10, 16, 20);
+      // Head
+      ctx.fillStyle = '#f22';
+      ctx.fillRect(e.x - 6, e.y - 15, 12, 7);
+      // Eyes
+      ctx.fillStyle = '#ff0';
+      ctx.fillRect(e.x - 4, e.y - 13, 3, 3);
+      ctx.fillRect(e.x + 1, e.y - 13, 3, 3);
+      // Antenna
+      ctx.strokeStyle = '#f55'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(e.x, e.y - 15); ctx.lineTo(e.x, e.y - 20); ctx.stroke();
+      ctx.fillStyle = '#f55';
+      ctx.beginPath(); ctx.arc(e.x, e.y - 20, 2, 0, Math.PI * 2); ctx.fill();
+      // Arms
+      const armSwing = Math.sin(e.animFrame * 0.1) * 3;
+      ctx.fillStyle = '#c00';
+      ctx.fillRect(e.x - 12, e.y - 5 + armSwing, 4, 10);
+      ctx.fillRect(e.x + 8, e.y - 5 - armSwing, 4, 10);
+      // Gun barrel indicator
+      ctx.fillStyle = '#ff0';
+      ctx.fillRect(e.x + 9, e.y - 2, 5, 3);
+    }
+    ctx.globalAlpha = 1.0;
+  }
+
+  // --- Player ---
+  // Body
+  ctx.fillStyle = player.armed ? '#4cf' : '#88a';
+  ctx.fillRect(player.x - 6, player.y - 11, 12, 22);
+  // Head
+  ctx.fillStyle = player.armed ? '#6ef' : '#aac';
+  ctx.fillRect(player.x - 5, player.y - 15, 10, 6);
+  // Eyes (facing direction)
+  ctx.fillStyle = '#fff';
+  const ex = facing.dx > 0 ? 1 : facing.dx < 0 ? -3 : -1;
+  ctx.fillRect(player.x + ex, player.y - 13, 2, 2);
+  ctx.fillRect(player.x + ex + 3, player.y - 13, 2, 2);
+  // Legs
+  const legOff = Math.sin(frame * 0.2) * 2;
+  ctx.fillStyle = player.armed ? '#4cf' : '#88a';
+  ctx.fillRect(player.x - 5, player.y + 11, 4, 5 + legOff);
+  ctx.fillRect(player.x + 1, player.y + 11, 4, 5 - legOff);
+  // Gun in hand when armed
+  if (player.armed) {
+    ctx.fillStyle = '#ff0';
+    const gx = player.x + facing.dx * 10;
+    const gy = player.y + facing.dy * 10;
+    ctx.fillRect(gx - 3, gy - 2, 6, 4);
+  }
+
+  // --- Bullets ---
+  ctx.fillStyle = '#ff0';
+  for (const b of bullets) {
+    ctx.beginPath(); ctx.arc(b.x, b.y, 3, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // Enemy bullets
+  ctx.fillStyle = '#f44';
+  for (const b of enemyBullets) {
+    ctx.beginPath(); ctx.arc(b.x, b.y, 3, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // --- Light gradient overlay (darkness effect) ---
+  const grad = ctx.createRadialGradient(player.x, player.y, 60, player.x, player.y, 300);
+  grad.addColorStop(0, 'rgba(0,0,0,0)');
+  grad.addColorStop(0.5, 'rgba(0,0,0,0.3)');
+  grad.addColorStop(1, 'rgba(0,0,0,0.75)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  // --- HUD ---
+  ctx.fillStyle = '#4cf'; ctx.font = '16px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('SCORE: ' + score, 10, 26);
+  ctx.textAlign = 'center';
+  ctx.fillText('WAVE ' + wave, W / 2, 26);
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#f88';
+  ctx.fillText('LIVES: ' + '\u2665'.repeat(lives), W - 10, 26);
+
+  // Ammo display
+  ctx.textAlign = 'left';
+  if (player.armed) {
+    ctx.fillStyle = '#ff0';
+    ctx.fillText('AMMO: ', 10, 48);
+    for (let i = 0; i < player.ammo; i++) {
+      ctx.fillRect(70 + i * 14, 38, 8, 12);
+    }
+  } else {
+    ctx.fillStyle = '#888';
+    ctx.fillText('UNARMED', 10, 48);
+  }
+
+  // Enemy count
+  const alive = enemies.filter(e => e.alive).length;
+  ctx.textAlign = 'right'; ctx.fillStyle = '#aaa';
+  ctx.fillText('ENEMIES: ' + alive, W - 10, 48);
+
+  // Web slow indicator
+  if (player.webSlow > 0) {
+    ctx.fillStyle = '#ff0'; ctx.font = '14px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('WEBBED!', W / 2, H - 20);
+  }
+
+  // Flash message
+  if (flashTimer > 0) {
+    const fa = Math.min(1, flashTimer / 30);
+    ctx.globalAlpha = fa;
+    ctx.fillStyle = '#ff0'; ctx.font = 'bold 24px monospace'; ctx.textAlign = 'center';
+    ctx.fillText(flashMsg, W / 2, H / 2 - 60);
+    ctx.globalAlpha = 1;
+  }
+
+  // Wave clear message
+  if (alive === 0 && !gameOver) {
+    ctx.fillStyle = '#4f4'; ctx.font = '18px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('WAVE CLEARED!', W / 2, H / 2 - 30);
+  }
+
+  // Game over
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, W, H);
+    ctx.font = 'bold 48px monospace'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#f44';
+    ctx.fillText('GAME OVER', W / 2, H / 2 - 20);
+    ctx.fillStyle = '#aaa'; ctx.font = '18px monospace';
+    ctx.fillText('Score: ' + score + '  Waves: ' + wave, W / 2, H / 2 + 20);
+    ctx.fillText('Press R to restart', W / 2, H / 2 + 50);
+  }
+
+  // Title badge
+  ctx.fillStyle = '#1a1a1a'; ctx.fillRect(8, 8, 280, 28);
+  ctx.fillStyle = '#555'; ctx.font = '13px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('MAZ-006 \u00b7 NIGHT PROWLER  [?]', 16, 26);
+}
+
+function loop() { update(); draw(); requestAnimationFrame(loop); }
+loop();
+</script>
+<script>
+/* ── Pixel Vault Touch Layer v1.0 — profile: asteroids ── */
+;(function(P){
+'use strict';if(!('ontouchstart' in window)&&navigator.maxTouchPoints<1)return;
+var s=document.createElement('style');
+s.textContent=
+  '#pvt{position:fixed;bottom:0;left:0;right:0;display:flex;'+
+  'justify-content:space-between;align-items:flex-end;'+
+  'padding:10px 14px;pointer-events:none;z-index:9999;'+
+  'user-select:none;-webkit-user-select:none;}'+
+  '.pvb{width:52px;height:52px;border-radius:50%;'+
+  'background:rgba(255,255,255,.13);border:2px solid rgba(255,255,255,.28);'+
+  'color:rgba(255,255,255,.8);font-size:19px;'+
+  'display:flex;align-items:center;justify-content:center;'+
+  'pointer-events:all;touch-action:none;cursor:pointer;'+
+  'transition:background .07s,transform .07s;}'+
+  '.pvb.on{background:rgba(255,255,255,.32);'+
+  'border-color:rgba(255,255,255,.7);transform:scale(.9);}'+
+  '.pvb.lg{width:64px;height:64px;font-size:24px;}'+
+  '.pvb.red{border-color:rgba(255,80,80,.6);}'+
+  '.pvb.grn{border-color:rgba(80,255,80,.6);}'+
+  '.pvb.yel{border-color:rgba(255,200,60,.6);}'+
+  '.pvd{display:grid;grid-template-columns:repeat(3,52px);'+
+  'grid-template-rows:repeat(3,52px);gap:4px;}'+
+  '.pvh{display:flex;gap:8px;align-items:flex-end;}'+
+  '.pvac{display:flex;flex-direction:column;align-items:center;gap:8px;}'+
+  '.pvar{display:flex;gap:8px;}';
+document.head.appendChild(s);
+var ov=document.createElement('div');ov.id='pvt';document.body.appendChild(ov);
+function dn(c,k){document.dispatchEvent(new KeyboardEvent('keydown',{code:c,key:k,bubbles:true,cancelable:true}));}
+function up(c,k){document.dispatchEvent(new KeyboardEvent('keyup',  {code:c,key:k,bubbles:true,cancelable:true}));}
+var K={L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],
+  U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown'],SP:['Space',' '],
+  W:['KeyW','w'],A:['KeyA','a'],S:['KeyS','s'],D2:['KeyD','d'],Z:['KeyZ','z']};
+function btn(lbl,k,cls){
+  var el=document.createElement('div');
+  el.className='pvb'+(cls?' '+cls:'');el.innerHTML=lbl;
+  el.addEventListener('pointerdown',function(e){e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('on');dn(k[0],k[1]);});
+  el.addEventListener('pointerup',function(e){e.preventDefault();el.classList.remove('on');up(k[0],k[1]);});
+  el.addEventListener('pointercancel',function(){el.classList.remove('on');up(k[0],k[1]);});
+  return el;}
+function dp4(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.U),null,btn('&#9664;',K.L),null,btn('&#9654;',K.R),null,btn('&#9660;',K.D),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp4w(){
+  var g=document.createElement('div');g.className='pvd';
+  [null,btn('&#9650;',K.W),null,btn('&#9664;',K.A),null,btn('&#9654;',K.D2),null,btn('&#9660;',K.S),null].forEach(function(c){var d=document.createElement('div');if(c)d.appendChild(c);g.appendChild(d);});
+  return g;}
+function dp2h(){var g=document.createElement('div');g.className='pvh';g.appendChild(btn('&#9664;',K.L));g.appendChild(btn('&#9654;',K.R));return g;}
+function dp2v(u,d){var g=document.createElement('div');g.className='pvac';g.appendChild(btn('&#9650;',u));g.appendChild(btn('&#9660;',d));return g;}
+function acv(a){var g=document.createElement('div');g.className='pvac';a.forEach(function(e){g.appendChild(e);});return g;}
+function acr(a){var g=document.createElement('div');g.className='pvar';a.forEach(function(e){g.appendChild(e);});return g;}
+function L(el){ov.appendChild(el);}
+function R(el){var w=document.createElement('div');w.style.cssText='display:flex;align-items:flex-end;';w.appendChild(el);ov.appendChild(w);}
+var profiles={
+  'dpad2+fire':function(){L(dp2h());R(btn('&#8857;',K.SP,'lg red'));},
+  'dpad4':function(){L(dp4());},
+  'dpad4+hold':function(){L(dp4());R(acv([btn('&#9193;',K.SP,'yel')]));},
+  'asteroids':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'lg red')]));},
+  'defender':function(){L(dp4());R(acv([btn('&#8857;',K.SP,'red'),btn('&#10022;',K.Z,'yel')]));},
+  'runner':function(){L(dp2h());R(acv([btn('&#8679;',K.SP,'lg grn')]));},
+  'joust':function(){L(dp2h());R(acv([btn('&#9650;',K.SP,'lg')]));},
+  'pong':function(){
+    L(dp2v(K.W,K.S));
+    var c=document.createElement('div');c.style.cssText='display:flex;align-items:flex-end;padding-bottom:4px;';c.appendChild(btn('&#9679;',K.SP,'grn'));ov.appendChild(c);
+    R(dp2v(K.U,K.D));},
+  'tetris':function(){
+    L(dp4());
+    R(acv([acr([btn('&#8635;',K.U,'grn'),btn('&#8634;',K.Z,'grn')]),btn('&#11015;',K.SP,'lg red')]));},
+  'twin-stick':function(){L(dp4w());R(dp4());},
+};
+var build=profiles[P];if(build)build();
+})("asteroids");
+</script>
+</body>
+</html>
